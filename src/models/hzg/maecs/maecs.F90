@@ -14,46 +14,25 @@ private
 public type_hzg_maecs,type_maecs_env,type_maecs_rhs
 ! --- HZG model types
 
-type type_maecs_env
- real(rk) :: temp,par
-end type 
-type  type_maecs_rhs
- real(rk) :: nutN,nutP,phyC,phyN,phyP,zooC,detC,detN,detP,domC,domN,domP,Rub,chl
-end type
+
 ! standard fabm model types
 
-type,extends(type_base_model),public :: type_hzg_maecs
-type (type_state_variable_id)        :: id_nutN,id_nutP,id_phyC,id_phyN,id_phyP,id_zooC,id_detC,id_detN,id_detP,id_domC,id_domN,id_domP,id_Rub,id_chl
-type (type_dependency_id)            :: id_temp
-type (type_dependency_id)            :: id_par
-type (type_diagnostic_variable_id)   :: id_chl2, id_fracR
-type (type_conserved_quantity_id)    :: id_totC, id_totN, id_totP
-real(rk) ::  nutN_initial, nutP_initial, phyC_initial, phyN_initial, phyP_initial, zooC_initial, detC_initial, detN_initial, detP_initial, domC_initial, domN_initial, domP_initial, frac_Rub_ini, frac_chl_ini
-real(rk) ::  P_max, alpha, sigma, theta_LHC, rel_chloropl_min, QN_phy_0, QN_phy_max, V_NC_max, AffN, zeta_CN, exud_phy, QP_phy_0, QP_phy_max, V_PC_max, AffP, adap_rub, adap_theta, tau_regV, phi_agg, vS_phy, vS_det, hydrol, remin, Ae_all, T_ref
-real(rk) ::  const_NC_zoo, const_PC_zoo, g_max, k_grazC, yield_zoo, basal_resp_zoo, mort_zoo
-real(rk) ::  a_water, a_spm, a_chl, frac_PAR, small, dil
-real(rk) ::  K_QN_phy, iK_QN, iK_QP, itheta_max, aver_QN_phy, aver_QP_phy, small_finite
-logical  ::  RubiscoOn, PhotoacclimOn, PhosphorusOn, GrazingOn, BioCarbochemOn, BioOxyOn, DebugDiagOn, ChemostatOn
+type,extends(type_maecs_base_model),public :: type_hzg_maecs
  contains
   procedure :: initialize
-!  procedure :: do => maecs_do
-!  procedure :: do_maecs
+  procedure :: do => maecs_do_sn
 !      procedure :: get_vertical_movement
 !      procedure :: get_light_extinction
 end type type_hzg_maecs
 
 
-public initialize
-! contains
-
-!   Model procedures
-! procedure :: initialize
-!procedure :: do
-!
-! !PRIVATE DATA MEMBERS:
-! real(rk), parameter :: secs_pr_day = 86400.0_rk
-!EOP
-!!--------------------------------------------------------------------
+interface
+  subroutine maecs_do_sn(self, _ARGUMENTS_DO_)
+  import type_hzg_maecs,type_environment,rk
+  class (type_hzg_maecs),intent(in) :: self
+  _DECLARE_ARGUMENTS_DO_
+  end subroutine
+end interface
 
 contains
 ! !IROUTINE: Initialise the maecs model

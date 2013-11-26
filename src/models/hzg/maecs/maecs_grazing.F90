@@ -10,7 +10,6 @@
 
 ! !USES:
    use fabm_types
-   use fabm_hzg_maecs
    use maecs_types
    use maecs_functions
    private

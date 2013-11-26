@@ -7,7 +7,6 @@
 ! !USES:
    use fabm_types
    use maecs_types
-   use fabm_hzg_maecs
 
    private
    public   uptflex       ,& 
@@ -177,7 +176,7 @@ subroutine min_mass(maecs,phy,method)
 
 implicit none
 
-type (type_hzg_maecs), intent(in)      :: maecs
+type (type_maecs_base_model), intent(in)      :: maecs
 type (type_maecs_phy), intent(inout)   :: phy
 integer, intent(in), optional          :: method
 
@@ -255,7 +254,7 @@ subroutine calc_rel_chloropl(maecs,phy,method)
 
 implicit none
 
-type (type_hzg_maecs), intent(in)    :: maecs
+type (type_maecs_base_model), intent(in)    :: maecs
 type (type_maecs_phy), intent(inout) :: phy
 integer, intent(in), optional        :: method
 integer :: mm_method=_MARKUS_
@@ -278,7 +277,7 @@ end subroutine
 subroutine calc_sensitivities(maecs,sens,phy,env,nut)
 
 implicit none
-type (type_hzg_maecs), intent(in) :: maecs
+type (type_maecs_base_model), intent(in) :: maecs
 type (type_maecs_sensitivities), intent(out) :: sens
 type (type_maecs_phy),intent(in) :: phy
 type (type_maecs_env),intent(in) :: env
@@ -313,7 +312,7 @@ end subroutine
 subroutine calc_internal_states(self,phy,det,dom,zoo)
 
 implicit none
-type (type_hzg_maecs),intent(in)     :: self
+type (type_maecs_base_model),intent(in)     :: self
 type (type_maecs_phy), intent(inout) :: phy
 type (type_maecs_om), intent(inout) :: det
 type (type_maecs_om), intent(inout) :: dom

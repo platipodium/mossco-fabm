@@ -10,7 +10,6 @@
 ! !USES:
    use fabm_types
 !   use fabm_driver
-   use fabm_hzg_maecs
    use maecs_types
    use maecs_functions
    private
@@ -24,7 +23,7 @@ REALTYPE, parameter  :: n_queue   = 2.d0
 subroutine photosynthesis(self,sens,phy,uptake,exud,acc)
 implicit none
 
-type (type_hzg_maecs), intent(in)          :: self
+type (type_maecs_base_model), intent(in)          :: self
 type (type_maecs_sensitivities),intent(in) :: sens
 type (type_maecs_phy), intent(inout)       :: phy
 type (type_maecs_om), intent(out)          :: uptake

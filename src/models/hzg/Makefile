@@ -2,10 +2,11 @@
 # Makefile to build the FABM models from HZG
 #
 
-SUBDIRS += omexdia_p maecs
+SUBDIRS += omexdia_p
+SUBDIRS += maecs
 
-#all: objs
-#	$(MOVE_MODULES_COMMAND)
+all: objs
+	$(MOVE_MODULES_COMMAND)
 
 objs doc clean:
 	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir $@ ; done

@@ -2,7 +2,7 @@
 !-----------------------------------------------------------------------------------
 ! !MODULE: MAECS 
 !          Model for Adaptive Ecosystems in Coastal Seas 
-module fabm_hzg_maecs_do
+module maecs_do
 
 use fabm_types
 use fabm_driver
@@ -10,22 +10,21 @@ use maecs_types
 use maecs_functions
 use maecs_primprod 
 use maecs_grazing
-use fabm_hzg_maecs
 
 !implicit none
 
 private
-public maecs_do
+public maecs_do_sn
 
 !public type_hzg_maecs
  contains
 
- subroutine maecs_do(self,_ARGUMENTS_DO_)
+ subroutine maecs_do_sn(self,_ARGUMENTS_DO_)
 !
 ! !INPUT PARAMETERS:
- class (type_hzg_maecs),intent(in) :: self
+class (type_maecs_base_model),intent(in) :: self
    _DECLARE_ARGUMENTS_DO_
-type (type_maecs_rhs)       :: rhsv
+type (type_maecs_rhs) :: rhsv
 type (type_maecs_phy) :: phy   ! phytoplankton type containing state and trait information
 type (type_maecs_zoo) :: zoo   ! zooplankton type 
 type (type_maecs_om)  :: dom, det, nut
@@ -347,5 +346,5 @@ end if
 
   _LOOP_END_
 
-end subroutine maecs_do
-end module fabm_hzg_maecs_do
+end subroutine maecs_do_sn
+end module maecs_do
