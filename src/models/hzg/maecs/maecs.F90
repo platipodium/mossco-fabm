@@ -20,14 +20,14 @@ public type_hzg_maecs,type_maecs_env,type_maecs_rhs
 type,extends(type_maecs_base_model),public :: type_hzg_maecs
  contains
   procedure :: initialize
-  procedure :: do => maecs_do_sn
+  procedure :: do => maecs_do
 !      procedure :: get_vertical_movement
 !      procedure :: get_light_extinction
 end type type_hzg_maecs
 
 
 interface
-  subroutine maecs_do_sn(self, _ARGUMENTS_DO_)
+  subroutine maecs_do(self, _ARGUMENTS_DO_)
   import type_hzg_maecs,type_environment,rk
   class (type_hzg_maecs),intent(in) :: self
   _DECLARE_ARGUMENTS_DO_

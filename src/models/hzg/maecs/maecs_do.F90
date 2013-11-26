@@ -1,8 +1,8 @@
 #include "fabm_driver.h"
 !-----------------------------------------------------------------------------------
-! !MODULE: MAECS 
 !          Model for Adaptive Ecosystems in Coastal Seas 
-module maecs_do
+
+subroutine maecs_do(self,_ARGUMENTS_DO_)
 
 use fabm_types
 use fabm_driver
@@ -11,16 +11,6 @@ use maecs_functions
 use maecs_primprod 
 use maecs_grazing
 
-!implicit none
-
-private
-public maecs_do_sn
-
-!public type_hzg_maecs
- contains
-
- subroutine maecs_do_sn(self,_ARGUMENTS_DO_)
-!
 ! !INPUT PARAMETERS:
 class (type_maecs_base_model),intent(in) :: self
    _DECLARE_ARGUMENTS_DO_
@@ -346,5 +336,4 @@ end if
 
   _LOOP_END_
 
-end subroutine maecs_do_sn
-end module maecs_do
+end subroutine maecs_do
