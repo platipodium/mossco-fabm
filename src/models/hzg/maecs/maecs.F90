@@ -1,0 +1,414 @@
+#include "fabm_driver.h"
+!-----------------------------------------------------------------------------------
+! !MODULE: MAECS 
+!          Model for Adaptive Ecosystems in Coastal Seas 
+module fabm_hzg_maecs
+use fabm_types
+use fabm_driver
+use maecs_types
+
+!implicit none
+
+private
+
+public type_hzg_maecs,type_maecs_env,type_maecs_rhs
+! --- HZG model types
+
+type type_maecs_env
+ real(rk) :: temp,par
+end type 
+type  type_maecs_rhs
+ real(rk) :: nutN,nutP,phyC,phyN,phyP,zooC,detC,detN,detP,domC,domN,domP,Rub,chl
+end type
+! standard fabm model types
+
+type,extends(type_base_model),public :: type_hzg_maecs
+type (type_state_variable_id)        :: id_nutN,id_nutP,id_phyC,id_phyN,id_phyP,id_zooC,id_detC,id_detN,id_detP,id_domC,id_domN,id_domP,id_Rub,id_chl
+type (type_dependency_id)            :: id_temp
+type (type_dependency_id)            :: id_par
+type (type_diagnostic_variable_id)   :: id_chl2, id_fracR
+type (type_conserved_quantity_id)    :: id_totC, id_totN, id_totP
+real(rk) ::  nutN_initial, nutP_initial, phyC_initial, phyN_initial, phyP_initial, zooC_initial, detC_initial, detN_initial, detP_initial, domC_initial, domN_initial, domP_initial, frac_Rub_ini, frac_chl_ini
+real(rk) ::  P_max, alpha, sigma, theta_LHC, rel_chloropl_min, QN_phy_0, QN_phy_max, V_NC_max, AffN, zeta_CN, exud_phy, QP_phy_0, QP_phy_max, V_PC_max, AffP, adap_rub, adap_theta, tau_regV, phi_agg, vS_phy, vS_det, hydrol, remin, Ae_all, T_ref
+real(rk) ::  const_NC_zoo, const_PC_zoo, g_max, k_grazC, yield_zoo, basal_resp_zoo, mort_zoo
+real(rk) ::  a_water, a_spm, a_chl, frac_PAR, small, dil
+real(rk) ::  K_QN_phy, iK_QN, iK_QP, itheta_max, aver_QN_phy, aver_QP_phy, small_finite
+logical  ::  RubiscoOn, PhotoacclimOn, PhosphorusOn, GrazingOn, BioCarbochemOn, BioOxyOn, DebugDiagOn, ChemostatOn
+ contains
+  procedure :: initialize
+!  procedure :: do => maecs_do
+!  procedure :: do_maecs
+!      procedure :: get_vertical_movement
+!      procedure :: get_light_extinction
+end type type_hzg_maecs
+
+
+public initialize
+! contains
+
+!   Model procedures
+! procedure :: initialize
+!procedure :: do
+!
+! !PRIVATE DATA MEMBERS:
+! real(rk), parameter :: secs_pr_day = 86400.0_rk
+!EOP
+!!--------------------------------------------------------------------
+
+contains
+! !IROUTINE: Initialise the maecs model
+!
+! !INTERFACE:
+subroutine initialize(self, configunit)
+! !DESCRIPTION:
+!  Here, the namelists are read and the variables exported
+!  by the model are registered with FABM.
+!
+! !INPUT PARAMETERS:
+class (type_hzg_maecs), intent(inout), target :: self
+integer,                  intent(in)            :: configunit
+!
+! !LOCAL VARIABLES:
+integer    :: namlst=19
+!!------- Initial values of model maecs ------- 
+real(rk)  :: nutN_initial ! Dissolved Inorganic Nitrogen DIN
+real(rk)  :: nutP_initial ! Dissolved Inorganic Phosphorus DIP
+real(rk)  :: phyC_initial ! Phytplankton Carbon
+real(rk)  :: phyN_initial ! Phytplankton Nitrogen
+real(rk)  :: phyP_initial ! Phytplankton Phosphorus
+real(rk)  :: zooC_initial ! Zooplankton Carbon
+real(rk)  :: detC_initial ! Detritus Carbon
+real(rk)  :: detN_initial ! Detritus Nitrogen
+real(rk)  :: detP_initial ! Detritus Phosphorus
+real(rk)  :: domC_initial ! Dissolved Organic Carbon
+real(rk)  :: domN_initial ! Dissolved Organic Nitrogen
+real(rk)  :: domP_initial ! Dissolved Organic Phosphorus
+real(rk)  :: frac_Rub_ini ! fraction of Rubisco
+real(rk)  :: Rub  ! trait times biomass
+real(rk)  :: frac_chl_ini ! Chl:C ratio
+real(rk)  :: chl  ! trait times biomass
+!!------- Parameters from nml-list maecs_pars ------- 
+real(rk)  :: P_max        ! maximum potential photosynthetic rate
+real(rk)  :: alpha        ! alpha
+real(rk)  :: sigma        ! Q-dependency of Rubisco activity/chloroplast ratio
+real(rk)  :: theta_LHC    ! chlorophyll a-to-C ratio of LHC
+real(rk)  :: rel_chloropl_min ! chloroplast-C to phy-C ratio
+real(rk)  :: QN_phy_0     ! subsistence N-quota
+real(rk)  :: QN_phy_max   ! maximum N-quota
+real(rk)  :: V_NC_max     ! maximum N uptake rate
+real(rk)  :: AffN         ! N-Affinity
+real(rk)  :: zeta_CN      ! respiratory costs of N-synthesis/NO3-reduction
+real(rk)  :: exud_phy     ! phytoplankton exudation per production
+real(rk)  :: QP_phy_0     ! subsistence P-quota
+real(rk)  :: QP_phy_max   ! subsistence P-quota
+real(rk)  :: V_PC_max     ! maximum P uptake rate
+real(rk)  :: AffP         ! P-Affinity
+real(rk)  :: adap_rub     ! adap_rub
+real(rk)  :: adap_theta   ! adap_theta
+real(rk)  :: tau_regV     ! tau_regV
+real(rk)  :: phi_agg      ! quadratic aggregation rate
+real(rk)  :: vS_phy       ! sinking velocity for phytoplankton
+real(rk)  :: vS_det       ! sinking velocity for detritus
+real(rk)  :: hydrol       ! hydrolysis rate
+real(rk)  :: remin        ! pelagic remineralisation
+real(rk)  :: Ae_all       ! Activation energy
+real(rk)  :: T_ref        ! reference temperature
+!!------- Parameters from nml-list maecs_graz ------- 
+real(rk)  :: const_NC_zoo ! zooplankton N:C ratio
+real(rk)  :: const_PC_zoo ! zooplankton P:C ratio
+real(rk)  :: g_max        ! maximum grazing rate
+real(rk)  :: k_grazC      ! half saturation graing
+real(rk)  :: yield_zoo    ! yield of herbivory
+real(rk)  :: basal_resp_zoo ! basal respiration
+real(rk)  :: mort_zoo     ! quadratic mortality
+!!------- Parameters from nml-list maecs_env ------- 
+real(rk)  :: a_water      ! background attenuation coefficient
+real(rk)  :: a_spm        ! attenuation coefficient of SPM
+real(rk)  :: a_chl        ! attenuation coefficient due to Chl absorption
+real(rk)  :: frac_PAR     ! photosynthetically active fraction of light
+real(rk)  :: small        ! lower limit for denominator in ratios; small_finite=sqrt(small)
+real(rk)  :: dil          ! dilution of all concentrations except dissolved inorganics
+!!------- Switches for configuring model structure -------
+logical   :: RubiscoOn    ! use Rubisco- here in C-units
+logical   :: PhotoacclimOn ! use Photoacclimation
+logical   :: PhosphorusOn ! resolve Phosphorus cycle
+logical   :: GrazingOn    ! use Zooplankton grazing
+logical   :: BioCarbochemOn ! use geochemistry module
+logical   :: BioOxyOn     ! use oxygen from other FABM model
+logical   :: DebugDiagOn  ! output of all diagnostics
+logical   :: ChemostatOn  ! use Chemostat mode 
+
+namelist /maecs_switch/ &
+  RubiscoOn, PhotoacclimOn, PhosphorusOn, GrazingOn, BioCarbochemOn, &
+  BioOxyOn, DebugDiagOn, ChemostatOn
+
+namelist /maecs_init/ &
+  nutN_initial, nutP_initial, phyC_initial, phyN_initial, phyP_initial, &
+  zooC_initial, detC_initial, detN_initial, detP_initial, domC_initial, &
+  domN_initial, domP_initial, frac_Rub_ini, frac_chl_ini
+
+namelist /maecs_pars/ &
+  P_max, alpha, sigma, theta_LHC, rel_chloropl_min, QN_phy_0, QN_phy_max, &
+  V_NC_max, AffN, zeta_CN, exud_phy, QP_phy_0, QP_phy_max, V_PC_max, AffP, &
+  adap_rub, adap_theta, tau_regV, phi_agg, vS_phy, vS_det, hydrol, remin, Ae_all, &
+  T_ref
+
+namelist /maecs_graz/ &
+  const_NC_zoo, const_PC_zoo, g_max, k_grazC, yield_zoo, basal_resp_zoo, &
+  mort_zoo
+
+namelist /maecs_env/ &
+  a_water, a_spm, a_chl, frac_PAR, small, dil
+
+nutN_initial = 30.0_rk            ! mmol-N/m**3
+nutP_initial = 1.2_rk             ! mmol-P/m**3
+phyC_initial = 3_rk               ! mmol-C/m**3
+phyN_initial = 0.5_rk             ! mmol-N/m**3
+phyP_initial = 0.02_rk            ! mmol-P/m**3
+zooC_initial = 1._rk              ! mmol-C/m**3
+detC_initial = 1_rk               ! mmol-C/m**3
+detN_initial = 0.1_rk             ! mmol-N/m**3
+detP_initial = 0.01_rk            ! mmol-P/m**3
+domC_initial = 0.1_rk             ! mmol-C/m**3
+domN_initial = 0.01_rk            ! mmol-N/m**3
+domP_initial = 0.001_rk           ! mmol-P/m**3
+frac_Rub_ini = 0.401_rk           ! -
+frac_chl_ini = 0.034_rk           ! mg-Chla/mmol-C
+P_max        = 15.0_rk            ! d^{-1}
+alpha        = 0.12_rk            ! m2 mol-C/(muE g-CHL)
+sigma        = 1.0_rk             ! 
+theta_LHC    = 1.2_rk             ! mgChl mmolC^{-1}
+rel_chloropl_min = 0.03_rk            ! mol-C/mol-C
+QN_phy_0     = 0.04_rk            ! mol-N/mol-C
+QN_phy_max   = 0.2_rk             ! mol-N/mol-C
+V_NC_max     = 0.2_rk             ! mmol-N/(m3 d)
+AffN         = 0.1_rk             ! m3/(mmol-N d)
+zeta_CN      = 2.3_rk             ! mol-C/mol-N
+exud_phy     = 0.0_rk             ! 
+QP_phy_0     = 0.0_rk             ! mol-P/mol-C
+QP_phy_max   = 0.02_rk            ! mol-P/mol-C
+V_PC_max     = 0.03_rk            ! mmol-P/(m3 d)
+AffP         = 0.07_rk            ! m3/(mmol-N d)
+adap_rub     = 1.0_rk             ! 
+adap_theta   = 1.0_rk             ! 
+tau_regV     = 99.0_rk            ! 
+phi_agg      = 2E-4_rk            ! m^6 mmolN^{-2} d^{-1}
+vS_phy       = 40E-2_rk           ! m d^{-1}
+vS_det       = 2._rk              ! m d^{-1}
+hydrol       = 0.03_rk            ! d^{-1}
+remin        = 0.03_rk            ! d^{-1}
+Ae_all       = 4500.0_rk          ! ...
+T_ref        = 288.0_rk           ! degC
+const_NC_zoo = 0.3_rk             ! mol/mol
+const_PC_zoo = 0.025_rk           ! mol/mol
+g_max        = 1._rk              ! per d
+k_grazC      = 5.0_rk             ! mmolN/m**3
+yield_zoo    = 0.35_rk            ! 
+basal_resp_zoo = 0.04_rk            ! per d
+mort_zoo     = 0.05_rk            ! m**3/mmolN.d
+a_water      = 0.01_rk            ! 1/m
+a_spm        = 0.001_rk           ! m**3/m.mmolC
+a_chl        = 0.02_rk            ! m**3/m.mgChl
+frac_PAR     = 1.0_rk             ! 
+small        = 1e-04_rk           ! 
+dil          = 0.0            ! 
+
+
+!--------- read namelists --------- 
+write(0,*) ' read namelists ....'
+open(namlst,file='./maecs_switch.nml',status='old')
+read(namlst,nml=maecs_switch,err=90,end=99)
+open(namlst,file='./maecs_init.nml',status='old')
+read(namlst,nml=maecs_init,err=91,end=100)
+open(namlst,file='./maecs_pars.nml',status='old')
+read(namlst,nml=maecs_pars,err=92,end=101)
+open(namlst,file='./maecs_graz.nml',status='old')
+read(namlst,nml=maecs_graz,err=93,end=102)
+open(namlst,file='./maecs_env.nml',status='old')
+read(namlst,nml=maecs_env,err=94,end=103)
+! Store parameter values in our own derived type
+! NB: all rates must be provided in values per day,
+! and are converted here to values per second.
+
+!!------- logical parameters: switches  -------
+call self%get_parameter(self%RubiscoOn,     'RubiscoOn',     default=RubiscoOn)
+call self%get_parameter(self%PhotoacclimOn,  'PhotoacclimOn',  default=PhotoacclimOn)
+call self%get_parameter(self%PhosphorusOn,  'PhosphorusOn',  default=PhosphorusOn)
+call self%get_parameter(self%GrazingOn,     'GrazingOn',     default=GrazingOn)
+call self%get_parameter(self%BioCarbochemOn,  'BioCarbochemOn',  default=BioCarbochemOn)
+call self%get_parameter(self%BioOxyOn,      'BioOxyOn',      default=BioOxyOn)
+call self%get_parameter(self%DebugDiagOn,   'DebugDiagOn',   default=DebugDiagOn)
+call self%get_parameter(self%ChemostatOn,   'ChemostatOn',   default=ChemostatOn)
+
+!!------- model parameters from nml-list maecs_init ------- 
+call self%get_parameter(self%nutN_initial ,'nutN_initial',  default=nutN_initial)
+call self%get_parameter(self%phyC_initial ,'phyC_initial',  default=phyC_initial)
+call self%get_parameter(self%phyN_initial ,'phyN_initial',  default=phyN_initial)
+call self%get_parameter(self%zooC_initial ,'zooC_initial',  default=zooC_initial)
+call self%get_parameter(self%detC_initial ,'detC_initial',  default=detC_initial)
+call self%get_parameter(self%detN_initial ,'detN_initial',  default=detN_initial)
+call self%get_parameter(self%domC_initial ,'domC_initial',  default=domC_initial)
+call self%get_parameter(self%domN_initial ,'domN_initial',  default=domN_initial)
+if (RubiscoOn) then
+    call self%get_parameter(self%frac_Rub_ini ,'frac_Rub_ini',  default=frac_Rub_ini)
+end if
+if (PhotoacclimOn) then
+    call self%get_parameter(self%frac_chl_ini ,'frac_chl_ini',  default=frac_chl_ini)
+end if
+if (PhosphorusOn) then
+    call self%get_parameter(self%nutP_initial ,'nutP_initial',  default=nutP_initial)
+    call self%get_parameter(self%phyP_initial ,'phyP_initial',  default=phyP_initial)
+    call self%get_parameter(self%detP_initial ,'detP_initial',  default=detP_initial)
+    call self%get_parameter(self%domP_initial ,'domP_initial',  default=domP_initial)
+end if
+
+!!------- model parameters from nml-list maecs_pars ------- 
+call self%get_parameter(self%P_max        ,'P_max',         default=P_max)
+call self%get_parameter(self%alpha        ,'alpha',         default=alpha)
+call self%get_parameter(self%sigma        ,'sigma',         default=sigma)
+call self%get_parameter(self%theta_LHC    ,'theta_LHC',     default=theta_LHC)
+call self%get_parameter(self%rel_chloropl_min ,'rel_chloropl_min',  default=rel_chloropl_min)
+call self%get_parameter(self%QN_phy_0     ,'QN_phy_0',      default=QN_phy_0)
+call self%get_parameter(self%QN_phy_max   ,'QN_phy_max',    default=QN_phy_max)
+call self%get_parameter(self%V_NC_max     ,'V_NC_max',      default=V_NC_max)
+call self%get_parameter(self%AffN         ,'AffN',          default=AffN)
+call self%get_parameter(self%zeta_CN      ,'zeta_CN',       default=zeta_CN)
+call self%get_parameter(self%exud_phy     ,'exud_phy',      default=exud_phy)
+call self%get_parameter(self%tau_regV     ,'tau_regV',      default=tau_regV)
+call self%get_parameter(self%phi_agg      ,'phi_agg',       default=phi_agg)
+call self%get_parameter(self%vS_phy       ,'vS_phy',        default=vS_phy)
+call self%get_parameter(self%vS_det       ,'vS_det',        default=vS_det)
+call self%get_parameter(self%hydrol       ,'hydrol',        default=hydrol)
+call self%get_parameter(self%remin        ,'remin',         default=remin)
+call self%get_parameter(self%Ae_all       ,'Ae_all',        default=Ae_all)
+call self%get_parameter(self%T_ref        ,'T_ref',         default=T_ref)
+if (PhotoacclimOn) then
+    call self%get_parameter(self%adap_rub     ,'adap_rub',      default=adap_rub)
+    call self%get_parameter(self%adap_theta   ,'adap_theta',    default=adap_theta)
+end if
+if (PhosphorusOn) then
+    call self%get_parameter(self%QP_phy_0     ,'QP_phy_0',      default=QP_phy_0)
+    call self%get_parameter(self%QP_phy_max   ,'QP_phy_max',    default=QP_phy_max)
+    call self%get_parameter(self%V_PC_max     ,'V_PC_max',      default=V_PC_max)
+    call self%get_parameter(self%AffP         ,'AffP',          default=AffP)
+end if
+
+!!------- model parameters from nml-list maecs_graz ------- 
+call self%get_parameter(self%const_NC_zoo ,'const_NC_zoo',  default=const_NC_zoo)
+if (PhosphorusOn) then
+    call self%get_parameter(self%const_PC_zoo ,'const_PC_zoo',  default=const_PC_zoo)
+end if
+if (GrazingOn) then
+    call self%get_parameter(self%g_max        ,'g_max',         default=g_max)
+    call self%get_parameter(self%k_grazC      ,'k_grazC',       default=k_grazC)
+    call self%get_parameter(self%yield_zoo    ,'yield_zoo',     default=yield_zoo)
+    call self%get_parameter(self%basal_resp_zoo ,'basal_resp_zoo',  default=basal_resp_zoo)
+    call self%get_parameter(self%mort_zoo     ,'mort_zoo',      default=mort_zoo)
+end if
+
+!!------- model parameters from nml-list maecs_env ------- 
+call self%get_parameter(self%a_water      ,'a_water',       default=a_water)
+call self%get_parameter(self%a_spm        ,'a_spm',         default=a_spm)
+call self%get_parameter(self%a_chl        ,'a_chl',         default=a_chl)
+call self%get_parameter(self%frac_PAR     ,'frac_PAR',      default=frac_PAR)
+call self%get_parameter(self%small        ,'small',         default=small)
+call self%get_parameter(self%dil          ,'dil',           default=dil)
+
+!!------- derived parameters  ------- 
+self%K_QN_phy     = QN_phy_max-QN_phy_0
+self%iK_QN        = 1.0d0/self%K_QN_phy
+self%iK_QP        = 1.0d0/(QP_phy_max-QP_phy_0)
+self%itheta_max   = 1.0d0/theta_LHC
+self%aver_QN_phy  = 5.0d-1*(QN_phy_max-QN_phy_0)
+self%aver_QP_phy  = 5.0d-1*(QP_phy_max-QP_phy_0)
+self%small_finite  = sqrt(small)
+
+!!------- Register state variables  ------- 
+call self%register_state_variable(self%id_nutN,  'nutN','mmol-N/m**3','Dissolved Inorganic Nitrogen DIN nutN', &
+   nutN_initial, minimum=_ZERO_, no_river_dilution=.true. )
+call self%register_state_variable(self%id_phyC,  'phyC','mmol-C/m**3','Phytplankton Carbon phyC', &
+   phyC_initial, minimum=_ZERO_, no_river_dilution=.true. )
+call self%register_state_variable(self%id_phyN,  'phyN','mmol-N/m**3','Phytplankton Nitrogen phyN', &
+   phyN_initial, minimum=_ZERO_, no_river_dilution=.true. )
+call self%register_state_variable(self%id_zooC,  'zooC','mmol-C/m**3','Zooplankton Carbon zooC', &
+   zooC_initial, minimum=_ZERO_, no_river_dilution=.false. )
+call self%register_state_variable(self%id_detC,  'detC','mmol-C/m**3','Detritus Carbon detC', &
+   detC_initial, minimum=_ZERO_, no_river_dilution=.true. )
+call self%register_state_variable(self%id_detN,  'detN','mmol-N/m**3','Detritus Nitrogen detN', &
+   detN_initial, minimum=_ZERO_, no_river_dilution=.true. )
+call self%register_state_variable(self%id_domC,  'domC','mmol-C/m**3','Dissolved Organic Carbon domC', &
+   domC_initial, minimum=_ZERO_, no_river_dilution=.false. )
+call self%register_state_variable(self%id_domN,  'domN','mmol-N/m**3','Dissolved Organic Nitrogen domN', &
+   domN_initial, minimum=_ZERO_, no_river_dilution=.false. )
+
+if (RubiscoOn) then
+    Rub = frac_Rub_ini * phyC_initial  ! trait times biomass
+    call self%register_state_variable(self%id_Rub,   'Rub','-','fraction of Rubisco Rub', &
+       Rub, minimum=_ZERO_, no_river_dilution=.true. )
+end if
+
+if (PhotoacclimOn) then
+    chl = frac_chl_ini * phyC_initial  ! trait times biomass
+    call self%register_state_variable(self%id_chl,   'chl','mg-Chla/mmol-C','Chl:C ratio chl', &
+       chl, minimum=_ZERO_, no_river_dilution=.true. )
+end if
+
+if (PhosphorusOn) then
+    call self%register_state_variable(self%id_nutP,  'nutP','mmol-P/m**3','Dissolved Inorganic Phosphorus DIP nutP', &
+       nutP_initial, minimum=_ZERO_, no_river_dilution=.true. )
+    call self%register_state_variable(self%id_phyP,  'phyP','mmol-P/m**3','Phytplankton Phosphorus phyP', &
+       phyP_initial, minimum=_ZERO_, no_river_dilution=.true. )
+    call self%register_state_variable(self%id_detP,  'detP','mmol-P/m**3','Detritus Phosphorus detP', &
+       detP_initial, minimum=_ZERO_, no_river_dilution=.true. )
+    call self%register_state_variable(self%id_domP,  'domP','mmol-P/m**3','Dissolved Organic Phosphorus domP', &
+       domP_initial, minimum=_ZERO_, no_river_dilution=.false. )
+end if
+
+!!------- Register diagnostic variables  ------- 
+call self%register_diagnostic_variable(self%id_chl2,    'chl2','gCHL/m**3', 'bulk chlorophyll concentration chl2', &
+  time_treatment=time_treatment_step_integrated)
+call self%register_diagnostic_variable(self%id_fracR,   'fracR','-', ' fracR', &
+  time_treatment=time_treatment_step_integrated)
+
+!!------- Register conserved quantities  ------- 
+call self%register_conserved_quantity(self%id_totC,'C','mmol-C/m**3','total-C')
+call self%register_conserved_quantity(self%id_totN,'N','mmol-N/m**3','total-N')
+call self%register_conserved_quantity(self%id_totP,'P','mmol-P/m**3','total-P')
+
+!!------- Register environmental dependencies  ------- 
+call self%register_dependency(self%id_temp,varname_temp)
+call self%register_dependency(self%id_par,varname_par)
+
+return
+
+!!-------  if files are not found ...  
+90 call fatal_error('maecs_init','Error reading namelist maecs_switch.')
+91 call fatal_error('maecs_init','Error reading namelist maecs_init.')
+92 call fatal_error('maecs_init','Error reading namelist maecs_pars.')
+93 call fatal_error('maecs_init','Error reading namelist maecs_graz.')
+94 call fatal_error('maecs_init','Error reading namelist maecs_env.')
+99 call fatal_error('maecs_init','Namelist maecs_switch was not found in file.')
+100 call fatal_error('maecs_init','Namelist maecs_init was not found in file.')
+101 call fatal_error('maecs_init','Namelist maecs_pars was not found in file.')
+102 call fatal_error('maecs_init','Namelist maecs_graz was not found in file.')
+103 call fatal_error('maecs_init','Namelist maecs_env was not found in file.')
+
+end subroutine initialize
+
+!!----------------------------------------------------------------------
+!!   end of section generated by parser 
+!!----------------------------------------------------------------------
+!#SP#
+! set inverse parameters to avoid numerically expensive divisions
+! set small boundary depending on numerical resolution
+
+!-----------------------------------------------------------------------
+! !IROUTINE: MAECS core model, definition of sources and sinks 
+! !INTERFACE:
+
+end module fabm_hzg_maecs
+
+
+
+
+
