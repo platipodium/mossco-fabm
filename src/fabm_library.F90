@@ -28,6 +28,7 @@
    use au_prey_predator
    use fabm_hzg_omexdia_p
    use fabm_iow_spm
+   use fabm_hzg_maecs
    ! ADD_NEW_FORTRAN2003_MODEL_HERE - required
 #endif
 
@@ -88,6 +89,7 @@
          case ('gotm_ergom');          allocate(type_gotm_ergom::model)
          case ('hzg_omexdia_p');       allocate(type_hzg_omexdia_p::model)
          case ('iow_spm');             allocate(type_iow_spm::model)
+         case ('hzg_maecs');           allocate(type_hzg_maecs::model)
          ! ADD_NEW_FORTRAN2003_MODEL_HERE - required
          case default
             if ( modelname(1:4) .eq. 'aed_' ) &
