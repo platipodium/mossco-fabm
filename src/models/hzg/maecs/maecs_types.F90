@@ -11,7 +11,7 @@ public type_maecs_sensitivities, type_maecs_om, &
 type,extends(type_base_model),public :: type_maecs_base_model
 ! the maecs base type containing parameters and variables id's
 
-type (type_state_variable_id)        :: id_nutN,id_nutP,id_phyC,id_phyN,id_phyP,id_zooC,id_detC,id_detN,id_detP,id_domC,id_domN,id_domP,id_Rub,id_chl
+type (type_state_variable_id)        :: id_nutN,id_nutP,id_phyC,id_phyN,id_phyP,id_zooC,id_detC,id_detN,id_detP,id_domC,id_domN,id_domP,id_Rub2,id_chl
 type (type_dependency_id)            :: id_temp
 type (type_dependency_id)            :: id_par
 type (type_diagnostic_variable_id)   :: id_chl2, id_fracR, id_tmp
@@ -30,7 +30,7 @@ type type_maecs_env
 end type
 
 type  type_maecs_rhs
- real(rk) :: nutN,nutP,phyC,phyN,phyP,zooC,detC,detN,detP,domC,domN,domP,Rub,chl
+ real(rk) :: nutN,nutP,phyC,phyN,phyP,zooC,detC,detN,detP,domC,domN,domP,Rub2,chl
 end type
 
 !  Original author(s): Richard Hofmeister & Kai Wirtz
@@ -40,69 +40,64 @@ end type
 !!----------------------------------------------------------------------
 
 type type_maecs_om
-   REALTYPE :: C,N,P
+   real(rk) :: C,N,P
 end type
 
 type type_maecs_allocation_fractions
-   REALTYPE :: Rub
-   REALTYPE :: theta
-   REALTYPE :: NutUpt ! remaining nitrogen fraction for uptake and processing            [dimensionless]
-   REALTYPE :: TotFree ! nitrogen fraction of free/available proteins/enzymes and RNA    [dimensionless]
-   REALTYPE :: rel_phys ! physiological(=energetical&nutritional) status 0...1
+   real(rk) :: Rub
+   real(rk) :: theta
+   real(rk) :: NutUpt ! remaining nitrogen fraction for uptake and processing            [dimensionless]
+   real(rk) :: TotFree ! nitrogen fraction of free/available proteins/enzymes and RNA    [dimensionless]
+   real(rk) :: rel_phys ! physiological(=energetical&nutritional) status 0...1
 end type
 
 type type_maecs_phy
-      REALTYPE   :: C,N,P
-      REALTYPE   :: C_reg, N_reg, P_reg
-      REALTYPE   :: chl, Rub
-      REALTYPE   :: rel_chloropl
-      REALTYPE   :: rel_QN, rel_QP, rel_QNP
-      REALTYPE   :: QN,QP,QPN,theta
+      real(rk)   :: C,N,P
+      real(rk)   :: C_reg, N_reg, P_reg
+      real(rk)   :: chl, Rub
+      real(rk)   :: rel_chloropl
+      real(rk)   :: rel_QN, rel_QP, rel_QNP
+      real(rk)   :: QN,QP,QPN,theta
       type (type_maecs_allocation_fractions) :: frac
 end type
 
 type type_maecs_zoo
-      REALTYPE   :: C,N,P
-      REALTYPE   :: yield,flopp
-      REALTYPE   :: QN,QP
-      REALTYPE   :: feeding
+      real(rk)   :: C,N,P
+      real(rk)   :: yield,flopp
+      real(rk)   :: QN,QP
+      real(rk)   :: feeding
 end type
 
 ! Time and Chl derivatives of trait variables
 type type_maecs_traitdyn
-      REALTYPE   :: dtheta_dt
-      REALTYPE   :: dfracR_dt
-      REALTYPE   :: dRchl_dtheta
-      REALTYPE   :: dRchl_dfracR 
-      REALTYPE   :: dRchl_dQN
-      REALTYPE   :: tmp,fac1,fac2  ! for volatile diagnostics
-      REALTYPE   :: bal_C,bal_N,bal_P  ! for mass balancing
+      real(rk)   :: dtheta_dt
+      real(rk)   :: dfracR_dt
+      real(rk)   :: dRchl_dtheta
+      real(rk)   :: dRchl_dfracR 
+      real(rk)   :: dRchl_dQN
+      real(rk)   :: tmp,fac1,fac2  ! for volatile diagnostics
 end type
 
 
 ! TODO generalize matter structure C,N,P,QN,QP
 
 type type_maecs_derivative
-   REALTYPE :: dregV
-   REALTYPE :: dtheta
-   REALTYPE :: dfracR
-   REALTYPE :: dfracP
-   REALTYPE :: dQN
+   real(rk) :: dregV
+   real(rk) :: dtheta
+   real(rk) :: dfracR
+   real(rk) :: dfracP
+   real(rk) :: dQN
 end type
 
 type type_maecs_sensitivities
-   REALTYPE :: func_T   ! temperature dependency of metabolic rates
-   REALTYPE :: P_max_T  ! temperature dependent maximum photosynthetic rate                        [d^{-1}]
-   REALTYPE :: a_light  ! exponent of light limitation 'S_phot'                             [dimensionless]
-   REALTYPE :: S_phot   ! light limitation                                                  [dimensionless]
-   REALTYPE :: up_NC    ! C specific N-uptake
-   REALTYPE :: up_PC    ! C specific P-uptake	
+   real(rk) :: func_T   ! temperature dependency of metabolic rates
+   real(rk) :: P_max_T  ! temperature dependent maximum photosynthetic rate                        [d^{-1}]
+   real(rk) :: a_light  ! exponent of light limitation 'S_phot'                             [dimensionless]
+   real(rk) :: S_phot   ! light limitation                                                  [dimensionless]
+   real(rk) :: up_NC    ! C specific N-uptake
+   real(rk) :: up_PC    ! C specific P-uptake	
 end type
 
-type type_maecs_limitation_factors
-   REALTYPE :: fac_PN_colim
-   REALTYPE :: lim_P, lim_N
-end type
 
 end module
 

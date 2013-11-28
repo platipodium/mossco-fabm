@@ -19,8 +19,8 @@
 subroutine grazing(Imax,HalfSat,preyconc,rate)
 !
   implicit none
-  REALTYPE, intent(in)       :: Imax,HalfSat,preyconc
-  REALTYPE, intent(out)      :: rate
+  real(rk), intent(in)       :: Imax,HalfSat,preyconc
+  real(rk), intent(out)      :: rate
 !-------------------------------------------------------------
   ! Holling-III response function
   rate   = Imax * preyconc**2 /(HalfSat**2+preyconc**2)          ! [d^{-1}]
@@ -33,9 +33,9 @@ subroutine grazing(Imax,HalfSat,preyconc,rate)
 subroutine grazing_losses(zoo,resC,NC_prey,PC_prey,lossZNut,lossZDet,isP,isTotIng)
 !
   implicit none
-!  REALTYPE, intent(in)       :: rate,resC,NC_zoo,NC_prey,PC_prey,PC_zoo
+!  real(rk), intent(in)       :: rate,resC,NC_zoo,NC_prey,PC_prey,PC_zoo
   type (type_maecs_zoo), intent(in)		:: zoo ! zooplankton type containing quota information
-  REALTYPE, intent(in)       			:: resC, NC_prey, PC_prey
+  real(rk), intent(in)       			:: resC, NC_prey, PC_prey
   logical, intent(in)        			:: isP, isTotIng         ! switches
   type (type_maecs_om), intent(out)       	:: lossZNut,lossZDet 
 ! -------------- loss by floppy feeding and egestion to detritus

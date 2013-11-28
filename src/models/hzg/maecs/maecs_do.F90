@@ -23,24 +23,24 @@ type (type_maecs_sensitivities) :: sens
 
 ! --- LOCAL MODEL VARIABLES:
 integer  :: i, j, iz, ihour, iloop
-REALTYPE :: reminT, degradT       ! Temp dependent remineralisation and hydrolysis rates
+real(rk) :: reminT, degradT       ! Temp dependent remineralisation and hydrolysis rates
 ! --- QUOTA and FRACTIONS
-REALTYPE :: phys_status, dQN_dt, dRchl_phyC_dt=0.0d0 ! []
+real(rk) :: phys_status, dQN_dt, dRchl_phyC_dt=0.0_rk ! []
 
 ! --- ZOOPLANKTON GRAZING, INGESTION, MORTALITY, RESPIRATION... 
-REALTYPE :: graz_rate   ! carbon-specific grazing rate                          [d^{-1}]
-REALTYPE :: yield_zoo   ! grazed fraction that is actually ingested            [dimensionless]
-REALTYPE :: zoo_respC   ! temperature dependent carbon respiration rate  [mmolC m^{-3} d^{-1}]
-REALTYPE :: zoo_mort
+real(rk) :: graz_rate   ! carbon-specific grazing rate                          [d^{-1}]
+real(rk) :: yield_zoo   ! grazed fraction that is actually ingested            [dimensionless]
+real(rk) :: zoo_respC   ! temperature dependent carbon respiration rate  [mmolC m^{-3} d^{-1}]
+real(rk) :: zoo_mort,rub3
 
 ! --- AGGREGATION 
-REALTYPE :: aggreg_rate ! aggregation among phytoplankton and between phytoplankton & detritus [d^{-1}]    
+real(rk) :: aggreg_rate ! aggregation among phytoplankton and between phytoplankton & detritus [d^{-1}]    
 logical  :: out = .true.
 !   if(36000.eq.secondsofday .and. mod(julianday,1).eq.0 .and. outn) out=.true.    
 #define _KAI_ 0
 #define _MARKUS_ 1
-#define UNIT /86400_rk
-!#define UNIT *1.1574074074E-5
+#define UNIT / 86400
+!#define UNIT *1.1574074074E-5_rk
 
  _LOOP_BEGIN_
 ! First retrieve current (local) state  variable values
@@ -49,13 +49,18 @@ logical  :: out = .true.
   _GET_(self%id_nutN, nut%N)  ! Dissolved Inorganic Nitrogen DIN in mmol-N/m**3
   _GET_(self%id_phyC, phy%C)  ! Phytplankton Carbon in mmol-C/m**3
   _GET_(self%id_phyN, phy%N)  ! Phytplankton Nitrogen in mmol-N/m**3
-  _GET_(self%id_zooC, zoo%C)  ! Zooplankton Carbon in mmol-C/m**3
   _GET_(self%id_detC, det%C)  ! Detritus Carbon in mmol-C/m**3
   _GET_(self%id_detN, det%N)  ! Detritus Nitrogen in mmol-N/m**3
   _GET_(self%id_domC, dom%C)  ! Dissolved Organic Carbon in mmol-C/m**3
   _GET_(self%id_domN, dom%N)  ! Dissolved Organic Nitrogen in mmol-N/m**3
+if (self%GrazingOn) then
+  _GET_(self%id_zooC, zoo%C)  ! Zooplankton Carbon in mmol-C/m**3
+end if
+
+
 if (self%RubiscoOn) then
-      _GET_(self%id_Rub, phy%Rub)  ! fraction of Rubisco in -
+      _GET_(self%id_Rub2, phy%Rub)  ! fraction of Rubisco in -
+
 end if
 if (self%PhotoacclimOn) then
       _GET_(self%id_chl, phy%chl)  ! Chl:C ratio in mg-Chla/mmol-C
@@ -91,6 +96,7 @@ end if
 ! --- checking and correcting extremely low state values  ------------  
 call min_mass(self,phy,method=_KAI_) ! minimal reasonable Phy-C and -Nitrogen
 !call min_mass(self,phy,method=3)
+!write (*,'(A,3(F10.3))') '3 rub=',phy%Rub
 
 ! --- stoichiometry of autotrophs (calculating QN_phy, frac_R, theta, and QP_phy)
 call calc_internal_states(self,phy,det,dom,zoo)
@@ -129,9 +135,9 @@ if (self%GrazingOn) then
   zoo_mort    = self%mort_zoo * sens%func_T  * zoo%C
 
 else
-  graz_rate   = 0.0d0
-  lossZ       = type_maecs_om(0.0d0, 0.0d0, 0.0d0)
-  floppZ      = type_maecs_om(0.0d0, 0.0d0, 0.0d0)
+  graz_rate   = 0.0_rk
+  lossZ       = type_maecs_om(0.0_rk, 0.0_rk, 0.0_rk)
+  floppZ      = type_maecs_om(0.0_rk, 0.0_rk, 0.0_rk)
 end if
 
 ! --- phytoplankton aggregation -------------------------------------------------
@@ -143,7 +149,7 @@ end if
 !write (*,'(A,1(F10.3))') 'phys=',phys_status
 ! _SET_DIAGNOSTIC_(self%id_tmp,phy%frac%rel_phys ) !step_integrated bulk chlorophyll concentration
 
-aggreg_rate = self%phi_agg * (1.0d0 - exp(-0.02*dom%C)) * (phy%N + det%N) 
+aggreg_rate = self%phi_agg * (1.0_rk - exp(-0.02*dom%C)) * (phy%N + det%N) 
 !         vS * exp(-4*phys_status )                ! [d^{-1}] 
 !aggreg_rate = aggreg_rate * exp(-4*phy%rel_phys ) 
 
@@ -193,15 +199,16 @@ if (self%PhotoacclimOn) then
 
 !_____________________________________________ _________________________________
 
-   if (self%RubiscoOn) then 
+if (self%RubiscoOn) then 
 !        rhsv%rub  = acclim%dfracR_dt * phy%N_reg + phy%Rub / phy%N_reg * rhsv%phyN  !phy%Rub / phy%C_reg
-     rhsv%rub  = acclim%dfracR_dt * phy%C_reg +  phy%Rub / phy%C_reg * rhsv%phyC 
+    rhsv%Rub2  = acclim%dfracR_dt * phy%C_reg + phy%Rub/phy%C_reg * rhsv%phyC 
 ! add relaxation term to destroy unphysical Rub accumulation
 !     if( phy%Rub .gt. 0.9d0*phy%C) rhsv%rub = rhsv%rub - phy%Rub/(1.d0+exp(-67.d0*(phy%Rub/ phy%C_reg  - 1.d0)))
+!write (*,'(A,2(F10.3))') '2:',acc%dfracR_dt*1E3, grad_fracR *1E3
 
-write (*,'(A,5(F10.3))') 'rub=',phy%Rub,phy%C,phy%theta,phy%frac%Rub,self%small_finite + self%rel_chloropl_min
-
-  _SET_DIAGNOSTIC_(self%id_tmp,acclim%dfracR_dt ) !step_integrated bulk chlorophyll concentration
+!write (*,'(A,5(F10.3))') 'rub=',phy%Rub,phy%C,phy%Rub/phy%C_reg,phy%frac%Rub,rhsv%Rub2-phy%Rub / phy%C_reg * rhsv%phyC
+ _SET_DIAGNOSTIC_(self%id_tmp,phy%Rub ) !step_integrated bulk chlorophyll concentration
+!  _SET_DIAGNOSTIC_(self%id_tmp,acclim%dfracR_dt ) !step_integrated bulk chlorophyll concentration
 
    end if 
 end if 
@@ -214,7 +221,7 @@ if (self%GrazingOn) then
                 - self%dil          * zoo%C   &         
                 - lossZ%C           * zoo%C
 else
-   rhsv%zooC      = 0.0d0
+   rhsv%zooC      = 0.0_rk
 end if 
 !write (*,'(A,2(F10.3))') 'zoo=',zoo%C,rhsv%zooC
 !if (zoo%C .gt. 10.d0) write (*,'(A,3(F10.3))') 'RHS zoo=',zoo%C,rhsv%zooC,zoo%yield * graz_rate
@@ -303,13 +310,17 @@ end if
   _SET_ODE_(self%id_nutN, rhsv%nutN UNIT)
   _SET_ODE_(self%id_phyC, rhsv%phyC UNIT)
   _SET_ODE_(self%id_phyN, rhsv%phyN UNIT)
-  _SET_ODE_(self%id_zooC, rhsv%zooC UNIT)
   _SET_ODE_(self%id_detC, rhsv%detC UNIT)
   _SET_ODE_(self%id_detN, rhsv%detN UNIT)
   _SET_ODE_(self%id_domC, rhsv%domC UNIT)
   _SET_ODE_(self%id_domN, rhsv%domN UNIT)
+
+if (self%GrazingOn) then
+  _SET_ODE_(self%id_zooC, rhsv%zooC UNIT)
+end if 
 if (self%RubiscoOn) then
-      _SET_ODE_(self%id_Rub, rhsv%Rub UNIT)
+      _SET_ODE_(self%id_Rub2, rhsv%Rub2 UNIT)
+!      _SET_ODE_(self%id_Rub2, 0.0_rk  UNIT)
 end if
 if (self%PhotoacclimOn) then
       _SET_ODE_(self%id_chl, rhsv%chl UNIT)

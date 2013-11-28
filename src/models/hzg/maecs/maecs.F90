@@ -305,8 +305,6 @@ call self%register_state_variable(self%id_phyC,  'phyC','mmol-C/m**3','Phytplank
    phyC_initial, minimum=_ZERO_, no_river_dilution=.true. )
 call self%register_state_variable(self%id_phyN,  'phyN','mmol-N/m**3','Phytplankton Nitrogen phyN', &
    phyN_initial, minimum=_ZERO_, no_river_dilution=.true. )
-call self%register_state_variable(self%id_zooC,  'zooC','mmol-C/m**3','Zooplankton Carbon zooC', &
-   zooC_initial, minimum=_ZERO_, no_river_dilution=.false. )
 call self%register_state_variable(self%id_detC,  'detC','mmol-C/m**3','Detritus Carbon detC', &
    detC_initial, minimum=_ZERO_, no_river_dilution=.true. )
 call self%register_state_variable(self%id_detN,  'detN','mmol-N/m**3','Detritus Nitrogen detN', &
@@ -316,9 +314,14 @@ call self%register_state_variable(self%id_domC,  'domC','mmol-C/m**3','Dissolved
 call self%register_state_variable(self%id_domN,  'domN','mmol-N/m**3','Dissolved Organic Nitrogen domN', &
    domN_initial, minimum=_ZERO_, no_river_dilution=.false. )
 
+if (GrazingOn) then
+   call self%register_state_variable(self%id_zooC,  'zooC','mmol-C/m**3','Zooplankton Carbon zooC', &
+   zooC_initial, minimum=_ZERO_, no_river_dilution=.false. )
+end if
+
 if (RubiscoOn) then
     Rub = frac_Rub_ini * phyC_initial  ! trait times biomass
-    call self%register_state_variable(self%id_Rub,   'Rub','-','fraction of Rubisco Rub', &
+    call self%register_state_variable(self%id_Rub2,   'Rub','-','fraction of Rubisco Rub', &
        Rub, minimum=_ZERO_, no_river_dilution=.true. )
 end if
 

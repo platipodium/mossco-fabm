@@ -16,7 +16,7 @@
    public    photosynthesis     
 
 ! --- local fixed parameter 
-REALTYPE, parameter  :: n_queue   = 2.d0
+real(rk), parameter  :: n_queue   = 2.d0
 
  contains  
 
@@ -31,75 +31,75 @@ type (type_maecs_om), intent(out)          :: exud
 type (type_maecs_traitdyn), intent(out)    :: acc
 
 !integer, intent(in), optional          :: method
-REALTYPE :: ratio_free_PN ! ratio of free P- over free N-reserves '(phy%rel_QP/phy%rel_QN)'     [molP molN^{-1}]
-REALTYPE :: IsVQP         ! switching on/off additional gradient terms for phosphorus      [dimensionless]  
-REALTYPE :: fac_PN_colim ! colimitation due to 'ratio_free_PN'                            [dimensionless]
+real(rk) :: ratio_free_PN ! ratio of free P- over free N-reserves '(phy%rel_QP/phy%rel_QN)'     [molP molN^{-1}]
+real(rk) :: IsVQP         ! switching on/off additional gradient terms for phosphorus      [dimensionless]  
+real(rk) :: fac_PN_colim ! colimitation due to 'ratio_free_PN'                            [dimensionless]
 
 ! --- UPTAKE KINETICS
 
-!REALTYPE :: V_NC_max_T ! temperature dependent, carbon-specific maximum N-uptake   [molN molC^{-1} d^{-1}]  
-!REALTYPE :: V_PC_max_T ! temperature dependent, carbon-specific maximum P-uptake   [molP molC^{-1} d^{-1}]   
-REALTYPE :: upt_N  ! kinematic, carbon-specific N-uptake rate                  [molN molC^{-1} d^{-1}]
-REALTYPE :: upt_P      ! kinematic, carbon-specific P-uptake rate                  [molP molC^{-1} d^{-1}]
-REALTYPE :: reg_V_NC   ! regulation of 'up_NC'                                             [dimensionless]
-REALTYPE :: reg_V_PC   ! regulation of 'upt_P'                                             [dimensionless]
-!REALTYPE :: V_NC       ! actual carbon-specific N-uptake rate                      [molN molC^{-1} d^{-1}]
-!REALTYPE :: V_PC       ! actual carbon-specific P-uptake rate                      [molP molC^{-1} d^{-1}]
-REALTYPE :: gross_nue  ! gross carbon uptake rate per relative nutrient fraction ("Nitrogen Use Efficiency") [d^{-1}]
-!REALTYPE :: mu         ! relative growth rate                                                     [d^{-1}]
-!REALTYPE :: resp,rest  ! respiration rate
+!real(rk) :: V_NC_max_T ! temperature dependent, carbon-specific maximum N-uptake   [molN molC^{-1} d^{-1}]  
+!real(rk) :: V_PC_max_T ! temperature dependent, carbon-specific maximum P-uptake   [molP molC^{-1} d^{-1}]   
+real(rk) :: upt_N  ! kinematic, carbon-specific N-uptake rate                  [molN molC^{-1} d^{-1}]
+real(rk) :: upt_P      ! kinematic, carbon-specific P-uptake rate                  [molP molC^{-1} d^{-1}]
+real(rk) :: reg_V_NC   ! regulation of 'up_NC'                                             [dimensionless]
+real(rk) :: reg_V_PC   ! regulation of 'upt_P'                                             [dimensionless]
+!real(rk) :: V_NC       ! actual carbon-specific N-uptake rate                      [molN molC^{-1} d^{-1}]
+!real(rk) :: V_PC       ! actual carbon-specific P-uptake rate                      [molP molC^{-1} d^{-1}]
+real(rk) :: gross_nue  ! gross carbon uptake rate per relative nutrient fraction ("Nitrogen Use Efficiency") [d^{-1}]
+!real(rk) :: mu         ! relative growth rate                                                     [d^{-1}]
+!real(rk) :: resp,rest  ! respiration rate
 ! *************************************************************************************************  
 ! --- DERIVATIVES OF N-UPTAKE (FOR TRAIT-BASED ADAPTIVE DYNAMICS)
 
-REALTYPE :: dVNC_dfracR ! [...]
-REALTYPE :: dVNC_dfracP ! [...]
-REALTYPE :: dVNC_dregV, dVPC_dregV ! [...]
-REALTYPE :: dVNC_dQN    ! [...]
-REALTYPE :: dVNC_dtheta ! [...]
+real(rk) :: dVNC_dfracR ! [...]
+real(rk) :: dVNC_dfracP ! [...]
+real(rk) :: dVNC_dregV, dVPC_dregV ! [...]
+real(rk) :: dVNC_dQN    ! [...]
+real(rk) :: dVNC_dtheta ! [...]
 ! DERIVATIVE OF RELATIVE GROWTH RATE WITH RESPECT TO N:C QUOTA OF PHYTOPLANKTON 
-REALTYPE :: dmu_dQN     ! [...]
-REALTYPE :: dQ_dV
-REALTYPE :: tmp
+real(rk) :: dmu_dQN     ! [...]
+real(rk) :: dQ_dV
+real(rk) :: tmp
 ! --- DERIVATIVES OF P-UPTAKE (FOR TRAIT-BASED ADAPTIVE DYNAMICS)
 
-REALTYPE :: dVPC_dtheta
-REALTYPE :: dVPC_dfracR ! [...]
-REALTYPE :: dVPC_dQN    ! [...] 
-REALTYPE :: deriv_fac_PN_colim   
+real(rk) :: dVPC_dtheta
+real(rk) :: dVPC_dfracR ! [...]
+real(rk) :: dVPC_dQN    ! [...] 
+real(rk) :: deriv_fac_PN_colim   
 ! DERIVATIVE OF RELATIVE GROWTH RATE WITH RESPECT TO P:C QUOTA OF PHYTOPLANKTON 
-REALTYPE :: dmu_dQP     ! [...] 
+real(rk) :: dmu_dQP     ! [...] 
 ! --- DERIVATIVES OF C-UPTAKE (FOR TRAIT-BASED ADAPTIVE DYNAMICS)
   
-REALTYPE :: dmu_dtheta  ! [...]
-REALTYPE :: dmu_dfracR  ! [...]
-REALTYPE :: dmu_dfracPN_colim ! [...]
-REALTYPE :: dmu_dregV   ! [...]
+real(rk) :: dmu_dtheta  ! [...]
+real(rk) :: dmu_dfracR  ! [...]
+real(rk) :: dmu_dfracPN_colim ! [...]
+real(rk) :: dmu_dregV   ! [...]
 
 ! --- DERIVATIVES FOR TRADE-OFF & ADAPTATION
-REALTYPE :: eps, rel_phys
-REALTYPE :: dmu, dmu_small       ! [...] 
-REALTYPE :: dQN_dtheta ! [...]
-REALTYPE :: dQN_dfracR ! [...]
-REALTYPE :: dQN_dregV ! [...]
-REALTYPE :: dQN_dfracP ! [...]
+real(rk) :: eps, rel_phys
+real(rk) :: dmu, dmu_small       ! [...] 
+real(rk) :: dQN_dtheta ! [...]
+real(rk) :: dQN_dfracR ! [...]
+real(rk) :: dQN_dregV ! [...]
+real(rk) :: dQN_dfracP ! [...]
 
-REALTYPE :: dmuP       ! [...]
-REALTYPE :: dQP_dtheta ! [...]
-REALTYPE :: dQP_dfracR ! [...]
-REALTYPE :: dQP_dregV ! [...]
-REALTYPE :: dQP_dfracP ! [...]
-REALTYPE :: grossC,lossC
-REALTYPE :: grad_VN, grad_VP     ! [...]
-REALTYPE :: dbal_dv
-REALTYPE :: lim_N, lim_P
-REALTYPE :: dmudVN, dmudVP
-REALTYPE :: grad_theta ! [...]
-REALTYPE :: flex_theta ! [...]
-REALTYPE :: a1, a2, a3
-REALTYPE :: feedb_vq
-REALTYPE :: phyCR, phyNR, phyPR
-REALTYPE :: grad_fracR ! [...]
-REALTYPE :: flex_fracR ! [...]
+real(rk) :: dmuP       ! [...]
+real(rk) :: dQP_dtheta ! [...]
+real(rk) :: dQP_dfracR ! [...]
+real(rk) :: dQP_dregV ! [...]
+real(rk) :: dQP_dfracP ! [...]
+real(rk) :: grossC,lossC
+real(rk) :: grad_VN, grad_VP     ! [...]
+real(rk) :: dbal_dv
+real(rk) :: lim_N, lim_P
+real(rk) :: dmudVN, dmudVP
+real(rk) :: grad_theta ! [...]
+real(rk) :: flex_theta ! [...]
+real(rk) :: a1, a2, a3
+real(rk) :: feedb_vq
+real(rk) :: phyCR, phyNR, phyPR
+real(rk) :: grad_fracR ! [...]
+real(rk) :: flex_fracR ! [...]
 ! 
 eps     =  self%small_finite ! just  a shorter namer
 ! switching off phosphorus terms in the derivatives
@@ -273,6 +273,9 @@ if (self%PhotoacclimOn .and. self%RubiscoOn) then
 
           ! *** ADAPTIVE EQUATION FOR 'frac_R'
    acc%dfracR_dt = flex_fracR * grad_fracR  
+!write (*,'(A,2(F10.3))') '2:',acc%dfracR_dt*1E3, grad_fracR *1E3
+
+
 end if
 
 ! --- regulation speed in photoacclimation   --------------------------------------

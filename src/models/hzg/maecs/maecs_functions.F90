@@ -17,13 +17,13 @@
  contains  
 
 !---------------------------------------------------------
-pure REALTYPE function smooth_small(x, eps)
+pure real(rk) function smooth_small(x, eps)
 !
 !  continous smoothing function by kw Apr 2012
 !  avoids step-like shifts at small lower boundaries
    implicit none
-   REALTYPE, intent(in)          :: x, eps
-   REALTYPE                      :: arg, larger
+   real(rk), intent(in)          :: x, eps
+   real(rk)                      :: arg, larger
 !--------------------------------------------------------------
    
    if (x .lt. 1.5d1*eps) then
@@ -36,15 +36,15 @@ pure REALTYPE function smooth_small(x, eps)
    end function smooth_small 
 
 !-----------------------------------------------------------------------
-pure REALTYPE function uptflex(Aff0, Vmax0, Nut, NutMin)
+pure real(rk) function uptflex(Aff0, Vmax0, Nut, NutMin)
 
 ! !DESCRIPTION:
 !
 ! !USES:
    implicit none
 ! !INPUT PARAMETERS:
-   REALTYPE, intent(in)      :: Aff0, Vmax0, Nut, NutMin
-   REALTYPE                  :: Aff,Vmax,fAv, Nutp
+   real(rk), intent(in)      :: Aff0, Vmax0, Nut, NutMin
+   real(rk)                  :: Aff,Vmax,fAv, Nutp
 
 ! optimal partitioning
    Nutp    = smooth_small(Nut, NutMin)
@@ -59,7 +59,7 @@ pure REALTYPE function uptflex(Aff0, Vmax0, Nut, NutMin)
    end function uptflex
 
 !-----------------------------------------------------------------------
-pure REALTYPE function queuefunc0(n,x)
+pure real(rk) function queuefunc0(n,x)
 !
 !  response function from queing theory
 !  synchrony of processing n->inf :liebig  n~1:product
@@ -67,8 +67,8 @@ pure REALTYPE function queuefunc0(n,x)
 ! !USES:
    implicit none
 ! !INPUT PARAMETERS:
-   REALTYPE, intent(in)          :: x, n
-   REALTYPE                      :: px
+   real(rk), intent(in)          :: x, n
+   real(rk)                      :: px
 
    px = x**(n+_ONE_)
    if(abs(_ONE_-px) .lt. 1E-5) then
@@ -85,9 +85,9 @@ subroutine queuefunc(n,x,qfunc,qderiv)
 !  synchrony of processing n->inf :liebig  n~1:product
 !
    implicit none
-   REALTYPE, intent(in)       :: x, n
-   REALTYPE, intent(out)      :: qfunc, qderiv
-   REALTYPE                   :: nn, hh,x0,en
+   real(rk), intent(in)       :: x, n
+   real(rk), intent(out)      :: qfunc, qderiv
+   real(rk)                   :: nn, hh,x0,en
 
    nn = n+1.
    hh = 1./nn
@@ -98,15 +98,15 @@ subroutine queuefunc(n,x,qfunc,qderiv)
    end subroutine queuefunc
 
 !-------------------------------------------------------------
-REALTYPE function queuederiv(n,x)
+real(rk) function queuederiv(n,x)
 !
 !  response function from queing theory
 !  synchrony of processing n->inf :liebig  n~1:product
 !
    implicit none
-   REALTYPE, intent(in)          :: x, n
-   REALTYPE                      :: nqueue_aa
-   REALTYPE                      :: nqueue_bb = 1.3863d0
+   real(rk), intent(in)          :: x, n
+   real(rk)                      :: nqueue_aa
+   real(rk)                      :: nqueue_bb = 1.3863d0
 !-----------------------------------------------------------------------
    nqueue_aa = 6.9315d-1*(1.d0+1.0d0/(n))
    queuederiv = exp(-nqueue_aa*(x)**nqueue_bb) 
@@ -115,10 +115,10 @@ REALTYPE function queuederiv(n,x)
 !-------------------------------------------------------------
 subroutine sinking(vS ,phys_status,sinkvel)
    implicit none
-   REALTYPE, intent(in)     :: vS ,phys_status
-   REALTYPE, intent(out)    :: sinkvel
+   real(rk), intent(in)     :: vS ,phys_status
+   real(rk), intent(out)    :: sinkvel
 
-   !   REALTYPE         :: 
+   !   real(rk)         :: 
 !-----------------------------------------------!----------------------------------------------------------------
 !------         sinking                --------------------------
 !----------------------------------------------------------------
@@ -180,11 +180,12 @@ type (type_maecs_base_model), intent(in)      :: maecs
 type (type_maecs_phy), intent(inout)   :: phy
 integer, intent(in), optional          :: method
 
-REALTYPE                         :: min_Cmass,min_Nmass
-integer                          :: ischanged, mm_method=_KAI_
+real(rk)     :: min_Cmass,min_Nmass
+integer      ::  mm_method=_KAI_
+logical      ::  ischanged
 
 if (present(method)) mm_method=method
-ischanged = 0 
+ischanged = .false.
 
 select case (mm_method)
  case (_MARKUS_)
@@ -210,21 +211,22 @@ select case (mm_method)
    phy%C_reg = smooth_small( phy%C , min_Cmass)
    if (abs(phy%C-phy%C_reg) .gt. 1d-2*min_Cmass) then
       phy%N_reg = phy%C_reg * maecs%aver_QN_phy
-      ischanged = 1 
+      ischanged = .true. 
    else 
       phy%N_reg = smooth_small( phy%N , min_Nmass)
       if (abs(phy%N-phy%N_reg) .gt. 1d-2*min_Nmass) then
          phy%C_reg = phy%N_reg / maecs%aver_QN_phy
-         ischanged = 1 
+         ischanged = .true.
       end if  
    end if
 !write (*,'(A,4(F10.3))') 'P=',phy%P,phy%C_reg * maecs%aver_QP_phy,smooth_small(phy%P,min_Cmass * maecs%aver_QP_phy)
-   if (ischanged==0) then ! retune P and Rub
+   if (ischanged) then ! retune P and Rub
 
 !      if (maecs%PhosphorusOn)  phy%P_reg =  phy%C_reg * maecs%aver_QP_phy
       if (maecs%RubiscoOn) then 
          phy%Rub =  phy%C_reg * maecs%frac_Rub_ini
 !        phy%Rub = phy%N_reg * maecs%frac_Rub_ini
+write (*,'(A,3(F10.3))') 'm2 rub=',phy%Rub
       end if
    else  ! additional check for Rub and P; TODO: omitt ??
        phy%Rub = smooth_small( phy%Rub , min_Cmass * maecs%frac_Rub_ini)
@@ -247,7 +249,6 @@ select case (mm_method)
      phy%Rub = smooth_small( phy%Rub , min_Cmass * maecs%frac_Rub_ini)
 !     phy%Rub = smooth_small( phy%Rub , min_Cmass * maecs%aver_QN_phy* maecs%frac_Rub_ini)
    end if    
-
 end select
 end subroutine min_mass
 
@@ -287,7 +288,7 @@ type (type_maecs_phy),intent(in) :: phy
 type (type_maecs_env),intent(in) :: env
 type (type_maecs_om),intent(in) :: nut
 
-REALTYPE :: par, T_Kelv
+real(rk) :: par, T_Kelv
 
 par          = maecs%frac_PAR * env%par ! use active  fraction frac_PAR of available radiation
 T_Kelv       = env%Temp + 273.d0 ! temperature in Kelvin 
@@ -323,7 +324,7 @@ type (type_maecs_phy), intent(inout) :: phy
 type (type_maecs_om), intent(inout) :: det
 type (type_maecs_om), intent(inout) :: dom
 type (type_maecs_zoo), intent(inout) :: zoo
-REALTYPE :: min_Cmass
+real(rk) :: min_Cmass
 
 min_Cmass = maecs%small_finite * 1.0d-3 / maecs%a_spm
 
