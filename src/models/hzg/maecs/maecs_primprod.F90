@@ -76,7 +76,7 @@ REALTYPE :: dmu_dfracPN_colim ! [...]
 REALTYPE :: dmu_dregV   ! [...]
 
 ! --- DERIVATIVES FOR TRADE-OFF & ADAPTATION
-REALTYPE :: eps
+REALTYPE :: eps, rel_phys
 REALTYPE :: dmu, dmu_small       ! [...] 
 REALTYPE :: dQN_dtheta ! [...]
 REALTYPE :: dQN_dfracR ! [...]
@@ -200,6 +200,9 @@ if (self%PhosphorusOn) then
     grad_VP   = dVPC_dregV * (-2*self%zeta_CN   + lim_P * dmudVP)
     reg_V_PC  = 1./(1.+exp(-self%tau_regV * grad_VP));  ! 0.02
     upt_P     = reg_V_PC * sens%up_PC 
+
+!write (*,'(A,4(F10.3))') 'uP=',grad_VP,reg_V_PC,upt_P,sens%up_PC
+
 ! cell physiology regulating P - uptake is identical to N-uptake machinery
 ! TODO: explain, why (cf. Smith et al. 2009)
 !  
@@ -214,7 +217,11 @@ end if
 ! --- derivatives of C-uptake rate  --------------------------------------------         
 dmu_dtheta  = phy%frac%Rub * phy%rel_QN * fac_PN_colim * sens%P_max_T * sens%a_light * (1.0d0 - sens%S_phot) & 
                       - self%zeta_CN * dVNC_dtheta                                                     !OK
-dmu_dfracR  = phy%rel_QN * fac_PN_colim * sens%P_max_T * sens%S_phot - self%zeta_CN * dVNC_dfracR         
+
+rel_phys= phy%rel_QN * fac_PN_colim * sens%S_phot 
+!write (*,'(" phys ",4(F9.4))') rel_phys, phy%rel_QN, fac_PN_colim, sens%S_phot 
+phy%frac%rel_phys=rel_phys
+dmu_dfracR  = rel_phys * sens%P_max_T - self%zeta_CN * dVNC_dfracR 
 
 ! +++ trade-off: effects on N uptake +++++++++++++++++++++++++++++++++++++++++++
 ! dmu is a central regulation parameter determining the coupling strength in ressource uptake; its position in the denominator makes it critical for frequently occuring low values
@@ -226,8 +233,8 @@ dmu         = smooth_small(dmu , dmu_small);
 
 dQN_dtheta  = (dVNC_dtheta -1* dmu_dtheta * phy%QN) / dmu
 dQN_dfracR  = (dVNC_dfracR -1* dmu_dfracR * phy%QN) / dmu
-dQN_dtheta  = (1.0d0  + 0*dQN_dtheta * dVNC_dtheta) * dQN_dtheta
-dQN_dfracR  = (1.0d0  + 0*dQN_dfracR * dVNC_dfracR) * dQN_dfracR
+!dQN_dtheta  = (1.0d0  + 0*dQN_dtheta * dVNC_dtheta) * dQN_dtheta
+!dQN_dfracR  = (1.0d0  + 0*dQN_dfracR * dVNC_dfracR) * dQN_dfracR
 
 ! --- photoacclimation and photosynthesis ------------------------------------------------            
 !     differential coupling between pigment synthesis and costs due to N-uptake     
@@ -258,9 +265,11 @@ if (self%PhotoacclimOn .and. self%RubiscoOn) then
    grad_fracR = dmu_dfracR                   & ! marginal C gain of chloroplasts 
               + dmu_dQN * dQN_dfracR         & ! marginal loss due to reduced uptake 
               + IsVQP * dmu_dQP * dQP_dfracR  ! marginal loss due to reduced uptake 
+
+
 ! rubisco-N directly limits chl synthesis
 ! --- regulation speed in Rubisco expression -------------------------------------- 
-   flex_fracR = self%adap_Rub * (1.0d0 - phy%frac%Rub ) * phy%frac%Rub
+   flex_fracR = self%adap_Rub * (1.0d0 - phy%frac%Rub ) * (phy%frac%Rub - self%rel_chloropl_min-self%small_finite)
 
           ! *** ADAPTIVE EQUATION FOR 'frac_R'
    acc%dfracR_dt = flex_fracR * grad_fracR  

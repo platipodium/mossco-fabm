@@ -1,7 +1,6 @@
 #include "fabm_driver.h"
 !-----------------------------------------------------------------------------------
 !          Model for Adaptive Ecosystems in Coastal Seas 
-
 subroutine maecs_do(self,_ARGUMENTS_DO_)
 
 use fabm_types
@@ -12,13 +11,12 @@ use maecs_primprod
 use maecs_grazing
 
 ! !INPUT PARAMETERS:
-class (type_maecs_base_model),intent(in) :: self
+ class (type_maecs_base_model),intent(in) :: self
    _DECLARE_ARGUMENTS_DO_
 type (type_maecs_rhs) :: rhsv
 type (type_maecs_phy) :: phy   ! phytoplankton type containing state and trait information
 type (type_maecs_zoo) :: zoo   ! zooplankton type 
-type (type_maecs_om)  :: dom, det, nut
-type (type_maecs_om)  :: uptake, exud, lossZ, floppZ 
+type (type_maecs_om)  :: dom, det, nut, uptake, exud, lossZ, floppZ 
 type (type_maecs_env) :: env
 type (type_maecs_traitdyn) :: acclim
 type (type_maecs_sensitivities) :: sens
@@ -27,7 +25,7 @@ type (type_maecs_sensitivities) :: sens
 integer  :: i, j, iz, ihour, iloop
 REALTYPE :: reminT, degradT       ! Temp dependent remineralisation and hydrolysis rates
 ! --- QUOTA and FRACTIONS
-REALTYPE :: dQN_dt, dRchl_phyC_dt=0.0d0 ! []
+REALTYPE :: phys_status, dQN_dt, dRchl_phyC_dt=0.0d0 ! []
 
 ! --- ZOOPLANKTON GRAZING, INGESTION, MORTALITY, RESPIRATION... 
 REALTYPE :: graz_rate   ! carbon-specific grazing rate                          [d^{-1}]
@@ -41,7 +39,8 @@ logical  :: out = .true.
 !   if(36000.eq.secondsofday .and. mod(julianday,1).eq.0 .and. outn) out=.true.    
 #define _KAI_ 0
 #define _MARKUS_ 1
-#define UNIT / 86400
+#define UNIT /86400_rk
+!#define UNIT *1.1574074074E-5
 
  _LOOP_BEGIN_
 ! First retrieve current (local) state  variable values
@@ -56,13 +55,20 @@ logical  :: out = .true.
   _GET_(self%id_domC, dom%C)  ! Dissolved Organic Carbon in mmol-C/m**3
   _GET_(self%id_domN, dom%N)  ! Dissolved Organic Nitrogen in mmol-N/m**3
 if (self%RubiscoOn) then
-      _GET_(self%id_Rub, Rub)  ! fraction of Rubisco in -
+      _GET_(self%id_Rub, phy%Rub)  ! fraction of Rubisco in -
 end if
 if (self%PhotoacclimOn) then
-      _GET_(self%id_chl, chl)  ! Chl:C ratio in mg-Chla/mmol-C
+      _GET_(self%id_chl, phy%chl)  ! Chl:C ratio in mg-Chla/mmol-C
+end if
+if (self%PhosphorusOn) then
+      _GET_(self%id_nutP, nut%P)  ! Dissolved Inorganic Phosphorus DIP in mmol-P/m**3
+      _GET_(self%id_phyP, phy%P)  ! Phytplankton Phosphorus in mmol-P/m**3
+      _GET_(self%id_detP, det%P)  ! Detritus Phosphorus in mmol-P/m**3
+      _GET_(self%id_domP, dom%P)  ! Dissolved Organic Phosphorus in mmol-P/m**3
 end if
 !#E_GET
-
+!phy%Rub = Rub
+!phy%chl = chl
 ! Retrieve current environmental conditions.
 !#S_GED
   _GET_(self%id_temp, env%temp)  ! water temperature
@@ -81,13 +87,6 @@ end if
 !  D) Assign rates of change of 'traits' property variables  
 
 ! *** BEGIN A) 
-if (.not. self%PhotoacclimOn) then  
-   phy%chl = phy%C * self%frac_chl_ini   ! total Chl mg-CHL/m3
-   phy%frac%theta  = self%frac_chl_ini * phy%QN  * self%itheta_max
-   phy%theta       = self%frac_chl_ini * phy%QN / self%frac_Rub_ini! g-CHL/mol-N*m3
-!   phy%frac%Rub   = phy%Rub / phy%C_reg
-!   phy%frac%theta =phy%N*self%Chl_N_ini/phy%C_reg*self%itheta_max !
-end if 
 
 ! --- checking and correcting extremely low state values  ------------  
 call min_mass(self,phy,method=_KAI_) ! minimal reasonable Phy-C and -Nitrogen
@@ -95,14 +94,26 @@ call min_mass(self,phy,method=_KAI_) ! minimal reasonable Phy-C and -Nitrogen
 
 ! --- stoichiometry of autotrophs (calculating QN_phy, frac_R, theta, and QP_phy)
 call calc_internal_states(self,phy,det,dom,zoo)
+!write (*,'(A,2(F10.3))') '2 P,chl=',phy%C,phy%chl
+!write (*,'(A,3(F10.3))') '2 Relchl=',phy%rel_chloropl,phy%C_reg,phy%QN
+!write (*,'(A,4(F10.3))') '2 N,th=',phy%N,phy%theta,phy%frac%Rub,phy%rel_QN
 
-!write (*,'(A,2(F10.3))') 'mphyC=',phy%C,phy%frac%Rub
+if (.not. self%PhotoacclimOn) then  
+   phy%chl = phy%C * self%frac_chl_ini   ! total Chl mg-CHL/m3
+   phy%frac%theta  = self%frac_chl_ini * phy%QN  * self%itheta_max
+   phy%theta       = self%frac_chl_ini * phy%QN / self%frac_Rub_ini! g-CHL/mol-N*m3
+!   phy%frac%Rub   = phy%Rub / phy%C_reg
+!   phy%frac%theta =phy%N*self%Chl_N_ini/phy%C_reg*self%itheta_max !
+end if 
+!write (*,'(A,2(F10.3))') 'chl theta:',phy%chl,phy%theta
+!write (*,'(A,2(F10.3))') 'C rub=',phy%C,phy%frac%Rub
 
 call calc_sensitivities(self,sens,phy,env,nut)
 
 ! --- ALGAL GROWTH and EXUDATION RATES, physiological trait dynamics ----------------
 call photosynthesis(self,sens,phy,uptake,exud,acclim)
-!!! write (*,'(A,1(F9.4))') 'uptC=',uptake%C
+! write (*,'(A,4(F10.4))') 'upt C P=',uptake%C,uptake%P*1E3,phy%P*1E6,phy%QP*1E3
+!write (*,'(A,4(F10.3))') '3 N,th=',phy%N,phy%theta,phy%frac%Rub,phy%rel_QN
 
 ! ----------------       grazing        -------------------------------------------
 if (self%GrazingOn) then
@@ -120,14 +131,21 @@ if (self%GrazingOn) then
 else
   graz_rate   = 0.0d0
   lossZ       = type_maecs_om(0.0d0, 0.0d0, 0.0d0)
-  floppZ      = lossZ
+  floppZ      = type_maecs_om(0.0d0, 0.0d0, 0.0d0)
 end if
 
 ! --- phytoplankton aggregation -------------------------------------------------
 ! If biovolume is primarily determined by the nitrogen content, also for detritus
 !aggreg_rate = self%phi_agg * dom%C * (phy%N + det%N)                    ! [d^{-1}] 
+! _SET_DIAGNOSTIC_(self%id_fracR,phy%frac%rel_phys)  
+
+!_GET_(self%id_fracR,phys_status )  
+!write (*,'(A,1(F10.3))') 'phys=',phys_status
+! _SET_DIAGNOSTIC_(self%id_tmp,phy%frac%rel_phys ) !step_integrated bulk chlorophyll concentration
+
 aggreg_rate = self%phi_agg * (1.0d0 - exp(-0.02*dom%C)) * (phy%N + det%N) 
 !         vS * exp(-4*phys_status )                ! [d^{-1}] 
+!aggreg_rate = aggreg_rate * exp(-4*phy%rel_phys ) 
 
 ! ------------------------------------------------------------------
 !  ---  hydrolysis & remineralisation rate (temp dependent)
@@ -157,9 +175,6 @@ rhsv%phyN =  uptake%N             * phy%C &
            - graz_rate * phy%QN          
 
 !_____________________________________________________________________________
-!
-!write (*,'(A,2(F10.3))') 'PhyN=',phy%N,rhsv%phyN
-
 
 if (self%PhotoacclimOn) then
 ! PHYTOPLANKTON CHLa
@@ -173,13 +188,20 @@ if (self%PhotoacclimOn) then
                   + acclim%dRchl_dQN    * dQN_dt 
 
    rhsv%chl = phy%theta * phy%frac%Rub * phy%rel_QN**self%sigma * rhsv%phyC + dRchl_phyC_dt * phy%C_reg
-!______________________________________________________________________________
+
+!write (*,'(A,4(F10.3))') 'rhs chl=', phy%theta * phy%frac%Rub * phy%rel_QN**self%sigma * rhsv%phyC,dRchl_phyC_dt * phy%C_reg*1E1,phy%rel_QN**self%sigma,phy%theta
+
+!_____________________________________________ _________________________________
 
    if (self%RubiscoOn) then 
-!        rhsv%rub  = acclim%dfracR_dt * phy%N_reg + phy%Rub / phy%N_reg * rhsv%phyN  
-     rhsv%rub  = acclim%dfracR_dt * phy%C_reg + phy%Rub / phy%C_reg * rhsv%phyC 
+!        rhsv%rub  = acclim%dfracR_dt * phy%N_reg + phy%Rub / phy%N_reg * rhsv%phyN  !phy%Rub / phy%C_reg
+     rhsv%rub  = acclim%dfracR_dt * phy%C_reg +  phy%Rub / phy%C_reg * rhsv%phyC 
 ! add relaxation term to destroy unphysical Rub accumulation
 !     if( phy%Rub .gt. 0.9d0*phy%C) rhsv%rub = rhsv%rub - phy%Rub/(1.d0+exp(-67.d0*(phy%Rub/ phy%C_reg  - 1.d0)))
+
+write (*,'(A,5(F10.3))') 'rub=',phy%Rub,phy%C,phy%theta,phy%frac%Rub,self%small_finite + self%rel_chloropl_min
+
+  _SET_DIAGNOSTIC_(self%id_tmp,acclim%dfracR_dt ) !step_integrated bulk chlorophyll concentration
 
    end if 
 end if 
@@ -194,8 +216,8 @@ if (self%GrazingOn) then
 else
    rhsv%zooC      = 0.0d0
 end if 
-
-if (zoo%C .gt. 10.d0) write (*,'(A,3(F10.3))') 'zoo=',zoo%C,rhsv%zooC,zoo%yield * graz_rate
+!write (*,'(A,2(F10.3))') 'zoo=',zoo%C,rhsv%zooC
+!if (zoo%C .gt. 10.d0) write (*,'(A,3(F10.3))') 'RHS zoo=',zoo%C,rhsv%zooC,zoo%yield * graz_rate
 !________________________________________________________________________________
 !
 !  --- DETRITUS C
@@ -255,6 +277,7 @@ if (self%PhosphorusOn) then
               - self%dil             * phy%P    &            
               - aggreg_rate          * phy%P    & 
               - graz_rate            * phy%QP    
+!write (*,'(A,3(F10.3))') 'P=',phy%P,1E3*phy%P/phy%C_reg,1E3*phy%QP
   !  --- DETRITUS P 
    rhsv%detP = floppZ%P              * zoo%C    &
               + aggreg_rate          * phy%P    &
@@ -277,25 +300,25 @@ end if
 
 !#S_ODE
 !---------- ODE for each state variable ----------
-  _SET_ODE_(self%id_nutN, rhsv%nutN)
-  _SET_ODE_(self%id_phyC, rhsv%phyC)
-  _SET_ODE_(self%id_phyN, rhsv%phyN)
-  _SET_ODE_(self%id_zooC, rhsv%zooC)
-  _SET_ODE_(self%id_detC, rhsv%detC)
-  _SET_ODE_(self%id_detN, rhsv%detN)
-  _SET_ODE_(self%id_domC, rhsv%domC)
-  _SET_ODE_(self%id_domN, rhsv%domN)
+  _SET_ODE_(self%id_nutN, rhsv%nutN UNIT)
+  _SET_ODE_(self%id_phyC, rhsv%phyC UNIT)
+  _SET_ODE_(self%id_phyN, rhsv%phyN UNIT)
+  _SET_ODE_(self%id_zooC, rhsv%zooC UNIT)
+  _SET_ODE_(self%id_detC, rhsv%detC UNIT)
+  _SET_ODE_(self%id_detN, rhsv%detN UNIT)
+  _SET_ODE_(self%id_domC, rhsv%domC UNIT)
+  _SET_ODE_(self%id_domN, rhsv%domN UNIT)
 if (self%RubiscoOn) then
-      _SET_ODE_(self%id_Rub, rhsv%Rub)
+      _SET_ODE_(self%id_Rub, rhsv%Rub UNIT)
 end if
 if (self%PhotoacclimOn) then
-      _SET_ODE_(self%id_chl, rhsv%chl)
+      _SET_ODE_(self%id_chl, rhsv%chl UNIT)
 end if
 if (self%PhosphorusOn) then
-      _SET_ODE_(self%id_nutP, rhsv%nutP)
-      _SET_ODE_(self%id_phyP, rhsv%phyP)
-      _SET_ODE_(self%id_detP, rhsv%detP)
-      _SET_ODE_(self%id_domP, rhsv%domP)
+      _SET_ODE_(self%id_nutP, rhsv%nutP UNIT)
+      _SET_ODE_(self%id_phyP, rhsv%phyP UNIT)
+      _SET_ODE_(self%id_detP, rhsv%detP UNIT)
+      _SET_ODE_(self%id_domP, rhsv%domP UNIT)
 end if
 !#E_ODE
 

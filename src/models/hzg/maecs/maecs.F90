@@ -195,10 +195,10 @@ dil          = 0.0            !
 
 !--------- read namelists --------- 
 write(0,*) ' read namelists ....'
-open(namlst,file='./maecs_switch.nml',status='old')
-read(namlst,nml=maecs_switch,err=90,end=99)
 open(namlst,file='./maecs_init.nml',status='old')
 read(namlst,nml=maecs_init,err=91,end=100)
+open(namlst,file='./maecs_switch.nml',status='old')
+read(namlst,nml=maecs_switch,err=90,end=99)
 open(namlst,file='./maecs_pars.nml',status='old')
 read(namlst,nml=maecs_pars,err=92,end=101)
 open(namlst,file='./maecs_graz.nml',status='old')
@@ -228,12 +228,8 @@ call self%get_parameter(self%detC_initial ,'detC_initial',  default=detC_initial
 call self%get_parameter(self%detN_initial ,'detN_initial',  default=detN_initial)
 call self%get_parameter(self%domC_initial ,'domC_initial',  default=domC_initial)
 call self%get_parameter(self%domN_initial ,'domN_initial',  default=domN_initial)
-if (RubiscoOn) then
-    call self%get_parameter(self%frac_Rub_ini ,'frac_Rub_ini',  default=frac_Rub_ini)
-end if
-if (PhotoacclimOn) then
-    call self%get_parameter(self%frac_chl_ini ,'frac_chl_ini',  default=frac_chl_ini)
-end if
+call self%get_parameter(self%frac_Rub_ini ,'frac_Rub_ini',  default=frac_Rub_ini)
+call self%get_parameter(self%frac_chl_ini ,'frac_chl_ini',  default=frac_chl_ini)
 if (PhosphorusOn) then
     call self%get_parameter(self%nutP_initial ,'nutP_initial',  default=nutP_initial)
     call self%get_parameter(self%phyP_initial ,'phyP_initial',  default=phyP_initial)
@@ -348,6 +344,8 @@ call self%register_diagnostic_variable(self%id_chl2,    'chl2','gCHL/m**3', 'bul
   time_treatment=time_treatment_step_integrated)
 call self%register_diagnostic_variable(self%id_fracR,   'fracR','-', ' fracR', &
   time_treatment=time_treatment_step_integrated)
+
+call self%register_diagnostic_variable(self%id_tmp,'tmp','-', 'tmp', time_treatment=time_treatment_step_integrated)
 
 !!------- Register conserved quantities  ------- 
 call self%register_conserved_quantity(self%id_totC,'C','mmol-C/m**3','total-C')

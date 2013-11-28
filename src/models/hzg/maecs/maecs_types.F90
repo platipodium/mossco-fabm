@@ -14,7 +14,7 @@ type,extends(type_base_model),public :: type_maecs_base_model
 type (type_state_variable_id)        :: id_nutN,id_nutP,id_phyC,id_phyN,id_phyP,id_zooC,id_detC,id_detN,id_detP,id_domC,id_domN,id_domP,id_Rub,id_chl
 type (type_dependency_id)            :: id_temp
 type (type_dependency_id)            :: id_par
-type (type_diagnostic_variable_id)   :: id_chl2, id_fracR
+type (type_diagnostic_variable_id)   :: id_chl2, id_fracR, id_tmp
 type (type_conserved_quantity_id)    :: id_totC, id_totN, id_totP
 real(rk) ::  nutN_initial, nutP_initial, phyC_initial, phyN_initial, phyP_initial, zooC_initial, detC_initial, detN_initial, detP_initial, domC_initial, domN_initial, domP_initial, frac_Rub_ini, frac_chl_ini
 real(rk) ::  P_max, alpha, sigma, theta_LHC, rel_chloropl_min, QN_phy_0, QN_phy_max, V_NC_max, AffN, zeta_CN, exud_phy, QP_phy_0, QP_phy_max, V_PC_max, AffP, adap_rub, adap_theta, tau_regV, phi_agg, vS_phy, vS_det, hydrol, remin, Ae_all, T_ref
@@ -48,12 +48,13 @@ type type_maecs_allocation_fractions
    REALTYPE :: theta
    REALTYPE :: NutUpt ! remaining nitrogen fraction for uptake and processing            [dimensionless]
    REALTYPE :: TotFree ! nitrogen fraction of free/available proteins/enzymes and RNA    [dimensionless]
+   REALTYPE :: rel_phys ! physiological(=energetical&nutritional) status 0...1
 end type
 
 type type_maecs_phy
       REALTYPE   :: C,N,P
       REALTYPE   :: C_reg, N_reg, P_reg
-      REALTYPE   :: Chl, Rub
+      REALTYPE   :: chl, Rub
       REALTYPE   :: rel_chloropl
       REALTYPE   :: rel_QN, rel_QP, rel_QNP
       REALTYPE   :: QN,QP,QPN,theta
