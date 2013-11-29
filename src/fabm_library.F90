@@ -14,8 +14,8 @@
 
 #ifdef _FABM_F2003_
    ! Specific biogeochemical models
-   use fabm_bb_passive
-   use fabm_bb_filter_feeder
+!   use fabm_bb_passive
+!   use fabm_bb_filter_feeder
    use fabm_examples_npzd_nut
    use fabm_examples_npzd_phy
    use fabm_examples_npzd_zoo
@@ -24,8 +24,8 @@
    use fabm_examples_npzd_f2003
    use fabm_examples_mean
    use fabm_gotm_ergom
-   use aed_models
-   use au_prey_predator
+!   use aed_models
+!   use au_prey_predator
    use fabm_hzg_omexdia_p
    use fabm_iow_spm
    use fabm_hzg_maecs
@@ -76,9 +76,9 @@
 
 #ifdef _FABM_F2003_
       select case (modelname)
-         case ('au_prey_predator');    allocate(type_au_prey_predator::model)
-         case ('bb_passive');          allocate(type_bb_passive::model)
-         case ('bb_filter_feeder');    allocate(type_bb_filter_feeder::model)
+!         case ('au_prey_predator');    allocate(type_au_prey_predator::model)
+!         case ('bb_passive');          allocate(type_bb_passive::model)
+!         case ('bb_filter_feeder');    allocate(type_bb_filter_feeder::model)
          case ('examples_npzd_nut');   allocate(type_examples_npzd_nut::model)
          case ('examples_npzd_phy');   allocate(type_examples_npzd_phy::model)
          case ('examples_npzd_zoo');   allocate(type_examples_npzd_zoo::model)
@@ -92,8 +92,8 @@
          case ('hzg_maecs');           allocate(type_hzg_maecs::model)
          ! ADD_NEW_FORTRAN2003_MODEL_HERE - required
          case default
-            if ( modelname(1:4) .eq. 'aed_' ) &
-               model => aed_create_model(configunit,modelname,instancename,parent);
+!            if ( modelname(1:4) .eq. 'aed_' ) &
+!               model => aed_create_model(configunit,modelname,instancename,parent);
       end select
 
       if (.not.associated(model)) return

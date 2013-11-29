@@ -29,11 +29,11 @@
 !  Reference modules of specific biogeochemical models
    use fabm_gotm_npzd
    use fabm_gotm_fasham
-   use fabm_metu_mnemiopsis
-   use fabm_pml_ersem
-   use fabm_pml_carbonate
+!   use fabm_metu_mnemiopsis
+!   use fabm_pml_ersem
+!   use fabm_pml_carbonate
    use fabm_examples_benthic_predator
-   use fabm_klimacampus_phy_feedback
+!   use fabm_klimacampus_phy_feedback
    ! ADD_NEW_MODEL_HERE - required if the model is contained in a Fortran 90 module
 
    implicit none
@@ -97,11 +97,11 @@
       ! Derived types that belong to specific biogeochemical models.
       type (type_gotm_npzd)                 :: gotm_npzd
       type (type_gotm_fasham)               :: gotm_fasham
-      type (type_metu_mnemiopsis)           :: metu_mnemiopsis
-      type (type_pml_ersem)                 :: pml_ersem
-      type (type_pml_carbonate)             :: pml_carbonate
+!      type (type_metu_mnemiopsis)           :: metu_mnemiopsis
+!      type (type_pml_ersem)                 :: pml_ersem
+!      type (type_pml_carbonate)             :: pml_carbonate
       type (type_examples_benthic_predator) :: examples_benthic_predator
-      type (type_klimacampus_phy_feedback)  :: klimacampus_phy_feedback
+!      type (type_klimacampus_phy_feedback)  :: klimacampus_phy_feedback
       ! ADD_NEW_MODEL_HERE - required if the model groups its data in a custom derived type
 
       ! Pointer to the current spatially explicit environment.
@@ -250,11 +250,11 @@
    call register_model(model_container_id,          '')
    call register_model(gotm_npzd_id,                'gotm_npzd')
    call register_model(gotm_fasham_id,              'gotm_fasham')
-   call register_model(metu_mnemiopsis_id,          'metu_mnemiopsis')
-   call register_model(pml_ersem_id,                'pml_ersem')
-   call register_model(pml_carbonate_id,            'pml_carbonate')
+!   call register_model(metu_mnemiopsis_id,          'metu_mnemiopsis')
+!   call register_model(pml_ersem_id,                'pml_ersem')
+!   call register_model(pml_carbonate_id,            'pml_carbonate')
    call register_model(examples_benthic_predator_id,'examples_benthic_predator')
-   call register_model(klimacampus_phy_feedback_id, 'klimacampus_phy_feedback')
+!   call register_model(klimacampus_phy_feedback_id, 'klimacampus_phy_feedback')
    ! ADD_NEW_MODEL_HERE - required
 
    end subroutine register_models
@@ -782,8 +782,8 @@
          case (model_f2003_id)
             call model%info%set_domain(_LOCATION_)
 #endif
-         case (pml_ersem_id)
-            call pml_ersem_set_domain(model%pml_ersem,_DOMAIN_SIZE_1D_)
+!         case (pml_ersem_id)
+!            call pml_ersem_set_domain(model%pml_ersem,_DOMAIN_SIZE_1D_)
          ! ADD_NEW_MODEL_HERE - optional, only needed if the model needs to be informed about the spatial domain.
          !
          ! Typical model call:
@@ -965,16 +965,16 @@
          call gotm_npzd_init(model%gotm_npzd,model%info,nmlunit)
       case (gotm_fasham_id)
          call gotm_fasham_init(model%gotm_fasham,model%info,nmlunit)
-      case (pml_ersem_id)
-         call pml_ersem_init(model%pml_ersem,model%info,nmlunit)
-      case (metu_mnemiopsis_id)
-         call metu_mnemiopsis_init(model%metu_mnemiopsis,model%info,nmlunit)
-      case (pml_carbonate_id)
-         call pml_carbonate_init(model%pml_carbonate,model%info,nmlunit)
+!      case (pml_ersem_id)
+!         call pml_ersem_init(model%pml_ersem,model%info,nmlunit)
+!      case (metu_mnemiopsis_id)
+!         call metu_mnemiopsis_init(model%metu_mnemiopsis,model%info,nmlunit)
+!      case (pml_carbonate_id)
+!         call pml_carbonate_init(model%pml_carbonate,model%info,nmlunit)
       case (examples_benthic_predator_id)
          call examples_benthic_predator_init(model%examples_benthic_predator,model%info,nmlunit)
-      case (klimacampus_phy_feedback_id)
-         call klimacampus_phy_feedback_init(model%klimacampus_phy_feedback,model%info,nmlunit)
+!      case (klimacampus_phy_feedback_id)
+!         call klimacampus_phy_feedback_init(model%klimacampus_phy_feedback,model%info,nmlunit)
      ! ADD_NEW_MODEL_HERE - required
       case default
          call fatal_error('init_model','model "'//trim(model%info%name)//'" has not been registered in init_model.')
@@ -1984,15 +1984,15 @@
             call gotm_npzd_do(model%gotm_npzd,_INPUT_ARGS_DO_RHS_)
          case (gotm_fasham_id)
             call gotm_fasham_do(model%gotm_fasham,_INPUT_ARGS_DO_RHS_)
-         case (pml_ersem_id)
-            call pml_ersem_do(model%pml_ersem,_INPUT_ARGS_DO_RHS_)
-         case (metu_mnemiopsis_id)
-            call metu_mnemiopsis_do(model%metu_mnemiopsis,_INPUT_ARGS_DO_RHS_)
-         case (pml_carbonate_id)
-            call pml_carbonate_do(model%pml_carbonate,_INPUT_ARGS_DO_RHS_)
+!         case (pml_ersem_id)
+!            call pml_ersem_do(model%pml_ersem,_INPUT_ARGS_DO_RHS_)
+!         case (metu_mnemiopsis_id)
+!            call metu_mnemiopsis_do(model%metu_mnemiopsis,_INPUT_ARGS_DO_RHS_)
+!         case (pml_carbonate_id)
+!            call pml_carbonate_do(model%pml_carbonate,_INPUT_ARGS_DO_RHS_)
          case (examples_benthic_predator_id)
-         case (klimacampus_phy_feedback_id)
-            call klimacampus_phy_feedback_do(model%klimacampus_phy_feedback,_INPUT_ARGS_DO_RHS_)
+!         case (klimacampus_phy_feedback_id)
+!            call klimacampus_phy_feedback_do(model%klimacampus_phy_feedback,_INPUT_ARGS_DO_RHS_)
          ! ADD_NEW_MODEL_HERE - required if the model features one or more active pelagic state variables,
          ! unless the model provides production/destruction matrices instead of a temporal derivative vector.
          ! In that case, add the model to fabm_do_ppdd.
@@ -2229,8 +2229,8 @@
          case (model_f2003_id)
             call model%info%do_surface(_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
 #endif
-         case (pml_carbonate_id)
-            call pml_carbonate_get_surface_exchange(model%pml_carbonate,_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
+!         case (pml_carbonate_id)
+!            call pml_carbonate_get_surface_exchange(model%pml_carbonate,_INPUT_ARGS_GET_SURFACE_EXCHANGE_)
          ! ADD_NEW_MODEL_HERE - optional, only if the model specifies fluxes of one or
          ! more of its state variables across the air-water interface.
          !
@@ -2280,8 +2280,8 @@
 #endif
          case (examples_benthic_predator_id)
             call examples_benthic_predator_do_benthos(model%examples_benthic_predator,_INPUT_ARGS_DO_BENTHOS_RHS_)
-         case (klimacampus_phy_feedback_id)
-            call klimacampus_phy_feedback_do_benthos(model%klimacampus_phy_feedback,_INPUT_ARGS_DO_BENTHOS_RHS_)
+!         case (klimacampus_phy_feedback_id)
+!            call klimacampus_phy_feedback_do_benthos(model%klimacampus_phy_feedback,_INPUT_ARGS_DO_BENTHOS_RHS_)
          ! ADD_NEW_MODEL_HERE - optional, only if the model has benthic state variables,
          ! or specifies bottom fluxes for its pelagic state variables.
          !
@@ -2497,8 +2497,8 @@
          case (model_f2003_id)
             call model%info%get_drag(_INPUT_ARGS_GET_DRAG_)
 #endif
-         case (klimacampus_phy_feedback_id)
-            call klimacampus_phy_feedback_get_drag(model%klimacampus_phy_feedback,_INPUT_ARGS_GET_DRAG_)
+!         case (klimacampus_phy_feedback_id)
+!            call klimacampus_phy_feedback_get_drag(model%klimacampus_phy_feedback,_INPUT_ARGS_GET_DRAG_)
          ! ADD_NEW_MODEL_HERE - optional, only if light attenuation in the model cannot be captured by
          ! state variable specific extinction coefficients.
          !
@@ -2546,8 +2546,8 @@
          case (model_f2003_id)
             call model%info%get_albedo(_INPUT_ARGS_GET_ALBEDO_)
 #endif
-         case (klimacampus_phy_feedback_id)
-            call klimacampus_phy_feedback_get_albedo(model%klimacampus_phy_feedback,_INPUT_ARGS_GET_ALBEDO_)
+!         case (klimacampus_phy_feedback_id)
+!            call klimacampus_phy_feedback_get_albedo(model%klimacampus_phy_feedback,_INPUT_ARGS_GET_ALBEDO_)
          ! ADD_NEW_MODEL_HERE - optional, only if light attenuation in the model cannot be captured by
          ! state variable specific extinction coefficients.
          !
@@ -2617,8 +2617,8 @@
             call gotm_npzd_get_conserved_quantities(model%gotm_npzd,_INPUT_ARGS_GET_CONSERVED_QUANTITIES_)
          case (gotm_fasham_id)
             call gotm_fasham_get_conserved_quantities(model%gotm_fasham,_INPUT_ARGS_GET_CONSERVED_QUANTITIES_)
-         case (klimacampus_phy_feedback_id)
-            call klimacampus_phy_feedback_get_conserved_quantities(model%klimacampus_phy_feedback,_INPUT_ARGS_GET_CONSERVED_QUANTITIES_)
+!         case (klimacampus_phy_feedback_id)
+!            call klimacampus_phy_feedback_get_conserved_quantities(model%klimacampus_phy_feedback,_INPUT_ARGS_GET_CONSERVED_QUANTITIES_)
          ! ADD_NEW_MODEL_HERE - optional, required only if the model exports one or more
          ! conserved quantities.
          !
