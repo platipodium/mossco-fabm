@@ -21,7 +21,7 @@ LIBS	+= -lairsea$(buildtype) -linput$(buildtype) -lutil$(buildtype) -lfabm$(buil
 fabm0d: 0d fabm0d.o main.o
 	$(FC) -o $@ main.o fabm0d.o $(LDFLAGS) $(LIBS)
 	$(RM) fabm0d.o main.o
-	cp -p $@ $(HOME)/bin
+	ln -s $(FABMDIR)/src/drivers/0d/$@ $(HOME)/bin/$@
 
 clean:
 	$(RM) *.o *.mod *~
