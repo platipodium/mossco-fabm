@@ -21,10 +21,18 @@ type,extends(type_maecs_base_model),public :: type_hzg_maecs
  contains
   procedure :: initialize
   procedure :: do => maecs_do
+  procedure :: get_light_extinction
 !      procedure :: get_vertical_movement
-!      procedure :: get_light_extinction
 end type type_hzg_maecs
 
+!if maecs_get_light_extinction is taken out of the fabm_hzg_maecs module
+! interface
+!   subroutine maecs_get_light_extinction(self, _ARGUMENTS_GET_EXTINCTION_) 
+!   import type_hzg_maecs,type_environment,rk
+!   class (type_hzg_maecs),intent(in) :: self
+!   _DECLARE_ARGUMENTS_GET_EXTINCTION_
+!   end subroutine
+! end interface
 
 interface
   subroutine maecs_do(self, _ARGUMENTS_DO_)
@@ -382,13 +390,104 @@ end subroutine initialize
 ! set inverse parameters to avoid numerically expensive divisions
 ! set small boundary depending on numerical resolution
 
+
+!BOP
+!
+! !IROUTINE: Get the light extinction coefficient due to biogeochemical
+! variables
+!
+! !INTERFACE:
+   subroutine get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
+!  
+! !INPUT PARAMETERS:
+!   class (type_maecs_base_model), intent(in) :: self !THIS WOULDN'T COMPILE
+   class(type_hzg_maecs),intent(in)          :: self !!THIS GIVES SEGMENTATION FAULT
+   _DECLARE_ARGUMENTS_GET_EXTINCTION_
+   
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL VARIABLES:
+   real(rk) :: p,d,z
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   ! Enter spatial loops (if any)
+   _LOOP_BEGIN_
+  
+   ! Retrieve current (local) state variable values.  
+   _GET_(self%id_phyC,p) ! phytoplankton
+   _GET_(self%id_detC,d) ! detritus
+   if (self%GrazingOn) then
+    _GET_(self%id_zooC, z)  ! Zooplankton Carbon in mmol-C/m**3
+   else
+    z=0.0_rk 
+   end if
+   
+   ! Self-shading with explicit contribution from background phytoplankton concentration.
+   _SET_EXTINCTION_(self%a_water + self%a_spm*(p+d+z))
+
+   ! Leave spatial loops (if any)
+   _LOOP_END_
+
+   end subroutine get_light_extinction
+!EOC
+
 !-----------------------------------------------------------------------
 ! !IROUTINE: MAECS core model, definition of sources and sinks 
 ! !INTERFACE:
 
+! !-----------------------------------------------------------------------
+! !BOP
+! !
+! subroutine maecs_get_vertical_movement(self,_ARGUMENTS_GET_VERTICAL_MOVEMENT_)
+! 
+! implicit none
+! !
+! ! !INPUT PARAMETERS:
+! class (type_hzg_maecs), intent(in), target :: self
+! _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_
+!  !   REALTYPE, intent(in)              ::vstokes 
+!   
+! !
+! ! !LOCAL VARIABLES: 
+! REALTYPE    :: phyn,phyc,phyp,rel_QN,rel_QP,vsink
+! REALTYPE, parameter :: secs_pr_day = 86400.d0 
+! !EOP
+! !-----------------------------------------------------------------------
+! !BOC
+! 
+! ! Retrieve phtoplankton state
+!    _GET_STATE_(self%id_phyc,phyc)
+!    _GET_STATE_(self%id_phyn,phyn)
+!    
+!    CHECK THIS:
+!    _GET_DIAGNOSTIC_(rel_QN*rel_QP)
+!
+!    rel_QN = (phyn/phyc - self%QN_phy_0) / (self%QN_phy_max - self%QN_phy_0)
+!    
+!    if (self%PhosphorusOn) then
+!       _GET_STATE_(self%id_phyp,phyp)
+!       rel_QP = (phyn/phyp - self%QP_phy_0) / (self%QP_phy_max - self%QP_phy_0)
+!    else
+!       rel_QP=0.5d0
+!    end if
+! 
+!    call sinking(self%vS_phy,rel_QN*rel_QP,vsink)
+!    vsink = vsink / self%secs_pr_day
+! 
+!    _SET_VERTICAL_MOVEMENT_(self%id_phyN,vsink)
+!    _SET_VERTICAL_MOVEMENT_(self%id_phyC,vsink)
+!    if (self%PhosphorusOn) _SET_VERTICAL_MOVEMENT_(self%id_phyP,vsink)
+!    if (self%PhotoacclimOn) then 
+!       _SET_VERTICAL_MOVEMENT_(self%id_chl,vsink)
+!       _SET_VERTICAL_MOVEMENT_(self%id_rub,vsink)
+!    end if
+! 
+! end subroutine maecs_get_vertical_movement
+! !EOC
+
 end module fabm_hzg_maecs
-
-
-
-
 
