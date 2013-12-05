@@ -1,6 +1,12 @@
 #include "fabm_driver.h"
 !-----------------------------------------------------------------------------------
 !          Model for Adaptive Ecosystems in Coastal Seas 
+<<<<<<< HEAD
+!  Original author(s): Richard Hofmeister, Markus Schartau & Kai Wirtz
+!  HZG 2011-2013
+
+=======
+>>>>>>> 560e3dbbe7b9557d60044e0e8f65e141e09252ce
 subroutine maecs_do(self,_ARGUMENTS_DO_)
 
 use fabm_types
@@ -29,18 +35,29 @@ real(rk) :: phys_status, dQN_dt, dRchl_phyC_dt=0.0_rk ! []
 
 ! --- ZOOPLANKTON GRAZING, INGESTION, MORTALITY, RESPIRATION... 
 real(rk) :: graz_rate   ! carbon-specific grazing rate                          [d^{-1}]
+<<<<<<< HEAD
+real(rk) :: zoo_respC   ! temperature dependent carbon respiration rate  [mmolC m^{-3} d^{-1}]
+real(rk) :: zoo_mort
+real(rk) :: secs_pr_day = 86400.0_rk
+=======
 real(rk) :: yield_zoo   ! grazed fraction that is actually ingested            [dimensionless]
 real(rk) :: zoo_respC   ! temperature dependent carbon respiration rate  [mmolC m^{-3} d^{-1}]
 real(rk) :: zoo_mort,rub3
 
+>>>>>>> 560e3dbbe7b9557d60044e0e8f65e141e09252ce
 ! --- AGGREGATION 
 real(rk) :: aggreg_rate ! aggregation among phytoplankton and between phytoplankton & detritus [d^{-1}]    
 logical  :: out = .true.
 !   if(36000.eq.secondsofday .and. mod(julianday,1).eq.0 .and. outn) out=.true.    
 #define _KAI_ 0
 #define _MARKUS_ 1
+<<<<<<< HEAD
+! #define UNIT / 86400
+#define UNIT *1.1574074074E-5_rk
+=======
 #define UNIT / 86400
 !#define UNIT *1.1574074074E-5_rk
+>>>>>>> 560e3dbbe7b9557d60044e0e8f65e141e09252ce
 
  _LOOP_BEGIN_
 ! First retrieve current (local) state  variable values
@@ -53,6 +70,10 @@ logical  :: out = .true.
   _GET_(self%id_detN, det%N)  ! Detritus Nitrogen in mmol-N/m**3
   _GET_(self%id_domC, dom%C)  ! Dissolved Organic Carbon in mmol-C/m**3
   _GET_(self%id_domN, dom%N)  ! Dissolved Organic Nitrogen in mmol-N/m**3
+<<<<<<< HEAD
+if (self%RubiscoOn) then
+      _GET_(self%id_Rub, phy%Rub)  ! fraction of Rubisco in -
+=======
 if (self%GrazingOn) then
   _GET_(self%id_zooC, zoo%C)  ! Zooplankton Carbon in mmol-C/m**3
 end if
@@ -61,6 +82,7 @@ end if
 if (self%RubiscoOn) then
       _GET_(self%id_Rub2, phy%Rub)  ! fraction of Rubisco in -
 
+>>>>>>> 560e3dbbe7b9557d60044e0e8f65e141e09252ce
 end if
 if (self%PhotoacclimOn) then
       _GET_(self%id_chl, phy%chl)  ! Chl:C ratio in mg-Chla/mmol-C
@@ -71,6 +93,12 @@ if (self%PhosphorusOn) then
       _GET_(self%id_detP, det%P)  ! Detritus Phosphorus in mmol-P/m**3
       _GET_(self%id_domP, dom%P)  ! Dissolved Organic Phosphorus in mmol-P/m**3
 end if
+<<<<<<< HEAD
+if (self%GrazingOn) then
+      _GET_(self%id_zooC, zoo%C)  ! Zooplankton Carbon in mmol-C/m**3
+end if
+=======
+>>>>>>> 560e3dbbe7b9557d60044e0e8f65e141e09252ce
 !#E_GET
 !phy%Rub = Rub
 !phy%chl = chl
@@ -94,7 +122,11 @@ end if
 ! *** BEGIN A) 
 
 ! --- checking and correcting extremely low state values  ------------  
+<<<<<<< HEAD
+call min_mass(self,phy,method=2) !_KAI_ minimal reasonable Phy-C and -Nitrogen
+=======
 call min_mass(self,phy,method=_KAI_) ! minimal reasonable Phy-C and -Nitrogen
+>>>>>>> 560e3dbbe7b9557d60044e0e8f65e141e09252ce
 !call min_mass(self,phy,method=3)
 !write (*,'(A,3(F10.3))') '3 rub=',phy%Rub
 
@@ -143,11 +175,17 @@ end if
 ! --- phytoplankton aggregation -------------------------------------------------
 ! If biovolume is primarily determined by the nitrogen content, also for detritus
 !aggreg_rate = self%phi_agg * dom%C * (phy%N + det%N)                    ! [d^{-1}] 
+<<<<<<< HEAD
+
+!_GET_(self%id_fracR,phys_status )  
+!write (*,'(A,1(F10.3))') 'phys=',phys_status
+=======
 ! _SET_DIAGNOSTIC_(self%id_fracR,phy%frac%rel_phys)  
 
 !_GET_(self%id_fracR,phys_status )  
 !write (*,'(A,1(F10.3))') 'phys=',phys_status
 ! _SET_DIAGNOSTIC_(self%id_tmp,phy%frac%rel_phys ) !step_integrated bulk chlorophyll concentration
+>>>>>>> 560e3dbbe7b9557d60044e0e8f65e141e09252ce
 
 aggreg_rate = self%phi_agg * (1.0_rk - exp(-0.02*dom%C)) * (phy%N + det%N) 
 !         vS * exp(-4*phys_status )                ! [d^{-1}] 
@@ -159,7 +197,11 @@ degradT     = self%hydrol * sens%func_T
 reminT      = self%remin  * sens%func_T
 
 ! right hand side of ODE (rhs)    
+<<<<<<< HEAD
+!  #define UNIT /self%secs_pr_day
+=======
 !#define UNIT /self%secs_pr_day
+>>>>>>> 560e3dbbe7b9557d60044e0e8f65e141e09252ce
 !__________________________________________________________________________
 !
 ! PHYTOPLANKTON C
@@ -193,7 +235,11 @@ if (self%PhotoacclimOn) then
                   + acclim%dRchl_dfracR * acclim%dfracR_dt   & 
                   + acclim%dRchl_dQN    * dQN_dt 
 
+<<<<<<< HEAD
+   rhsv%chl = phy%theta * phy%frac%Rub * phy%rel_QN**self%sigma * rhsv%phyC + dRchl_phyC_dt * phy%C
+=======
    rhsv%chl = phy%theta * phy%frac%Rub * phy%rel_QN**self%sigma * rhsv%phyC + dRchl_phyC_dt * phy%C_reg
+>>>>>>> 560e3dbbe7b9557d60044e0e8f65e141e09252ce
 
 !write (*,'(A,4(F10.3))') 'rhs chl=', phy%theta * phy%frac%Rub * phy%rel_QN**self%sigma * rhsv%phyC,dRchl_phyC_dt * phy%C_reg*1E1,phy%rel_QN**self%sigma,phy%theta
 
@@ -201,6 +247,12 @@ if (self%PhotoacclimOn) then
 
 if (self%RubiscoOn) then 
 !        rhsv%rub  = acclim%dfracR_dt * phy%N_reg + phy%Rub / phy%N_reg * rhsv%phyN  !phy%Rub / phy%C_reg
+<<<<<<< HEAD
+    rhsv%Rub  = acclim%dfracR_dt * phy%C + phy%Rub/phy%C_reg * rhsv%phyC 
+! add relaxation term to destroy unphysical Rub accumulation
+!     if( phy%Rub .gt. 0.9d0*phy%C) rhsv%rub = rhsv%rub - phy%Rub/(1.d0+exp(-67.d0*(phy%Rub/ phy%C_reg  - 1.d0)))
+!write (*,'(A,2(F10.3))') '2:',acc%dfracR_dt*1E3, grad_fracR *1E3
+=======
     rhsv%Rub2  = acclim%dfracR_dt * phy%C_reg + phy%Rub/phy%C_reg * rhsv%phyC 
 ! add relaxation term to destroy unphysical Rub accumulation
 !     if( phy%Rub .gt. 0.9d0*phy%C) rhsv%rub = rhsv%rub - phy%Rub/(1.d0+exp(-67.d0*(phy%Rub/ phy%C_reg  - 1.d0)))
@@ -210,6 +262,7 @@ if (self%RubiscoOn) then
  _SET_DIAGNOSTIC_(self%id_tmp,phy%Rub ) !step_integrated bulk chlorophyll concentration
 !  _SET_DIAGNOSTIC_(self%id_tmp,acclim%dfracR_dt ) !step_integrated bulk chlorophyll concentration
 
+>>>>>>> 560e3dbbe7b9557d60044e0e8f65e141e09252ce
    end if 
 end if 
 !________________________________________________________________________________
@@ -314,6 +367,10 @@ end if
   _SET_ODE_(self%id_detN, rhsv%detN UNIT)
   _SET_ODE_(self%id_domC, rhsv%domC UNIT)
   _SET_ODE_(self%id_domN, rhsv%domN UNIT)
+<<<<<<< HEAD
+if (self%RubiscoOn) then
+      _SET_ODE_(self%id_Rub, rhsv%Rub UNIT)
+=======
 
 if (self%GrazingOn) then
   _SET_ODE_(self%id_zooC, rhsv%zooC UNIT)
@@ -321,6 +378,7 @@ end if
 if (self%RubiscoOn) then
       _SET_ODE_(self%id_Rub2, rhsv%Rub2 UNIT)
 !      _SET_ODE_(self%id_Rub2, 0.0_rk  UNIT)
+>>>>>>> 560e3dbbe7b9557d60044e0e8f65e141e09252ce
 end if
 if (self%PhotoacclimOn) then
       _SET_ODE_(self%id_chl, rhsv%chl UNIT)
@@ -331,6 +389,12 @@ if (self%PhosphorusOn) then
       _SET_ODE_(self%id_detP, rhsv%detP UNIT)
       _SET_ODE_(self%id_domP, rhsv%domP UNIT)
 end if
+<<<<<<< HEAD
+if (self%GrazingOn) then
+      _SET_ODE_(self%id_zooC, rhsv%zooC UNIT)
+end if
+=======
+>>>>>>> 560e3dbbe7b9557d60044e0e8f65e141e09252ce
 !#E_ODE
 
 
@@ -339,6 +403,23 @@ end if
 !#S_DIA
   _SET_DIAGNOSTIC_(self%id_chl2, phy%theta*phy%rel_chloropl) !step_integrated bulk chlorophyll concentration
   _SET_DIAGNOSTIC_(self%id_fracR, phy%frac%Rub)             !step_integrated 
+<<<<<<< HEAD
+  _SET_DIAGNOSTIC_(self%id_rhs_nutN, rhsv%nutN) !step_integrated RHS of Dissolved Inorganic Nitrogen DIN
+  _SET_DIAGNOSTIC_(self%id_rhs_nutP, rhsv%nutP) !step_integrated RHS of Dissolved Inorganic Phosphorus DIP
+  _SET_DIAGNOSTIC_(self%id_rhs_phyC, rhsv%phyC) !step_integrated RHS of Phytplankton Carbon
+  _SET_DIAGNOSTIC_(self%id_rhs_phyN, rhsv%phyN) !step_integrated RHS of Phytplankton Nitrogen
+  _SET_DIAGNOSTIC_(self%id_rhs_phyP, rhsv%phyP) !step_integrated RHS of Phytplankton Phosphorus
+  _SET_DIAGNOSTIC_(self%id_rhs_zooC, rhsv%zooC) !step_integrated RHS of Zooplankton Carbon
+  _SET_DIAGNOSTIC_(self%id_rhs_detC, rhsv%detC) !step_integrated RHS of Detritus Carbon
+  _SET_DIAGNOSTIC_(self%id_rhs_detN, rhsv%detN) !step_integrated RHS of Detritus Nitrogen
+  _SET_DIAGNOSTIC_(self%id_rhs_detP, rhsv%detP) !step_integrated RHS of Detritus Phosphorus
+  _SET_DIAGNOSTIC_(self%id_rhs_domC, rhsv%domC) !step_integrated RHS of Dissolved Organic Carbon
+  _SET_DIAGNOSTIC_(self%id_rhs_domN, rhsv%domN) !step_integrated RHS of Dissolved Organic Nitrogen
+  _SET_DIAGNOSTIC_(self%id_rhs_domP, rhsv%domP) !step_integrated RHS of Dissolved Organic Phosphorus
+  _SET_DIAGNOSTIC_(self%id_rhs_Rub, rhsv%Rub)   !step_integrated RHS of fraction of Rubisco
+  _SET_DIAGNOSTIC_(self%id_rhs_chl, rhsv%chl)   !step_integrated RHS of Chl:C ratio
+=======
+>>>>>>> 560e3dbbe7b9557d60044e0e8f65e141e09252ce
 !#E_DIA
 
 if (self%DebugDiagOn) then

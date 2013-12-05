@@ -125,7 +125,11 @@ if (self%PhosphorusOn) then
         ! N_queue intermittency in protein/RNA dynamics creates weak co-limitation   
 !          fac_PN_colim       = queuefunc(n_queue,ratio_free_PN,quefunc,queuederiv)
    call queuefunc(n_queue,ratio_free_PN,fac_PN_colim,deriv_fac_PN_colim)
+<<<<<<< HEAD
+          !  numerical derivative of ingestion response  
+=======
           ! numerical derivative of ingestion response  
+>>>>>>> 560e3dbbe7b9557d60044e0e8f65e141e09252ce
   ! deriv_fac_PN_colim = queuederiv(n_queue,ratio_free_PN) 
 ! relative nutrient limitation due to P shortage 
    fac_PN_colim = smooth_small(fac_PN_colim,eps)
