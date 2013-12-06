@@ -22,17 +22,16 @@ type,extends(type_maecs_base_model),public :: type_hzg_maecs
   procedure :: initialize
   procedure :: do => maecs_do
   procedure :: get_light_extinction
-!      procedure :: get_vertical_movement
+  procedure :: get_vertical_movement=>maecs_get_vertical_movement
 end type type_hzg_maecs
 
-!if maecs_get_light_extinction is taken out of the fabm_hzg_maecs module
-! interface
-!   subroutine maecs_get_light_extinction(self, _ARGUMENTS_GET_EXTINCTION_) 
-!   import type_hzg_maecs,type_environment,rk
-!   class (type_hzg_maecs),intent(in) :: self
-!   _DECLARE_ARGUMENTS_GET_EXTINCTION_
-!   end subroutine
-! end interface
+interface
+   subroutine maecs_get_vertical_movement(self, _ARGUMENTS_GET_VERTICAL_MOVEMENT_) 
+   import type_hzg_maecs,type_environment,rk
+   class (type_hzg_maecs),intent(in) :: self
+   _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_
+   end subroutine
+ end interface
 
 interface
   subroutine maecs_do(self, _ARGUMENTS_DO_)
@@ -357,7 +356,9 @@ call self%register_diagnostic_variable(self%id_fracR,   'fracR','-', ' fracR', &
   time_treatment=time_treatment_step_integrated)
 
 call self%register_diagnostic_variable(self%id_tmp,'tmp','-', 'tmp', time_treatment=time_treatment_step_integrated)
-
+call self%register_diagnostic_variable(self%id_phyqstat,'phyQstat','-', 'Phytoplankton physiological status', & 
+  time_treatment=time_treatment_step_integrated)
+  
 !!------- Register conserved quantities  ------- 
 call self%register_conserved_quantity(self%id_totC,'C','mmol-C/m**3','total-C')
 call self%register_conserved_quantity(self%id_totN,'N','mmol-N/m**3','total-N')
@@ -391,6 +392,7 @@ end subroutine initialize
 ! set small boundary depending on numerical resolution
 
 
+!-----------------------------------------------------------------------
 !BOP
 !
 ! !IROUTINE: Get the light extinction coefficient due to biogeochemical
@@ -400,8 +402,7 @@ end subroutine initialize
    subroutine get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
 !  
 ! !INPUT PARAMETERS:
-!   class (type_maecs_base_model), intent(in) :: self !THIS WOULDN'T COMPILE
-   class(type_hzg_maecs),intent(in)          :: self !!THIS GIVES SEGMENTATION FAULT
+   class(type_hzg_maecs),intent(in)          :: self 
    _DECLARE_ARGUMENTS_GET_EXTINCTION_
    
 !
@@ -435,59 +436,85 @@ end subroutine initialize
    end subroutine get_light_extinction
 !EOC
 
-!-----------------------------------------------------------------------
-! !IROUTINE: MAECS core model, definition of sources and sinks 
-! !INTERFACE:
-
-! !-----------------------------------------------------------------------
-! !BOP
-! !
-! subroutine maecs_get_vertical_movement(self,_ARGUMENTS_GET_VERTICAL_MOVEMENT_)
-! 
-! implicit none
-! !
-! ! !INPUT PARAMETERS:
-! class (type_hzg_maecs), intent(in), target :: self
-! _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_
-!  !   REALTYPE, intent(in)              ::vstokes 
-!   
-! !
-! ! !LOCAL VARIABLES: 
-! REALTYPE    :: phyn,phyc,phyp,rel_QN,rel_QP,vsink
-! REALTYPE, parameter :: secs_pr_day = 86400.d0 
-! !EOP
-! !-----------------------------------------------------------------------
-! !BOC
-! 
-! ! Retrieve phtoplankton state
-!    _GET_STATE_(self%id_phyc,phyc)
-!    _GET_STATE_(self%id_phyn,phyn)
-!    
-!    CHECK THIS:
-!    _GET_DIAGNOSTIC_(rel_QN*rel_QP)
-!
-!    rel_QN = (phyn/phyc - self%QN_phy_0) / (self%QN_phy_max - self%QN_phy_0)
-!    
-!    if (self%PhosphorusOn) then
-!       _GET_STATE_(self%id_phyp,phyp)
-!       rel_QP = (phyn/phyp - self%QP_phy_0) / (self%QP_phy_max - self%QP_phy_0)
-!    else
-!       rel_QP=0.5d0
-!    end if
-! 
-!    call sinking(self%vS_phy,rel_QN*rel_QP,vsink)
-!    vsink = vsink / self%secs_pr_day
-! 
-!    _SET_VERTICAL_MOVEMENT_(self%id_phyN,vsink)
-!    _SET_VERTICAL_MOVEMENT_(self%id_phyC,vsink)
-!    if (self%PhosphorusOn) _SET_VERTICAL_MOVEMENT_(self%id_phyP,vsink)
-!    if (self%PhotoacclimOn) then 
-!       _SET_VERTICAL_MOVEMENT_(self%id_chl,vsink)
-!       _SET_VERTICAL_MOVEMENT_(self%id_rub,vsink)
-!    end if
-! 
-! end subroutine maecs_get_vertical_movement
-! !EOC
-
 end module fabm_hzg_maecs
+
+!-----------------------------------------------------------------------
+!BOP
+!
+subroutine maecs_get_vertical_movement(self,_ARGUMENTS_GET_VERTICAL_MOVEMENT_)
+
+use maecs_functions
+use maecs_types
+
+implicit none
+!
+! !INPUT PARAMETERS:
+ class(type_maecs_base_model),intent(in)          :: self
+_DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_ 
+ !   REALTYPE, intent(in)              ::vstokes 
+type (type_maecs_phy):: phy
+type (type_maecs_zoo) :: zoo
+type (type_maecs_om):: det
+type (type_maecs_om):: dom
+
+!
+! !LOCAL VARIABLES: 
+REALTYPE    :: phyQstat,vsink
+REALTYPE, parameter :: secs_pr_day = 86400.d0 
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+
+_FABM_LOOP_BEGIN_
+   
+   ! Retrieve phtoplankton state
+   
+   !Retrieve the 'phyQstat' directly as a diagnostic variable: does not work yet.
+   !fabm_get_bulk_diagnostic_data(self%id_phyqstat,phyQstatD) !where, phyQstat=rel_QN*rel_QP
+   !_GET_(self%id_phyqstat,phyQstatD)
+   
+   !Calculate manually
+   _GET_(self%id_phyC, phy%C)  ! Phytplankton Carbon in mmol-C/m**3
+   _GET_(self%id_phyN, phy%N)  ! Phytplankton Nitrogen in mmol-N/m**3
+   if (self%GrazingOn) then
+     _GET_(self%id_zooC, zoo%C)  ! Zooplankton Carbon in mmol-C/m**3
+   end if
+   if (self%PhosphorusOn) then
+     _GET_(self%id_phyP, phy%P)  ! Phytplankton Phosphorus in mmol-P/m**3
+   end if
+
+   !write (*,'(A,2(F10.3))') 'Before: phy%C, phy%N=', phy%C, phy%N
+   call min_mass(self,phy,method=2) 
+   !write (*,'(A,2(F10.3))') 'After: phy%C, phy%N=', phy%C, phy%N
+   call calc_internal_states(self,phy,det,dom,zoo) 
+   !write (*,'(A,2(F10.3))') 'phy%rel_QN, phy%rel_QP=', phy%rel_QN, phy%rel_QP
+   phyQstat=phy%rel_QN*phy%rel_QP
+  
+   ! Calculate sinking
+
+   call sinking(self%vS_phy, phyQstat, vsink)
+   vsink = vsink / secs_pr_day
+   write (*,'(A,2(F10.3))') 'phyQstat, vsink=', phyQstat, vsink
+   
+   !set the rates
+   _SET_VERTICAL_MOVEMENT_(self%id_detC,-1.0_rk*self%vS_det/secs_pr_day)
+   _SET_VERTICAL_MOVEMENT_(self%id_detN,-1.0_rk*self%vs_det/secs_pr_day)
+
+   _SET_VERTICAL_MOVEMENT_(self%id_phyN,vsink)
+   _SET_VERTICAL_MOVEMENT_(self%id_phyC,vsink)
+   if (self%PhosphorusOn) then
+      _SET_VERTICAL_MOVEMENT_(self%id_phyP,vsink)
+      _SET_VERTICAL_MOVEMENT_(self%id_detP,-1.0_rk*self%vs_det/secs_pr_day)
+   end if
+   if (self%PhotoacclimOn) then 
+      _SET_VERTICAL_MOVEMENT_(self%id_chl,vsink)
+      _SET_VERTICAL_MOVEMENT_(self%id_Rub,vsink)
+   end if
+  
+_FABM_LOOP_END_
+  
+end subroutine maecs_get_vertical_movement
+!EOC
+
+
 

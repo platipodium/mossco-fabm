@@ -25,7 +25,7 @@ type (type_maecs_sensitivities) :: sens
 integer  :: i, j, iz, ihour, iloop
 real(rk) :: reminT, degradT       ! Temp dependent remineralisation and hydrolysis rates
 ! --- QUOTA and FRACTIONS
-real(rk) :: phys_status, dQN_dt, dRchl_phyC_dt=0.0_rk ! []
+real(rk) :: phys_status, dQN_dt, dRchl_phyC_dt=0.0_rk, rel_QN, relQP ! []
 
 ! --- ZOOPLANKTON GRAZING, INGESTION, MORTALITY, RESPIRATION... 
 real(rk) :: graz_rate   ! carbon-specific grazing rate                          [d^{-1}]
@@ -98,6 +98,7 @@ call min_mass(self,phy,method=2) ! minimal reasonable Phy-C and -Nitrogen
 
 ! --- stoichiometry of autotrophs (calculating QN_phy, frac_R, theta, and QP_phy)
 call calc_internal_states(self,phy,det,dom,zoo)
+_SET_DIAGNOSTIC_(self%id_phyqstat,rel_QN*rel_QP)  
 
 if (.not. self%PhotoacclimOn) then  
    phy%chl = phy%C * self%frac_chl_ini   ! total Chl mg-CHL/m3
