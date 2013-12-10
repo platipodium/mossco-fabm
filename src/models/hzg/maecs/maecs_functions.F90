@@ -180,11 +180,7 @@ type (type_maecs_base_model), intent(in)      :: maecs
 type (type_maecs_phy), intent(inout)   :: phy
 integer, intent(in), optional          :: method
 
-<<<<<<< HEAD
 real(rk)     :: min_Cmass, min_Nmass, delta_C, delta_N
-=======
-real(rk)     :: min_Cmass,min_Nmass
->>>>>>> 560e3dbbe7b9557d60044e0e8f65e141e09252ce
 integer      ::  mm_method=_KAI_
 logical      ::  ischanged
 
@@ -223,33 +219,18 @@ select case (mm_method)
          ischanged = .true.
       end if  
    end if
-<<<<<<< HEAD
-write (*,'(A,4(F10.3))') 'P=',phy%P,phy%C_reg * maecs%aver_QP_phy,smooth_small(phy%P,min_Cmass * maecs%aver_QP_phy)
-=======
-!write (*,'(A,4(F10.3))') 'P=',phy%P,phy%C_reg * maecs%aver_QP_phy,smooth_small(phy%P,min_Cmass * maecs%aver_QP_phy)
->>>>>>> 560e3dbbe7b9557d60044e0e8f65e141e09252ce
    if (ischanged) then ! retune P and Rub
 
 !      if (maecs%PhosphorusOn)  phy%P_reg =  phy%C_reg * maecs%aver_QP_phy
       if (maecs%RubiscoOn) then 
-<<<<<<< HEAD
-!write (*,'(A,2(F10.3))') 'pre rub=',phy%Rub,maecs%frac_Rub_ini
          phy%Rub =  phy%C_reg * maecs%frac_Rub_ini
-!        phy%Rub = phy%N_reg * maecs%frac_Rub_ini
-!write (*,'(A,3(F10.3))') 'min C rub=',phy%C_reg,phy%C,phy%Rub
-=======
-         phy%Rub =  phy%C_reg * maecs%frac_Rub_ini
-!        phy%Rub = phy%N_reg * maecs%frac_Rub_ini
-write (*,'(A,3(F10.3))') 'm2 rub=',phy%Rub
->>>>>>> 560e3dbbe7b9557d60044e0e8f65e141e09252ce
       end if
    else  ! additional check for Rub and P; TODO: omitt ??
        phy%Rub = smooth_small( phy%Rub , min_Cmass * maecs%frac_Rub_ini)
-!       phy%Rub = smooth_small( phy%Rub , min_Cmass * maecs%aver_QN_phy* maecs%frac_Rub_ini)
 !      if (maecs%PhosphorusOn)  phy%P_reg =  smooth_small(phy%P,min_Cmass * maecs%aver_QP_phy)
    end if ! ischanged
-<<<<<<< HEAD
-  case (2)
+  
+ case (2)
 ! -------------------------------------------------------------------------------
 ! --- Here, phyC and phyN are smoothed as soon as biomass approaches 'min_mass',  
 ! set small boundary depending on numerical resolution
@@ -258,7 +239,7 @@ write (*,'(A,3(F10.3))') 'm2 rub=',phy%Rub
    min_Nmass = min_Cmass * maecs%aver_QN_phy
    phy%C_reg = smooth_small( phy%C , min_Cmass)
    delta_C   = phy%C_reg - phy%C
-delta_N = 0.0_rk
+   delta_N = 0.0_rk
    if (abs(delta_C) .gt. 1d-2*min_Cmass) then
       phy%N_reg = phy%N + delta_C * maecs%aver_QN_phy
       ischanged = .true. 
@@ -272,10 +253,6 @@ delta_N = 0.0_rk
       end if  
    end if
 
-!write (*,'(A,2(F10.3
-=======
- 
->>>>>>> 560e3dbbe7b9557d60044e0e8f65e141e09252ce
  case (3)
 ! -------------------------------------------------------------------------------
 ! --- Here, quota are smoothed as soon as phytoplankton biomass/biovolume 
@@ -289,7 +266,6 @@ delta_N = 0.0_rk
 
    if (maecs%RubiscoOn) then 
      phy%Rub = smooth_small( phy%Rub , min_Cmass * maecs%frac_Rub_ini)
-!     phy%Rub = smooth_small( phy%Rub , min_Cmass * maecs%aver_QN_phy* maecs%frac_Rub_ini)
    end if    
 end select
 end subroutine min_mass
