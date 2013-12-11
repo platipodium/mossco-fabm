@@ -4,6 +4,8 @@
 
 include ../../../Rules.make
 
+DATE    =   `date +%d%m%y`
+
 LIB	= $(LIBDIR)/libfabm$(buildtype).a
 
 DOCSRC	=  maecs.F90
@@ -14,7 +16,7 @@ ${LIB}(maecs_functions.o) \
 ${LIB}(maecs_primprod.o) \
 ${LIB}(maecs_grazing.o) \
 ${LIB}(maecs_do.o) \
-${LIB}(maecs.o)
+${LIB}(maecs.o) 
 
 all: objs
 
@@ -28,3 +30,7 @@ doc:    $(DOCSRC)
 clean:
 	$(RM) *.o *~
 
+backup:	clean
+	@echo -n "Creating Archiv of MAECS .. \n"; \
+	tar zcvf maecs_$(DATE).tgz *.*  Makefile ; \
+	echo "Done.";

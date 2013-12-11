@@ -11,6 +11,9 @@ SUBDIRS += iow/          # Institute for Ostsee Forchung
 #SUBDIRS += metu/         # Middle East Technical University
 #SUBDIRS += pml/          # Plymouth Marine Laboratory
 #SUBDIRS += aed/          # AED models
+#SUBDIRS += klimacampus/  # Hamburg ??
+#SUBDIRS += metu/         # Middle East Technical University
+#SUBDIRS += pml/          # Plymouth Marine Laboratory
 SUBDIRS += hzg/          # Helmholtz-Zentrum Geesthacht
 
 objs doc clean:

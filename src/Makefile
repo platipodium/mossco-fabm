@@ -6,7 +6,7 @@ SUBDIRS = models drivers
 DOCSRC	= fabm.F90 fabm_types.F90
 
 FABMMOD	 = ${LIBFABM}(fabm.o)
-FABMMODELLIB = ${LIBFABM}(fabm_library.o)
+FABMMODELLIB = ${LIBFABM}(fabm_libown.o)
 
 all: driver models $(FABMMOD)
         $(MOVE_MODULES_COMMAND)

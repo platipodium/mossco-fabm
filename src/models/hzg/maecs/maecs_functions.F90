@@ -219,6 +219,7 @@ select case (mm_method)
          ischanged = .true.
       end if  
    end if
+!write (*,'(A,4(F10.3))') 'P=',phy%P,phy%C_reg * maecs%aver_QP_phy,smooth_small(phy%P,min_Cmass * maecs%aver_QP_phy)
    if (ischanged) then ! retune P and Rub
 
 !      if (maecs%PhosphorusOn)  phy%P_reg =  phy%C_reg * maecs%aver_QP_phy
@@ -319,7 +320,7 @@ sens%func_T  = exp(-maecs%AE_all *(1.0d0/T_Kelv - 1.0d0/maecs%T_ref ))
 sens%P_max_T = maecs%P_max * sens%func_T
 
 ! --- light response curve ------------------------------------------------------------------------
-sens%a_light = maecs%alpha * par /(sens%P_max_T)    ! par NOCH BAUSTELLE, jetzt PAR in zellmitte 
+sens%a_light = maecs%alpha * par /(sens%P_max_T)  ! par NOCH BAUSTELLE, jetzt PAR in zellmitte 
 sens%S_phot  = 1.0d0 - exp(- sens%a_light * phy%theta) ! [dimensionless]
 
 ! --- carbon specific N-uptake: sites vs. processing ----------------------------------
@@ -327,10 +328,16 @@ sens%up_NC   = uptflex(maecs%AffN,maecs%V_NC_max * sens%func_T,nut%N,maecs%small
 
 !  P-uptake coefficients
 if (maecs%PhosphorusOn) then 
-   sens%up_PC   = uptflex(maecs%AffP,maecs%V_PC_max * sens%func_T,nut%P,maecs%small)
+   sens%up_PC  = uptflex(maecs%AffP,maecs%V_PC_max * sens%func_T,nut%P,maecs%small)
+end if
 !write (*,'(A,4(F10.3))') 'vP=',sens%up_PC,maecs%V_PC_max * sens%func_T,nut%P,maecs%small*1E3
 
+!  Si-uptake coefficients
+if (maecs%SiliconOn) then 
+   sens%up_SiC = uptflex(maecs%AffSi,maecs%V_SiC_max * sens%func_T,nut%S,maecs%small)
 end if
+! TODO check temperature dependence of nutrient affinity
+
 end subroutine
 
 !------------------------------------------------------
@@ -370,15 +377,28 @@ phy%frac%Rub = _ONE_ - smooth_small(_ONE_- phy%frac%Rub ,maecs%small_finite + ma
 if (maecs%PhosphorusOn) then 
    phy%QP     = phy%P / phy%C_reg
 ! added for mixing effects in estuaries kw Jul, 15 2013
-   phy%QP  = smooth_small(phy%QP, maecs%QP_phy_0)
+   phy%QP     = smooth_small(phy%QP, maecs%QP_phy_0)
 
    phy%rel_QP = ( phy%QP - maecs%QP_phy_0 ) * maecs%iK_QP
+
 ! added for deep detritus traps with extreme quotas kw Jul, 16 2013
-   phy%rel_QP  = _ONE_ - smooth_small(_ONE_- phy%rel_QP, maecs%small_finite)
+   phy%rel_QP = _ONE_ - smooth_small(_ONE_- phy%rel_QP, maecs%small_finite)
 
    phy%QPN    = phy%P / phy%N_reg
 !   dom%QP     = dom%P  / (dom%C  + min_Cmass)  ! P:C ratio of DOM
 !   det%QP     = det%P / (det%C + min_Cmass)  ! P:C ratio of detritus
+end if 
+  
+if (maecs%SiliconOn) then 
+   phy%QSi    = phy%S / phy%C_reg
+! added for mixing effects in estuaries kw Jul, 15 2013
+   phy%QSi     = smooth_small(phy%QSi, maecs%QSi_phy_0)
+
+   phy%rel_QSi = ( phy%QSi - maecs%QSi_phy_0 ) /(maecs%QSi_phy_max-maecs%QSi_phy_0) 
+
+! added for deep detritus traps with extreme quotas kw Jul, 16 2013
+   phy%rel_QSi = _ONE_ - smooth_small(_ONE_- phy%rel_QSi, maecs%small_finite)
+!   phy%QSiN    = phy%Si / phy%N_reg
 end if   
 
 ! fraction of free (biochemically available) intracellular nitrogen
