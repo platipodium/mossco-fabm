@@ -1,0 +1,26 @@
+!-------------------------------------------------------------------------------
+! MAECS environment parameters
+!-------------------------------------------------------------------------------
+! a_water  [float, unit = 1/m]
+!            background attenuation coefficient
+! a_spm    [float, unit = m**3/m.mmolC]
+!            attenuation coefficient of SPM
+! a_chl    [float, unit = m**3/m.mgChl]
+!            attenuation coefficient due to Chl absorption
+! frac_PAR [float]
+!            photosynthetically active fraction of light
+! small    [float]
+!            lower limit for denominator in ratios; small_finite=sqrt(small)
+! dil      [float]
+!            dilution of all concentrations except dissolved inorganics
+!-------------------------------------------------------------------------------
+
+&maecs_env
+   a_water = 0.01,
+   a_spm = 0.001,
+   a_chl = 0.02,
+   frac_PAR = 1.0,
+   small = 1e-04,
+   dil = 0.0,
+/
+

@@ -1,0 +1,28 @@
+!-------------------------------------------------------------------------------
+! MAECS grazing
+!-------------------------------------------------------------------------------
+! const_NC_zoo   [float, unit = mol/mol]
+!                  zooplankton N:C ratio
+! const_PC_zoo   [float, unit = mol/mol] #PhosphorusOn
+!                  zooplankton P:C ratio
+! g_max          [float, unit = per d] #GrazingOn
+!                  maximum grazing rate
+! k_grazC        [float, unit = mmolN/m**3] #GrazingOn
+!                  half saturation graing
+! yield_zoo      [float] #GrazingOn
+!                  yield of herbivory
+! basal_resp_zoo [float, unit = per d] #GrazingOn
+!                  basal respiration
+! mort_zoo       [float, unit = m**3/mmolN.d] #GrazingOn
+!                  quadratic mortality
+!-------------------------------------------------------------------------------
+
+&maecs_graz
+   const_NC_zoo = 0.3,
+   const_PC_zoo = 0.025,
+   g_max = 1.,
+   k_grazC = 5.0,
+   yield_zoo = 0.35,
+   basal_resp_zoo = 0.04,
+   mort_zoo = 0.035,
+/
