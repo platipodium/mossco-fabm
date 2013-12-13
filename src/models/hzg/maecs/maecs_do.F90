@@ -56,14 +56,8 @@ logical  :: out = .true.
   _GET_(self%id_detN, det%N)  ! Detritus Nitrogen in mmol-N/m**3
   _GET_(self%id_domC, dom%C)  ! Dissolved Organic Carbon in mmol-C/m**3
   _GET_(self%id_domN, dom%N)  ! Dissolved Organic Nitrogen in mmol-N/m**3
-if (self%GrazingOn) then
-  _GET_(self%id_zooC, zoo%C)  ! Zooplankton Carbon in mmol-C/m**3
-end if
-
-
 if (self%RubiscoOn) then
       _GET_(self%id_Rub, phy%Rub)  ! fraction of Rubisco in -
-
 end if
 if (self%PhotoacclimOn) then
       _GET_(self%id_chl, phy%chl)  ! Chl:C ratio in mg-Chla/mmol-C
@@ -321,10 +315,6 @@ end if
   _SET_ODE_(self%id_detN, rhsv%detN UNIT)
   _SET_ODE_(self%id_domC, rhsv%domC UNIT)
   _SET_ODE_(self%id_domN, rhsv%domN UNIT)
-
-if (self%GrazingOn) then
-  _SET_ODE_(self%id_zooC, rhsv%zooC UNIT)
-end if 
 if (self%RubiscoOn) then
       _SET_ODE_(self%id_Rub, rhsv%Rub UNIT)
 end if
@@ -353,23 +343,6 @@ end if
 !#S_DIA
   _SET_DIAGNOSTIC_(self%id_chl2, phy%theta*phy%rel_chloropl) !step_integrated bulk chlorophyll concentration
   _SET_DIAGNOSTIC_(self%id_fracR, phy%frac%Rub)             !step_integrated 
-  _SET_DIAGNOSTIC_(self%id_rhs_nutN, rhsv%nutN)             !step_integrated RHS of Dissolved Inorganic Nitrogen DIN
-  _SET_DIAGNOSTIC_(self%id_rhs_nutP, rhsv%nutP)             !step_integrated RHS of Dissolved Inorganic Phosphorus DIP
-  _SET_DIAGNOSTIC_(self%id_rhs_nutS, rhsv%nutS)             !step_integrated RHS of Dissolved Inorganic Silicon Si
-  _SET_DIAGNOSTIC_(self%id_rhs_phyC, rhsv%phyC)             !step_integrated RHS of Phytplankton Carbon
-  _SET_DIAGNOSTIC_(self%id_rhs_phyN, rhsv%phyN)             !step_integrated RHS of Phytplankton Nitrogen
-  _SET_DIAGNOSTIC_(self%id_rhs_phyP, rhsv%phyP)             !step_integrated RHS of Phytplankton Phosphorus
-  _SET_DIAGNOSTIC_(self%id_rhs_phyS, rhsv%phyS)             !step_integrated RHS of Phytplankton Silicon
-  _SET_DIAGNOSTIC_(self%id_rhs_zooC, rhsv%zooC)             !step_integrated RHS of Zooplankton Carbon
-  _SET_DIAGNOSTIC_(self%id_rhs_detC, rhsv%detC)             !step_integrated RHS of Detritus Carbon
-  _SET_DIAGNOSTIC_(self%id_rhs_detN, rhsv%detN)             !step_integrated RHS of Detritus Nitrogen
-  _SET_DIAGNOSTIC_(self%id_rhs_detP, rhsv%detP)             !step_integrated RHS of Detritus Phosphorus
-  _SET_DIAGNOSTIC_(self%id_rhs_detS, rhsv%detS)             !step_integrated RHS of Detritus Silicon
-  _SET_DIAGNOSTIC_(self%id_rhs_domC, rhsv%domC)             !step_integrated RHS of Dissolved Organic Carbon
-  _SET_DIAGNOSTIC_(self%id_rhs_domN, rhsv%domN)             !step_integrated RHS of Dissolved Organic Nitrogen
-  _SET_DIAGNOSTIC_(self%id_rhs_domP, rhsv%domP)             !step_integrated RHS of Dissolved Organic Phosphorus
-  _SET_DIAGNOSTIC_(self%id_rhs_Rub, rhsv%Rub)               !step_integrated RHS of fraction of Rubisco
-  _SET_DIAGNOSTIC_(self%id_rhs_chl, rhsv%chl)               !step_integrated RHS of Chl:C ratio
 !#E_DIA
 
 if (self%DebugDiagOn) then

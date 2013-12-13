@@ -168,7 +168,7 @@ namelist /maecs_env/ &
 
 nutN_initial = 30.0_rk            ! mmol-N/m**3
 nutP_initial = 1.2_rk             ! mmol-P/m**3
-nutS_initial = 30.0_rk            ! mmol-Si/m**3
+nutS_initial = 20._rk             ! mmol-Si/m**3
 phyC_initial = 10_rk              ! mmol-C/m**3
 phyN_initial = 0.8_rk             ! mmol-N/m**3
 phyP_initial = 0.08_rk            ! mmol-P/m**3
@@ -198,10 +198,10 @@ QP_phy_0     = 0.0_rk             ! mol-P/mol-C
 QP_phy_max   = 0.02_rk            ! mol-P/mol-C
 V_PC_max     = 0.03_rk            ! mmol-P/(m3 d)
 AffP         = 0.07_rk            ! m3/(mmol-N d)
-QSi_phy_0    = 0.0_rk             ! mol-P/mol-C
-QSi_phy_max  = 0.02_rk            ! mol-P/mol-C
-V_SiC_max    = 0.03_rk            ! mmol-P/(m3 d)
-AffSi        = 0.07_rk            ! m3/(mmol-N d)
+QSi_phy_0    = 0.04_rk            ! mol-P/mol-C
+QSi_phy_max  = 0.2_rk             ! mol-P/mol-C
+V_SiC_max    = 0.2_rk             ! mmol-P/(m3 d)
+AffSi        = 0.1_rk             ! m3/(mmol-N d)
 syn_nut      = 2.0_rk             ! 
 adap_rub     = 1.0_rk             ! 
 adap_theta   = 1.0_rk             ! 
@@ -230,15 +230,15 @@ dil          = 0.0_rk             !
 
 !--------- read namelists --------- 
 write(0,*) ' read namelists ....'
-open(namlst,file='maecs_switch.nml',status='old')
+open(namlst,file='./maecs_switch.nml',status='old')
 read(namlst,nml=maecs_switch,err=90,end=99)
-open(namlst,file='maecs_init.nml',status='old')
+open(namlst,file='./maecs_init.nml',status='old')
 read(namlst,nml=maecs_init,err=91,end=100)
-open(namlst,file='maecs_pars.nml',status='old')
+open(namlst,file='./maecs_pars.nml',status='old')
 read(namlst,nml=maecs_pars,err=92,end=101)
-open(namlst,file='maecs_graz.nml',status='old')
+open(namlst,file='./maecs_graz.nml',status='old')
 read(namlst,nml=maecs_graz,err=93,end=102)
-open(namlst,file='maecs_env.nml',status='old')
+open(namlst,file='./maecs_env.nml',status='old')
 read(namlst,nml=maecs_env,err=94,end=103)
 ! Store parameter values in our own derived type
 ! NB: all rates must be provided in values per day,
@@ -399,40 +399,6 @@ end if
 call self%register_diagnostic_variable(self%id_chl2,    'chl2','gCHL/m**3', 'bulk chlorophyll concentration chl2', &
   time_treatment=time_treatment_step_integrated)
 call self%register_diagnostic_variable(self%id_fracR,   'fracR','-', ' fracR', &
-  time_treatment=time_treatment_step_integrated)
-call self%register_diagnostic_variable(self%id_rhs_nutN, 'rhs_nutN','mmol-N/m**3/d', 'RHS of Dissolved Inorganic Nitrogen DIN rhs_nutN', &
-  time_treatment=time_treatment_step_integrated)
-call self%register_diagnostic_variable(self%id_rhs_nutP, 'rhs_nutP','mmol-P/m**3/d', 'RHS of Dissolved Inorganic Phosphorus DIP rhs_nutP', &
-  time_treatment=time_treatment_step_integrated)
-call self%register_diagnostic_variable(self%id_rhs_nutS, 'rhs_nutS','mmol-Si/m**3/d', 'RHS of Dissolved Inorganic Silicon Si rhs_nutS', &
-  time_treatment=time_treatment_step_integrated)
-call self%register_diagnostic_variable(self%id_rhs_phyC, 'rhs_phyC','mmol-C/m**3/d', 'RHS of Phytplankton Carbon rhs_phyC', &
-  time_treatment=time_treatment_step_integrated)
-call self%register_diagnostic_variable(self%id_rhs_phyN, 'rhs_phyN','mmol-N/m**3/d', 'RHS of Phytplankton Nitrogen rhs_phyN', &
-  time_treatment=time_treatment_step_integrated)
-call self%register_diagnostic_variable(self%id_rhs_phyP, 'rhs_phyP','mmol-P/m**3/d', 'RHS of Phytplankton Phosphorus rhs_phyP', &
-  time_treatment=time_treatment_step_integrated)
-call self%register_diagnostic_variable(self%id_rhs_phyS, 'rhs_phyS','mmol-Si/m**3/d', 'RHS of Phytplankton Silicon rhs_phyS', &
-  time_treatment=time_treatment_step_integrated)
-call self%register_diagnostic_variable(self%id_rhs_zooC, 'rhs_zooC','mmol-C/m**3/d', 'RHS of Zooplankton Carbon rhs_zooC', &
-  time_treatment=time_treatment_step_integrated)
-call self%register_diagnostic_variable(self%id_rhs_detC, 'rhs_detC','mmol-C/m**3/d', 'RHS of Detritus Carbon rhs_detC', &
-  time_treatment=time_treatment_step_integrated)
-call self%register_diagnostic_variable(self%id_rhs_detN, 'rhs_detN','mmol-N/m**3/d', 'RHS of Detritus Nitrogen rhs_detN', &
-  time_treatment=time_treatment_step_integrated)
-call self%register_diagnostic_variable(self%id_rhs_detP, 'rhs_detP','mmol-P/m**3/d', 'RHS of Detritus Phosphorus rhs_detP', &
-  time_treatment=time_treatment_step_integrated)
-call self%register_diagnostic_variable(self%id_rhs_detS, 'rhs_detS','mmol-Si/m**3/d', 'RHS of Detritus Silicon rhs_detS', &
-  time_treatment=time_treatment_step_integrated)
-call self%register_diagnostic_variable(self%id_rhs_domC, 'rhs_domC','mmol-C/m**3/d', 'RHS of Dissolved Organic Carbon rhs_domC', &
-  time_treatment=time_treatment_step_integrated)
-call self%register_diagnostic_variable(self%id_rhs_domN, 'rhs_domN','mmol-N/m**3/d', 'RHS of Dissolved Organic Nitrogen rhs_domN', &
-  time_treatment=time_treatment_step_integrated)
-call self%register_diagnostic_variable(self%id_rhs_domP, 'rhs_domP','mmol-P/m**3/d', 'RHS of Dissolved Organic Phosphorus rhs_domP', &
-  time_treatment=time_treatment_step_integrated)
-call self%register_diagnostic_variable(self%id_rhs_Rub, 'rhs_Rub','-/d', 'RHS of fraction of Rubisco rhs_Rub', &
-  time_treatment=time_treatment_step_integrated)
-call self%register_diagnostic_variable(self%id_rhs_chl, 'rhs_chl','mg-Chla/mmol-C/d', 'RHS of Chl:C ratio rhs_chl', &
   time_treatment=time_treatment_step_integrated)
 
 !!------- Register conserved quantities  ------- 
