@@ -230,11 +230,11 @@ dil          = 0.0_rk             !
 
 !--------- read namelists --------- 
 write(0,*) ' read namelists ....'
-open(namlst,file='./maecs_switch.nml',status='old')
+open(namlst,file='maecs_switch.nml',status='old')
 read(namlst,nml=maecs_switch,err=90,end=99)
-open(namlst,file='./maecs_init.nml',status='old')
+open(namlst,file='maecs_init.nml',status='old')
 read(namlst,nml=maecs_init,err=91,end=100)
-open(namlst,file='./maecs_pars.nml',status='old')
+open(namlst,file='maecs_pars.nml',status='old')
 read(namlst,nml=maecs_pars,err=92,end=101)
 open(namlst,file='maecs_graz.nml',status='old')
 read(namlst,nml=maecs_graz,err=93,end=102)
