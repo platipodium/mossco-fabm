@@ -9,79 +9,70 @@
    module fabm_library
 !
 ! !USES:
-   ! FABM modules
-   use fabm_types
+   use fabm_types, only: type_base_model_factory, type_base_model, factory
 
-#ifdef _FABM_F2003_
    ! Specific biogeochemical models
    use fabm_hzg_omexdia_p
    use fabm_hzg_maecs
 !   use fabm_iow_spm
    ! ADD_NEW_FORTRAN2003_MODEL_HERE - required
-#endif
 
    implicit none
 !
 !  default: all is private.
    private
 
-#ifdef _FABM_F2003_
-   type,extends(type_abstract_model_factory),public :: type_model_factory
+   public :: fabm_create_model_factory
+
+   type,extends(type_base_model_factory) :: type_model_factory
       contains
-      procedure,nopass :: create => fabm_library_create_model
+      procedure :: create
    end type
-#endif
-!
-! !REVISION HISTORY:!
-!  Original author(s): Jorn Bruggeman
-!
+
 !EOP
 !-----------------------------------------------------------------------
 
    contains
 
+   subroutine fabm_create_model_factory()
+      if (.not.associated(factory)) then
+         allocate(type_model_factory::factory)
+
+         !call factory%add(aed_model_factory)
+         ! Add new additional model factories here
+
+      end if
+   end subroutine
 !-----------------------------------------------------------------------
 !BOP
 !
 ! !IROUTINE: Function returning specific biogeochemical model given a model name.
 !
 ! !INTERFACE:
-   function fabm_library_create_model(modelname,instancename,parent,configunit) result(model)
+   subroutine create(self,name,model)
 !
 ! !INPUT PARAMETERS:
-      character(*),intent(in)           :: modelname,instancename
-      integer,     intent(in)           :: configunit
-      _CLASS_ (type_model_info),target  :: parent
-      _CLASS_ (type_model_info),pointer :: model
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
+      class (type_model_factory),intent(in) :: self
+      character(*),              intent(in) :: name
+      class (type_base_model),pointer       :: model
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
       nullify(model)
 
-#ifdef _FABM_F2003_
-      select case (modelname)
+
+      select case (name)
 !         case ('examples_mean');       allocate(type_examples_mean::model)
          case ('hzg_omexdia_p');       allocate(type_hzg_omexdia_p::model)
          case ('hzg_maecs');           allocate(type_hzg_maecs::model)
 !         case ('iow_spm');             allocate(type_iow_spm::model)
          ! ADD_NEW_FORTRAN2003_MODEL_HERE - required
          case default
-!            if ( modelname(1:4) .eq. 'aed_' ) &
-!               model => aed_create_model(configunit,modelname,instancename,parent);
+            call self%type_base_model_factory%create(name,model)
       end select
 
-      if (.not.associated(model)) return
-
-      ! If the model has not been initialized, do so now.
-      ! This is the default - simulaneously creating and initializing the model is now deprecated.
-      if (.not.associated(model%parent)) call parent%add_child(model,configunit,instancename)
-#endif
-
-   end function fabm_library_create_model
+   end subroutine
 !EOC
 
 !-----------------------------------------------------------------------

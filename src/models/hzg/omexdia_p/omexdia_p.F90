@@ -19,6 +19,7 @@
 !
 ! !USES:
    use fabm_types
+   use fabm_driver
 
    implicit none
 

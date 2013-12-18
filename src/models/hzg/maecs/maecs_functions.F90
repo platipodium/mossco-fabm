@@ -236,7 +236,7 @@ select case (mm_method)
 ! --- Here, phyC and phyN are smoothed as soon as biomass approaches 'min_mass',  
 ! set small boundary depending on numerical resolution
 ! TODO: insert h ~ level height, here 10cm 
-   min_Cmass = maecs%small_finite * 1.0d-2 / maecs%a_spm  
+   min_Cmass = maecs%small_finite * 1.0d-3 / maecs%a_spm  
    min_Nmass = min_Cmass * maecs%aver_QN_phy
    phy%C_reg = smooth_small( phy%C , min_Cmass)
    delta_C   = phy%C_reg - phy%C
