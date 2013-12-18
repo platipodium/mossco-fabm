@@ -195,7 +195,7 @@ if (self%PhotoacclimOn) then
 !_____________________________________________ _________________________________
 
 if (self%RubiscoOn) then 
-    rhsv%Rub  = acclim%dfracR_dt * phy%C_reg + phy%Rub/phy%C_reg * rhsv%phyC 
+    rhsv%Rub  = acclim%dfracR_dt * phy%C + phy%Rub/phy%C_reg * rhsv%phyC 
 
 
    end if 
@@ -343,6 +343,9 @@ end if
 !#S_DIA
   _SET_DIAGNOSTIC_(self%id_chl2, phy%theta*phy%rel_chloropl) !step_integrated bulk chlorophyll concentration
   _SET_DIAGNOSTIC_(self%id_fracR, phy%frac%Rub)             !step_integrated 
+  _SET_DIAGNOSTIC_(self%id_QN, phy%QN)                      !step_integrated 
+  _SET_DIAGNOSTIC_(self%id_QP, phy%QP)                      !step_integrated 
+  _SET_DIAGNOSTIC_(self%id_tmp, acclim%dfracR_dt * phy%C)   !step_integrated 
 !#E_DIA
 
 if (self%DebugDiagOn) then

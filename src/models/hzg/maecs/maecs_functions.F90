@@ -241,8 +241,9 @@ select case (mm_method)
    phy%C_reg = smooth_small( phy%C , min_Cmass)
    delta_C   = phy%C_reg - phy%C
    delta_N = 0.0_rk
-   if (abs(delta_C) .gt. 1d-2*min_Cmass) then
-      phy%N_reg = phy%N + delta_C * maecs%aver_QN_phy
+  
+   if (abs(delta_C) .gt. 1d-2*min_Cmass) then !.and. phy%N .lt. 1*min_Nmass
+      phy%N_reg = phy%N + 1*delta_C * maecs%aver_QN_phy
       ischanged = .true. 
    else 
       phy%N_reg = smooth_small( phy%N , min_Nmass)
@@ -253,6 +254,7 @@ select case (mm_method)
          ischanged = .true.
       end if  
    end if
+!!      if (phy%N_reg .gt. 0.2 * phy%C_reg) phy%N_reg = 0.2 * phy%C_reg
 
  case (3)
 ! -------------------------------------------------------------------------------
