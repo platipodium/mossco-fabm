@@ -74,6 +74,7 @@ real(rk) :: feedb_vq
 eps     =  self%small_finite ! just  a shorter namer
 ! switching off phosphorus terms in the derivatives
 IsVQP       = .true.  ! rethink dependence of P-uptake on N-regulation switching on phosphorus terms in the derivatives
+IsVQP       = .false. 
 IsVQSi      = .false. ! TODO
 
 ! --- relative amount of carbon invested into light harvesting complex (LHC) -------
@@ -137,6 +138,8 @@ if (num_nut .gt. 0) then
    lim_N      = smooth_small(1.0d0 - lim_all, eps)
    lim_P      = lim_P * lim_all
    lim_Si     = lim_Si* lim_all
+
+
 else
    fac_colim   = 1.0d0
    deriv_fac_colim = 0.0d0
@@ -263,8 +266,8 @@ if (self%PhosphorusOn .and. IsVQP ) then
    dVPC_dfracR = -upt_act%P * (1.0d0 + phy%rel_QN**self%sigma * phy%theta * self%itheta_max)                        
    dVPC_dtheta = -upt_act%P * phy%rel_chloropl * self%itheta_max 
 
-   dQP_dtheta = (dVPC_dtheta - 0* dmu_dtheta * phy%QP) /dmuP
-   dQP_dfracR = (dVPC_dfracR - 0* dmu_dfracR * phy%QP) /dmuP
+   dQP_dtheta = (dVPC_dtheta - 0.0d0* dmu_dtheta * phy%QP) /dmuP
+   dQP_dfracR = (dVPC_dfracR - 0.0d0* dmu_dfracR * phy%QP) /dmuP
 !   dQP_dtheta = (1.0d0  + 0*dQP_dtheta * dVPC_dtheta) * dQP_dtheta
 !   dQP_dfracR = (1.0d0  + 0*dQP_dfracR * dVPC_dfracR) * dQP_dfracR
    grad_theta = grad_theta + dmu_dQ%P * dQP_dtheta
@@ -277,13 +280,19 @@ end if ! PhosphorusOn
 if (self%PhotoacclimOn .and. self%RubiscoOn) then
    grad_fracR = dmu_dfracR                   & ! marginal C gain of chloroplasts 
               + dmu_dQ%N * dQN_dfracR          ! marginal loss due to reduced uptake 
-   if(IsVQP) grad_fracR = grad_fracR+ dmu_dQ%P * dQP_dfracR  ! marginal loss due to reduced uptake 
+   if(self%PhosphorusOn .and. IsVQP) then
+     grad_fracR = grad_fracR+ dmu_dQ%P * dQP_dfracR  ! marginal loss due to reduced uptake 
+   end if !!!   acc%tmp,fac1,fac2 dmu_dQ%P
 
-! rubisco-N directly limits chl synthesis
+   acc%fac1 = dVPC_dfracR
+   acc%fac2 = dQP_dfracR
+   acc%tmp  = dmuP
+! rubisco-N directly limits chl synthesisdmu_dQ%P * dQP_dfracR
 ! --- regulation speed in Rubisco expression -------------------------------------- 
    flex_fracR = self%adap_Rub * (1.0d0 - phy%frac%Rub ) * (phy%frac%Rub - self%rel_chloropl_min-self%small_finite)
 ! *** ADAPTIVE EQUATION FOR 'frac_R'
    acc%dfracR_dt = flex_fracR * grad_fracR  
+
 !write (*,'(A,2(F10.3))') '2:',acc%dfracR_dt*1E3, grad_fracR *1E3
 else
    grad_fracR = 0.0d0

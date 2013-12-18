@@ -165,7 +165,8 @@ rhsv%phyC = uptake%C              * phy%C &
            - aggreg_rate          * phy%C &  !      trait dependencies
            - graz_rate                    
 
-!!! write (*,'(A,2(F9.4))') 'flxc=',uptake%C, phy%C
+! write (*,'(A,3(F9.4))') 'flxc=',uptake%C, phy%C,nut%P 
+! write (*,'(A,3(F9.4))') 'c=',phy%chl,phy%Rub, phy%C
 
 !_____________________________________________________________________________
 !
@@ -341,11 +342,11 @@ end if
 !________________________________________________________________________________
 ! set diag variables, mostly from PrimProd module ______________
 !#S_DIA
-  _SET_DIAGNOSTIC_(self%id_chl2, phy%theta*phy%rel_chloropl) !step_integrated bulk chlorophyll concentration
-  _SET_DIAGNOSTIC_(self%id_fracR, phy%frac%Rub)             !step_integrated 
-  _SET_DIAGNOSTIC_(self%id_QN, phy%QN)                      !step_integrated 
+  _SET_DIAGNOSTIC_(self%id_chl2,phy%theta*phy%rel_chloropl) !step_integrated bulk chlorophyll concentration
+  _SET_DIAGNOSTIC_(self%id_fracR, phy%frac%Rub )             !step_integrated 
+  _SET_DIAGNOSTIC_(self%id_QN, phy%QN)              !step_integrated 
   _SET_DIAGNOSTIC_(self%id_QP, phy%QP)                      !step_integrated 
-  _SET_DIAGNOSTIC_(self%id_tmp, acclim%dfracR_dt * phy%C)   !step_integrated 
+  _SET_DIAGNOSTIC_(self%id_tmp, acclim%tmp )   !step_integrated * phy%CdfracR_dt
 !#E_DIA
 
 if (self%DebugDiagOn) then

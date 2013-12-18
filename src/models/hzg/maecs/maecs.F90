@@ -338,8 +338,8 @@ self%K_QN_phy     = QN_phy_max-QN_phy_0
 self%iK_QN        = 1.0d0/self%K_QN_phy
 self%iK_QP        = 1.0d0/(QP_phy_max-QP_phy_0)
 self%itheta_max   = 1.0d0/theta_LHC
-self%aver_QN_phy  = 5.0d-1*(QN_phy_max-QN_phy_0)
-self%aver_QP_phy  = 5.0d-1*(QP_phy_max-QP_phy_0)
+self%aver_QN_phy  = 5.0d-1*(QN_phy_max+QN_phy_0)
+self%aver_QP_phy  = 5.0d-1*(QP_phy_max+QP_phy_0)
 self%small_finite  = sqrt(small)
 
 !!------- Register state variables  ------- 

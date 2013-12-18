@@ -382,9 +382,11 @@ if (maecs%PhosphorusOn) then
    phy%QP     = smooth_small(phy%QP, maecs%QP_phy_0)
 
    phy%rel_QP = ( phy%QP - maecs%QP_phy_0 ) * maecs%iK_QP
-
+   phy%rel_QP = smooth_small(phy%rel_QP, maecs%small_finite)
 ! added for deep detritus traps with extreme quotas kw Jul, 16 2013
+
    phy%rel_QP = _ONE_ - smooth_small(_ONE_- phy%rel_QP, maecs%small_finite)
+!write (*,'(A,4(F10.3))') 'rel_QP=',phy%rel_QP,phy%QP*1E3,(phy%QP - maecs%QP_phy_0)*1E3,maecs%QP_phy_0*1E3
 
    phy%QPN    = phy%P / phy%N_reg
 !   dom%QP     = dom%P  / (dom%C  + min_Cmass)  ! P:C ratio of DOM
@@ -406,6 +408,7 @@ end if
 ! fraction of free (biochemically available) intracellular nitrogen
 phy%rel_QN  = (phy%QN - maecs%QN_phy_0) * maecs%iK_QN
 ! added for deep detritus traps with extreme quotas kw Jul, 16 2013
+phy%rel_QN = smooth_small(phy%rel_QN, maecs%small_finite)
 phy%rel_QN  = _ONE_ - smooth_small(_ONE_- phy%rel_QN, maecs%small_finite)
 
 if (maecs%PhotoacclimOn) then  
