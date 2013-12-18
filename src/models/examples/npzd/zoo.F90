@@ -1,5 +1,3 @@
-#ifdef _FABM_F2003_
-
 #include "fabm_driver.h"
 !-----------------------------------------------------------------------
 !BOP
@@ -13,7 +11,6 @@
 !
 ! !USES:
    use fabm_types
-   use fabm_driver
 
    implicit none
 
@@ -24,11 +21,9 @@
 !     Variable identifiers
       type (type_state_variable_id)     :: id_z
       type (type_state_variable_id)     :: id_exctarget,id_morttarget,id_grztarget
-      type (type_conserved_quantity_id) :: id_totN
 
 !     Model parameters
       real(rk) :: z0,gmax,iv,rzn,rzd
-      logical  :: do_exc,do_mort,do_grz
 
       contains
 
@@ -87,35 +82,36 @@
    grazing_target_variable   = ''
 
    ! Read the namelist
-   read(configunit,nml=examples_npzd_zoo,err=99)
+   if (configunit>=0) read(configunit,nml=examples_npzd_zoo,err=99)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
    ! and are converted here to values per second.
-   self%z0   = z0
-   self%gmax = gmax/secs_pr_day
-   self%iv   = iv
-   self%rzn  = rzn /secs_pr_day
-   self%rzd  = rzd /secs_pr_day
+   call self%get_parameter(self%z0,  'z0',  default=z0)
+   call self%get_parameter(self%gmax,'gmax',default=gmax, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%iv,  'iv',  default=iv)
+   call self%get_parameter(self%rzn, 'rzn', default=rzn, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%rzd, 'rzd', default=rzd, scale_factor=1.0_rk/secs_pr_day)
 
    ! Register state variables
-   call self%register_state_variable(self%id_z,'zoo','mmol/m**3','zooplankton', &
-                                z_initial,minimum=0.0_rk)
+   call self%register_state_variable(self%id_z,'zoo','mmol/m**3','zooplankton',z_initial,minimum=0.0_rk)
 
-   ! Register link to external DIC pool, if DIC variable name is provided in namelist.
-   self%do_exc = excretion_target_variable/=''
-   if (self%do_exc) call self%register_state_dependency(self%id_exctarget,excretion_target_variable)
-   self%do_mort = mortality_target_variable/=''
-   if (self%do_mort) call self%register_state_dependency(self%id_morttarget,mortality_target_variable)
-   self%do_grz = grazing_target_variable/=''
-   if (self%do_grz) call self%register_state_dependency(self%id_grztarget,grazing_target_variable)
+   ! Register contribution of state to global aggregate variables.
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_z)
 
-   call self%register_conserved_quantity(self%id_totN,standard_variables%total_nitrogen)
-   call self%add_conserved_quantity_component(self%id_totN,self%id_z)
+   ! Register dependencies on external state variables.
+   call self%register_state_dependency(self%id_exctarget, 'excretion_target','mmol/m**3','sink for excreted matter')
+   call self%register_state_dependency(self%id_morttarget,'mortality_target','mmol/m**3','sink for dead matter')
+   call self%register_state_dependency(self%id_grztarget, 'grazing_target',  'mmol/m**3','prey source')
+
+   ! Automatically couple dependencies if target variables have been specified.
+   if (excretion_target_variable/='') call self%request_coupling(self%id_exctarget, excretion_target_variable)
+   if (mortality_target_variable/='') call self%request_coupling(self%id_morttarget,mortality_target_variable)
+   if (grazing_target_variable  /='') call self%request_coupling(self%id_grztarget, grazing_target_variable)
 
    return
 
-99 call fatal_error('examples_npzd_zoo::initialize','Error reading namelist examples_npzd_zoo')
+99 call self%fatal_error('examples_npzd_zoo::initialize','Error reading namelist examples_npzd_zoo')
 
    end subroutine initialize
 !EOC
@@ -149,15 +145,9 @@
 
    ! If an externally maintained DIC pool is present, change the DIC pool according to the
    ! the change in nutrients (assuming constant C:N ratio)
-   if (self%do_grz) then
-      _SET_ODE_(self%id_grztarget,-fpz(self,p,z))
-   end if
-   if (self%do_mort) then
-      _SET_ODE_(self%id_morttarget,self%rzd*z)
-   end if
-   if (self%do_exc) then
-      _SET_ODE_(self%id_exctarget,self%rzn*z)
-   end if
+   _SET_ODE_(self%id_grztarget,-fpz(self,p,z))
+   _SET_ODE_(self%id_morttarget,self%rzd*z)
+   _SET_ODE_(self%id_exctarget,self%rzn*z)
 
    ! Leave spatial loops (if any)
    _LOOP_END_
@@ -192,30 +182,9 @@
    ! Assign destruction rates to different elements of the destruction matrix.
    ! By assigning with _SET_DD_SYM_ [as opposed to _SET_DD_], assignments to dd(i,j)
    ! are automatically assigned to pp(j,i) as well.
-!  _SET_DD_SYM_(self%id_z,self%id_n,self%rzn*z)             ! szn
-!  _SET_DD_SYM_(self%id_z,self%id_d,self%rzd*z)             ! szd
-
-   ! If an externally maintained DIC pool is present, change the DIC pool according to the
-   ! the change in nutrients (assuming constant C:N ratio)
-!   dn = 1.0
-!   if (self%use_phy) _SET_PP_(self%id_phy,self%id_phy,self%phy_per_n*dn)
-
-   ! Set temporal derivatives
-    _SET_DD_(self%id_z,self%id_z, fpz(self,p,z) )
-    _SET_DD_(self%id_z,self%id_z,-self%rzn*z    )
-    _SET_DD_(self%id_z,self%id_z, self%rzd*z    )
-
-   ! If an externally maintained DIC pool is present, change the DIC pool according to the
-   ! the change in nutrients (assuming constant C:N ratio)
-   if (self%do_grz) then
-      _SET_PP_(self%id_grztarget,self%id_grztarget,-fpz(self,p,z))
-   end if
-   if (self%do_mort) then
-      _SET_PP_(self%id_morttarget,self%id_grztarget,self%rzd*z)
-   end if
-   if (self%do_exc) then
-      _SET_PP_(self%id_exctarget,self%id_grztarget,self%rzn*z)
-   end if
+    _SET_DD_SYM_(self%id_grztarget,self%id_z, fpz(self,p,z) )
+    _SET_DD_SYM_(self%id_z,self%id_exctarget,-self%rzn*z    )
+    _SET_DD_SYM_(self%id_z,self%id_morttarget, self%rzd*z    )
 
    ! Leave spatial loops (if any)
    _LOOP_END_
@@ -256,5 +225,3 @@
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
 !-----------------------------------------------------------------------
-
-#endif

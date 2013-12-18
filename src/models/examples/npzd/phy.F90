@@ -1,5 +1,3 @@
-#ifdef _FABM_F2003_
-
 #include "fabm_driver.h"
 
 !-----------------------------------------------------------------------
@@ -14,7 +12,6 @@
 !
 ! !USES:
    use fabm_types
-   use fabm_driver
 
    implicit none
 
@@ -29,12 +26,10 @@
       type (type_dependency_id)            :: id_par
       type (type_horizontal_dependency_id) :: id_I_0
       type (type_diagnostic_variable_id)   :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
-      type (type_conserved_quantity_id)    :: id_totN
 
 !     Model parameters
       real(rk) :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rpdu,rpdl
       real(rk) :: dic_per_n
-      logical  :: do_exc,do_mort,do_upt
 
       contains
 
@@ -102,7 +97,7 @@
    uptake_target_variable    = ''
 
    ! Read the namelist
-   read(configunit,nml=examples_npzd_phy,err=99)
+   if (configunit>=0) read(configunit,nml=examples_npzd_phy,err=99)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -115,18 +110,24 @@
    call self%get_parameter(self%rpn,  'rpn',  default=rpn,  scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%rpdu, 'rpdu', default=rpdu, scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%rpdl, 'rpdl', default=rpdl, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(w_p,       'w_p',  default=w_p,  scale_factor=1.0_rk/secs_pr_day)
 
    ! Register state variables
    call self%register_state_variable(self%id_p,'phy','mmol/m**3','phytoplankton', &
-                                p_initial,minimum=0.0_rk,vertical_movement=w_p/secs_pr_day)
+                                p_initial,minimum=0.0_rk,vertical_movement=w_p)
 
-   ! Register link to external DIC pool, if DIC variable name is provided in namelist.
-   self%do_exc = excretion_target_variable/=''
-   if (self%do_exc) call self%register_state_dependency(self%id_exctarget,excretion_target_variable)
-   self%do_mort = mortality_target_variable/=''
-   if (self%do_mort) call self%register_state_dependency(self%id_morttarget,mortality_target_variable)
-   self%do_upt = uptake_target_variable/=''
-   if (self%do_upt) call self%register_state_dependency(self%id_upttarget,uptake_target_variable)
+   ! Register contribution of state to global aggregate variables.
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_p)
+
+   ! Register dependencies on external state variables
+   call self%register_state_dependency(self%id_exctarget, 'excretion_target','mmol/m**3','sink for excreted matter')
+   call self%register_state_dependency(self%id_morttarget,'mortality_target','mmol/m**3','sink for dead matter')
+   call self%register_state_dependency(self%id_upttarget, 'uptake_target',   'mmol/m**3','nutrient source')
+
+   ! Automatically couple dependencies if target variables have been specified.
+   if (excretion_target_variable/='') call self%request_coupling(self%id_exctarget, excretion_target_variable)
+   if (mortality_target_variable/='') call self%request_coupling(self%id_morttarget,mortality_target_variable)
+   if (uptake_target_variable   /='') call self%request_coupling(self%id_upttarget, uptake_target_variable)
 
    ! Register diagnostic variables
    call self%register_diagnostic_variable(self%id_GPP, 'GPP','mmol/m**3',  'gross primary production',           &
@@ -140,17 +141,13 @@
    call self%register_diagnostic_variable(self%id_dPAR,'PAR','W/m**2',     'photosynthetically active radiation',&
                                      time_treatment=time_treatment_averaged)
 
-   ! Register conserved quantities
-   call self%register_conserved_quantity(self%id_totN,standard_variables%total_nitrogen)
-   call self%add_conserved_quantity_component(self%id_totN,self%id_p)
-
    ! Register environmental dependencies
    call self%register_dependency(self%id_par, standard_variables%downwelling_photosynthetic_radiative_flux)
    call self%register_dependency(self%id_I_0, standard_variables%surface_downwelling_photosynthetic_radiative_flux)
 
    return
 
-99 call fatal_error('fabm_examples_npzd_phy','Error reading namelist examples_npzd_phy')
+99 call self%fatal_error('fabm_examples_npzd_phy','Error reading namelist examples_npzd_phy')
 
    end subroutine initialize
 !EOC
@@ -202,15 +199,9 @@
    _SET_ODE_(self%id_p,primprod - self%rpn*p - rpd*p)
 
    ! If an externally maintained ...
-   if (self%do_upt) then
-      _SET_ODE_(self%id_upttarget,-primprod)
-   end if
-   if (self%do_mort) then
-      _SET_ODE_(self%id_morttarget,rpd*p)
-   end if
-   if (self%do_exc) then
-      _SET_ODE_(self%id_exctarget,self%rpn*p)
-   end if
+   _SET_ODE_(self%id_upttarget,-primprod)
+   _SET_ODE_(self%id_morttarget,rpd*p)
+   _SET_ODE_(self%id_exctarget,self%rpn*p)
 
    ! Export diagnostic variables
    _SET_DIAGNOSTIC_(self%id_dPAR,par)
@@ -308,29 +299,9 @@
    ! Assign destruction rates to different elements of the destruction matrix.
    ! By assigning with _SET_DD_SYM_ [as opposed to _SET_DD_], assignments to dd(i,j)
    ! are automatically assigned to pp(j,i) as well.
-!  _SET_DD_SYM_(self%id_p,self%id_z,fpz(self,p,z))          ! spz
-!  _SET_DD_SYM_(self%id_p,self%id_n,self%rpn*p)             ! spn
-!  _SET_DD_SYM_(self%id_p,self%id_d,rpd*p)                  ! spd
-
-   ! If an externally maintained DIC pool is present, change the DIC pool according to the
-   ! the change in nutrients (assuming constant C:N ratio)
-!  dn = - fnp(self,n,p,par,iopt) + self%rpn*p + self%rzn*z + self%rdn*d
-!  if (self%use_dic) _SET_PP_(self%id_dic,self%id_dic,self%dic_per_n*dn)
-
-   _SET_DD_(self%id_p,self%id_p,primprod)
-   _SET_DD_(self%id_p,self%id_p,- self%rpn*p)
-   _SET_DD_(self%id_p,self%id_p,- rpd*p)
-
-   ! If an externally maintained ...
-   if (self%do_upt) then
-      _SET_PP_(self%id_upttarget,self%id_upttarget,-primprod)
-   end if
-   if (self%do_mort) then
-      _SET_PP_(self%id_morttarget,self%id_morttarget,rpd*p)
-   end if
-   if (self%do_exc) then
-      _SET_PP_(self%id_exctarget,self%id_exctarget,self%rpn*p)
-   end if
+   _SET_DD_SYM_(self%id_upttarget,self%id_p,primprod)
+   _SET_DD_SYM_(self%id_p,self%id_exctarget,self%rpn*p)
+   _SET_DD_SYM_(self%id_p,self%id_morttarget,rpd*p)
 
    ! Export diagnostic variables
    _SET_DIAGNOSTIC_(self%id_dPAR,par)
@@ -379,5 +350,3 @@
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
 !-----------------------------------------------------------------------
-
-#endif

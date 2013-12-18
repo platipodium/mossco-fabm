@@ -1,0 +1,97 @@
+!-------------------------------------------------------------------------------
+! MAECS parameters
+!-------------------------------------------------------------------------------
+! P_max            [float, unit = d^{-1}]
+!                    maximum potential photosynthetic rate
+! alpha            [float, unit = m2 mol-C/(muE g-CHL)]
+!                    alpha
+! sigma            [float]
+!                    Q-dependency of Rubisco activity/chloroplast ratio
+! theta_LHC        [float, unit = mgChl mmolC^{-1}]
+!                    chlorophyll a-to-C ratio of LHC
+! rel_chloropl_min [float, unit = mol-C/mol-C]
+!                    chloroplast-C to phy-C ratio
+! QN_phy_0         [float, unit = mol-N/mol-C]
+!                    subsistence N-quota
+! QN_phy_max       [float, unit = mol-N/mol-C]
+!                    maximum N-quota
+! V_NC_max         [float, unit = mmol-N/(m3 d)]
+!                    maximum N uptake rate
+! AffN             [float, unit = m3/(mmol-N d)]
+!                    N-Affinity
+! zeta_CN          [float, unit = mol-C/mol-N]
+!                    respiratory costs of N-synthesis/NO3-reduction
+! exud_phy         [float]
+!                    phytoplankton exudation per production
+! QP_phy_0         [float, unit = mol-P/mol-C] #PhosphorusOn
+!                    subsistence P-quota
+! QP_phy_max       [float, unit = mol-P/mol-C] #PhosphorusOn
+!                    subsistence P-quota
+! V_PC_max         [float, unit = mmol-P/(m3 d)] #PhosphorusOn
+!                    maximum P uptake rate
+! AffP             [float, unit = m3/(mmol-N d)] #PhosphorusOn
+!                    P-Affinity
+! QSi_phy_0         [float, unit = mol-P/mol-C] #SiliconOn
+!                    subsistence Si-quota
+! QSi_phy_max       [float, unit = mol-P/mol-C] #SiliconOn
+!                    subsistence Si-quota
+! V_SiC_max         [float, unit = mmol-P/(m3 d)] #SiliconOn
+!                    maximum Si-uptake rate
+! AffSi             [float, unit = m3/(mmol-N d)] #SiliconOn
+!                    Si-Affinity
+! syn_nut          [float] 
+!                    synchrony n_queue nutrient quota limitation
+! adap_rub         [float] #PhotoacclimOn
+!                    adap_rub
+! adap_theta       [float] #PhotoacclimOn
+!                    adap_theta
+! tau_regV         [float]
+!                    tau_regV
+! phi_agg          [float, unit = m^6 mmolN^{-2} d^{-1}]
+!                    quadratic aggregation rate
+! vS_phy           [float, unit = m d^{-1}]
+!                    sinking velocity for phytoplankton
+! vS_det           [float, unit = m d^{-1}]
+!                    sinking velocity for detritus
+! hydrol           [float, unit = d^{-1}]
+!                    hydrolysis rate
+! remin            [float, unit = d^{-1}]
+!                    pelagic remineralisation
+! Ae_all           [float, unit = ...]
+!                    Activation energy
+! T_ref            [float, unit = degC]
+!                    reference temperature
+!-------------------------------------------------------------------------------
+
+&maecs_pars
+   P_max = 15.0,
+   alpha = 0.12,
+   sigma = 1.0,
+   theta_LHC = 1.2,
+   rel_chloropl_min = 0.03,
+   QN_phy_0 = 0.04,
+   QN_phy_max = 0.2,
+   V_NC_max = 0.2,
+   AffN = 0.1,
+   zeta_CN = 2.3,
+   exud_phy = 0.0,
+   QP_phy_0 = 0.0,
+   QP_phy_max = 0.02,
+   V_PC_max = 0.03,
+   AffP = 0.07,
+   QSi_phy_0 = 0.0,
+   QSi_phy_max = 0.02,
+   V_SiC_max = 0.03,
+   AffSi = 0.07,
+   syn_nut = 2.0,
+   adap_rub = 1.0,
+   adap_theta = 1.0,
+   tau_regV = 99.0,
+   phi_agg = 18E-4,
+   vS_phy = 40E-2,
+   vS_det = 2.,
+   hydrol = 0.03,
+   remin = 0.03,
+   Ae_all = 4500.0,
+   T_ref = 288.0,
+/

@@ -236,9 +236,9 @@ open(namlst,file='./maecs_init.nml',status='old')
 read(namlst,nml=maecs_init,err=91,end=100)
 open(namlst,file='./maecs_pars.nml',status='old')
 read(namlst,nml=maecs_pars,err=92,end=101)
-open(namlst,file='./maecs_graz.nml',status='old')
+open(namlst,file='maecs_graz.nml',status='old')
 read(namlst,nml=maecs_graz,err=93,end=102)
-open(namlst,file='./maecs_env.nml',status='old')
+open(namlst,file='maecs_env.nml',status='old')
 read(namlst,nml=maecs_env,err=94,end=103)
 ! Store parameter values in our own derived type
 ! NB: all rates must be provided in values per day,

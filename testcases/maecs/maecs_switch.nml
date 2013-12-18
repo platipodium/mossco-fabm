@@ -1,0 +1,34 @@
+!-------------------------------------------------------------------------------
+! MAECS switches
+!-------------------------------------------------------------------------------
+! RubiscoOn      [bool]
+!                  use Rubisco- here in C-units
+! PhotoacclimOn  [bool]
+!                  use Photoacclimation
+! PhosphorusOn   [bool]
+!                  resolve Phosphorus cycle
+! SiliconOn   [bool]
+!                  resolve Silicon cycle
+! GrazingOn      [bool]
+!                  use Zooplankton grazing
+! BioCarbochemOn [bool]
+!                  use geochemistry module
+! BioOxyOn       [bool]
+!                  use oxygen from other FABM model
+! DebugDiagOn    [bool]
+!                  output of all diagnostics
+! ChemostatOn    [bool]
+!                  use Chemostat mode 
+!-------------------------------------------------------------------------------
+
+&maecs_switch
+   RubiscoOn = .true.,
+   PhotoacclimOn = .true.,
+   PhosphorusOn = .true.,
+   SiliconOn = .true.,
+   GrazingOn = .false.,
+   BioCarboChemOn = .false.,
+   BioOxyOn = .false.,
+   DebugDiagOn = .true.,
+   ChemostatOn = .false.,
+/

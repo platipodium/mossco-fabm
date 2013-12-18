@@ -1,7 +1,5 @@
 #include "fabm_driver.h"
 
-#ifdef _FABM_F2003_
-
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -21,7 +19,6 @@
 !
 ! !USES:
    use fabm_types
-   use fabm_driver
 
    implicit none
 
@@ -658,4 +655,3 @@ end if
 
    end module fabm_hzg_omexdia_p
 
-#endif
