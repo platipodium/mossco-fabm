@@ -27,6 +27,7 @@ MODULE aed_oxygen
 ! oxygen across the air/water interface and sediment flux.
 !-------------------------------------------------------------------------------
    USE fabm_types
+   USE fabm_driver
 
    USE aed_util,  ONLY: aed_gas_piston_velocity, aed_oxygen_sat
 
@@ -34,7 +35,7 @@ MODULE aed_oxygen
 
    PRIVATE
 !
-   PUBLIC type_aed_oxygen
+   PUBLIC type_aed_oxygen, aed_oxygen_create
 !
    TYPE,extends(type_base_model) :: type_aed_oxygen
 !     Variable identifiers
@@ -51,7 +52,7 @@ MODULE aed_oxygen
       LOGICAL  :: use_sed_model
 
       CONTAINS     ! Model Procedures
-        procedure :: initialize               => aed_oxygen_init
+!       procedure :: initialize               => aed_oxygen_init
         procedure :: do                       => aed_oxygen_do
         procedure :: do_ppdd                  => aed_oxygen_do_ppdd
         procedure :: do_benthos               => aed_oxygen_do_benthos
@@ -64,7 +65,7 @@ CONTAINS
 
 
 !###############################################################################
-SUBROUTINE aed_oxygen_init(self,configunit)
+FUNCTION aed_oxygen_create(namlst,name,parent) RESULT(self)
 !-------------------------------------------------------------------------------
 ! Initialise the aed_oxygen model
 !
@@ -72,10 +73,12 @@ SUBROUTINE aed_oxygen_init(self,configunit)
 !  by the model are registered with FABM.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   CLASS (type_aed_oxygen),TARGET,INTENT(INOUT) :: self
-   INTEGER,INTENT(in)                           :: configunit
+   INTEGER,INTENT(in)                      :: namlst
+   CHARACTER(len=*),INTENT(in)              :: name
+   _CLASS_ (type_model_info),TARGET,INTENT(inout) :: parent
 !
 !LOCALS
+   _CLASS_ (type_aed_oxygen),POINTER :: self
 
    real(rk) :: oxy_initial=300.
    real(rk) :: Fsed_oxy = 48.0
@@ -89,8 +92,11 @@ SUBROUTINE aed_oxygen_init(self,configunit)
 !
 !-------------------------------------------------------------------------------
 !BEGIN
+   ALLOCATE(self)
+   CALL initialize_model_info(self,name,parent)
+
    ! Read the namelist
-   read(configunit,nml=aed_oxygen,err=99)
+   read(namlst,nml=aed_oxygen,err=99)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -139,9 +145,9 @@ SUBROUTINE aed_oxygen_init(self,configunit)
 
    RETURN
 
-99 CALL self%fatal_error('aed_oxygen_init','Error reading namelist aed_oxygen')
+99 CALL fatal_error('aed_oxygen_init','Error reading namelist aed_oxygen')
 
-END SUBROUTINE aed_oxygen_init
+END FUNCTION aed_oxygen_create
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -151,7 +157,7 @@ SUBROUTINE aed_oxygen_do(self,_FABM_ARGS_DO_RHS_)
 ! Right hand sides of aed_oxygen model
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class(type_aed_oxygen),INTENT(in) :: self
+   _CLASS_(type_aed_oxygen),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !LOCALS
@@ -190,7 +196,7 @@ SUBROUTINE aed_oxygen_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 ! production/destruction matrices
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_oxygen),INTENT(in) :: self
+   _CLASS_ (type_aed_oxygen),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 !LOCALS
@@ -230,7 +236,7 @@ SUBROUTINE aed_oxygen_get_surface_exchange(self,_FABM_ARGS_GET_SURFACE_EXCHANGE_
 !
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_oxygen),INTENT(in) :: self
+   _CLASS_ (type_aed_oxygen),INTENT(in) :: self
    _DECLARE_FABM_ARGS_GET_SURFACE_EXCHANGE_
 !
 !LOCALS
@@ -293,7 +299,7 @@ SUBROUTINE aed_oxygen_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 ! Everything in units per surface area (not volume!) per time.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_oxygen),INTENT(in) :: self
+   _CLASS_ (type_aed_oxygen),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
 !
 !LOCALS

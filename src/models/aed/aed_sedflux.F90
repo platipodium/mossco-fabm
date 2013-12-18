@@ -61,12 +61,13 @@ MODULE aed_sedflux
 ! sediment flux values in a unified way to simply the interface to other models|
 !------------------------------------------------------------------------------+
    USE fabm_types
+   USE fabm_driver
 
    IMPLICIT NONE
 
    PRIVATE
 !
-   PUBLIC type_aed_sedflux
+   PUBLIC type_aed_sedflux, aed_sedflux_create
 !
    TYPE,extends(type_base_model) :: type_aed_sedflux
 !     Variable identifiers
@@ -89,7 +90,7 @@ MODULE aed_sedflux
                   Fsed_poc_P, Fsed_doc_P, Fsed_dic_P, Fsed_ch4_P, Fsed_feii_P
 
       CONTAINS     ! Model Methods
-        procedure :: initialize               => aed_sedflux_init
+!       procedure :: initialize               => aed_sedflux_init
         procedure :: do_benthos               => aed_sedflux_do_benthos
    END TYPE
 
@@ -104,7 +105,7 @@ CONTAINS
 SUBROUTINE load_sed_zone_data(self,namlst)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_sedflux),INTENT(inout) :: self
+   _CLASS_ (type_aed_sedflux),INTENT(inout) :: self
    INTEGER,INTENT(in)                       :: namlst
 !
 !LOCALS
@@ -175,13 +176,13 @@ SUBROUTINE load_sed_zone_data(self,namlst)
    ENDIF
    RETURN
 
-99 CALL self%fatal_error('aed_sedflux_init','Error reading namelist aed_sed_const2d')
+99 CALL fatal_error('aed_sedflux_init','Error reading namelist aed_sed_const2d')
 END SUBROUTINE load_sed_zone_data
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 !###############################################################################
-SUBROUTINE aed_sedflux_init(self,configunit)
+FUNCTION aed_sedflux_create(namlst,name,parent) RESULT(self)
 !-------------------------------------------------------------------------------
 ! Initialise the AED model
 !
@@ -189,10 +190,12 @@ SUBROUTINE aed_sedflux_init(self,configunit)
 !  by the model are registered with FABM.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   CLASS (type_aed_sedflux), TARGET, INTENT(INOUT) :: self
-   INTEGER,INTENT(in)                              :: configunit
+   INTEGER,INTENT(in)                       :: namlst
+   CHARACTER(len=*),INTENT(in)              :: name
+   _CLASS_ (type_model_info),TARGET,INTENT(inout) :: parent
 !
 !LOCALS
+   _CLASS_ (type_aed_sedflux), POINTER      :: self
 
    real(rk)          :: FsedA_initial=0.01
    real(rk)          :: FsedN_initial=0.01
@@ -213,12 +216,15 @@ SUBROUTINE aed_sedflux_init(self,configunit)
 !
 !-------------------------------------------------------------------------------
 !BEGIN
+   ALLOCATE(self)
+   CALL initialize_model_info(self,name,parent)
+
    ! Read the namelist
-   read(configunit,nml=aed_sedflux,err=98)
+   read(namlst,nml=aed_sedflux,err=98)
 
    self%sed_modl = -1
    IF ( sedflux_model .EQ. "Constant" ) THEN
-      read(configunit,nml=aed_sed_constant,err=99)
+      read(namlst,nml=aed_sed_constant,err=99)
       ! Store parameter values in our own derived type
       ! NB: all rates must be provided in values per day,
       ! and are converted here to values per second.
@@ -240,7 +246,7 @@ SUBROUTINE aed_sedflux_init(self,configunit)
    ELSEIF ( sedflux_model .EQ. "Spatially Variable" ) THEN
       call self%register_dependency(self%id_zones,'env_sed_zone')
       self%sed_modl = 2
-      CALL load_sed_zone_data(self,configunit)
+      CALL load_sed_zone_data(self,namlst)
       IF (ALLOCATED(self%Fsed_oxy_P)) Fsed_oxy = self%Fsed_oxy_P(1)
       IF (ALLOCATED(self%Fsed_rsi_P)) Fsed_rsi = self%Fsed_rsi_P(1)
       IF (ALLOCATED(self%Fsed_amm_P)) Fsed_amm = self%Fsed_amm_P(1)
@@ -320,12 +326,12 @@ SUBROUTINE aed_sedflux_init(self,configunit)
 
    RETURN
 
-98 CALL self%fatal_error('aed_sedflux_init','Error reading namelist aed_sedflux')
+98 CALL fatal_error('aed_sedflux_init','Error reading namelist aed_sedflux')
    STOP
-99 CALL self%fatal_error('aed_sedflux_init','Error reading namelist aed_sed_constant')
+99 CALL fatal_error('aed_sedflux_init','Error reading namelist aed_sed_constant')
    STOP
 
-END SUBROUTINE aed_sedflux_init
+END FUNCTION aed_sedflux_create
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -336,7 +342,7 @@ SUBROUTINE aed_sedflux_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 ! Everything in units per surface area (not volume!) per time.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_sedflux),INTENT(in) :: self
+   _CLASS_ (type_aed_sedflux),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
 !
 !LOCALS

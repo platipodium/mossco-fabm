@@ -36,11 +36,6 @@
             'W m-2', &
             'downwelling_shortwave_flux_in_sea_water')
       type (type_bulk_standard_variable) :: &
-         fractional_saturation_of_oxygen = type_bulk_standard_variable( &
-            'fractional_saturation_of_oxygen', &
-            '1', &
-            'fractional_saturation_of_oxygen_in_sea_water')
-      type (type_bulk_standard_variable) :: &
          mass_concentration_of_suspended_matter = type_bulk_standard_variable( &
             'mass_concentration_of_suspended_matter', &
             'g m-3', &
@@ -50,11 +45,6 @@
             'mole_concentration_of_ammonium', &
             'mmol m-3', &
             'mole_concentration_of_ammonium_in_sea_water')
-      type (type_bulk_standard_variable) :: &
-         mole_concentration_of_carbonate_expressed_as_carbon = type_bulk_standard_variable( &
-            'mole_concentration_of_carbonate_expressed_as_carbon', &
-            'mmol m-3', &
-            'mole_concentration_of_carbonate_expressed_as_carbon_in_sea_water')
       type (type_bulk_standard_variable) :: &
          mole_concentration_of_dissolved_inorganic_carbon = type_bulk_standard_variable( &
             'mole_concentration_of_dissolved_inorganic_carbon', &
@@ -186,11 +176,6 @@
             'total_phosphorus', &
             'mmol m-3', &
             '')
-      type (type_bulk_standard_variable) :: &
-         total_silicate = type_bulk_standard_variable( &
-            'total_silicate', &
-            'mmol m-3', &
-            '')
 
    end type type_standard_variable_collection
 
@@ -209,10 +194,8 @@
       density = standard_variables%density, &
       downwelling_photosynthetic_radiative_flux = standard_variables%downwelling_photosynthetic_radiative_flux, &
       downwelling_shortwave_flux = standard_variables%downwelling_shortwave_flux, &
-      fractional_saturation_of_oxygen = standard_variables%fractional_saturation_of_oxygen, &
       mass_concentration_of_suspended_matter = standard_variables%mass_concentration_of_suspended_matter, &
       mole_concentration_of_ammonium = standard_variables%mole_concentration_of_ammonium, &
-      mole_concentration_of_carbonate_expressed_as_carbon = standard_variables%mole_concentration_of_carbonate_expressed_as_carbon, &
       mole_concentration_of_dissolved_inorganic_carbon = standard_variables%mole_concentration_of_dissolved_inorganic_carbon, &
       mole_concentration_of_dissolved_iron = standard_variables%mole_concentration_of_dissolved_iron, &
       mole_concentration_of_nitrate = standard_variables%mole_concentration_of_nitrate, &
@@ -246,5 +229,4 @@
       total_carbon = standard_variables%total_carbon, &
       total_iron = standard_variables%total_iron, &
       total_nitrogen = standard_variables%total_nitrogen, &
-      total_phosphorus = standard_variables%total_phosphorus, &
-      total_silicate = standard_variables%total_silicate
+      total_phosphorus = standard_variables%total_phosphorus

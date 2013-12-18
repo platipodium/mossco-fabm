@@ -1,3 +1,5 @@
+#ifdef _FABM_F2003_
+
 #include "fabm_driver.h"
 
 !-----------------------------------------------------------------------
@@ -16,6 +18,7 @@
 !
 ! !USES:
    use fabm_types
+   use fabm_driver
 
    implicit none
 
@@ -76,7 +79,7 @@
    unit                      = 'mol/m**3'
 
    ! Read the namelist
-   if (configunit>0) read(configunit,nml=bb_passive,err=99,end=100)
+   read(configunit,nml=bb_passive,err=99,end=100)
 
    self%surface_flux = surface_flux/secs_pr_day
 
@@ -89,9 +92,9 @@
 
    return
 
-99 call self%fatal_error('bb_passive_create','Error reading namelist bb_passive')
+99 call fatal_error('bb_passive_create','Error reading namelist bb_passive')
 
-100 call self%fatal_error('bb_passive_create','Namelist bb_passive was not found.')
+100 call fatal_error('bb_passive_create','Namelist bb_passive was not found.')
 
    end subroutine initialize
 !EOC
@@ -131,3 +134,4 @@
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
 !-----------------------------------------------------------------------
 
+#endif

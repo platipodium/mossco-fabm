@@ -14,14 +14,18 @@ module fabm_pml_carbonate
 !
 ! !USES:
    use fabm_types
+   use fabm_driver
 
    implicit none
 
 !  default: all is private.
    private
 !
+! !PUBLIC MEMBER FUNCTIONS:
+   public type_pml_carbonate, pml_carbonate_init, pml_carbonate_do, pml_carbonate_get_surface_exchange
+!
 ! !PUBLIC DERIVED TYPES:
-   type,extends(type_base_model),public :: type_pml_carbonate
+   type type_pml_carbonate
 !     Variable identifiers
       type (type_state_variable_id)                 :: id_dic, id_alk
       type (type_dependency_id)                     :: id_temp, id_salt, id_pres, id_dens
@@ -33,10 +37,6 @@ module fabm_pml_carbonate
 !     Model parameters
       real(rk) :: TA_offset, TA_slope, pCO2a
       logical  :: alk_param
-   contains
-      procedure :: initialize
-      procedure :: do
-      procedure :: do_surface
    end type
 !
 !EOP
@@ -50,14 +50,15 @@ contains
 ! !IROUTINE: Initialise the bio module
 !
 ! !INTERFACE:
-   subroutine initialize(self,configunit)
+   subroutine pml_carbonate_init(self,modelinfo,namlst)
 !
 ! !DESCRIPTION:
 !  Read pml_carbonate namelist and store settings in the model's derived type.
 !
 ! !INPUT PARAMETERS:
-   class (type_pml_carbonate), intent(inout),target :: self
-   integer,                    intent(in )          :: configunit
+   type (type_pml_carbonate), intent(out)   :: self
+   _CLASS_ (type_model_info), intent(inout) :: modelinfo
+   integer,                   intent(in )   :: namlst
 !
 ! !LOCAL VARIABLES:
    real(rk) :: dic_initial, alk_initial
@@ -75,7 +76,7 @@ contains
    alk_param   = .true.
 
    ! Read the namelist
-   if (configunit>0) read(configunit,nml=pml_carbonate,err=99,end=100)
+   read(namlst,nml=pml_carbonate,err=99,end=100)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day, and are converted here to values per second.
@@ -85,52 +86,52 @@ contains
    self%pCO2a     = pCO2a
 
    ! First state variable: total dissolved inorganic carbon
-   call self%register_state_variable(self%id_dic,'dic','mmol/m**3','total dissolved inorganic carbon', &
+   call register_state_variable(modelinfo,self%id_dic,'dic','mmol/m**3','total dissolved inorganic carbon', &
                                 dic_initial,minimum=0.0_rk,no_precipitation_dilution=.false.,no_river_dilution=.true., &
                                 standard_variable=standard_variables%mole_concentration_of_dissolved_inorganic_carbon)
 
    if (alk_param) then
      ! Alkalinity is diagnosed from temperature and salinity. Register it as output variable.
-     call self%register_diagnostic_variable(self%id_alk_diag,'alk', 'mEq/m**3','alkalinity', &
+     call register_diagnostic_variable(modelinfo,self%id_alk_diag,'alk', 'mEq/m**3','alkalinity', &
                                        time_treatment=time_treatment_averaged)
    else
      ! Alkalinity is a state variable.
-     call self%register_state_variable(self%id_alk,'alk','mEq/m**3','alkalinity', &
+     call register_state_variable(modelinfo,self%id_alk,'alk','mEq/m**3','alkalinity', &
                                   alk_initial,minimum=0.0_rk,no_precipitation_dilution=.false.,no_river_dilution=.true.)
    end if
 
    ! Register diagnostic variables.
-   call self%register_diagnostic_variable(self%id_ph,      'pH',      '-',          'pH',                           &
+   call register_diagnostic_variable(modelinfo,self%id_ph,      'pH',      '-',          'pH',                           &
                          time_treatment=time_treatment_averaged)
-   call self%register_diagnostic_variable(self%id_pco2,    'pCO2',    'ppm',        'CO2 partial pressure',         &
+   call register_diagnostic_variable(modelinfo,self%id_pco2,    'pCO2',    'ppm',        'CO2 partial pressure',         &
                          time_treatment=time_treatment_averaged)
-   call self%register_diagnostic_variable(self%id_CarbA,   'CarbA',   'mmol/m**3',  'carbonic acid concentration',  &
+   call register_diagnostic_variable(modelinfo,self%id_CarbA,   'CarbA',   'mmol/m**3',  'carbonic acid concentration',  &
                          time_treatment=time_treatment_averaged)
-   call self%register_diagnostic_variable(self%id_Bicarb,  'Bicarb',  'mmol/m**3',  'bicarbonate ion concentration',&
+   call register_diagnostic_variable(modelinfo,self%id_Bicarb,  'Bicarb',  'mmol/m**3',  'bicarbonate ion concentration',&
                          time_treatment=time_treatment_averaged)
-   call self%register_diagnostic_variable(self%id_Carb,    'Carb',    'mmol/m**3',  'carbonate ion concentration',  &
+   call register_diagnostic_variable(modelinfo,self%id_Carb,    'Carb',    'mmol/m**3',  'carbonate ion concentration',  &
                          time_treatment=time_treatment_averaged)
-   call self%register_diagnostic_variable(self%id_Om_cal,  'Om_cal',  '-',          'calcite saturation state',     &
+   call register_diagnostic_variable(modelinfo,self%id_Om_cal,  'Om_cal',  '-',          'calcite saturation state',     &
                          time_treatment=time_treatment_averaged)
-   call self%register_diagnostic_variable(self%id_Om_arg,  'Om_arg',  '-',          'aragonite saturation state',   &
+   call register_diagnostic_variable(modelinfo,self%id_Om_arg,  'Om_arg',  '-',          'aragonite saturation state',   &
                          time_treatment=time_treatment_averaged)
-   call self%register_diagnostic_variable(self%id_co2_flux,'CO2_flux','mmol/m**2/s','surface CO2 flux',             &
+   call register_diagnostic_variable(modelinfo,self%id_co2_flux,'CO2_flux','mmol/m**2/s','surface CO2 flux',             &
                          time_treatment=time_treatment_averaged)
 
    ! Register external dependencies.
-   call self%register_dependency(self%id_temp,standard_variables%temperature)
-   call self%register_dependency(self%id_salt,standard_variables%practical_salinity)
-   call self%register_dependency(self%id_pres,standard_variables%pressure)
-   call self%register_dependency(self%id_dens,standard_variables%density)
-   call self%register_dependency(self%id_wind,standard_variables%wind_speed)
-   if (self%pCO2a==0.0_rk) call self%register_dependency(self%id_pco2_surf,'pco2_surf')
+   call register_dependency(modelinfo,self%id_temp,standard_variables%temperature)
+   call register_dependency(modelinfo,self%id_salt,standard_variables%practical_salinity)
+   call register_dependency(modelinfo,self%id_pres,standard_variables%pressure)
+   call register_dependency(modelinfo,self%id_dens,standard_variables%density)
+   call register_dependency(modelinfo,self%id_wind,standard_variables%wind_speed)
+   if (self%pCO2a==0.0_rk) call register_dependency(modelinfo,self%id_pco2_surf,'pco2_surf')
 
    return
 
-99 call self%fatal_error('pml_carbonate_init','Error reading namelist pml_carbonate')
-100 call self%fatal_error('pml_carbonate_init','Namelist pml_carbonate was not found')
+99 call fatal_error('pml_carbonate_init','Error reading namelist pml_carbonate')
+100 call fatal_error('pml_carbonate_init','Namelist pml_carbonate was not found')
 
-   end subroutine initialize
+   end subroutine pml_carbonate_init
 !EOC
 
 !-----------------------------------------------------------------------
@@ -139,7 +140,7 @@ contains
 ! !IROUTINE: Right hand sides of carbonate system model
 !
 ! !INTERFACE:
-   subroutine do(self,_ARGUMENTS_DO_)
+   subroutine pml_carbonate_do(self,_ARGUMENTS_DO_)
 !
 ! !DESCRIPTION:
 !  Calculate carbonate system equilibrium from DIC and alkalinity, and
@@ -148,7 +149,7 @@ contains
 !  states.
 !
 ! !INPUT PARAMETERS:
-   class (type_pml_carbonate),intent(in) :: self
+   type (type_pml_carbonate),    intent(in) :: self
    _DECLARE_ARGUMENTS_DO_
 !
 ! !LOCAL VARIABLES:
@@ -200,7 +201,7 @@ contains
    ! Leave spatial loops (if any)
    _LOOP_END_
 
-   end subroutine do
+   end subroutine pml_carbonate_do
 !EOC
 
 !-----------------------------------------------------------------------
@@ -209,13 +210,13 @@ contains
 ! !IROUTINE: Air-sea exchange for the carbonate system model
 !
 ! !INTERFACE:
-   subroutine do_surface(self,_ARGUMENTS_DO_SURFACE_)
+   subroutine pml_carbonate_get_surface_exchange(self,_ARGUMENTS_DO_SURFACE_)
 !
 ! !DESCRIPTION:
 ! Calculate air -> sea CO2 flux.
 !
 ! !INPUT PARAMETERS:
-   class (type_pml_carbonate), intent(in) :: self
+   type (type_pml_carbonate), intent(in) :: self
    _DECLARE_ARGUMENTS_DO_SURFACE_
 !
 ! !LOCAL VARIABLES:
@@ -273,7 +274,7 @@ contains
    ! Leave spatial loops (if any)
    _HORIZONTAL_LOOP_END_
 
-   end subroutine do_surface
+   end subroutine pml_carbonate_get_surface_exchange
 !EOC
 
 !-----------------------------------------------------------------------

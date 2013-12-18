@@ -28,12 +28,13 @@ MODULE aed_iron
 ! soluable reactive iron across the air/water interface and sediment flux.
 !-------------------------------------------------------------------------------
    USE fabm_types
+   USE fabm_driver
 
    IMPLICIT NONE
 
    PRIVATE
 !
-   PUBLIC type_aed_iron
+   PUBLIC type_aed_iron, aed_iron_create
 !
    TYPE,extends(type_base_model) :: type_aed_iron
 !     Variable identifiers
@@ -47,7 +48,7 @@ MODULE aed_iron
       LOGICAL  :: use_oxy,use_dic
 
       CONTAINS    ! Model Procedures
-        procedure :: initialize               => aed_iron_init
+!       procedure :: initialize               => aed_iron_init
         procedure :: do                       => aed_iron_do
         procedure :: do_ppdd                  => aed_iron_do_ppdd
         procedure :: do_benthos               => aed_iron_do_benthos
@@ -61,7 +62,7 @@ CONTAINS
 
 
 !###############################################################################
-SUBROUTINE aed_iron_init(self,configunit)
+FUNCTION aed_iron_create(namlst,name,parent) RESULT(self)
 !-------------------------------------------------------------------------------
 ! Initialise the AED model
 !
@@ -69,8 +70,12 @@ SUBROUTINE aed_iron_init(self,configunit)
 !  by the model are registered with FABM.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   CLASS (type_aed_iron),TARGET,INTENT(INOUT) :: self
-   INTEGER,INTENT(in)                         :: configunit
+   INTEGER,INTENT(in)                    :: namlst
+   CHARACTER(len=*),INTENT(in)              :: name
+   _CLASS_ (type_model_info),TARGET,INTENT(inout) :: parent
+!
+!LOCALS
+   _CLASS_ (type_aed_iron),POINTER :: self
 
    real(rk)          :: dic_initial=4.5
    real(rk)          :: Fsed_dic = 3.5
@@ -89,8 +94,11 @@ SUBROUTINE aed_iron_init(self,configunit)
 
 !-------------------------------------------------------------------------------
 !BEGIN
+   ALLOCATE(self)
+   CALL initialize_model_info(self,name,parent)
+
    ! Read the namelist
-   read(configunit,nml=aed_iron,err=99)
+   read(namlst,nml=aed_iron,err=99)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -104,9 +112,9 @@ SUBROUTINE aed_iron_init(self,configunit)
 
    RETURN
 
-99 CALL self%fatal_error('aed_iron_init','Error reading namelist aed_iron')
+99 CALL fatal_error('aed_iron_init','Error reading namelist aed_iron')
 
-END SUBROUTINE aed_iron_init
+END FUNCTION aed_iron_create
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -116,7 +124,7 @@ SUBROUTINE aed_iron_do(self,_FABM_ARGS_DO_RHS_)
 ! Right hand sides of aed_iron model
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_iron),INTENT(in) :: self
+   _CLASS_ (type_aed_iron),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !LOCALS
@@ -151,7 +159,7 @@ SUBROUTINE aed_iron_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 ! production/destruction matrices
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_iron),INTENT(in) :: self
+   _CLASS_ (type_aed_iron),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 !LOCALS
@@ -187,7 +195,7 @@ SUBROUTINE aed_iron_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 ! Everything in units per surface area (not volume!) per time.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_iron),INTENT(in) :: self
+   _CLASS_ (type_aed_iron),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
 !
 !LOCALS
@@ -254,7 +262,7 @@ SUBROUTINE aed_iron_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANT
 ! Get the total of conserved quantities (currently only iron)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_iron),INTENT(in) :: self
+   _CLASS_ (type_aed_iron),INTENT(in) :: self
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
 !LOCALS

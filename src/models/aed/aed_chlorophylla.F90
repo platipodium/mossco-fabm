@@ -24,12 +24,13 @@ MODULE aed_chlorophylla
 ! aed_chlorphylla --- simple lumped chl-a model
 !-------------------------------------------------------------------------------
    USE fabm_types
+   USE fabm_driver
 
    IMPLICIT NONE
 
    PRIVATE
 !
-   PUBLIC type_aed_chla
+   PUBLIC type_aed_chla, aed_chla_create
 !
    TYPE,extends(type_base_model) :: type_aed_chla
 !     Variable identifiers
@@ -46,7 +47,7 @@ MODULE aed_chlorophylla
       logical  :: do_exc,do_mort,do_upt
 
       CONTAINS  ! Model Procedures
-        procedure :: initialize               => aed_chla_init
+!       procedure :: initialize               => aed_chla_init
         procedure :: do                       => aed_chla_do
         procedure :: do_ppdd                  => aed_chla_do_ppdd
         procedure :: get_light_extinction     => aed_chla_get_light_extinction
@@ -60,7 +61,7 @@ CONTAINS
 
 
 !###############################################################################
-SUBROUTINE aed_chla_init(self,configunit)
+FUNCTION aed_chla_create(namlst,name,parent) RESULT(self)
 !-------------------------------------------------------------------------------
 ! Initialise the NPZD model
 !
@@ -68,8 +69,12 @@ SUBROUTINE aed_chla_init(self,configunit)
 !  by the model are registered with FABM.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   CLASS (type_aed_chla),TARGET,INTENT(INOUT) :: self
-   INTEGER,INTENT(in)                         :: configunit
+   INTEGER,INTENT(in)                    :: namlst
+   CHARACTER(len=*),INTENT(in)           :: name
+   _CLASS_ (type_model_info),TARGET,INTENT(inout) :: parent
+!
+!LOCALS
+   _CLASS_ (type_aed_chla),POINTER       :: self
 
    real(rk)           :: p_initial=0.
    real(rk)           :: p0=0.0225
@@ -90,8 +95,11 @@ SUBROUTINE aed_chla_init(self,configunit)
 
 !-------------------------------------------------------------------------------
 !BEGIN
+   ALLOCATE(self)
+   CALL initialize_model_info(self,name,parent)
+
    ! Read the namelist
-   read(configunit,nml=aed_chla,err=99)
+   read(namlst,nml=aed_chla,err=99)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -142,9 +150,9 @@ SUBROUTINE aed_chla_init(self,configunit)
 
    RETURN
 
-99 call self%fatal_error('aed_chla_init','Error reading namelist aed_chla')
+99 call fatal_error('aed_chla_init','Error reading namelist aed_chla')
 
-END SUBROUTINE aed_chla_init
+END FUNCTION aed_chla_create
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -154,7 +162,7 @@ SUBROUTINE aed_chla_do(self,_FABM_ARGS_DO_RHS_)
 ! Right hand sides of chlorophylla model
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_chla),INTENT(in) :: self
+   _CLASS_ (type_aed_chla),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !LOCALS
@@ -223,7 +231,7 @@ SUBROUTINE aed_chla_get_light_extinction(self,_FABM_ARGS_GET_EXTINCTION_)
 ! variables
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_chla),INTENT(in) :: self
+   _CLASS_ (type_aed_chla),INTENT(in) :: self
    _DECLARE_FABM_ARGS_GET_EXTINCTION_
 !
 !LOCALS
@@ -253,7 +261,7 @@ SUBROUTINE aed_chla_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUANT
 ! Get the total of conserved quantities (currently only nitrogen)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_chla),INTENT(in) :: self
+   _CLASS_ (type_aed_chla),INTENT(in) :: self
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 
 !LOCALS
@@ -283,7 +291,7 @@ SUBROUTINE aed_chla_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 ! Right hand sides of NPZD model exporting production/destruction matrices
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_chla),INTENT(in) :: self
+   _CLASS_ (type_aed_chla),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 !LOCALS
@@ -351,7 +359,7 @@ PURE real(rk) FUNCTION fnp(self,n,p,par,iopt)
 ! Michaelis-Menten formulation for nutrient uptake
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_chla),INTENT(in) :: self
+   _CLASS_ (type_aed_chla),INTENT(in) :: self
    real(rk),INTENT(in)                :: n,p,par,iopt
 !
 !-------------------------------------------------------------------------------

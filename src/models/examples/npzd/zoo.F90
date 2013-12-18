@@ -1,3 +1,5 @@
+#ifdef _FABM_F2003_
+
 #include "fabm_driver.h"
 !-----------------------------------------------------------------------
 !BOP
@@ -11,6 +13,7 @@
 !
 ! !USES:
    use fabm_types
+   use fabm_driver
 
    implicit none
 
@@ -21,6 +24,7 @@
 !     Variable identifiers
       type (type_state_variable_id)     :: id_z
       type (type_state_variable_id)     :: id_exctarget,id_morttarget,id_grztarget
+      type (type_conserved_quantity_id) :: id_totN
 
 !     Model parameters
       real(rk) :: z0,gmax,iv,rzn,rzd
@@ -83,7 +87,7 @@
    grazing_target_variable   = ''
 
    ! Read the namelist
-   if (configunit>=0) read(configunit,nml=examples_npzd_zoo,err=99)
+   read(configunit,nml=examples_npzd_zoo,err=99)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -106,11 +110,12 @@
    self%do_grz = grazing_target_variable/=''
    if (self%do_grz) call self%register_state_dependency(self%id_grztarget,grazing_target_variable)
 
-   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_z)
+   call self%register_conserved_quantity(self%id_totN,standard_variables%total_nitrogen)
+   call self%add_conserved_quantity_component(self%id_totN,self%id_z)
 
    return
 
-99 call self%fatal_error('examples_npzd_zoo::initialize','Error reading namelist examples_npzd_zoo')
+99 call fatal_error('examples_npzd_zoo::initialize','Error reading namelist examples_npzd_zoo')
 
    end subroutine initialize
 !EOC
@@ -251,3 +256,5 @@
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
 !-----------------------------------------------------------------------
+
+#endif

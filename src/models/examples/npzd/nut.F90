@@ -1,3 +1,5 @@
+#ifdef _FABM_F2003_
+
 #include "fabm_driver.h"
 !-----------------------------------------------------------------------
 !BOP
@@ -13,6 +15,7 @@
 !
 ! !USES:
    use fabm_types
+   use fabm_driver
 
    implicit none
 
@@ -23,6 +26,7 @@
    type,extends(type_base_model),public :: type_examples_npzd_nut
 !     Variable identifiers
       type (type_state_variable_id)     :: id_n
+      type (type_conserved_quantity_id) :: id_totN
 
       contains
 
@@ -59,17 +63,18 @@
    n_initial = 4.5_rk
 
    ! Read the namelist
-   if (configunit>=0) read(configunit,nml=examples_npzd_nut,err=99)
+   read(configunit,nml=examples_npzd_nut,err=99)
 
    ! Register state variables
    call self%register_state_variable(self%id_n,'nut','mmol/m**3','nutrients',     &
                                 n_initial,minimum=0.0_rk,no_river_dilution=.true.)
 
-   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_n)
+   call self%register_conserved_quantity(self%id_totN,standard_variables%total_nitrogen)
+   call self%add_conserved_quantity_component(self%id_totN,self%id_n)
 
    return
 
-99 call self%fatal_error('examples_npzd_nut::initialize','Error reading namelist examples_npzd_nut')
+99 call fatal_error('examples_npzd_nut::initialize','Error reading namelist examples_npzd_nut')
 
    end subroutine initialize
 !EOC
@@ -81,3 +86,5 @@
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
 !-----------------------------------------------------------------------
+
+#endif

@@ -1,5 +1,7 @@
 #include "fabm_driver.h"
 
+#ifdef _FABM_F2003_
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                                                                        !
 !                                                                        !
@@ -66,6 +68,7 @@
 !
 ! !USES:
    use fabm_types
+   use fabm_driver
 
    implicit none
 
@@ -205,7 +208,7 @@ subroutine initialize(self,configunit)
 !-----------------------------------------------------------------------
 !BOC
 !  Read the namelist
-   if (configunit>0) read(configunit,nml=gotm_ergom,err=99,end=100)
+   read(configunit,nml=gotm_ergom,err=99,end=100)
 
 !  Store parameter values in our own derived type
 !  NB! All rates must be provided in values per day,
@@ -306,9 +309,9 @@ subroutine initialize(self,configunit)
 
    return
 
- 99 call self%fatal_error('gotm_ergom_init','Error reading namelist gotm_ergom.')
+ 99 call fatal_error('gotm_ergom_init','Error reading namelist gotm_ergom.')
 
-100 call self%fatal_error('gotm_ergom_init','Namelist gotm_ergom was not found.')
+100 call fatal_error('gotm_ergom_init','Namelist gotm_ergom was not found.')
 
    END subroutine initialize
 !EOC
@@ -775,6 +778,8 @@ subroutine initialize(self,configunit)
 !-----------------------------------------------------------------------
 
   END MODULE fabm_gotm_ergom
+  
+#endif
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org

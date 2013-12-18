@@ -1,33 +1,30 @@
 include Rules.make
 
 SUBDIRS = models
-SUBDIRS = models drivers config
+SUBDIRS = models drivers
 
 DOCSRC	= fabm.F90 fabm_types.F90
 
 FABMMOD	 = ${LIBFABM}(fabm.o)
 FABMMODELLIB = ${LIBFABM}(fabm_library.o)
 
-all: makedirs $(FABMBASE) $(FABMMOD) config
+all: driver models $(FABMMOD)
         $(MOVE_MODULES_COMMAND)
 
 makedirs:
 	mkdir -p $(MODDIR) $(LIBDIR)
 
-config: $(FABMMOD)
-	$(MAKE) -C config
-
-$(FABMBASE): driver
-
 driver:
 	$(MAKE) -C drivers/$(FABMHOST)
 
-$(FABMMOD): models $(FABMMODELLIB)
+$(FABMMOD): $(FABMMODELLIB)
+
+$(FABMMODELLIB): $(FABMBASE)
 
 models: driver $(FABMBASE)
 	$(MAKE) -C models
 
-0d getm gotm mossco python:
+0d getm gotm mossco:
 	( export FABMHOST=$@ ; $(MAKE) )
 
 doc:    $(DOCSRC)
@@ -46,4 +43,4 @@ distclean: realclean
 	$(RM) -r doc
 	$(RM) -r $(FABMDIR)/modules/ $(FABMDIR)/lib/
 
-.PHONY: makedirs models driver config
+.PHONY: makedirs models driver

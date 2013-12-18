@@ -24,34 +24,39 @@
 !
 ! !USES:
    use fabm_types
+   use fabm_driver
 !
    implicit none
 !
 !  default: all is private.
    private
 !
+! !PUBLIC MEMBER FUNCTIONS:
+   public type_klimacampus_phy_feedback,                         &
+               klimacampus_phy_feedback_init,                    &
+               klimacampus_phy_feedback_do,                      &
+               klimacampus_phy_feedback_get_albedo,              &
+               klimacampus_phy_feedback_get_drag,                &
+               klimacampus_phy_feedback_do_benthos,              &
+               klimacampus_phy_feedback_get_conserved_quantities
+!
 ! !PRIVATE DATA MEMBERS:
-   real(rk), parameter :: secs_pr_day  = 86400._rk, secs_pr_hour = 3600._rk
+   real(rk), parameter :: secs_pr_day  = 86400., secs_pr_hour = 3600.
 !
 ! !REVISION HISTORY:!
 !  Original author(s): Inga Hense
 !
 ! !PUBLIC DERIVED TYPES:
-   type,extends(type_base_model),public :: type_klimacampus_phy_feedback
+   type type_klimacampus_phy_feedback
 !     Variable identifiers
       type (type_state_variable_id)      :: id_nut,id_phy,id_det
       type (type_dependency_id)          :: id_par,id_temp
       type (type_diagnostic_variable_id) :: id_NFIX, id_dPAR
+      type (type_conserved_quantity_id)  :: id_totN
 
 !     Model parameters
       real(rk) :: muemax_phy,alpha,mortphy,rem, &
                   topt,tl1,tl2,depo,nbot,albedo_bio,drag_bio
-   contains
-      procedure :: initialize
-      procedure :: do
-      procedure :: do_bottom
-      procedure :: get_albedo
-      procedure :: get_drag
    end type
 !EOP
 !-----------------------------------------------------------------------
@@ -64,15 +69,16 @@
 ! !IROUTINE: Initialise the phy-feedback (PND) model
 !
 ! !INTERFACE:
-   subroutine initialize(self,configunit)
+   subroutine klimacampus_phy_feedback_init(self,modelinfo,namlst)
 !
 ! !DESCRIPTION:
 !  Here, the phy_feedback model namelist is read and the variables
 !  exported by the model are registered in FABM.
 !
 ! !INPUT PARAMETERS:
-   class (type_klimacampus_phy_feedback), intent(inout),target :: self
-   integer,                               intent(in)           :: configunit
+   type (type_klimacampus_phy_feedback), intent(inout) :: self
+   _CLASS_ (type_model_info),            intent(inout) :: modelinfo
+   integer,                              intent(in)    :: namlst
 !
 ! !REVISION HISTORY:
 !  Original author(s): Inga Hense
@@ -104,7 +110,7 @@
 !-----------------------------------------------------------------------
 !BOC
 !  Read the namelist
-   if (configunit>0) read(configunit,nml=klimacampus_phy_feedback,err=99,end=100)
+   read(namlst,nml=klimacampus_phy_feedback,err=99,end=100)
 
 !  Store parameter values in our own derived type
 !  NB: all rates must be provided in values per day,
@@ -122,39 +128,37 @@
    self%drag_bio    = drag_bio
 
 !  Register state variables
-   call self%register_state_variable(self%id_nut,'nut','mmol/m**3','nutrients',     &
+   call register_state_variable(modelinfo,self%id_nut,'nut','mmol/m**3','nutrients',     &
                                     nut_initial,minimum=0.0_rk,no_river_dilution=.true.)
-   call self%register_state_variable(self%id_phy,'phy','mmol/m**3','phytoplankton', &
+   call register_state_variable(modelinfo,self%id_phy,'phy','mmol/m**3','phytoplankton', &
                                     phy_initial,minimum=0.0_rk,vertical_movement=    &
                                     w_phy/secs_pr_day,specific_light_extinction=rkc)
-   call self%register_state_variable(self%id_det,'det','mmol/m**3','detritus',      &
+   call register_state_variable(modelinfo,self%id_det,'det','mmol/m**3','detritus',      &
                                     det_initial,minimum=0.0_rk,vertical_movement=    &
                                     w_det/secs_pr_day,specific_light_extinction=rkc)
 
 !  Register diagnostic variables
-   call self%register_diagnostic_variable(self%id_NFIX,'NFIX','mmol/m**3',        &
+   call register_diagnostic_variable(modelinfo,self%id_NFIX,'NFIX','mmol/m**3',        &
                      'nitrogen fixation',                                            &
                      time_treatment=time_treatment_step_integrated)
-   call self%register_diagnostic_variable(self%id_dPAR,'PAR','W/m**2',            &
+   call register_diagnostic_variable(modelinfo,self%id_dPAR,'PAR','W/m**2',            &
                      'photosynthetically active radiation',                          &
                      time_treatment=time_treatment_averaged)
 
-!  Register contribution to conserved quantities
-   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_nut)
-   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_phy)
-   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_det)
+!  Register conserved quantities
+   call register_conserved_quantity(modelinfo,self%id_totN,'N','mmol/m**3','nitrogen')
 
 !  Register environmental dependencies
-   call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
-   call self%register_dependency(self%id_temp,standard_variables%temperature)
+   call register_dependency(modelinfo,self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
+   call register_dependency(modelinfo,self%id_temp,standard_variables%temperature)
 
    return
 
-99 call self%fatal_error('klimacampus_phy_feedback_init','Error reading namelist klimacampus_phy_feedback.')
+99 call fatal_error('klimacampus_phy_feedback_init','Error reading namelist klimacampus_phy_feedback.')
 
-100 call self%fatal_error('klimacampus_phy_feedback_init','Namelist klimacampus_phy_feedback was not found.')
+100 call fatal_error('klimacampus_phy_feedback_init','Namelist klimacampus_phy_feedback was not found.')
 
-   end subroutine initialize
+   end subroutine klimacampus_phy_feedback_init
 !EOC
 
 !-----------------------------------------------------------------------
@@ -163,7 +167,7 @@
 ! !IROUTINE: Right hand sides of  model
 !
 ! !INTERFACE:
-   subroutine do(self,_ARGUMENTS_DO_)
+   subroutine klimacampus_phy_feedback_do(self,_ARGUMENTS_DO_)
 !
 ! !DESCRIPTION:
 ! The sources and sinks of the PND model are calculated. Please note,
@@ -171,7 +175,7 @@
 ! nitrogen into the system.
 !
 ! !INPUT PARAMETERS:
-   class (type_klimacampus_phy_feedback),       intent(in) :: self
+   type (type_klimacampus_phy_feedback),       intent(in) :: self
    _DECLARE_ARGUMENTS_DO_
 !
 ! !REVISION HISTORY:
@@ -214,7 +218,7 @@
 !  Leave spatial loops (if any)
    _LOOP_END_
 
-   end subroutine do
+   end subroutine klimacampus_phy_feedback_do
 !EOC
 
 !-----------------------------------------------------------------------
@@ -227,10 +231,10 @@
 ! leading to changes in light reflection and thus temperature.
 !
 ! !INTERFACE:
-   subroutine get_albedo(self,_ARGUMENTS_GET_ALBEDO_)
+   subroutine klimacampus_phy_feedback_get_albedo(self,_ARGUMENTS_GET_ALBEDO_)
 !
 ! !INPUT PARAMETERS:
-   class (type_klimacampus_phy_feedback), intent(in) :: self
+   type (type_klimacampus_phy_feedback), intent(in) :: self
    _DECLARE_ARGUMENTS_GET_ALBEDO_
 !
 ! !REVISION HISTORY:
@@ -255,7 +259,7 @@
 !  Leave spatial loops (if any)
    _HORIZONTAL_LOOP_END_
 
-   end subroutine get_albedo
+   end subroutine klimacampus_phy_feedback_get_albedo
 !EOC
 
 !-----------------------------------------------------------------------
@@ -268,10 +272,10 @@
 !  coefficient, leading to changes in the momentum flux.
 !
 ! !INTERFACE:
-   subroutine get_drag(self,_ARGUMENTS_GET_DRAG_)
+   subroutine klimacampus_phy_feedback_get_drag(self,_ARGUMENTS_GET_DRAG_)
 !
 ! !INPUT PARAMETERS:
-   class (type_klimacampus_phy_feedback), intent(in) :: self
+   type (type_klimacampus_phy_feedback), intent(in) :: self
    _DECLARE_ARGUMENTS_GET_DRAG_
 !
 ! !REVISION HISTORY:
@@ -296,7 +300,7 @@
 !  Leave spatial loops (if any)
    _HORIZONTAL_LOOP_END_
 
-   end subroutine get_drag
+   end subroutine klimacampus_phy_feedback_get_drag
 !EOC
 
 !-----------------------------------------------------------------------
@@ -304,13 +308,13 @@
 ! !IROUTINE: Right hand sides of benthic_predator model
 !
 ! !INTERFACE:
-   subroutine do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
+   subroutine klimacampus_phy_feedback_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
 !
 ! !DESCRIPTION:
 ! Detritus burial and nutrient restoring are considered to achieve a quasi-steady state.
 !
 ! !INPUT PARAMETERS:
-   class (type_klimacampus_phy_feedback), intent(in) :: self
+   type (type_klimacampus_phy_feedback), intent(in) :: self
    _DECLARE_ARGUMENTS_DO_BOTTOM_
 !
 ! !REVISION HISTORY:
@@ -334,7 +338,45 @@
 !  Leave spatial loops over the horizontal domain (if any).
    _HORIZONTAL_LOOP_END_
 
-   end subroutine do_bottom
+   end subroutine klimacampus_phy_feedback_do_benthos
+!EOC
+
+!------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Get the total of conserved quantities (currently only nitrogen)
+!
+! !INTERFACE:
+   subroutine klimacampus_phy_feedback_get_conserved_quantities(self,_ARGUMENTS_GET_CONSERVED_QUANTITIES_)
+!
+! !INPUT PARAMETERS:
+   type (type_klimacampus_phy_feedback), intent(in) :: self
+   _DECLARE_ARGUMENTS_GET_CONSERVED_QUANTITIES_
+!
+! !REVISION HISTORY:
+!  Original author(s): Inga Hense
+!
+! !LOCAL VARIABLES:
+   real(rk)                     :: nut,phy,det
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+!  Enter spatial loops (if any)
+   _LOOP_BEGIN_
+
+!  Retrieve current (local) state variable values.
+   _GET_(self%id_nut,nut) ! nutrient
+   _GET_(self%id_phy,phy) ! phytoplankton
+   _GET_(self%id_det,det) ! detritus
+
+!  Total nutrient is simply the sum of all variables.
+   _SET_CONSERVED_QUANTITY_(self%id_totN,nut+phy+det)
+
+!  Leave spatial loops (if any)
+   _LOOP_END_
+
+   end subroutine klimacampus_phy_feedback_get_conserved_quantities
 !EOC
 
 !-----------------------------------------------------------------------

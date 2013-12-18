@@ -20,12 +20,13 @@ MODULE aed_silica
 ! Nitrogen module contains equations for nitrification and deitrification
 !-------------------------------------------------------------------------------
    USE fabm_types
+   USE fabm_driver
 
    IMPLICIT NONE
 
    PRIVATE   ! By default make everything private.
 !
-   PUBLIC type_aed_silica
+   PUBLIC type_aed_silica, aed_silica_create
 !
    TYPE,extends(type_base_model) :: type_aed_silica
 !     Variable identifiers
@@ -39,7 +40,7 @@ MODULE aed_silica
       LOGICAL  :: use_oxy,use_rsi,use_sed_model
 
       CONTAINS      ! Model Methods
-        procedure :: initialize               => aed_silica_init
+!       procedure :: initialize               => aed_silica_init
         procedure :: do                       => aed_silica_do
         procedure :: do_ppdd                  => aed_silica_do_ppdd
         procedure :: do_benthos               => aed_silica_do_benthos
@@ -51,17 +52,19 @@ CONTAINS
 
 
 !###############################################################################
-SUBROUTINE aed_silica_init(self,configunit)
+FUNCTION aed_silica_create(namlst,name,parent) RESULT(self)
 !-------------------------------------------------------------------------------
 ! Initialise the AED model
 !  Here, the aed namelist is read and the variables exported
 !  by the model are registered with FABM.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   CLASS (type_aed_silica),TARGET,INTENT(INOUT) :: self
-   INTEGER,INTENT(in)                           :: configunit
+   INTEGER,INTENT(in)                      :: namlst
+   CHARACTER(len=*),INTENT(in)              :: name
+   _CLASS_ (type_model_info),TARGET,INTENT(inout) :: parent
 !
 !LOCALS
+   _CLASS_ (type_aed_silica),POINTER :: self
 
    real(rk)          :: rsi_initial=4.5
    real(rk)          :: Fsed_rsi = 3.5
@@ -76,8 +79,11 @@ SUBROUTINE aed_silica_init(self,configunit)
 !
 !-------------------------------------------------------------------------------
 !BEGIN
+   ALLOCATE(self)
+   CALL initialize_model_info(self,name,parent)
+
    ! Read the namelist
-   read(configunit,nml=aed_silica,err=99)
+   read(namlst,nml=aed_silica,err=99)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -109,9 +115,9 @@ SUBROUTINE aed_silica_init(self,configunit)
 
    RETURN
 
-99 CALL self%fatal_error('aed_silica_init','Error reading namelist aed_silica')
+99 CALL fatal_error('aed_silica_init','Error reading namelist aed_silica')
 
-END SUBROUTINE aed_silica_init
+END FUNCTION aed_silica_create
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -122,7 +128,7 @@ SUBROUTINE aed_silica_do(self,_FABM_ARGS_DO_RHS_)
 ! Right hand sides of aed_silica model
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_silica),INTENT(in) :: self
+   _CLASS_ (type_aed_silica),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !ARGUMENT
@@ -149,7 +155,7 @@ SUBROUTINE aed_silica_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 ! production/destruction matrices
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_silica),INTENT(in) :: self
+   _CLASS_ (type_aed_silica),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 !ARGUMENT
@@ -175,7 +181,7 @@ SUBROUTINE aed_silica_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 ! Everything in units per surface area (not volume!) per time.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_silica),INTENT(in) :: self
+   _CLASS_ (type_aed_silica),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
 !
 !LOCALS
@@ -245,7 +251,7 @@ SUBROUTINE aed_silica_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUA
 ! Get the total of conserved quantities (currently only silica)
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_silica),INTENT(in) :: self
+   _CLASS_ (type_aed_silica),INTENT(in) :: self
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
 !LOCALS

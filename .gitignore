@@ -9,4 +9,3 @@ modules/
 timestamp
 VERSION
 include/version.h
-*.pyc

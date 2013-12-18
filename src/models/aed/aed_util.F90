@@ -26,6 +26,7 @@ MODULE aed_util
 !
 !-------------------------------------------------------------------------------
    USE fabm_types
+   USE fabm_driver
 
    IMPLICIT NONE
 

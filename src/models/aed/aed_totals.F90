@@ -28,12 +28,13 @@ MODULE aed_totals
 ! totals of other variables (eg tss)
 !-------------------------------------------------------------------------------
    USE fabm_types
+   USE fabm_driver
 
    IMPLICIT NONE
 
    PRIVATE
 !
-   PUBLIC type_aed_totals
+   PUBLIC type_aed_totals, aed_totals_create
 !
    TYPE,extends(type_base_model) :: type_aed_totals
 !     Variable identifiers
@@ -49,7 +50,7 @@ MODULE aed_totals
       LOGICAL  :: use_oxy,use_dic
 
       CONTAINS      ! Model Methods
-        procedure :: initialize               => aed_totals_init
+!       procedure :: initialize               => aed_totals_init
         procedure :: get_conserved_quantities => aed_totals_get_conserved_quantities
    END TYPE
 
@@ -59,7 +60,7 @@ CONTAINS
 
 
 !###############################################################################
-SUBROUTINE aed_totals_init(self,configunit)
+FUNCTION aed_totals_create(namlst,name,parent) RESULT(self)
 !-------------------------------------------------------------------------------
 ! Initialise the AED model
 !
@@ -67,10 +68,12 @@ SUBROUTINE aed_totals_init(self,configunit)
 !  by the model are registered with FABM.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   CLASS (type_aed_totals),TARGET,INTENT(INOUT) :: self
-   INTEGER,INTENT(in)                           :: configunit
+   INTEGER,INTENT(in) :: namlst
+   CHARACTER(len=*),INTENT(in) :: name
+   _CLASS_ (type_model_info),TARGET,INTENT(inout) :: parent
 !
 !LOCALS
+   _CLASS_ (type_aed_totals),POINTER :: self
 
    INTEGER           :: i, num_tn,num_tp,num_toc,num_tss
    CHARACTER(len=40) :: tn(100), tp(100), toc(100), tss(100)
@@ -80,10 +83,13 @@ SUBROUTINE aed_totals_init(self,configunit)
 !
 !-------------------------------------------------------------------------------
 !BEGIN
+   ALLOCATE(self)
+   CALL initialize_model_info(self,name,parent)
+
    tn = '' ; tp = '' ; toc = '' ; tss = '' ; turbidity = MISVAL
 
    ! Read the namelist
-   read(configunit,nml=aed_totals,err=99)
+   read(namlst,nml=aed_totals,err=99)
 
    DO i=1,100 ; IF (tn(i)  .EQ. '' ) THEN ; num_tn  = i-1 ; EXIT ; ENDIF ; ENDDO
    DO i=1,100 ; IF (tp(i)  .EQ. '' ) THEN ; num_tp  = i-1 ; EXIT ; ENDIF ; ENDDO
@@ -128,9 +134,9 @@ SUBROUTINE aed_totals_init(self,configunit)
 
    RETURN
 
-99 CALL self%fatal_error('aed_totals_init','Error reading namelist aed_totals')
+99 CALL fatal_error('aed_totals_init','Error reading namelist aed_totals')
 
-END SUBROUTINE aed_totals_init
+END FUNCTION aed_totals_create
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -140,7 +146,7 @@ SUBROUTINE aed_totals_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVED_QUA
 ! Right hand sides of aed_totals model
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_totals),INTENT(in) :: self
+   _CLASS_ (type_aed_totals),INTENT(in) :: self
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
 !LOCALS

@@ -3,6 +3,7 @@
 #
 
 SUBDIRS += carbonate
+SUBDIRS += ersem
 
 #all: objs
 

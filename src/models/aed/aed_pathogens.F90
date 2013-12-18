@@ -25,13 +25,14 @@ MODULE aed_pathogens
 !  aed_pathogens --- pathogen biogeochemical model
 !-------------------------------------------------------------------------------
    USE fabm_types
+   USE fabm_driver
    USE aed_util,ONLY : find_free_lun
 
    IMPLICIT NONE
 
    PRIVATE   ! By default make everything private
 !
-   PUBLIC type_aed_pathogens
+   PUBLIC type_aed_pathogens, aed_pathogens_create
 !
 
 
@@ -82,7 +83,7 @@ MODULE aed_pathogens
       real(rk) :: dic_per_n
 
       CONTAINS     ! Model Methods
-        procedure :: initialize               => aed_pathogens_init
+!       procedure :: initialize               => aed_pathogens_init
         procedure :: do                       => aed_pathogens_do
         procedure :: do_ppdd                  => aed_pathogens_do_ppdd
         procedure :: do_benthos               => aed_pathogens_do_benthos
@@ -98,7 +99,7 @@ CONTAINS
 
 
 !###############################################################################
-SUBROUTINE aed_pathogens_init(self,configunit)
+FUNCTION aed_pathogens_create(namlst,name,parent) RESULT(self)
 !-------------------------------------------------------------------------------
 ! Initialise the pathogen biogeochemical model
 !
@@ -106,10 +107,12 @@ SUBROUTINE aed_pathogens_init(self,configunit)
 !  by the model are registered with FABM.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   CLASS (type_aed_pathogens),TARGET,INTENT(INOUT) :: self
-   INTEGER,                          INTENT(in)    :: configunit
+   INTEGER,INTENT(in)          :: namlst
+   CHARACTER(len=*),INTENT(in) :: name
+   _CLASS_ (type_model_info),TARGET,INTENT(inout) :: parent
 !
 !LOCALS
+   _CLASS_ (type_aed_pathogens),POINTER :: self
 
    INTEGER            :: num_pathogens
    INTEGER            :: the_pathogens(MAX_PATHO_TYPES)
@@ -118,8 +121,11 @@ SUBROUTINE aed_pathogens_init(self,configunit)
    NAMELIST /aed_pathogens/ num_pathogens, the_pathogens
 !-----------------------------------------------------------------------
 !BEGIN
+   ALLOCATE(self)
+   CALL initialize_model_info(self,name,parent)
+
    ! Read the namelist
-   read(configunit,nml=aed_pathogens,err=99)
+   read(namlst,nml=aed_pathogens,err=99)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -141,15 +147,15 @@ SUBROUTINE aed_pathogens_init(self,configunit)
 
    RETURN
 
-99 call self%fatal_error('aed_pathogens_init','Error reading namelist aed_pathogens')
+99 call fatal_error('aed_pathogens_init','Error reading namelist aed_pathogens')
 
-END SUBROUTINE aed_pathogens_init
+END FUNCTION aed_pathogens_create
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 !###############################################################################
 SUBROUTINE aed_pathogens_load_params(self, count, list)
 !-------------------------------------------------------------------------------
-   class (type_aed_pathogens),INTENT(inout) :: self
+   _CLASS_ (type_aed_pathogens),INTENT(inout) :: self
    INTEGER,INTENT(in) :: count
    INTEGER,INTENT(in) :: list(*)
 
@@ -201,7 +207,7 @@ SUBROUTINE aed_pathogens_load_params(self, count, list)
 
     RETURN
 
-99 call self%fatal_error('aed_pathogens_load_params','Error reading namelist pathogen_data')
+99 call fatal_error('aed_pathogens_load_params','Error reading namelist pathogen_data')
 !
 END SUBROUTINE aed_pathogens_load_params
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -214,7 +220,7 @@ SUBROUTINE aed_pathogens_do(self,_FABM_ARGS_DO_RHS_)
 ! Right hand sides of pathogen biogeochemical model
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_pathogens),INTENT(in) :: self
+   _CLASS_ (type_aed_pathogens),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !LOCALS
@@ -308,7 +314,7 @@ SUBROUTINE aed_pathogens_do_benthos(self,_FABM_ARGS_DO_BENTHOS_RHS_)
 ! Everything in units per surface area (not volume!) per time.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_pathogens),INTENT(in) :: self
+   _CLASS_ (type_aed_pathogens),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_BENTHOS_RHS_
 !
 !LOCALS
@@ -348,7 +354,7 @@ SUBROUTINE aed_pathogens_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 ! production/destruction matrices
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_pathogens),INTENT(in) :: self
+   _CLASS_ (type_aed_pathogens),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 !LOCALS

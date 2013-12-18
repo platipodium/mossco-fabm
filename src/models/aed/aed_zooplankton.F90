@@ -24,6 +24,7 @@ MODULE aed_zooplankton
 !  aed_zooplankton --- multi zooplankton biogeochemical model
 !-------------------------------------------------------------------------------
    USE fabm_types
+   USE fabm_driver
    USE aed_util,ONLY : find_free_lun,aed_bio_temp_function, fTemp_function,qsort
    USE aed_phytoplankton,ONLY : type_aed_phytoplankton
 
@@ -31,7 +32,7 @@ MODULE aed_zooplankton
 
    PRIVATE   ! By default make everything private
 !
-   PUBLIC type_aed_zooplankton
+   PUBLIC type_aed_zooplankton, aed_zooplankton_create
 !
    TYPE type_zoop_prey
       !State variable name for zooplankton prey
@@ -93,7 +94,7 @@ MODULE aed_zooplankton
       LOGICAL  :: simPNexcr, simPPexcr, simPCexcr
 
       CONTAINS     ! Model Methods
-        procedure :: initialize               => aed_zooplankton_init
+!       procedure :: initialize               => aed_zooplankton_init
         procedure :: do                       => aed_zooplankton_do
         procedure :: do_ppdd                  => aed_zooplankton_do_ppdd
 !       procedure :: do_benthos               => aed_zooplankton_do_benthos
@@ -110,9 +111,9 @@ CONTAINS
 !###############################################################################
 SUBROUTINE aed_zooplankton_load_params(self, count, list)
 !-------------------------------------------------------------------------------
-   CLASS (type_aed_zooplankton),INTENT(inout) :: self
-   INTEGER,INTENT(in)                         :: count !Number of zooplankton groups
-   INTEGER,INTENT(in)                         :: list(*) !List of zooplankton groups to simulate
+   _CLASS_ (type_aed_zooplankton),INTENT(inout) :: self
+   INTEGER,INTENT(in)                           :: count !Number of zooplankton groups
+   INTEGER,INTENT(in)                           :: list(*) !List of zooplankton groups to simulate
 
    INTEGER  :: i,j,tfil,sort_i(MAX_ZOOP_PREY)
    real(rk) :: Pzoo_prey(MAX_ZOOP_PREY)
@@ -179,14 +180,14 @@ SUBROUTINE aed_zooplankton_load_params(self, count, list)
 
     RETURN
 
-99 CALL self%fatal_error('aed_zooplankton_load_params','Error reading namelist zoop_params')
+99 CALL fatal_error('aed_zooplankton_load_params','Error reading namelist zoop_params')
 !
 END SUBROUTINE aed_zooplankton_load_params
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 !###############################################################################
-SUBROUTINE aed_zooplankton_init(self,configunit)
+FUNCTION aed_zooplankton_create(namlst,name,parent) RESULT(self)
 !-------------------------------------------------------------------------------
 ! Initialise the zooplankton biogeochemical model
 !
@@ -194,10 +195,12 @@ SUBROUTINE aed_zooplankton_init(self,configunit)
 !  by the model are registered with FABM.
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   CLASS (type_aed_zooplankton),TARGET,INTENT(INOUT) :: self
-   INTEGER,INTENT(in)                                :: configunit
+   INTEGER,INTENT(in)                           :: namlst
+   CHARACTER(len=*),INTENT(in)              :: name
+   _CLASS_ (type_model_info),TARGET,INTENT(inout) :: parent
 !
 !LOCALS
+   _CLASS_ (type_aed_zooplankton),POINTER :: self
 
    INTEGER            :: num_zoops
    INTEGER            :: the_zoops(MAX_ZOOP_TYPES)
@@ -217,9 +220,12 @@ SUBROUTINE aed_zooplankton_init(self,configunit)
                     pp_target_variable, dc_target_variable, pc_target_variable
 !-----------------------------------------------------------------------
 !BEGIN
+   ALLOCATE(self)
+   CALL initialize_model_info(self,name,parent)
+
 !print *,'**** Reading /aed_zooplankton/ namelist'
    ! Read the namelist
-   read(configunit,nml=aed_zooplankton,err=99)
+   read(namlst,nml=aed_zooplankton,err=99)
 
     self%num_zoops = 0
    ! Store parameter values in our own derived type
@@ -307,9 +313,9 @@ SUBROUTINE aed_zooplankton_init(self,configunit)
 
    RETURN
 
-99 CALL self%fatal_error('aed_zooplankton_init','Error reading namelist aed_zooplankton')
+99 CALL fatal_error('aed_zooplankton_init','Error reading namelist aed_zooplankton')
 
-END SUBROUTINE aed_zooplankton_init
+END FUNCTION aed_zooplankton_create
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -319,7 +325,7 @@ SUBROUTINE aed_zooplankton_do(self,_FABM_ARGS_DO_RHS_)
 ! Right hand sides of zooplankton biogeochemical model
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   CLASS (type_aed_zooplankton),INTENT(in) :: self
+   _CLASS_ (type_aed_zooplankton),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_RHS_
 !
 !LOCALS
@@ -597,7 +603,7 @@ SUBROUTINE aed_zooplankton_do_ppdd(self,_FABM_ARGS_DO_PPDD_)
 ! production/destruction matrices
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   class (type_aed_zooplankton),INTENT(in) :: self
+   _CLASS_ (type_aed_zooplankton),INTENT(in) :: self
    _DECLARE_FABM_ARGS_DO_PPDD_
 !
 !LOCALS
@@ -722,7 +728,7 @@ SUBROUTINE aed_zooplankton_get_conserved_quantities(self,_FABM_ARGS_GET_CONSERVE
 ! Get the total of conserved quantities
 !-------------------------------------------------------------------------------
 !ARGUMENTS
-   CLASS (type_aed_zooplankton),INTENT(in) :: self
+   _CLASS_ (type_aed_zooplankton),INTENT(in) :: self
    _DECLARE_FABM_ARGS_GET_CONSERVED_QUANTITIES_
 !
 !LOCALS
@@ -770,9 +776,9 @@ FUNCTION fPrey_Limitation(self,group,C) RESULT(fPlim)
 ! prey is applied.
 !----------------------------------------------------------------------------!
    !-- Incoming
-   CLASS (type_aed_zooplankton),INTENT(in) :: self
-   INTEGER                                 :: group
-   real(rk),INTENT(in)                     :: C !total concentration of available prey
+   _CLASS_ (type_aed_zooplankton),INTENT(in) :: self
+   INTEGER                                   :: group
+   real(rk),INTENT(in)                       :: C !total concentration of available prey
 !
 !LOCALS
    ! Returns the M-M limitation function
@@ -796,9 +802,9 @@ FUNCTION fSalinity_Limitation(self,group,S) RESULT(fSal)
 ! Salinity tolerance of zooplankton                                          !
 !----------------------------------------------------------------------------!
 !ARGUMENTS
-   CLASS (type_aed_zooplankton),INTENT(in) :: self
-   INTEGER                                 :: group
-   real(rk),INTENT(in)                     :: S
+   _CLASS_ (type_aed_zooplankton),INTENT(in) :: self
+   INTEGER                                   :: group
+   real(rk),INTENT(in)                       :: S
 !
 !LOCALS
    real(rk)  :: fSal ! Returns the salinity function
