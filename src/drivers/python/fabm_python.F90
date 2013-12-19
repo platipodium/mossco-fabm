@@ -13,7 +13,7 @@
 ! !USES:
    use fabm
    use fabm_config
-   use fabm_types, only:rk,attribute_length
+   use fabm_types, only:rk,attribute_length,type_base_driver,driver
    use fabm_properties, only: type_property, type_property_dictionary
    use fabm_python_helper
 
@@ -31,6 +31,12 @@
    integer,            dimension(:),allocatable :: parameter_types
 
    type (type_property_dictionary),save,private :: forced_parameters
+
+   type,extends(type_base_driver) :: type_python_driver
+   contains
+      procedure :: fatal_error
+      procedure :: log_message
+   end type
 !EOP
 !-----------------------------------------------------------------------
 
@@ -58,6 +64,8 @@
 !-----------------------------------------------------------------------
 !BOC
       if (model%initialized) call finalize()
+
+      if (.not.associated(driver)) allocate(type_python_driver::driver)
 
       ! Build FABM model tree (configuration will be read from fabm.yaml).
       call fabm_create_model_from_yaml_file(model,parameters=forced_parameters)
@@ -230,6 +238,21 @@
       property => model%info%parameters%get_property(name)
       value = property%to_string()
    end function
+
+   subroutine fatal_error(self,location,message)
+      class (type_python_driver),intent(inout) :: self
+      character(len=*),          intent(in)    :: location,message
+
+      write (*,*) trim(location)//': '//trim(message)
+      stop 1
+   end subroutine fatal_error
+
+   subroutine log_message(self,message)
+      class (type_python_driver),intent(inout) :: self
+      character(len=*),          intent(in)    :: message
+
+      !write (*,*) trim(message)
+   end subroutine log_message
 
    end module fabm_python
 

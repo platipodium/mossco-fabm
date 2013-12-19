@@ -10,7 +10,7 @@ else
 compilation=$(COMPILATION_MODE)
 endif
 
-DEFINES=-D$(FORTRAN_COMPILER)
+DEFINES=-D$(FORTRAN_COMPILER) -D_FABM_F2003_
 
 FEATURES	=
 FEATURE_LIBS	=
@@ -69,9 +69,7 @@ $(warning Fortran 2003 support is now on by default; there is no need to set FAB
 endif
 
 ifdef FABM_NO_F2003
-$(warning Fortran 2003 support disabled; this option will disappear in the future)
-else
-DEFINES += -D_FABM_F2003_
+$(error Fortran 2003 support is now required; use of FABM_NO_F2003 is no longer supported)
 endif
 
 # Normally this should not be changed - unless you want something very specific.
@@ -88,21 +86,21 @@ endif
 ifeq ($(compilation),debug)
 buildtype = _debug
 DEFINES += -DDEBUG $(STATIC)
-FLAGS   = $(DEBUG_FLAGS) 
+FLAGS   = $(DEBUG_FLAGS)
 endif
 
 # Sets options for profiling compilation
 ifeq ($(compilation),profiling)
 buildtype = _prof
 DEFINES += -DPROFILING $(STATIC)
-FLAGS   = $(PROF_FLAGS) 
+FLAGS   = $(PROF_FLAGS)
 endif
 
 # Sets options for production compilation
 ifeq ($(compilation),production)
 buildtype = _prod
 DEFINES += -DPRODUCTION $(STATIC)
-FLAGS   = $(PROD_FLAGS) 
+FLAGS   = $(PROD_FLAGS)
 endif
 
 include $(FABMDIR)/compilers/compiler.$(FORTRAN_COMPILER)
