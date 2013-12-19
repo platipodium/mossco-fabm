@@ -27,8 +27,8 @@
 !
 !  Reference modules of specific biogeochemical models
    use fabm_gotm_npzd
-   use fabm_gotm_fasham
-   use fabm_examples_benthic_predator
+   !use fabm_gotm_fasham
+   !use fabm_examples_benthic_predator
    ! ADD_NEW_MODEL_HERE - required if the model is contained in a Fortran 90 module
 
    implicit none

@@ -2,11 +2,11 @@
 # Makefile to build the FABM example models
 #
 
-SUBDIRS += benthic_predator
+#SUBDIRS += benthic_predator
 SUBDIRS += npzd
-SUBDIRS += npzd_f2003
-SUBDIRS += duplicator
-SUBDIRS += mean
+#SUBDIRS += npzd_f2003
+#SUBDIRS += duplicator
+#SUBDIRS += mean
 
 #all: OBJS
 #	$(MOVE_MODULES_COMMAND)

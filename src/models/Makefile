@@ -4,9 +4,9 @@
 
 #SUBDIRS += au/           # University of Aarhus
 #SUBDIRS += bb/           # Bolding & Burchard
-#SUBDIRS += examples/     # Test examples
-#SUBDIRS += gotm/         # Converted from old GOTM/BIO models
-#SUBDIRS += iow/          # Institute for Ostsee Forchung
+SUBDIRS += examples/     # Test examples
+SUBDIRS += gotm/         # Converted from old GOTM/BIO models
+SUBDIRS += iow/          # Institute for Ostsee Forchung
 #SUBDIRS += klimacampus/  # Hamburg ??
 #SUBDIRS += metu/         # Middle East Technical University
 #SUBDIRS += pml/          # Plymouth Marine Laboratory
