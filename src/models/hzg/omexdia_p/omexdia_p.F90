@@ -360,14 +360,14 @@ end if
   return
 
 !!-------  if files are not found ...  
-90 call fatal_error('omexdia_p_init','Error reading namelist omexdia_p_switch.')
-91 call fatal_error('omexdia_p_init','Error reading namelist omexdia_p_init.')
-92 call fatal_error('omexdia_p_init','Error reading namelist omexdia_p_par.')
-93 call fatal_error('omexdia_p_init','Error reading namelist omexdia_p_mpb.')
-99 call fatal_error('omexdia_p_init','Namelist omexdia_p_switch was not found in file.')
-100 call fatal_error('omexdia_p_init','Namelist omexdia_p_init was not found in file.')
-101 call fatal_error('omexdia_p_init','Namelist omexdia_p_par was not found in file.')
-102 call fatal_error('omexdia_p_init','Namelist omexdia_p_mpb was not found in file.')
+90 call self%fatal_error('omexdia_p_init','Error reading namelist omexdia_p_switch.')
+91 call self%fatal_error('omexdia_p_init','Error reading namelist omexdia_p_init.')
+92 call self%fatal_error('omexdia_p_init','Error reading namelist omexdia_p_par.')
+93 call self%fatal_error('omexdia_p_init','Error reading namelist omexdia_p_mpb.')
+99 call self%fatal_error('omexdia_p_init','Namelist omexdia_p_switch was not found in file.')
+100 call self%fatal_error('omexdia_p_init','Namelist omexdia_p_init was not found in file.')
+101 call self%fatal_error('omexdia_p_init','Namelist omexdia_p_par was not found in file.')
+102 call self%fatal_error('omexdia_p_init','Namelist omexdia_p_mpb was not found in file.')
 
 end subroutine initialize
 
