@@ -7,7 +7,6 @@
 ! 
 module fabm_hzg_maecs
 use fabm_types
-use fabm_driver
 use maecs_types
 
 !implicit none

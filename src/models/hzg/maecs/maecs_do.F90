@@ -7,7 +7,6 @@
 subroutine maecs_do(self,_ARGUMENTS_DO_)
 
 use fabm_types
-use fabm_driver
 use maecs_types
 use maecs_functions
 use maecs_primprod 
