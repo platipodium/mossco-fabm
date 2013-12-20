@@ -353,9 +353,9 @@ call self%register_state_variable(self%id_detC,  'detC','mmol-C/m**3','Detritus 
 call self%register_state_variable(self%id_detN,  'detN','mmol-N/m**3','Detritus Nitrogen detN', &
    detN_initial, minimum=_ZERO_, no_river_dilution=.true. )
 call self%register_state_variable(self%id_domC,  'domC','mmol-C/m**3','Dissolved Organic Carbon domC', &
-   domC_initial, minimum=_ZERO_, no_river_dilution=.false. )
+   domC_initial, minimum=_ZERO_, no_river_dilution=.true. ) !false
 call self%register_state_variable(self%id_domN,  'domN','mmol-N/m**3','Dissolved Organic Nitrogen domN', &
-   domN_initial, minimum=_ZERO_, no_river_dilution=.false. )
+   domN_initial, minimum=_ZERO_, no_river_dilution=.true. ) !false
 
 if (RubiscoOn) then
     Rub = frac_Rub_ini * phyC_initial  ! trait times biomass
@@ -377,7 +377,7 @@ if (PhosphorusOn) then
     call self%register_state_variable(self%id_detP,  'detP','mmol-P/m**3','Detritus Phosphorus detP', &
        detP_initial, minimum=_ZERO_, no_river_dilution=.true. )
     call self%register_state_variable(self%id_domP,  'domP','mmol-P/m**3','Dissolved Organic Phosphorus domP', &
-       domP_initial, minimum=_ZERO_, no_river_dilution=.false. )
+       domP_initial, minimum=_ZERO_, no_river_dilution=.true. ) !false
 end if
 
 if (SiliconOn) then
@@ -391,7 +391,7 @@ end if
 
 if (GrazingOn) then
     call self%register_state_variable(self%id_zooC,  'zooC','mmol-C/m**3','Zooplankton Carbon zooC', &
-       zooC_initial, minimum=_ZERO_, no_river_dilution=.false. )
+       zooC_initial, minimum=_ZERO_, no_river_dilution=.true. ) !false
 end if
 
 !!------- Register diagnostic variables  ------- 
