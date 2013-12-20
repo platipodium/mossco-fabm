@@ -396,15 +396,15 @@ end if
 
 !!------- Register diagnostic variables  ------- 
 call self%register_diagnostic_variable(self%id_chl2,    'chl2','gCHL/m**3', 'bulk chlorophyll concentration chl2', &
-  time_treatment=time_treatment_step_integrated)
+  time_treatment=time_treatment_last) !time_treatment_step_integrated
 call self%register_diagnostic_variable(self%id_fracR,   'fracR','-', ' fracR', &
-  time_treatment=time_treatment_step_integrated)
+  time_treatment=time_treatment_last) !time_treatment_step_integrated
 call self%register_diagnostic_variable(self%id_QN,      'QN','-', ' QN', &
-  time_treatment=time_treatment_step_integrated)
+  time_treatment=time_treatment_last) !time_treatment_step_integrated
 call self%register_diagnostic_variable(self%id_QP,      'QP','-', ' QP', &
-  time_treatment=time_treatment_step_integrated)
+  time_treatment=time_treatment_last) !time_treatment_step_integrated
 call self%register_diagnostic_variable(self%id_tmp,     'tmp','-', ' tmp', &
-  time_treatment=time_treatment_step_integrated)
+  time_treatment=time_treatment_last) !time_treatment_step_integrated
 
 !!------- Register conserved quantities  ------- 
 call self%register_conserved_quantity(self%id_totC,'C','mmol-C/m**3','total-C')
@@ -541,7 +541,7 @@ _FABM_LOOP_BEGIN_
 
    call sinking(self%vS_phy, phyQstat, vsink)
    vsink = vsink / secs_pr_day
-   write (*,'(A,2(F10.3))') 'phyQstat, vsink=', phyQstat, vsink
+   !write (*,'(A,2(F10.3))') 'phyQstat, vsink=', phyQstat, vsink
    
    !set the rates
    _SET_VERTICAL_MOVEMENT_(self%id_detC,-1.0_rk*self%vS_det/secs_pr_day)
