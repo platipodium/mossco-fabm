@@ -553,6 +553,10 @@ _FABM_LOOP_BEGIN_
       _SET_VERTICAL_MOVEMENT_(self%id_phyP,vsink)
       _SET_VERTICAL_MOVEMENT_(self%id_detP,-1.0_rk*self%vs_det/secs_pr_day)
    end if
+   if (self%SiliconOn) then
+      _SET_VERTICAL_MOVEMENT_(self%id_phyS,vsink)
+      _SET_VERTICAL_MOVEMENT_(self%id_detS,-1.0_rk*self%vs_det/secs_pr_day)
+   end if
    if (self%PhotoacclimOn) then 
       _SET_VERTICAL_MOVEMENT_(self%id_chl,vsink)
       _SET_VERTICAL_MOVEMENT_(self%id_Rub,vsink)
