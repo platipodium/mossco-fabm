@@ -133,6 +133,7 @@ if (self%GrazingOn) then
 
 else
   graz_rate   = 0.0_rk
+  zoo_mort    = 0.0_rk
   lossZ       = type_maecs_om(0.0_rk, 0.0_rk, 0.0_rk, 0.0_rk)
   floppZ      = type_maecs_om(0.0_rk, 0.0_rk, 0.0_rk, 0.0_rk)
 end if
