@@ -26,6 +26,11 @@
             'kg m-3', &
             'sea_water_density')
       type (type_bulk_standard_variable) :: &
+         depth = type_bulk_standard_variable( &
+            'depth', &
+            'm', &
+            'depth')
+      type (type_bulk_standard_variable) :: &
          downwelling_photosynthetic_radiative_flux = type_bulk_standard_variable( &
             'downwelling_photosynthetic_radiative_flux', &
             'W m-2', &
@@ -103,6 +108,11 @@
 
       ! Horizontal variables
       type (type_horizontal_standard_variable) :: &
+         bottom_depth = type_horizontal_standard_variable( &
+            'bottom_depth', &
+            'm', &
+            '')
+      type (type_horizontal_standard_variable) :: &
          bottom_depth_below_geoid = type_horizontal_standard_variable( &
             'bottom_depth_below_geoid', &
             'm', &
@@ -133,6 +143,11 @@
             '1e-6', &
             'mole_fraction_of_carbon_dioxide_in_air')
       type (type_horizontal_standard_variable) :: &
+         surface_air_pressure = type_horizontal_standard_variable( &
+            'surface_air_pressure', &
+            'Pa', &
+            'surface_air_pressure')
+      type (type_horizontal_standard_variable) :: &
          surface_downwelling_photosynthetic_radiative_flux = type_horizontal_standard_variable( &
             'surface_downwelling_photosynthetic_radiative_flux', &
             'W m-2', &
@@ -152,6 +167,16 @@
             'surface_downwelling_shortwave_flux_in_air', &
             'W m-2', &
             'surface_downwelling_shortwave_flux_in_air,surface_downwelling_shortwave_flux')
+      type (type_horizontal_standard_variable) :: &
+         surface_specific_humidity = type_horizontal_standard_variable( &
+            'surface_specific_humidity', &
+            '1', &
+            'surface_specific_humidity')
+      type (type_horizontal_standard_variable) :: &
+         surface_temperature = type_horizontal_standard_variable( &
+            'surface_temperature', &
+            'degree_Celsius', &
+            'surface_temperature,surface_temperature_where_land,surface_temperature_where_open_sea,surface_temperature_where_snow')
       type (type_horizontal_standard_variable) :: &
          wind_speed = type_horizontal_standard_variable( &
             'wind_speed', &
@@ -207,6 +232,7 @@
       attenuation_coefficient_of_photosynthetic_radiative_flux = standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, &
       cell_thickness = standard_variables%cell_thickness, &
       density = standard_variables%density, &
+      depth = standard_variables%depth, &
       downwelling_photosynthetic_radiative_flux = standard_variables%downwelling_photosynthetic_radiative_flux, &
       downwelling_shortwave_flux = standard_variables%downwelling_shortwave_flux, &
       fractional_saturation_of_oxygen = standard_variables%fractional_saturation_of_oxygen, &
@@ -224,7 +250,7 @@
       temperature = standard_variables%temperature
 
    type (type_horizontal_standard_variable), parameter, public :: &
-      bottom_depth = standard_variables%bottom_depth_below_geoid, &
+      bottom_depth = standard_variables%bottom_depth, &
       bottom_depth_below_geoid = standard_variables%bottom_depth_below_geoid, &
       bottom_stress = standard_variables%bottom_stress, &
       cloud_area_fraction = standard_variables%cloud_area_fraction, &
@@ -233,10 +259,13 @@
       latitude = standard_variables%latitude, &
       longitude = standard_variables%longitude, &
       mole_fraction_of_carbon_dioxide_in_air = standard_variables%mole_fraction_of_carbon_dioxide_in_air, &
+      surface_air_pressure = standard_variables%surface_air_pressure, &
       surface_downwelling_photosynthetic_radiative_flux = standard_variables%surface_downwelling_photosynthetic_radiative_flux, &
       surface_downwelling_photosynthetic_radiative_flux_in_air = standard_variables%surface_downwelling_photosynthetic_radiative_flux_in_air, &
       surface_downwelling_shortwave_flux = standard_variables%surface_downwelling_shortwave_flux, &
       surface_downwelling_shortwave_flux_in_air = standard_variables%surface_downwelling_shortwave_flux_in_air, &
+      surface_specific_humidity = standard_variables%surface_specific_humidity, &
+      surface_temperature = standard_variables%surface_temperature, &
       wind_speed = standard_variables%wind_speed
 
    type (type_global_standard_variable), parameter, public :: &

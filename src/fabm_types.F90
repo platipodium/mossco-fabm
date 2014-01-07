@@ -34,19 +34,13 @@
    public type_diagnostic_variable_id
    public type_horizontal_diagnostic_variable_id
    public type_state_variable_id
+   public type_surface_state_variable_id
    public type_bottom_state_variable_id
    public type_dependency_id
    public type_horizontal_dependency_id
    public type_global_dependency_id
    public type_conserved_quantity_id
    public type_model_id
-
-   ! Variable registration procedures used by biogeochemical models.
-   public register_state_variable
-   public register_diagnostic_variable
-   public register_conserved_quantity
-   public register_state_dependency
-   public register_dependency
 
    ! Variable identifier types by external physical drivers.
    public type_bulk_variable_id
@@ -161,8 +155,8 @@
    end type
 
    type,extends(type_id) :: type_state_variable_id
-      integer                         :: state_index = -1
-      type (type_bulk_data_pointer)   :: data
+      integer                       :: state_index = -1
+      type (type_bulk_data_pointer) :: data
    end type
 
    type,extends(type_id) :: type_bottom_state_variable_id
@@ -200,7 +194,7 @@
    end type
 
    ! ====================================================================================================
-   ! Variable types used by FABM for both metadata and value pointers/indices.
+   ! Derived types used internally to registwer contributions of variables to aggregate variables.
    ! ====================================================================================================
 
    type type_contribution
@@ -234,6 +228,10 @@
       logical                                       :: has_bulk_state_component = .false.
       logical                                       :: has_horizontal_state_component = .false.
    end type
+
+   ! ====================================================================================================
+   ! Derived types used internally to store infromation on model variables and modle references.
+   ! ====================================================================================================
 
    type,abstract :: type_internal_object
       character(len=attribute_length) :: name      = ''
@@ -348,7 +346,7 @@
    end type
 
    ! ====================================================================================================
-   ! Types to hold variable metadata, used by host models.
+   ! Derived types for variable metadata used by host models.
    ! ====================================================================================================
 
    type,abstract :: type_external_variable
@@ -702,55 +700,6 @@
       module procedure create_external_bulk_id_for_standard_name
       module procedure create_external_horizontal_id_for_standard_name
       module procedure create_external_scalar_id_for_standard_name
-   end interface
-
-   interface register_state_variable
-      module procedure register_bulk_state_variable
-      module procedure register_bottom_state_variable
-      module procedure register_surface_state_variable
-   end interface
-
-   interface register_state_dependency
-      module procedure register_bulk_state_dependency_ex
-      module procedure register_bottom_state_dependency_ex
-      module procedure register_surface_state_dependency_ex
-      module procedure register_bulk_state_dependency_old
-      module procedure register_bottom_state_dependency_old
-      module procedure register_surface_state_dependency_old
-   end interface
-   
-   interface register_bulk_state_dependency
-      module procedure register_bulk_state_dependency_ex
-      module procedure register_bulk_state_dependency_old
-   end interface
-
-   interface register_bottom_state_dependency
-      module procedure register_bottom_state_dependency_ex
-      module procedure register_bottom_state_dependency_old
-   end interface
-
-   interface register_surface_state_dependency
-      module procedure register_surface_state_dependency_ex
-      module procedure register_surface_state_dependency_old
-   end interface
-
-   interface register_dependency
-      module procedure register_bulk_dependency
-      module procedure register_bulk_dependency_sn
-      module procedure register_horizontal_dependency
-      module procedure register_horizontal_dependency_sn
-      module procedure register_global_dependency
-      module procedure register_global_dependency_sn
-   end interface
-
-   interface register_diagnostic_variable
-      module procedure register_bulk_diagnostic_variable
-      module procedure register_horizontal_diagnostic_variable
-   end interface
-
-   interface register_conserved_quantity
-      module procedure register_standard_conserved_quantity
-      module procedure register_custom_conserved_quantity
    end interface
 
    interface append_data_pointer
@@ -2013,58 +1962,61 @@ end subroutine append_string
    end subroutine register_surface_state_dependency_ex
 !EOC
 
-   subroutine register_bulk_state_dependency_old(model,id,name)
-      class (type_base_model),      intent(inout)        :: model
+   subroutine register_bulk_state_dependency_old(self,id,name)
+      class (type_base_model),      intent(inout)        :: self
       type (type_state_variable_id),intent(inout),target :: id
       character(len=*),             intent(in)           :: name
 
-      call register_bulk_state_dependency(model, id, name, '', name)
-      call model%request_coupling(id,name)
+      call self%register_bulk_state_dependency(id, name, '', name)
+      call self%request_coupling(id,name)
    end subroutine
 
-   subroutine register_bottom_state_dependency_old(model,id,name)
-      class (type_base_model),             intent(inout)        :: model
+   subroutine register_bottom_state_dependency_old(self,id,name)
+      class (type_base_model),             intent(inout)        :: self
       type (type_bottom_state_variable_id),intent(inout),target :: id
       character(len=*),                    intent(in)           :: name
 
-      call register_bottom_state_dependency(model, id, name, '', name)
-      call model%request_coupling(id,name)
+      call self%register_bottom_state_dependency(id, name, '', name)
+      call self%request_coupling(id,name)
    end subroutine
 
-   subroutine register_surface_state_dependency_old(model,id,name)
-      class (type_base_model),              intent(inout)        :: model
+   subroutine register_surface_state_dependency_old(self,id,name)
+      class (type_base_model),              intent(inout)        :: self
       type (type_surface_state_variable_id),intent(inout),target :: id
       character(len=*),                     intent(in)           :: name
 
-      call register_surface_state_dependency(model, id, name, '', name)
-      call model%request_coupling(id,name)
+      call self%register_surface_state_dependency(id, name, '', name)
+      call self%request_coupling(id,name)
    end subroutine
    
    subroutine register_bulk_dependency_sn(model,id,standard_variable,required)
       class (type_base_model),           intent(inout)        :: model
       type (type_dependency_id),         intent(inout),target :: id
       type (type_bulk_standard_variable),intent(in)           :: standard_variable
-      logical,                           intent(in),optional  :: required
+      logical,optional,                  intent(in)           :: required
 
-      call register_bulk_dependency(model,id,standard_variable%name,standard_variable%units,standard_variable=standard_variable)
+      call register_bulk_dependency(model,id,standard_variable%name,standard_variable%units, &
+                                    standard_variable=standard_variable,required=required)
    end subroutine register_bulk_dependency_sn
 
    subroutine register_horizontal_dependency_sn(model,id,standard_variable,required)
       class (type_base_model),                 intent(inout)        :: model
       type (type_horizontal_dependency_id),    intent(inout),target :: id
       type (type_horizontal_standard_variable),intent(in)           :: standard_variable
-      logical,                                 intent(in),optional :: required
+      logical,optional,                        intent(in)           :: required
 
-      call register_horizontal_dependency(model,id,standard_variable%name,standard_variable%units,standard_variable=standard_variable)
+      call register_horizontal_dependency(model,id,standard_variable%name,standard_variable%units, &
+                                          standard_variable=standard_variable,required=required)
    end subroutine register_horizontal_dependency_sn
 
    subroutine register_global_dependency_sn(model,id,standard_variable,required)
       class (type_base_model),             intent(inout)        :: model
       type (type_global_dependency_id),    intent(inout),target :: id
       type (type_global_standard_variable),intent(in)           :: standard_variable
-      logical,                             intent(in),optional :: required
+      logical,optional,                    intent(in)           :: required
 
-      call register_global_dependency(model,id,standard_variable%name,standard_variable%units,standard_variable=standard_variable)
+      call register_global_dependency(model,id,standard_variable%name,standard_variable%units, &
+                                      standard_variable=standard_variable,required=required)
    end subroutine register_global_dependency_sn
 
 !-----------------------------------------------------------------------

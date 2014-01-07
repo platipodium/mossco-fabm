@@ -97,6 +97,18 @@
       procedure :: link_scalar_by_sn   => fabm_link_scalar_by_sn
       procedure :: link_scalar_by_name => fabm_link_scalar_by_name
       generic :: link_scalar => link_scalar_by_id,link_scalar_by_sn,link_scalar_by_name
+
+      procedure :: get_bulk_variable_id_by_name => fabm_get_bulk_variable_id_by_name
+      procedure :: get_bulk_variable_id_sn => fabm_get_bulk_variable_id_sn
+      generic :: get_bulk_variable_id => get_bulk_variable_id_by_name, get_bulk_variable_id_sn
+
+      procedure :: get_horizontal_variable_id_by_name => fabm_get_horizontal_variable_id_by_name
+      procedure :: get_horizontal_variable_id_sn => fabm_get_horizontal_variable_id_sn
+      generic :: get_horizontal_variable_id => get_horizontal_variable_id_by_name, get_horizontal_variable_id_sn
+
+      procedure :: get_scalar_variable_id_by_name => fabm_get_scalar_variable_id_by_name
+      procedure :: get_scalar_variable_id_sn => fabm_get_scalar_variable_id_sn
+      generic :: get_scalar_variable_id => get_scalar_variable_id_by_name, get_scalar_variable_id_sn
    end type type_model
 !
 ! !PUBLIC INTERFACES:
@@ -152,17 +164,17 @@
    end interface
 
    interface fabm_get_bulk_variable_id
-      module procedure fabm_get_bulk_variable_id
+      module procedure fabm_get_bulk_variable_id_by_name
       module procedure fabm_get_bulk_variable_id_sn
    end interface
 
    interface fabm_get_horizontal_variable_id
-      module procedure fabm_get_horizontal_variable_id
+      module procedure fabm_get_horizontal_variable_id_by_name
       module procedure fabm_get_horizontal_variable_id_sn
    end interface
 
    interface fabm_get_scalar_variable_id
-      module procedure fabm_get_scalar_variable_id
+      module procedure fabm_get_scalar_variable_id_by_name
       module procedure fabm_get_scalar_variable_id_sn
    end interface
    
@@ -683,7 +695,7 @@
 ! fabm\_link\_data/fabm\_link\_data\_hz.
 !
 ! !INTERFACE:
-   function fabm_get_bulk_variable_id(self,name) result(id)
+   function fabm_get_bulk_variable_id_by_name(self,name) result(id)
 !
 ! !INPUT PARAMETERS:
    class (type_model),target,intent(in) :: self
@@ -724,7 +736,7 @@
       link => link%next
    end do
 
-   end function fabm_get_bulk_variable_id
+   end function fabm_get_bulk_variable_id_by_name
 !EOC
 
 !-----------------------------------------------------------------------
@@ -758,7 +770,7 @@
 ! name.
 !
 ! !INTERFACE:
-   function fabm_get_horizontal_variable_id(self,name) result(id)
+   function fabm_get_horizontal_variable_id_by_name(self,name) result(id)
 !
 ! !INPUT PARAMETERS:
    class (type_model),target,intent(in) :: self
@@ -799,7 +811,7 @@
       link => link%next
    end do
 
-   end function fabm_get_horizontal_variable_id
+   end function fabm_get_horizontal_variable_id_by_name
 !EOC
 
 !-----------------------------------------------------------------------
@@ -835,7 +847,7 @@
 ! fabm\_link\_data/fabm\_link\_data\_hz.
 !
 ! !INTERFACE:
-   function fabm_get_scalar_variable_id(self,name) result(id)
+   function fabm_get_scalar_variable_id_by_name(self,name) result(id)
 !
 ! !INPUT PARAMETERS:
    class (type_model),target,     intent(in)  :: self
@@ -876,7 +888,7 @@
       link => link%next
    end do
 
-   end function fabm_get_scalar_variable_id
+   end function fabm_get_scalar_variable_id_by_name
 !EOC
 
 !-----------------------------------------------------------------------
