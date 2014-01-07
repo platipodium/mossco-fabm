@@ -74,6 +74,8 @@ if (self%SiliconOn) then
 end if
 if (self%GrazingOn) then
       _GET_(self%id_zooC, zoo%C)  ! Zooplankton Carbon in mmol-C/m**3
+else
+      zoo%C = self%zooC_initial
 end if
 !#E_GET
 !phy%Rub = Rub
