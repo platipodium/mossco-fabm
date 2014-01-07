@@ -1,0 +1,44 @@
+!-------------------------------------------------------------------------------
+! hzg_omexdia_p --- FABM/F03 version of OMEXDIA+P biogeochemical model
+!-------------------------------------------------------------------------------
+! fdet_init [float, unit = mmolC/m**3]
+!       fast detritus C
+! sdet_init [float, unit = mmolC/m**3]
+!       slow detritus C
+! pdet_init [float, unit = mmolP/m**3] #PhosphorusOn
+!       detritus-P
+! po4_init  [float, unit = mmolP/m**3] #PhosphorusOn
+!       dissolved phosphate
+! no3_init  [float, unit = mmolN/m**3]
+!       dissolved nitrate
+! nh3_init  [float, unit = mmolN/m**3]
+!       dissolved ammonium
+! oxy_init  [float, unit = mmolO2/m**3]
+!       dissolved oxygen
+! odu_init  [float, unit = mmolO2/m**3]
+!       dissolved reduced substances
+! mpbCHL_init [float, unit = mmolN/m**3] #MPhytoBenOn
+!       MicroPhytoBenthos chlorophyll
+! mpbC_init [float, unit = mmolC/m**3]  #MPhytoBenOn
+!       MicroPhytoBenthos carbon
+! mpbN_init [float, unit = mmolN/m**3]  #MPhytoBenOn
+!       MicroPhytoBenthos nitrogen
+! eps_init [float, unit = mmolC/m**3]  #MPhytoBenOn
+!       Extracellular Polymeric Substances 
+!-------------------------------------------------------------------------------
+
+&omexdia_p_init
+fdet_init       = 1.e5
+sdet_init       = 1.e6
+pdet_init       = 2.e2
+po4_init        = 20.
+no3_init        = 30
+nh3_init        = 100.
+oxy_init        = 10.
+odu_init        = 100.
+mpbCHL_init     = 0.1
+mpbC_init       = 1.
+mpbN_init       = 0.1
+eps_init        = 0.0
+/
+

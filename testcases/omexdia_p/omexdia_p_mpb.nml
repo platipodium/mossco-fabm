@@ -1,0 +1,70 @@
+!-------------------------------------------------------------------------------
+! hzg_omexdia_p --- MicroPhytoBenthos (MPB) module of OMEXDIA+P model
+!-------------------------------------------------------------------------------
+! mumax      [float, unit = 1/d] #MPhytoBenOn  
+!             Maximum growth rate 
+! alpha      [float, unit = m2molC/gChl.W.d] #MPhytoBenOn 
+!             Chl-specific initial slope of the PI-curve 
+! gamma      [float, unit = mol O2 (mol C)−1] #MPhytoBenOn 
+!             Mol O2 produced per mol C fixed by photosynthesis 
+! Qmin       [float, unit = molN/molC] #MPhytoBenOn
+!             Minimum N/C ratio 
+! Qmax       [float, unit = molN/molC] #MPhytoBenOn 
+!             Maximum N/C ratio 
+! thetamax   [float, unit = gChla/molN] #MPhytoBenOn 
+!             Maximum Chla/N ratio 
+! uptmax     [float, unit = molN/molC.d] #MPhytoBenOn
+!             Maximum uptake rate per carbon unit for NH4 & NO3 
+! KNH4       [float, unit = mmolN/m3] #MPhytoBenOn 
+!             Half-saturation conc. for NH4 uptake 
+! KNO3       [float, unit = mmolN/m3] #MPhytoBenOn
+!             Half-saturation conc. for NO3 uptake 
+! KinNH4     [float, unit = mmolN/m3] #MPhytoBenOn
+!             Half-saturation conc. for NO3 uptake inhibition by ammonium 
+! keps       [float, unit = ] #MPhytoBenOn
+!             fraction of primary production exudated as EPS 
+! resp       [float, unit = 1/d] #MPhytoBenOn 
+!             Respiration rate  
+! Kresp      [float, unit = mmolO2/m3] #MPhytoBenOn
+!             Half-saturation conc. O2 lim. for resp 
+! graz       [float, unit = 1/d] #MPhytoBenOn
+!             Grazing rate 
+! kout       [float, unit = ] #MPhytoBenOn
+!             Faeces production coeff. 
+! kexu       [float, unit = ] #MPhytoBenOn
+!             Nitrogen exudation coeff. 
+! rzoo       [float, unit = 1/d] #MPhytoBenOn
+!             Respiration rate for zoobenthos 
+! PAR0max    [float, unit = I/s] #MPhytoBenOn
+!             maximum light intensity 
+! k0         [float, unit = C/m] #MPhytoBenOn
+!             Extinction coefficient of sediment 
+! Achla      [float, unit = m2/mgChla] #MPhytoBenOn
+!             Absorption factor of chlorophyll
+! bTemp      [float, unit = 1/oC] #MPhytoBenOn
+!             Temperature increase        
+!-------------------------------------------------------------------------------
+
+&omexdia_p_mpb
+mumax   = 0.7
+alpha   = 3.3
+gamma   = 1.
+Qmin    = 0.05 
+Qmax    = 0.2 
+thetamax = 3.8 
+uptmax  = 0.2 
+KNH4    = 3.
+KNO3    = 3.
+KinNH4  = 10.
+keps    = 0.
+resp    = 0.1
+Kresp   = 1.
+graz    = 0.04
+kout    = 0.1
+kexu    = 0.15
+rzoo    = 0.1
+PAR0max = 320
+k0      = 20.
+Achla   = 0.02
+bTemp   = 0.0633
+/

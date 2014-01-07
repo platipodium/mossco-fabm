@@ -1,0 +1,17 @@
+!-------------------------------------------------------------------------------
+! omexdia_p switches
+!-------------------------------------------------------------------------------
+! PhotoacclimOn  [bool]
+!                  use Photoacclimation
+! PhosphorusOn   [bool]
+!                  resolve Phosphorus cycle
+! MPhytoBenOn    [bool]
+!                  use MicroPhytoBenthos (MPB)
+!-------------------------------------------------------------------------------
+
+&omexdia_p_switch
+   PhotoacclimOn = .true.,
+   PhosphorusOn = .true.,
+   MPhytoBenOn = .true.,
+/
+

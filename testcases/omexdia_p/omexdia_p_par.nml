@@ -1,0 +1,56 @@
+!-------------------------------------------------------------------------------
+! hzg_omexdia_p --- FABM/F03 version of OMEXDIA+P biogeochemical model
+!-------------------------------------------------------------------------------
+! rFast     [float, unit = 1/day] 
+!             decay rate fast decay det.
+! rSlow     [float, unit = 1/day]   
+!             decay rate slow decay det.
+! NCrFdet   [float, unit =  molN/molC]
+!             NC ratio fast decay det.
+! NCrSdet   [float, unit =  molN/molC]
+!             NC ratio slow decay det.
+! PAds    [float, unit = ] #PhosphorusOn       
+!             Adsorption coeff phosphorus
+! PAdsODU    [float, unit = ] #PhosphorusOn          
+!             PO4-Fe dissolution threshold in terms of [FeS]/ODU
+! NH3Ads    [float, unit = ]           
+!             Adsorption coeff ammonium
+! rnit      [float, unit = 1/d]          
+!             Max nitrification rate
+! ksO2nitri [float, unit = umolO2/m3]  
+!             half-sat O2 in nitrification
+! rODUox    [float, unit = /d]          
+!             Max rate oxidation of ODU
+! ksO2oduox [float, unit = mmolO2/m3]  
+!             half-sat O2 in oxidation of ODU
+! ksO2oxic  [float, unit = mmolO2/m3]   
+!             half-sat O2 in oxic mineralis
+! ksNO3denit [float, unit = mmolNO3/m3]  
+!             half-sat NO3 in denitrif
+! kinO2denit [float, unit = mmolO2/m3]   
+!             half-sat O2 inhib denitrif
+! kinNO3anox [float, unit = mmolNO3/m3]  
+!             half-sat NO3 inhib anoxic min
+! kinO2anox  [float, unit = mmolO2/m3]   
+!             half-sat O2 inhib anoxic min
+!-------------------------------------------------------------------------------
+
+&omexdia_p_par
+rFast           = 0.01
+rSlow           = 0.00001
+NCrFdet         = 0.2 
+NCrSdet         = 0.04
+PAds            = 0.3
+PAdsODU         = 12.
+NH3Ads          = 0.0
+rnit            = 20.
+ksO2nitri       = 20.
+rODUox          = 20.
+ksO2oduox       = 1.
+ksO2oxic        = 3. 
+ksNO3denit      = 30.
+kinO2denit      = 1.
+kinNO3anox      = 1.
+kinO2anox       = 1.
+/
+
