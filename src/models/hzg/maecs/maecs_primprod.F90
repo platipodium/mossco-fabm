@@ -74,7 +74,7 @@ real(rk) :: feedb_vq
 eps     =  self%small_finite ! just  a shorter namer
 ! switching off phosphorus terms in the derivatives
 IsVQP       = .true.  ! rethink dependence of P-uptake on N-regulation switching on phosphorus terms in the derivatives
-IsVQP       = .false. 
+!IsVQP       = .false. 
 IsVQSi      = .false. ! TODO
 
 ! --- relative amount of carbon invested into light harvesting complex (LHC) -------
