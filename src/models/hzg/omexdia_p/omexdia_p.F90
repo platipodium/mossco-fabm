@@ -290,30 +290,30 @@ if (MPhytoBenOn) then
 end if
 
 !!------- Register state variables  ------- 
-  call self%register_state_variable(self%id_fdet,  'fdet','mmolC/m**3','fast detritus C fdet', &
+  call self%register_state_variable(self%id_fdet,  'fdet','mmolC/m**3','fast detritus C', &
    fdet_init, minimum=_ZERO_, no_river_dilution=.true. )
   call self%set_variable_property(self%id_fdet,'particulate',.true.)
-  call self%register_state_variable(self%id_sdet,  'sdet','mmolC/m**3','slow detritus C sdet', &
+  call self%register_state_variable(self%id_sdet,  'sdet','mmolC/m**3','slow detritus C', &
    sdet_init, minimum=_ZERO_, no_river_dilution=.true. )
   call self%set_variable_property(self%id_sdet,'particulate',.true.)
-  call self%register_state_variable(self%id_no3,   'no3','mmolN/m**3','dissolved nitrate no3', &
+  call self%register_state_variable(self%id_no3,   'no3','mmolN/m**3','dissolved nitrate', &
    no3_init, minimum=_ZERO_, no_river_dilution=.true. )
   call self%set_variable_property(self%id_no3,'particulate',.false.)
-  call self%register_state_variable(self%id_nh3,   'nh3','mmolN/m**3','dissolved ammonium nh3', &
+  call self%register_state_variable(self%id_nh3,   'nh3','mmolN/m**3','dissolved ammonium', &
    nh3_init, minimum=_ZERO_, no_river_dilution=.true. )
   call self%set_variable_property(self%id_nh3,'particulate',.false.)
-  call self%register_state_variable(self%id_oxy,   'oxy','mmolO2/m**3','dissolved oxygen oxy', &
+  call self%register_state_variable(self%id_oxy,   'oxy','mmolO2/m**3','dissolved oxygen', &
    oxy_init, minimum=_ZERO_, no_river_dilution=.true. )
   call self%set_variable_property(self%id_oxy,'particulate',.false.)
-  call self%register_state_variable(self%id_odu,   'odu','mmolO2/m**3','dissolved reduced substances odu', &
+  call self%register_state_variable(self%id_odu,   'odu','mmolO2/m**3','dissolved reduced substances', &
    odu_init, minimum=_ZERO_, no_river_dilution=.true. )
   call self%set_variable_property(self%id_odu,'particulate',.false.)
 
 if (PhosphorusOn) then
-      call self%register_state_variable(self%id_pdet,  'pdet','mmolP/m**3','detritus-P pdet', &
+      call self%register_state_variable(self%id_pdet,  'pdet','mmolP/m**3','detritus-P', &
        pdet_init, minimum=_ZERO_, no_river_dilution=.true. )
   call self%set_variable_property(self%id_pdet,'particulate',.true.)
-      call self%register_state_variable(self%id_po4,   'po4','mmolP/m**3','dissolved phosphate po4', &
+      call self%register_state_variable(self%id_po4,   'po4','mmolP/m**3','dissolved phosphate', &
        po4_init, minimum=_ZERO_, no_river_dilution=.true. )
   call self%set_variable_property(self%id_po4,'particulate',.false.)
 end if
