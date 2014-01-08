@@ -74,7 +74,7 @@ real(rk) :: feedb_vq
 eps     =  self%small_finite ! just  a shorter namer
 ! switching off phosphorus terms in the derivatives
 IsVQP       = .true.  ! rethink dependence of P-uptake on N-regulation switching on phosphorus terms in the derivatives
-!IsVQP       = .false. 
+IsVQP       = .false. 
 IsVQSi      = .false. ! TODO
 
 ! --- relative amount of carbon invested into light harvesting complex (LHC) -------
@@ -199,7 +199,7 @@ dmu_dQ%N     = dmu_dQ%N - self%zeta_CN * dVNC_dQN
 if (self%PhosphorusOn) then
     dV_dregV = phy%frac%NutUpt * sens%up_PC
     dmudV    = dbal_dv**2 / ((dbal_dv*lim_P+1.0d0) *phy%QP - self%QP_phy_0)  
-    grad_V   = dV_dregV * (-2*self%zeta_CN   + lim_P * dmudV)  !TODO check costs ! and fac 2 !
+    grad_V   = dV_dregV * (-self%zeta_CP  + lim_P * dmudV)  !TODO check costs ! and fac 2 !
     reg_V    = 1./(1.+exp(-self%tau_regV * grad_V));  ! 0.02
     upt_act%P= reg_V * sens%up_PC 
 
@@ -218,7 +218,7 @@ if (self%SiliconOn) then
     dV_dregV = phy%frac%NutUpt * sens%up_SiC
 
     dmudV    = dbal_dv**2 / ((dbal_dv*lim_Si+1.0d0) *phy%QSi - self%QSi_phy_0)  
-    grad_V   = dV_dregV * (-2*self%zeta_CN   + lim_Si * dmudV)
+    grad_V   = dV_dregV * (-1*self%zeta_CN   + lim_Si * dmudV)
     reg_V    = 1./(1.+exp(-self%tau_regV * grad_V));  ! 0.02
     upt_act%S= reg_V * sens%up_SiC 
 

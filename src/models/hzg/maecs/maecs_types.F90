@@ -33,7 +33,7 @@ real(rk) ::  nutN_initial, nutP_initial, nutS_initial, phyC_initial, phyN_initia
 real(rk) ::  P_max, alpha, sigma, theta_LHC, rel_chloropl_min, QN_phy_0, QN_phy_max, V_NC_max, AffN, zeta_CN, exud_phy, QP_phy_0, QP_phy_max, V_PC_max, AffP, QSi_phy_0, QSi_phy_max, V_SiC_max, AffSi, syn_nut, adap_rub, adap_theta, tau_regV, phi_agg, vS_phy, vS_det, hydrol, remin, Ae_all, T_ref
 real(rk) ::  const_NC_zoo, const_PC_zoo, g_max, k_grazC, yield_zoo, basal_resp_zoo, mort_zoo
 real(rk) ::  a_water, a_spm, a_chl, frac_PAR, small, dil
-real(rk) ::  K_QN_phy, iK_QN, iK_QP, itheta_max, aver_QN_phy, aver_QP_phy, small_finite
+real(rk) ::  K_QN_phy, iK_QN, iK_QP, zeta_CP, itheta_max, aver_QN_phy, aver_QP_phy, small_finite
 logical  ::  RubiscoOn, PhotoacclimOn, PhosphorusOn, SiliconOn, GrazingOn, BioCarbochemOn, BioOxyOn, DebugDiagOn, ChemostatOn
 end type type_maecs_base_model
 
