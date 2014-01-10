@@ -562,7 +562,7 @@ end if
 !  dynamics of no3 ~ dissolved nitrate
   rhsv%no3 = (-0.8_rk*Denitrific + Nitri - uptNO3) _CONV_UNIT_
 !  dynamics of nh3 ~ dissolved ammonium
-  rhsv%nh3 = (Nprod - Nitri + exud - uptNH4 ) / (1.0_rk + self%NH3Ads) _CONV_UNIT_
+  rhsv%nh3 = (f_T * Nprod - Nitri + exud - uptNH4 ) / (1.0_rk + self%NH3Ads) _CONV_UNIT_
 if (self%PhosphorusOn) then
 !  dynamics of pdet ~ detritus-P
   rhsv%pdet = (radsP - f_T * Pprod) _CONV_UNIT_
