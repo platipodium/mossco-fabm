@@ -68,7 +68,7 @@ real(rk) :: grad_fracR ! [...]
 real(rk) :: flex_theta ! [...]
 real(rk) :: flex_fracR ! [...]
 real(rk) :: a1, a2, a3
-real(rk) :: feedb_vq
+real(rk) :: feedb_vq, syn_act
 
 ! 
 eps     =  self%small_finite ! just  a shorter namer
@@ -104,10 +104,20 @@ if (self%SiliconOn) then
 else
    lim_Si     = 0
 endif
+
+! --- synchrony in nutrient assimilation depends on growth cycle and
+!         P-quota
+if (self%syn_nut .lt. _ZERO_ .and. self%PhosphorusOn) then
+   syn_act = phy%QP / (self%QP_phy_0 +  0.1d0 * self%QP_phy_max)
+else
+   syn_act = self%syn_nut
+endif 
+
 if (self%PhosphorusOn) then 
   if (mod(num_nut,2) .eq. 1) then 
      ratio_rel = ratio_rel/phy%rel_QP
-     call queuefunc(self%syn_nut,ratio_rel,fac_colim,deriv_fac_colim)
+
+     call queuefunc(syn_act,ratio_rel,fac_colim,deriv_fac_colim)
  ! relative nutrient limitation due to P shortage 
      fac_colim = smooth_small(fac_colim,eps)
      ! relative nutrient limitation due to Si shortage
@@ -130,7 +140,7 @@ endif
 if (num_nut .gt. 0) then 
 ! takes co-limitation factor from all other nutrients
    ratio_rel  = ratio_rel/phy%rel_QN
-   call queuefunc(self%syn_nut,ratio_rel,fac_colim,deriv_fac_colim)
+   call queuefunc(syn_act,ratio_rel,fac_colim,deriv_fac_colim)
    fac_colim  = smooth_small(fac_colim,eps)
 ! deriv_fac_colim: numerical derivative of queue response  
    lim_all    = deriv_fac_colim*ratio_rel / fac_colim
