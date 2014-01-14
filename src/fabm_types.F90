@@ -210,7 +210,7 @@
    end type
 
    type type_contributing_variable
-      type (type_link),                 pointer :: link
+      type (type_link),                 pointer :: link => null()
       real(rk)                                  :: scale_factor = 1.0_rk
       integer                                   :: state_index = -1
       integer                                   :: horizontal_state_index = -1
@@ -218,11 +218,11 @@
    end type
 
    type type_aggregate_variable
-      type (type_bulk_standard_variable)          :: standard_variable
-      type (type_contributing_variable),  pointer :: first_contributing_variable => null()
-      type (type_weighted_sum),           pointer :: sum => null()
-      type (type_horizontal_weighted_sum),pointer :: horizontal_sum => null()
-      type (type_aggregate_variable),     pointer :: next => null()
+      type (type_bulk_standard_variable)            :: standard_variable
+      type (type_contributing_variable),   pointer  :: first_contributing_variable => null()
+      class (type_weighted_sum),           pointer  :: sum => null()
+      class (type_horizontal_weighted_sum),pointer  :: horizontal_sum => null()
+      type (type_aggregate_variable),      pointer  :: next => null()
       type (type_diagnostic_variable_id)            :: id_rate
       type (type_horizontal_diagnostic_variable_id) :: id_horizontal_rate
       logical                                       :: has_bulk_state_component = .false.
@@ -397,8 +397,8 @@
    type,extends(type_external_variable) :: type_conserved_quantity_info
       type (type_bulk_standard_variable)            :: standard_variable
       integer                                       :: externalid = 0       ! Identifier to be used freely by host
-      type (type_weighted_sum),pointer              :: model => null()
-      type (type_horizontal_weighted_sum),pointer   :: horizontal_model => null()
+      class (type_weighted_sum),pointer             :: model => null()
+      class (type_horizontal_weighted_sum),pointer  :: horizontal_model => null()
       integer,allocatable                           :: state_indices(:)
       real(rk),allocatable                          :: state_scale_factors(:)
       integer                                       :: rate_diag_index = -1
@@ -415,11 +415,11 @@
    end type
 
    type,abstract,extends(type_expression) :: type_bulk_expression
-      type (type_bulk_data_pointer),pointer :: out
+      type (type_bulk_data_pointer),pointer :: out => null()
    end type
 
    type,abstract,extends(type_expression) :: type_horizontal_expression
-      type (type_horizontal_data_pointer),pointer :: out
+      type (type_horizontal_data_pointer),pointer :: out => null()
    end type
 
    ! ====================================================================================================
@@ -940,7 +940,7 @@
       type (type_bulk_standard_variable),intent(in)    :: target
       real(rk),optional,                 intent(in)    :: scale_factor
 
-      class (type_contribution),pointer :: contribution
+      type (type_contribution),pointer :: contribution
 
       if (.not.associated(self%first)) then
          allocate(self%first)
@@ -1303,8 +1303,8 @@ end subroutine append_string
 !  Original author(s): Jorn Bruggeman
 !
 !EOP
-   class (type_link),pointer :: link
-   class (type_aggregate_variable),pointer :: aggregate_variable
+   type (type_link),pointer :: link
+   type (type_aggregate_variable),pointer :: aggregate_variable
 !-----------------------------------------------------------------------
 !BOC
       if (associated(self%parent)) call self%fatal_error('freeze_model_info', &
@@ -2623,7 +2623,7 @@ end subroutine add_parameter
 
       if (allocated(processed_bulk))       deallocate(processed_bulk)
       if (allocated(processed_horizontal)) deallocate(processed_horizontal)
-      if (allocated(processed_scalar))     deallocate(processed_bulk)
+      if (allocated(processed_scalar))     deallocate(processed_scalar)
 
    end subroutine couple_standard_variables
 !EOC
