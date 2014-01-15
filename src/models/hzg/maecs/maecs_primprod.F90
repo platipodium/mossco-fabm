@@ -68,13 +68,15 @@ real(rk) :: grad_fracR ! [...]
 real(rk) :: flex_theta ! [...]
 real(rk) :: flex_fracR ! [...]
 real(rk) :: a1, a2, a3
-real(rk) :: feedb_vq, syn_act
-
+real(rk) :: feedb_vq
+real(rk) :: syn_act, zeta_CP
+real(rk) :: f_Lip, q_Lip, q_NoLip  
+    
 ! 
 eps     =  self%small_finite ! just  a shorter namer
 ! switching off phosphorus terms in the derivatives
 IsVQP       = .true.  ! rethink dependence of P-uptake on N-regulation switching on phosphorus terms in the derivatives
-IsVQP       = .false. 
+!IsVQP       = .false. 
 IsVQSi      = .false. ! TODO
 
 ! --- relative amount of carbon invested into light harvesting complex (LHC) -------
@@ -108,7 +110,7 @@ endif
 ! --- synchrony in nutrient assimilation depends on growth cycle and
 !         P-quota
 if (self%syn_nut .lt. _ZERO_ .and. self%PhosphorusOn) then
-   syn_act = phy%QP / (self%QP_phy_0 +  0.1d0 * self%QP_phy_max)
+   syn_act = -self%syn_nut * phy%QP / self%QP_phy_max
 else
    syn_act = self%syn_nut
 endif 
@@ -209,7 +211,19 @@ dmu_dQ%N     = dmu_dQ%N - self%zeta_CN * dVNC_dQN
 if (self%PhosphorusOn) then
     dV_dregV = phy%frac%NutUpt * sens%up_PC
     dmudV    = dbal_dv**2 / ((dbal_dv*lim_P+1.0d0) *phy%QP - self%QP_phy_0)  
-    grad_V   = dV_dregV * (-self%zeta_CP  + lim_P * dmudV)  !TODO check costs ! and fac 2 !
+ !TODO check costs !
+! prelim solution: stoichiometry in RNA (N:P ~ 4:1) and phospholipids (N:P~1:1)
+! TODO: include proteins/mebranes (N:P >> 16:1) under low growth conditions 
+! TODO: energetic costs of P-assimilation not brought up as an extra term but 
+!          assumed to be already included in protein synthesis
+! \partial (\zeta_CN V_N) / \partial V_P
+    q_NoLip  = 1./3.8  ! P-stoichiometry of active compounds (DNA, RNA)  
+    q_Lip    = 1./0.8    ! storage P-stoichiometry 
+    
+    f_Lip    = 1./(1.+exp(10*(1.-phy%rel_QP)))
+    zeta_CP  = ((1.-f_Lip)*q_NoLip + f_Lip*q_Lip) * self%zeta_CN
+
+    grad_V   = dV_dregV * (-zeta_CP  + lim_P * dmudV) 
     reg_V    = 1./(1.+exp(-self%tau_regV * grad_V));  ! 0.02
     upt_act%P= reg_V * sens%up_PC 
 
