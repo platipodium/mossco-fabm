@@ -140,13 +140,15 @@ logical   :: GrazingOn    ! use Zooplankton grazing
 logical   :: BioCarbochemOn ! use geochemistry module
 logical   :: BioOxyOn     ! use oxygen from other FABM model
 logical   :: DebugDiagOn  ! output of all diagnostics
-logical   :: ChemostatOn  ! use Chemostat mode
-logical   :: detritus_no_river_dilution=.false.
-logical   :: plankton_no_river_dilution=.true.
+logical   :: ChemostatOn  ! use Chemostat mode 
+logical   :: UptakeLock   ! use same allocation for all uptake systems (Smith2008)
+logical   :: detritus_no_river_dilution ! use riverine det import
+logical   :: plankton_no_river_dilution ! use riverine det import
 
 namelist /maecs_switch/ &
   RubiscoOn, PhotoacclimOn, PhosphorusOn, SiliconOn, GrazingOn, BioCarbochemOn, &
-  BioOxyOn, DebugDiagOn, ChemostatOn, detritus_no_river_dilution, plankton_no_river_dilution
+  BioOxyOn, DebugDiagOn, ChemostatOn, UptakeLock, detritus_no_river_dilution, &
+  plankton_no_river_dilution
 
 namelist /maecs_init/ &
   nutN_initial, nutP_initial, nutS_initial, phyC_initial, phyN_initial, &
@@ -255,6 +257,9 @@ call self%get_parameter(self%BioCarbochemOn,  'BioCarbochemOn',  default=BioCarb
 call self%get_parameter(self%BioOxyOn,      'BioOxyOn',      default=BioOxyOn)
 call self%get_parameter(self%DebugDiagOn,   'DebugDiagOn',   default=DebugDiagOn)
 call self%get_parameter(self%ChemostatOn,   'ChemostatOn',   default=ChemostatOn)
+call self%get_parameter(self%UptakeLock,    'UptakeLock',    default=UptakeLock)
+call self%get_parameter(self%detritus_no_river_dilution,  'detritus_no_river_dilution',  default=detritus_no_river_dilution)
+call self%get_parameter(self%plankton_no_river_dilution,  'plankton_no_river_dilution',  default=plankton_no_river_dilution)
 
 !!------- model parameters from nml-list maecs_init ------- 
 call self%get_parameter(self%nutN_initial ,'nutN_initial',  default=nutN_initial)
@@ -355,9 +360,9 @@ call self%register_state_variable(self%id_detC,  'detC','mmol-C/m**3','Detritus 
 call self%register_state_variable(self%id_detN,  'detN','mmol-N/m**3','Detritus Nitrogen detN', &
    detN_initial, minimum=_ZERO_, no_river_dilution=detritus_no_river_dilution )
 call self%register_state_variable(self%id_domC,  'domC','mmol-C/m**3','Dissolved Organic Carbon domC', &
-   domC_initial, minimum=_ZERO_, no_river_dilution=.true. ) !false
+   domC_initial, minimum=_ZERO_, no_river_dilution=.true. )
 call self%register_state_variable(self%id_domN,  'domN','mmol-N/m**3','Dissolved Organic Nitrogen domN', &
-   domN_initial, minimum=_ZERO_, no_river_dilution=.true. ) !false
+   domN_initial, minimum=_ZERO_, no_river_dilution=.true. )
 
 if (RubiscoOn) then
     Rub = frac_Rub_ini * phyC_initial  ! trait times biomass
@@ -379,7 +384,7 @@ if (PhosphorusOn) then
     call self%register_state_variable(self%id_detP,  'detP','mmol-P/m**3','Detritus Phosphorus detP', &
        detP_initial, minimum=_ZERO_, no_river_dilution=detritus_no_river_dilution )
     call self%register_state_variable(self%id_domP,  'domP','mmol-P/m**3','Dissolved Organic Phosphorus domP', &
-       domP_initial, minimum=_ZERO_, no_river_dilution=.true. ) !false
+       domP_initial, minimum=_ZERO_, no_river_dilution=.true. )
 end if
 
 if (SiliconOn) then
@@ -393,25 +398,26 @@ end if
 
 if (GrazingOn) then
     call self%register_state_variable(self%id_zooC,  'zooC','mmol-C/m**3','Zooplankton Carbon zooC', &
-       zooC_initial, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution ) !false
+       zooC_initial, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution )
 end if
 
 !!------- Register diagnostic variables  ------- 
 call self%register_diagnostic_variable(self%id_chl2,    'chl2','gCHL/m**3', 'bulk chlorophyll concentration chl2', &
-  time_treatment=time_treatment_last) !time_treatment_step_integrated
+  time_treatment=time_treatment_last)
 call self%register_diagnostic_variable(self%id_fracR,   'fracR','-', ' fracR', &
-  time_treatment=time_treatment_last) !time_treatment_step_integrated
+  time_treatment=time_treatment_last)
 call self%register_diagnostic_variable(self%id_QN,      'QN','-', ' QN', &
-  time_treatment=time_treatment_last) !time_treatment_step_integrated
+  time_treatment=time_treatment_last)
 call self%register_diagnostic_variable(self%id_QP,      'QP','-', ' QP', &
-  time_treatment=time_treatment_last) !time_treatment_step_integrated
+  time_treatment=time_treatment_last)
 call self%register_diagnostic_variable(self%id_tmp,     'tmp','-', ' tmp', &
-  time_treatment=time_treatment_last) !time_treatment_step_integrated
+  time_treatment=time_treatment_last)
 
 !!------- Register conserved quantities  ------- 
 call self%register_conserved_quantity(self%id_totC,'C','mmol-C/m**3','total-C')
 call self%register_conserved_quantity(self%id_totN,'N','mmol-N/m**3','total-N')
 call self%register_conserved_quantity(self%id_totP,'P','mmol-P/m**3','total-P')
+call self%register_conserved_quantity(self%id_totS,'S','mmol-S/m**3','total-S')
 
 !!------- Register environmental dependencies  ------- 
 call self%register_dependency(self%id_temp,varname_temp)

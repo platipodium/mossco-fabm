@@ -74,10 +74,12 @@ if (self%SiliconOn) then
 end if
 if (self%GrazingOn) then
       _GET_(self%id_zooC, zoo%C)  ! Zooplankton Carbon in mmol-C/m**3
-else
-      zoo%C = self%zooC_initial
 end if
 !#E_GET
+if (.not. self%GrazingOn) then
+      zoo%C = self%zooC_initial
+end if
+
 !phy%Rub = Rub
 !phy%chl = chl
 ! Retrieve current environmental conditions.
@@ -344,11 +346,11 @@ end if
 !________________________________________________________________________________
 ! set diag variables, mostly from PrimProd module ______________
 !#S_DIA
-  _SET_DIAGNOSTIC_(self%id_chl2,phy%theta*phy%rel_chloropl) !step_integrated bulk chlorophyll concentration
-  _SET_DIAGNOSTIC_(self%id_fracR, phy%frac%Rub )             !step_integrated 
-  _SET_DIAGNOSTIC_(self%id_QN, phy%QN)              !step_integrated 
-  _SET_DIAGNOSTIC_(self%id_QP, phy%QP)                      !step_integrated 
-  _SET_DIAGNOSTIC_(self%id_tmp, acclim%tmp )   !step_integrated * phy%CdfracR_dt
+  _SET_DIAGNOSTIC_(self%id_chl2, phy%theta*phy%rel_chloropl) !last bulk chlorophyll concentration
+  _SET_DIAGNOSTIC_(self%id_fracR, phy%frac%Rub)             !last 
+  _SET_DIAGNOSTIC_(self%id_QN, phy%QN)                      !last 
+  _SET_DIAGNOSTIC_(self%id_QP, phy%QP)                      !last 
+  _SET_DIAGNOSTIC_(self%id_tmp, phy%rel_QSi)                !last 
 !#E_DIA
 
 if (self%DebugDiagOn) then
