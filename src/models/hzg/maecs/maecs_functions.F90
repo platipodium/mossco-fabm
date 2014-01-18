@@ -36,27 +36,31 @@ pure real(rk) function smooth_small(x, eps)
    end function smooth_small 
 
 !-----------------------------------------------------------------------
-pure real(rk) function uptflex(Aff0, Vmax0, Nut, NutMin)
-
-! !DESCRIPTION:
-!
-! !USES:
+!  potential nutrient uptake depending 
+!                        on external conc and allocation to sites/processing
+pure real(rk) function uptflex(Aff0, Vmax0, Nut, fAv)
    implicit none
-! !INPUT PARAMETERS:
-   real(rk), intent(in)      :: Aff0, Vmax0, Nut, NutMin
-   real(rk)                  :: Aff,Vmax,fAv, Nutp
+   real(rk), intent(in)      :: Aff0, Vmax0, Nut, fAv
+   real(rk)                  :: Aff,Vmax
 
-! optimal partitioning
-   Nutp    = smooth_small(Nut, NutMin)
-!   Nutp    = Nut
-   fAv     = _ONE_/(sqrt(Aff0*Nutp/(Vmax0)) + _ONE_ );
 ! uptake regulation: sites vs. processing
    Aff     = fAv * Aff0    ! nutrient affinity 
    Vmax    = (_ONE_-fAv) * Vmax0   ! maximal N-uptake rate 
 
-   uptflex = Vmax*Aff*Nut/(Aff*Nutp + Vmax)
+   uptflex = Vmax*Aff*Nut/(Aff*Nut + Vmax)
 
    end function uptflex
+
+!-----------------------------------------------------------------------
+pure real(rk) function fOptUpt(Aff0, Vmax0, Nut)
+   implicit none
+! optimal partitioning between
+! surface uptake sites and internal enzymes (for assimilating nutrients)
+   real(rk), intent(in)      :: Aff0, Vmax0, Nut
+   real(rk)                  :: fAv
+
+   fAv     = _ONE_/(sqrt(Aff0*Nut/(Vmax0)) + _ONE_ );
+   end function fOptUpt
 
 !-----------------------------------------------------------------------
 pure real(rk) function queuefunc0(n,x)
@@ -309,7 +313,8 @@ type (type_maecs_phy),intent(in) :: phy
 type (type_maecs_env),intent(in) :: env
 type (type_maecs_om),intent(in) :: nut
 
-real(rk) :: par, T_Kelv
+type (type_maecs_om) :: fA
+real(rk) :: par, T_Kelv, NutF
 
 par          = maecs%frac_PAR * env%par ! use active  fraction frac_PAR of available radiation
 T_Kelv       = env%Temp + 273.d0 ! temperature in Kelvin 
@@ -326,19 +331,32 @@ sens%a_light = maecs%alpha * par /(sens%P_max_T)  ! par NOCH BAUSTELLE, jetzt PA
 sens%S_phot  = 1.0d0 - exp(- sens%a_light * phy%theta) ! [dimensionless]
 
 ! --- carbon specific N-uptake: sites vs. processing ----------------------------------
-sens%up_NC   = uptflex(maecs%AffN,maecs%V_NC_max * sens%func_T,nut%N,maecs%small)
+! non-zero nutrient concentration for regulation
+NutF    = smooth_small(nut%N,maecs%small)
+! optimal partitioning between
+! surface uptake sites and internal enzymes (for assimilation)
+fA%N    =  fOptUpt(maecs%AffN,maecs%V_NC_max * sens%func_T, NutF)
+
+sens%up_NC   = uptflex(maecs%AffN,maecs%V_NC_max*sens%func_T,NutF, fA%N)
 
 !  P-uptake coefficients
 if (maecs%PhosphorusOn) then 
-   sens%up_PC  = uptflex(maecs%AffP,maecs%V_PC_max * sens%func_T,nut%P,maecs%small)
+   NutF    = smooth_small(nut%P,maecs%small)
+! optimal partitioning 
+   fA%P    =  fOptUpt(maecs%AffP,maecs%V_PC_max * sens%func_T, NutF)
+   sens%up_PC  = uptflex(maecs%AffP,maecs%V_PC_max*sens%func_T,NutF,fA%P)
 end if
 !write (*,'(A,4(F10.3))') 'vP=',sens%up_PC,maecs%V_PC_max * sens%func_T,nut%P,maecs%small*1E3
 
 !  Si-uptake coefficients
 if (maecs%SiliconOn) then 
-   sens%up_SiC = uptflex(maecs%AffSi,maecs%V_SiC_max * sens%func_T,nut%S,maecs%small)
+   NutF    = smooth_small(nut%S,maecs%small)
+! optimal partitioning 
+   fA%S    =  fOptUpt(maecs%AffSi,maecs%V_SiC_max * sens%func_T, NutF)
+   sens%up_SiC = uptflex(maecs%AffSi,maecs%V_SiC_max * sens%func_T,nutF,fA%S)
 end if
 ! TODO check temperature dependence of nutrient affinity
+
 
 end subroutine
 
