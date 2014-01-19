@@ -242,7 +242,7 @@ if (self%SiliconOn) then
     dV_dregV = phy%frac%NutUpt * sens%up_SiC
 
     dmudV    = dbal_dv**2 / ((dbal_dv*lim_Si+1.0d0) *phy%QSi - self%QSi_phy_0)  
-    grad_V   = dV_dregV * (-1*self%zeta_CN   + lim_Si * dmudV)
+    grad_V   = dV_dregV * (-0.*self%zeta_CN   + lim_Si * dmudV)
     reg_V    = 1./(1.+exp(-self%tau_regV * grad_V));  ! 0.02
     upt_act%S= reg_V * sens%up_SiC 
 

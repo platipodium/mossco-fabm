@@ -309,6 +309,7 @@ if (self%SiliconOn) then
               + degradT              * det%S    & 
               + lossZ%S              * zoo%C    &
               + self%dil * (self%nutS_initial - nut%S)
+
 end if 
 
 !#S_ODE

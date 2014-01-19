@@ -57,9 +57,8 @@ pure real(rk) function fOptUpt(Aff0, Vmax0, Nut)
 ! optimal partitioning between
 ! surface uptake sites and internal enzymes (for assimilating nutrients)
    real(rk), intent(in)      :: Aff0, Vmax0, Nut
-   real(rk)                  :: fAv
 
-   fAv     = _ONE_/(sqrt(Aff0*Nut/(Vmax0)) + _ONE_ );
+   fOptUpt     = _ONE_/(sqrt(Aff0*Nut/(Vmax0)) + _ONE_ );
    end function fOptUpt
 
 !-----------------------------------------------------------------------
