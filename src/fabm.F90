@@ -44,14 +44,15 @@
    public fabm_do, fabm_do_surface, fabm_do_bottom
 
    ! Vertical movement, light attenuation, feedbacks to drag and albedo
-   public fabm_get_vertical_movement, fabm_get_light_extinction, fabm_get_albedo, fabm_get_drag
+   public fabm_get_vertical_movement, fabm_get_light_extinction, fabm_get_albedo, fabm_get_drag, fabm_get_light
 
    ! Bookkeeping
-   public fabm_check_state, fabm_get_conserved_quantities, fabm_get_horizontal_conserved_quantities, fabm_state_to_conserved_quantities
+   public fabm_check_state, fabm_check_surface_state, fabm_check_bottom_state
+   public fabm_get_conserved_quantities, fabm_get_horizontal_conserved_quantities, fabm_state_to_conserved_quantities
    
    ! Management of model variables: retrieve identifiers, get and set data.
    public fabm_get_bulk_variable_id,fabm_get_horizontal_variable_id,fabm_get_scalar_variable_id
-   public fabm_get_variable_name, fabm_is_variable_used
+   public fabm_get_variable_name, fabm_is_variable_used, fabm_variable_needs_values
    public fabm_link_bulk_state_data, fabm_link_bottom_state_data
    public fabm_link_bulk_data, fabm_link_horizontal_data, fabm_link_scalar_data
    public fabm_get_bulk_diagnostic_data, fabm_get_horizontal_diagnostic_data
@@ -190,6 +191,10 @@
       module procedure fabm_is_scalar_variable_used
    end interface
 
+   interface fabm_variable_needs_values
+      module procedure fabm_bulk_variable_needs_values
+   end interface
+
    ! For backward compatibility only:
    interface fabm_do_benthos
       module procedure fabm_do_bottom_rhs
@@ -261,6 +266,7 @@
 
    ! Create model tree
    allocate(model)
+   model%root%check_missing_parameters = .false.
    do i=1,size(models)
       if (models(i)/='') then
          ! Determine if this model name is used multiple times.
@@ -698,8 +704,8 @@
    function fabm_get_bulk_variable_id_by_name(self,name) result(id)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),target,intent(in) :: self
-   character(len=*),         intent(in) :: name
+   class (type_model),intent(in) :: self
+   character(len=*),  intent(in) :: name
 !
 ! !RETURN VALUE:
    type (type_bulk_variable_id) :: id
@@ -749,7 +755,7 @@
    function fabm_get_bulk_variable_id_sn(self,standard_variable) result(id)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),target,         intent(in) :: self
+   class (type_model),                intent(in) :: self
    type (type_bulk_standard_variable),intent(in) :: standard_variable
 !
 ! !RETURN VALUE:
@@ -773,8 +779,8 @@
    function fabm_get_horizontal_variable_id_by_name(self,name) result(id)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),target,intent(in) :: self
-   character(len=*),         intent(in) :: name
+   class (type_model),intent(in) :: self
+   character(len=*),  intent(in) :: name
 !
 ! !RETURN VALUE:
    type (type_horizontal_variable_id) :: id
@@ -824,7 +830,7 @@
    function fabm_get_horizontal_variable_id_sn(self,standard_variable) result(id)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),target,               intent(in) :: self
+   class (type_model),                      intent(in) :: self
    type (type_horizontal_standard_variable),intent(in) :: standard_variable
 !
 ! !RETURN VALUE:
@@ -850,8 +856,8 @@
    function fabm_get_scalar_variable_id_by_name(self,name) result(id)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),target,     intent(in)  :: self
-   character(len=*),              intent(in)  :: name
+   class (type_model),intent(in)  :: self
+   character(len=*),  intent(in)  :: name
 !
 ! !RETURN VALUE:
    type (type_scalar_variable_id) :: id
@@ -901,7 +907,7 @@
    function fabm_get_scalar_variable_id_sn(self,standard_variable) result(id)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),target,           intent(in) :: self
+   class (type_model),                  intent(in) :: self
    type (type_global_standard_variable),intent(in) :: standard_variable
 !
 ! !RETURN VALUE:
@@ -997,12 +1003,12 @@
    if (associated(id%variable)) name = id%variable%name
 
    end function fabm_get_scalar_variable_name
-!EO
+!EOC
+
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Obtain the integer variable name for the given variable
-! identifier.
+! !IROUTINE: Determine whether a bulk variable is used [required] by biogeochemical models running in FABM.
 !
 ! !INTERFACE:
    function fabm_is_bulk_variable_used(id) result(used)
@@ -1022,6 +1028,32 @@
    used = associated(id%p)
 
    end function fabm_is_bulk_variable_used
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Determine whether a bulk variable is available to biogeochemical models running in FABM.
+!
+! !INTERFACE:
+   function fabm_bulk_variable_needs_values(id) result(required)
+!
+! !INPUT PARAMETERS:
+   type(type_bulk_variable_id),intent(in) :: id
+!
+! !RETURN VALUE:
+   logical                                :: required
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   required = associated(id%p)
+   if (required) required = .not.associated(id%p%p)
+
+   end function fabm_bulk_variable_needs_values
 !EOC
 
 !-----------------------------------------------------------------------
@@ -1594,7 +1626,6 @@
    real(rk)                              :: value,minimum,maximum
    character(len=256)                    :: err
    type (type_bulk_data_pointer)         :: p
-   type (type_horizontal_data_pointer)   :: p_hz
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1648,13 +1679,108 @@
       _LOOP_END_
    end do
 
-   ! Check boundaries for benthic state variables specified by the models.
+   end subroutine fabm_check_state
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Checks whether the current bottom state is valid, and repairs [clips]
+! invalid state variables if requested and possible.
+!
+! !INTERFACE:
+   subroutine fabm_check_bottom_state(self _ARG_LOCATION_VARS_HZ_,repair,valid)
+!
+! !INPUT PARAMETERS:
+   class (type_model),     intent(inout) :: self
+   _DECLARE_LOCATION_ARG_HZ_
+   logical,                intent(in)    :: repair
+   logical,                intent(out)   :: valid
+!
+! !LOCAL PARAMETERS:
+   type (type_model_list_node), pointer :: node
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   valid = .true.
+
+   ! Allow individual models to check their state for their custom constraints, and to perform custom repairs.
+   node => self%models%first
+   do while (associated(node) .and. valid)
+      call node%model%check_bottom_state(_ARGUMENTS_IN_HZ_,repair,valid)
+      if (.not. (valid .or. repair)) return
+      node => node%next
+   end do
+
+   ! Finally check whether all state variable values lie within their prescribed [constant] bounds.
+   ! This is always done, independently of any model-specific checks that may have been called above.
+   call internal_check_horizontal_state(self _ARG_LOCATION_VARS_HZ_,self%info%bottom_state_variables,repair,valid)
+
+   end subroutine fabm_check_bottom_state
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Checks whether the current bottom state is valid, and repairs [clips]
+! invalid state variables if requested and possible.
+!
+! !INTERFACE:
+   subroutine fabm_check_surface_state(self _ARG_LOCATION_VARS_HZ_,repair,valid)
+!
+! !INPUT PARAMETERS:
+   class (type_model),     intent(inout) :: self
+   _DECLARE_LOCATION_ARG_HZ_
+   logical,                intent(in)    :: repair
+   logical,                intent(out)   :: valid
+!
+! !LOCAL PARAMETERS:
+   type (type_model_list_node), pointer :: node
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   valid = .true.
+
+   ! Allow individual models to check their state for their custom constraints, and to perform custom repairs.
+   node => self%models%first
+   do while (associated(node) .and. valid)
+      call node%model%check_surface_state(_ARGUMENTS_IN_HZ_,repair,valid)
+      if (.not. (valid .or. repair)) return
+      node => node%next
+   end do
+
+   ! Finally check whether all state variable values lie within their prescribed [constant] bounds.
+   ! This is always done, independently of any model-specific checks that may have been called above.
+   call internal_check_horizontal_state(self _ARG_LOCATION_VARS_HZ_,self%info%surface_state_variables,repair,valid)
+
+   end subroutine fabm_check_surface_state
+!EOC
+
+subroutine internal_check_horizontal_state(self _ARG_LOCATION_VARS_HZ_,state_variables,repair,valid)
+   class (type_model),                        intent(inout) :: self
+   _DECLARE_LOCATION_ARG_HZ_
+   type (type_horizontal_state_variable_info),intent(inout) :: state_variables(:)
+   logical,                                   intent(in)    :: repair
+   logical,                                   intent(out)   :: valid
+
+   integer                               :: ivar
+   real(rk)                              :: value,minimum,maximum
+   character(len=256)                    :: err
+   type (type_horizontal_data_pointer)   :: p_hz
+
+   ! Check boundaries for horizontal state variables, as prescribed by the owning models.
    ! If repair is permitted, this clips invalid values to the closest boundary.
-   do ivar=1,size(self%root%bottom_state_variables)
+   do ivar=1,size(state_variables)
       ! Shortcuts to variable information - this demonstrably helps the compiler (ifort).
-      p_hz = self%root%bottom_state_variables(ivar)%globalid%p
-      minimum = self%root%bottom_state_variables(ivar)%minimum
-      maximum = self%root%bottom_state_variables(ivar)%maximum
+      p_hz = state_variables(ivar)%globalid%p
+      minimum = state_variables(ivar)%minimum
+      maximum = state_variables(ivar)%maximum
 
       _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
        _GET_STATE_BEN_EX_(self%environment,p_hz,value)
@@ -1663,7 +1789,7 @@
             valid = .false.
             if (.not.repair) then
                write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ', &
-                                                          & trim(self%root%bottom_state_variables(ivar)%name), &
+                                                          & trim(state_variables(ivar)%name), &
                                                           & ' below minimum value ',minimum
                call driver%log_message(err)
                return
@@ -1674,7 +1800,7 @@
             valid = .false.
             if (.not.repair) then
                write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ', &
-                                                          & trim(self%root%bottom_state_variables(ivar)%name), &
+                                                          & trim(state_variables(ivar)%name), &
                                                           & ' above maximum value ',maximum
                call driver%log_message(err)
                return
@@ -1683,10 +1809,7 @@
          end if
       _HORIZONTAL_LOOP_END_
    end do
-
-   ! Leave spatial loops (if any)
-   end subroutine fabm_check_state
-!EOC
+end subroutine
 
 !-----------------------------------------------------------------------
 !BOP
@@ -1866,6 +1989,35 @@
    end do
 
    end subroutine fabm_get_light_extinction
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Calculate the light field
+!
+! !INTERFACE:
+   subroutine fabm_get_light(self _ARG_LOCATION_VERT_)
+!
+! !INPUT PARAMETERS:
+   class (type_model), intent(inout) :: self
+   _DECLARE_LOCATION_ARG_VERT_
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+! !LOCAL PARAMETERS:
+   type (type_model_list_node), pointer :: node
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   node => self%models%first
+   do while (associated(node))
+      call node%model%get_light(self%environment _ARG_LOCATION_VERT_)
+      node => node%next
+   end do
+
+   end subroutine fabm_get_light
 !EOC
 
 !-----------------------------------------------------------------------
