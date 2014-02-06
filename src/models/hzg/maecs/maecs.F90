@@ -414,10 +414,16 @@ call self%register_diagnostic_variable(self%id_tmp,     'tmp','-', ' tmp', &
   output=output_instantaneous)
 
 !!------- Register conserved quantities  ------- 
-call self%register_conserved_quantity(self%id_totC,'C','mmol-C/m**3','total-C')
-call self%register_conserved_quantity(self%id_totN,'N','mmol-N/m**3','total-N')
-call self%register_conserved_quantity(self%id_totP,'P','mmol-P/m**3','total-P')
-call self%register_conserved_quantity(self%id_totS,'S','mmol-S/m**3','total-S')
+!old(deprecated):
+!call self%register_conserved_quantity(self%id_totC,'C','mmol-C/m**3','total-C')
+!call self%register_conserved_quantity(self%id_totN,'N','mmol-N/m**3','total-N')
+!call self%register_conserved_quantity(self%id_totP,'P','mmol-P/m**3','total-P')
+!call self%register_conserved_quantity(self%id_totS,'S','mmol-S/m**3','total-S')
+!new :
+!call self%add_to_aggregate_variable(standard_variables%total_carbon,self%id_)
+!call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_)
+!call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_)
+!call self%add_to_aggregate_variable(standard_variables%total_silicate?,self%id_)
 
 !!------- Register environmental dependencies  ------- 
 call self%register_dependency(self%id_temp,varname_temp)
