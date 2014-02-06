@@ -403,15 +403,15 @@ end if
 
 !!------- Register diagnostic variables  ------- 
 call self%register_diagnostic_variable(self%id_chl2,    'chl2','gCHL/m**3', 'bulk chlorophyll concentration chl2', &
-  time_treatment=time_treatment_last)
+  output=output_instantaneous)
 call self%register_diagnostic_variable(self%id_fracR,   'fracR','-', ' fracR', &
-  time_treatment=time_treatment_last)
+  output=output_instantaneous)
 call self%register_diagnostic_variable(self%id_QN,      'QN','-', ' QN', &
-  time_treatment=time_treatment_last)
+  output=output_instantaneous)
 call self%register_diagnostic_variable(self%id_QP,      'QP','-', ' QP', &
-  time_treatment=time_treatment_last)
+  output=output_instantaneous)
 call self%register_diagnostic_variable(self%id_tmp,     'tmp','-', ' tmp', &
-  time_treatment=time_treatment_last)
+  output=output_instantaneous)
 
 !!------- Register conserved quantities  ------- 
 call self%register_conserved_quantity(self%id_totC,'C','mmol-C/m**3','total-C')
