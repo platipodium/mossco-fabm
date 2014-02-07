@@ -363,6 +363,16 @@ call self%register_state_variable(self%id_domC,  'domC','mmol-C/m**3','Dissolved
    domC_initial, minimum=_ZERO_, no_river_dilution=.true. )
 call self%register_state_variable(self%id_domN,  'domN','mmol-N/m**3','Dissolved Organic Nitrogen domN', &
    domN_initial, minimum=_ZERO_, no_river_dilution=.true. )
+!add the carbon-nitrogen state varaiables to the conserved variables
+call self%add_to_aggregate_variable(standard_variables%total_carbon,self%id_phyC)
+call self%add_to_aggregate_variable(standard_variables%total_carbon,self%id_detC)
+call self%add_to_aggregate_variable(standard_variables%total_carbon,self%id_domC)
+call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_nutN)
+call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_phyN)
+call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_detN)
+call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_domN)
+
+
 
 if (RubiscoOn) then
     Rub = frac_Rub_ini * phyC_initial  ! trait times biomass
@@ -384,7 +394,12 @@ if (PhosphorusOn) then
     call self%register_state_variable(self%id_detP,  'detP','mmol-P/m**3','Detritus Phosphorus detP', &
        detP_initial, minimum=_ZERO_, no_river_dilution=detritus_no_river_dilution )
     call self%register_state_variable(self%id_domP,  'domP','mmol-P/m**3','Dissolved Organic Phosphorus domP', &
-       domP_initial, minimum=_ZERO_, no_river_dilution=.true. )
+       domP_initial, minimum=_ZERO_, no_river_dilution=.true. )  
+    !add the phosphorus state varaiables to the conserved variables
+    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_nutP)
+    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_phyP)
+    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_detP)
+    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_domP)
 end if
 
 if (SiliconOn) then
@@ -394,11 +409,17 @@ if (SiliconOn) then
        phyS_initial, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution )
     call self%register_state_variable(self%id_detS,  'detS','mmol-Si/m**3','Detritus Silicon detS', &
        detS_initial, minimum=_ZERO_, no_river_dilution=detritus_no_river_dilution )
+    !add the silicon state varaiables to the conserved variables
+    call self%add_to_aggregate_variable(standard_variables%total_silicate,self%id_nutS)
+    call self%add_to_aggregate_variable(standard_variables%total_silicate,self%id_phyS)
+    call self%add_to_aggregate_variable(standard_variables%total_silicate,self%id_detS)
 end if
 
 if (GrazingOn) then
     call self%register_state_variable(self%id_zooC,  'zooC','mmol-C/m**3','Zooplankton Carbon zooC', &
        zooC_initial, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution )
+    !add the carbon state varaiables to the conserved variables   
+    call self%add_to_aggregate_variable(standard_variables%total_carbon,self%id_zooC)
 end if
 
 !!------- Register diagnostic variables  ------- 
@@ -412,18 +433,6 @@ call self%register_diagnostic_variable(self%id_QP,      'QP','-', ' QP', &
   output=output_instantaneous)
 call self%register_diagnostic_variable(self%id_tmp,     'tmp','-', ' tmp', &
   output=output_instantaneous)
-
-!!------- Register conserved quantities  ------- 
-!old(deprecated):
-!call self%register_conserved_quantity(self%id_totC,'C','mmol-C/m**3','total-C')
-!call self%register_conserved_quantity(self%id_totN,'N','mmol-N/m**3','total-N')
-!call self%register_conserved_quantity(self%id_totP,'P','mmol-P/m**3','total-P')
-!call self%register_conserved_quantity(self%id_totS,'S','mmol-S/m**3','total-S')
-!new :
-!call self%add_to_aggregate_variable(standard_variables%total_carbon,self%id_)
-!call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_)
-!call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_)
-!call self%add_to_aggregate_variable(standard_variables%total_silicate?,self%id_)
 
 !!------- Register environmental dependencies  ------- 
 call self%register_dependency(self%id_temp,varname_temp)
