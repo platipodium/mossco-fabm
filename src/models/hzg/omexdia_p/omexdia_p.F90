@@ -337,7 +337,7 @@ end if
   call self%register_diagnostic_variable(self%id_adsP,    'adsP','mmolP/m**3', 'phosphate adsorption adsP', &
       output=output_instantaneous)
   call self%register_diagnostic_variable(self%id_denit,   'denit','mmolN/m**3/d', 'denitrification rate denit', &
-      time_treatment=time_treatment_last)
+      output=output_instantaneous)
   call self%register_diagnostic_variable(self%id_PrimProd, 'PrimProd','mmolC/m**3/d', 'MPB primary production rate PrimProd', &
       output=output_instantaneous)
   call self%register_diagnostic_variable(self%id_par,     'par','w/m2', 'photosynthetically active radiation par', &
