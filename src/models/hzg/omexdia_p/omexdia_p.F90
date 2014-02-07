@@ -335,22 +335,17 @@ end if
 
 !!------- Register diagnostic variables  ------- 
   call self%register_diagnostic_variable(self%id_adsP,    'adsP','mmolP/m**3', 'phosphate adsorption adsP', &
-      time_treatment=time_treatment_step_integrated)
+      output=output_instantaneous)
   call self%register_diagnostic_variable(self%id_denit,   'denit','mmolN/m**3/d', 'denitrification rate denit', &
       time_treatment=time_treatment_last)
   call self%register_diagnostic_variable(self%id_PrimProd, 'PrimProd','mmolC/m**3/d', 'MPB primary production rate PrimProd', &
-      time_treatment=time_treatment_step_integrated)
+      output=output_instantaneous)
   call self%register_diagnostic_variable(self%id_par,     'par','w/m2', 'photosynthetically active radiation par', &
-      time_treatment=time_treatment_step_integrated)
+      output=output_instantaneous)
   call self%register_diagnostic_variable(self%id_Q_N,     'Q_N','-', 'MPB nitrogen quota Q_N', &
-      time_treatment=time_treatment_step_integrated)
+      output=output_instantaneous)
   call self%register_diagnostic_variable(self%id_Q_chl,   'Q_chl','-', 'MPB CHL:C ratio Q_chl', &
-      time_treatment=time_treatment_step_integrated)
-
-!!------- Register conserved quantities  ------- 
-  call self%register_conserved_quantity(self%id_totC,'C','mmol-C/m**3','total-C')
-  call self%register_conserved_quantity(self%id_totN,'N','mmol-N/m**3','total-N')
-  call self%register_conserved_quantity(self%id_totP,'P','mmol-P/m**3','total-P')
+      output=output_instantaneous)
 
 !!------- Register environmental dependencies  ------- 
   call self%register_dependency(self%id_temp,varname_temp)
@@ -643,10 +638,11 @@ end if
  _GET_(self%id_mpbN, mpbN)  ! MicroPhytoBenthos nitrogen in mmolN/m**3
  _GET_(self%id_eps, eps)  ! Extracellular Polymeric Substances  in mmolC/m**3
 
-! todo include porosity 
- _SET_CONSERVED_QUANTITY_(self%id_totC, fdet + sdet+ mpbC + eps)
- _SET_CONSERVED_QUANTITY_(self%id_totN, nh3  + no3 + mpbN)
- _SET_CONSERVED_QUANTITY_(self%id_totP, pdet + po4 )
+! todo include porosity, RH: all states are defined relative to pore water volume -> no porosity needed 
+! todo: change to aggregate variables:
+! _SET_CONSERVED_QUANTITY_(self%id_totC, fdet + sdet+ mpbC + eps)
+! _SET_CONSERVED_QUANTITY_(self%id_totN, nh3  + no3 + mpbN)
+! _SET_CONSERVED_QUANTITY_(self%id_totP, pdet + po4 )
 
    ! Leave spatial loops (if any)
    _LOOP_END_
