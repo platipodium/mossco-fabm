@@ -121,7 +121,7 @@ if (self%syn_nut .le. _ZERO_ .and. self%PhosphorusOn) then  !
 !   call queuefunc(2.0d0,ratio_rel,fac_colim,deriv_fac_colim)
 !   grossC   = phy%rel_QN * fac_colim * phy%frac%Rub * sens%P_max_T * sens%S_phot 
      ! TODO define above only once
-!   lossC = self%zeta_CN * phy%frac%NutUpt * sens%up_NC ! ---  respiration due to N assimilation --------------------------------------
+!   lossC = self%zeta_which fabm  CN * phy%frac%NutUpt * sens%up_NC ! ---  respiration due to N assimilation --------------------------------------
 !   a2 = phy%QP/self%QP_phy_max - _ONE_
 !   a3 = a1 * a2
 !   syn_act  = exp(a3*(grossC-0.75d0))
