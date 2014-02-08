@@ -62,7 +62,8 @@ pure real(rk) function fOptUpt(Aff0, Vmax0, Nut)
    end function fOptUpt
 
 !-----------------------------------------------------------------------
-pure real(rk) function queuefunc0(n,x)
+!pure real(rk) function queuefunc(n,x)
+subroutine queuefunc(n,x,qfunc,qderiv)
 !
 !  response function from queing theory
 !  synchrony of processing n->inf :liebig  n~1:product
@@ -71,18 +72,21 @@ pure real(rk) function queuefunc0(n,x)
    implicit none
 ! !INPUT PARAMETERS:
    real(rk), intent(in)          :: x, n
+   real(rk), intent(out)         :: qfunc, qderiv
    real(rk)                      :: px
 
-   px = x**(n+_ONE_)
-   if(abs(_ONE_-px) .lt. 1E-5) then
-      queuefunc0 =  n/(n+_ONE_)
+   if(abs(_ONE_-x) .lt. 1E-5) then
+      qfunc  = n/(n+_ONE_)
+      qderiv = qfunc/2
    else
-      queuefunc0 =  (x-px)/(_ONE_-px)
+      px = x**(n+_ONE_)
+      qfunc =  (x-px)/(_ONE_-px)
+      qderiv = (_ONE_ -(n+_ONE_)*x**n+n*px)/(_ONE_-px)**2
    endif
-   end function queuefunc0
+   end subroutine queuefunc
 
 !-----------------------------------------------
-subroutine queuefunc(n,x,qfunc,qderiv)
+subroutine queuefunc1(n,x,qfunc,qderiv)
 !
 !  response function from queing theory:  numerical approximation
 !  synchrony of processing n->inf :liebig  n~1:product
@@ -98,7 +102,7 @@ subroutine queuefunc(n,x,qfunc,qderiv)
    en = exp(-nn*(x/(1+hh*x) - x0))
    qfunc =  1. - hh*log(1.+ en)
    qderiv = 1. / ( (1. + hh * x)**2 * (1.+1./en))
-   end subroutine queuefunc
+   end subroutine queuefunc1
 
 !-------------------------------------------------------------
 real(rk) function queuederiv(n,x)
