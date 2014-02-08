@@ -25,9 +25,10 @@ type (type_maecs_om), intent(out)          :: exud
 type (type_maecs_traitdyn), intent(out)    :: acc
 
 !integer, intent(in), optional          :: method
-real(rk) :: ratio_rel               ! ratio of free P- & Si- over free N-reserves   (molP molN^{-1})
-real(rk) :: fac_colim               ! colimitation due to 'ratio_free_PN' (dimensionless)
-logical  :: IsVQP, IsVQSi           ! switching on/off additional gradient terms
+real(rk) :: ratio_rel            ! ratio of free P- & Si- over free N-reserves (normalized)
+real(rk) :: prod_rel             ! product of free P- & Si- over free N-reserves 
+real(rk) :: fac_colim            ! colimitation due to 'ratio_free_PN' (dimensionless)
+logical  :: IsVQP, IsVQSi        ! switching on/off additional gradient terms
 integer  ::num_nut
 ! --- UPTAKE KINETICS
 type (type_maecs_om)  :: upt_act ! actual C-specific nutrient uptake rate [molN molC^{-1} d^{-1}]
@@ -69,7 +70,8 @@ real(rk) :: flex_theta ! [...]
 real(rk) :: flex_fracR ! [...]
 real(rk) :: a1, a2, a3
 real(rk) :: feedb_vq
-real(rk) :: syn_act, zeta_CP
+real(rk) :: syn_act, hh, c_h, f2_colim
+real(rk) :: zeta_CP
 real(rk) :: f_Lip, q_Lip, q_NoLip  
     
 ! 
@@ -125,19 +127,32 @@ if (self%syn_nut .le. _ZERO_ .and. self%PhosphorusOn) then  !
 !   syn_act  = exp(a3*(grossC-0.75d0))
 !   if (syn_act .gt. 1.0d2) syn_act = 1.0d2
 !   syn_act  = -self%syn_nut
+
+
 else
    syn_act  = self%syn_nut
 endif 
+
+! $\climf = q_1\cdot g_h (q_2'/q_1) \cdot (1+h\cdot q_1 q_2' +c_h)$
+! metabolic interdependence h is inverse of synergy syn_act
+ hh   = 1.0d0/(syn_act + 1E-3)
+
+! correction coefficient $c_h$ to ensure convergence to Liebig and product rule
+ c_h  = log( 1.0d0/(4**hh) + 0.5*hh );
+
+ f2_colim = 1.0d0  + c_h
+
 acc%tmp   =   syn_act ! store
 !acc%fac1  =    ! store
 
 if (self%PhosphorusOn) then 
   if (mod(num_nut,2) .eq. 1) then ! both P and Si 
      ratio_rel = ratio_rel/phy%rel_QP
+     prod_rel   = ratio_rel*phy%rel_QP
 
      call queuefunc(syn_act,ratio_rel,fac_colim,deriv_fac_colim)
  ! relative nutrient limitation due to P shortage 
-     fac_colim = smooth_small(fac_colim,eps)
+     fac_colim = smooth_small(fac_colim,eps) * (f2_colim + hh*prod_rel)
      ! relative nutrient limitation due to Si shortage
      lim_Si    = deriv_fac_colim*ratio_rel / fac_colim
      ! relative nutrient limitation due to P shortage
@@ -157,9 +172,10 @@ endif
 ! -- always account for N-quota -
 if (num_nut .gt. 0) then 
 ! takes co-limitation factor from all other nutrients
+   prod_rel   = ratio_rel*phy%rel_QN
    ratio_rel  = ratio_rel/phy%rel_QN
    call queuefunc(syn_act,ratio_rel,fac_colim,deriv_fac_colim)
-   fac_colim  = smooth_small(fac_colim,eps)
+   fac_colim  = smooth_small(fac_colim,eps)* (f2_colim + hh*prod_rel)
 ! deriv_fac_colim: numerical derivative of queue response  
    lim_all    = deriv_fac_colim*ratio_rel / fac_colim
 ! relative nutrient limitation due to N shortage
