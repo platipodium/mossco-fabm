@@ -109,14 +109,30 @@ endif
 
 ! --- synchrony in nutrient assimilation depends on growth cycle and
 !         P-quota
-if (self%syn_nut .lt. _ZERO_ .and. self%PhosphorusOn) then
-   syn_act = -self%syn_nut * phy%QP / self%QP_phy_max
+if (self%syn_nut .le. _ZERO_ .and. self%PhosphorusOn) then  !
+   a1 = -self%syn_nut
+   syn_act = a1 * phy%QP / self%QP_phy_max
+! relative production (0...1)phy%rel_QN *
+!   syn_act  = -self%syn_nut * grossC
+!   syn_act  = 2 *exp( -(1-phy%QP/self%QP_phy_max) * (grossC+self%syn_nut))
+!   ratio_rel  = phy%rel_QP/phy%rel_QN
+!   call queuefunc(2.0d0,ratio_rel,fac_colim,deriv_fac_colim)
+!   grossC   = phy%rel_QN * fac_colim * phy%frac%Rub * sens%P_max_T * sens%S_phot 
+     ! TODO define above only once
+!   lossC = self%zeta_CN * phy%frac%NutUpt * sens%up_NC ! ---  respiration due to N assimilation --------------------------------------
+!   a2 = phy%QP/self%QP_phy_max - _ONE_
+!   a3 = a1 * a2
+!   syn_act  = exp(a3*(grossC-0.75d0))
+!   if (syn_act .gt. 1.0d2) syn_act = 1.0d2
+!   syn_act  = -self%syn_nut
 else
-   syn_act = self%syn_nut
+   syn_act  = self%syn_nut
 endif 
+acc%tmp   =   syn_act ! store
+!acc%fac1  =    ! store
 
 if (self%PhosphorusOn) then 
-  if (mod(num_nut,2) .eq. 1) then 
+  if (mod(num_nut,2) .eq. 1) then ! both P and Si 
      ratio_rel = ratio_rel/phy%rel_QP
 
      call queuefunc(syn_act,ratio_rel,fac_colim,deriv_fac_colim)
@@ -151,7 +167,6 @@ if (num_nut .gt. 0) then
    lim_P      = lim_P * lim_all
    lim_Si     = lim_Si* lim_all
 
-
 else
    fac_colim   = 1.0d0
    deriv_fac_colim = 0.0d0
@@ -162,6 +177,7 @@ end if
 
 gross_nue   = fac_colim * phy%frac%Rub * sens%P_max_T * sens%S_phot  !Nitrogen use efficiency
 grossC      = phy%rel_QN * gross_nue  ! [d^{-1}]
+uptake%C    = phy%rel_QN * gross_nue - lossC     !* (1.0d0- self%exud_phy) ![d^{-1}]
 
 ! ---------------------   derivatives of reg_V   -----------------------------------
 dV_dregV    = phy%frac%NutUpt * sens%up_NC  !corrected Apr 17 kw
@@ -308,9 +324,9 @@ if (self%PhotoacclimOn .and. self%RubiscoOn) then
      grad_fracR = grad_fracR+ dmu_dQ%P * dQP_dfracR  ! marginal loss due to reduced uptake 
    end if !!!   acc%tmp,fac1,fac2 dmu_dQ%P
 
-   acc%fac1 = dVPC_dfracR
+!   acc%fac1 = dVPC_dfracR
    acc%fac2 = dQP_dfracR
-   acc%tmp  = dmuP
+!   acc%tmp  = dmuP
 ! rubisco-N directly limits chl synthesisdmu_dQ%P * dQP_dfracR
 ! --- regulation speed in Rubisco expression -------------------------------------- 
    flex_fracR = self%adap_Rub * (1.0d0 - phy%frac%Rub ) * (phy%frac%Rub - self%rel_chloropl_min-self%small_finite)
@@ -339,8 +355,8 @@ exud%P      = phy%QPN * exud%N   ! [(mmolP) (mmolC)^{-1} d^{-1}]
 
 ! set few volatile diag variables ___________________________________
 if (self%DebugDiagOn) then
-  acc%tmp    = sens%S_phot
-  acc%fac1   = phy%theta * phy%rel_chloropl 
+!  acc%tmp    = sens%S_phot
+!  acc%fac1   = phy%theta * phy%rel_chloropl 
   acc%fac2   = grad_fracR
 endif
 

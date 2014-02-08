@@ -351,7 +351,7 @@ end if
   _SET_DIAGNOSTIC_(self%id_fracR, phy%frac%Rub)             !last 
   _SET_DIAGNOSTIC_(self%id_QN, phy%QN)                      !last 
   _SET_DIAGNOSTIC_(self%id_QP, phy%QP)                      !last 
-  _SET_DIAGNOSTIC_(self%id_tmp, phy%rel_QSi)                !last 
+  _SET_DIAGNOSTIC_(self%id_tmp, acclim%tmp)                !last phy%rel_QSi
 !#E_DIA
 
 if (self%DebugDiagOn) then
@@ -361,7 +361,7 @@ if (self%DebugDiagOn) then
 !   _SET_DIAG_(self%id_fracQN, phy%QN)
 !   _SET_DIAG_(self%id_fracQP, phy%QP*1.0d3)
 !   _SET_DIAG_(self%id_reg_VNC, uptake%N)
-!   _SET_DIAG_(self%id_fac1,uptake%P  ) 
+!   _SET_DIAG_(self%id_fac1,uptake%P  ) acclim%fac1
 !   _SET_DIAG_(self%id_fac2,exud%P )
 !   _SET_DIAG_(self%id_tmp,lossZ%P ) 
 
