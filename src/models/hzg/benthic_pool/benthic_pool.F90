@@ -18,7 +18,7 @@
 !
 ! !USES:
    use fabm_types
-   use fabm_driver
+!   use fabm_driver
 
    implicit none
 
@@ -47,7 +47,7 @@
    end type type_hzg_benthic_pool
 !
 ! !REVISION HISTORY:!
-!  Original author(s): Jorn Bruggeman
+!  Original author(s): Lena Spruch, Kai Wirtz, Onur Kerimoglu
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -135,8 +135,8 @@ g_max,K,h_const,remin_max,diff,v_d,d_ben,const_nut,const_det,k_remin,det_loss_ma
                      output=output_time_step_averaged)
    return
 
-99 call fatal_error('hzg_benthic_pool_init','Error reading namelist hzg_benthic_pool')
-100 call fatal_error('hzg_benthic_pool_init','Namelist hzg_benthic_pool was not found')
+99 call self%fatal_error('hzg_benthic_pool_init','Error reading namelist hzg_benthic_pool')
+100 call self%fatal_error('hzg_benthic_pool_init','Namelist hzg_benthic_pool was not found')
 
    end subroutine initialize
 !EOC

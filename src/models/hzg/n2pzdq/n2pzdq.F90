@@ -28,7 +28,6 @@
 !
 ! !USES:
    use fabm_types
-   use fabm_driver
 
    implicit none
 
@@ -42,7 +41,7 @@
 ! !PRIVATE DATA MEMBERS:
 !
 ! !REVISION HISTORY:!
-!  Original author(s): Jorn Bruggeman
+!  Original author(s): Lena Spruch, Kai Wirtz, Onur Kerimoglu
 !
 !
 ! !PUBLIC DERIVED TYPES:
@@ -240,9 +239,9 @@
    call self%register_state_variable(self%id_phyP,'phy_P','mmol/m**3','phyP', &
                                     phyP_initial,minimum=0.0_rk,vertical_movement=w_p/secs_pr_day)
    call self%register_state_variable(self%id_detN,'det_N','mmol/m**3','detN', &
-                                    detN_initial,minimum=0.0_rk,vertical_movement=w_p/secs_pr_day)
+                                    detN_initial,minimum=0.0_rk,vertical_movement=w_d/secs_pr_day)
    call self%register_state_variable(self%id_detP,'det_P','mmol/m**3','detP', &
-                                    detP_initial,minimum=0.0_rk,vertical_movement=w_p/secs_pr_day)
+                                    detP_initial,minimum=0.0_rk,vertical_movement=w_d/secs_pr_day)
    call self%register_state_variable(self%id_zooC,'zoo_C','mmol/m**3','zooC', &
                                     zooC_initial,minimum=0.0_rk)
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
@@ -301,9 +300,9 @@
     
    return
 
-99 call fatal_error('hzg_n2pzdq_init','Error reading namelist hzg_n2pzdq.')
+99 call self%fatal_error('hzg_n2pzdq_init','Error reading namelist hzg_n2pzdq.')
 
-100 call fatal_error('hzg_n2pzdq_init','Namelist hzg_n2pzdq was not found.')
+100 call self%fatal_error('hzg_n2pzdq_init','Namelist hzg_n2pzdq was not found.')
 
    end subroutine initialize
 !EOC
