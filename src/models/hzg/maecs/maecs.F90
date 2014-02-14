@@ -1,10 +1,25 @@
-#include "fabm_driver.h"
-!-----------------------------------------------------------------------------------
-! !MODULE: MAECS 
-!          Model for Adaptive Ecosystems in Coastal Seas 
-!  Original author(s): Richard Hofmeister, Markus Schartau & Kai Wirtz
-!  HZG 2011-2013
+!> @file maecs.F90
+!! @brief main MAECS module
+!
+!> @authors: Richard Hofmeister, Markus Schartau, Kai Wirtz, Onur Kerimoglu
+!  HZG 2011-2014
 ! 
+!> The MAECS module contains 
+!! initialize
+!! do (=> maecs_do)
+!! get_light_extinction
+!! get_vertical_movement (=> maecs_get_vertical_movement)
+!! and maybe some humanly explanation here
+
+FABM sediment driver module provides infrastructure for the
+!! MOSSCO sediment component.
+!! The driver provides tendencies for state variables as sum of
+!! local rates (through FABM) and vertical diffusion.
+!! The units of concentrations of state variables is handled inside
+!! the driver as molar mass per volume pore water.
+
+#include "fabm_driver.h"
+
 module fabm_hzg_maecs
 use fabm_types
 use maecs_types
@@ -19,7 +34,7 @@ public type_hzg_maecs,type_maecs_env,type_maecs_rhs
 
 ! standard fabm model types
 
-type,extends(type_maecs_base_model),public :: type_hzg_maecs
+type,extends(type_maecs_base_model),public :: type_hzg_maecs !> doxygen: first type extension
  contains
   procedure :: initialize
   procedure :: do => maecs_do
@@ -558,7 +573,9 @@ _FABM_LOOP_BEGIN_
    !write (*,'(A,2(F10.3))') 'After: phy%C, phy%N=', phy%C, phy%N
    call calc_internal_states(self,phy,det,dom,zoo) 
    !write (*,'(A,2(F10.3))') 'phy%rel_QN, phy%rel_QP=', phy%rel_QN, phy%rel_QP
-   phyQstat=phy%rel_QN*phy%rel_QP
+   
+   !< compute \f$ phyQstat=phy_{QN}*phy_{QP} \f$
+   phyQstat=phy%rel_QN*phy%rel_QP 
   
    ! Calculate sinking
 

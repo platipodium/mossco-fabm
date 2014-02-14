@@ -10,3 +10,4 @@ timestamp
 VERSION
 include/version.h
 *.pyc
+/src/models/hzg/maecs/doc/latex/*
