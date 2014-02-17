@@ -113,7 +113,7 @@ endif
 !         P-quota
 if (self%syn_nut .le. _ZERO_ .and. self%PhosphorusOn) then  !
    a1 = -self%syn_nut
-   syn_act = a1 * phy%QP / self%QP_phy_max
+   syn_act = a1 * phy%rel_QP
 ! relative production (0...1)phy%rel_QN *
 !   syn_act  = -self%syn_nut * grossC
 !   syn_act  = 2 *exp( -(1-phy%QP/self%QP_phy_max) * (grossC+self%syn_nut))
@@ -127,8 +127,6 @@ if (self%syn_nut .le. _ZERO_ .and. self%PhosphorusOn) then  !
 !   syn_act  = exp(a3*(grossC-0.75d0))
 !   if (syn_act .gt. 1.0d2) syn_act = 1.0d2
 !   syn_act  = -self%syn_nut
-
-
 else
    syn_act  = self%syn_nut
 endif 
