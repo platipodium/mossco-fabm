@@ -11,13 +11,6 @@
 !! get_vertical_movement (=> maecs_get_vertical_movement)
 !! and maybe some humanly explanation here
 
-FABM sediment driver module provides infrastructure for the
-!! MOSSCO sediment component.
-!! The driver provides tendencies for state variables as sum of
-!! local rates (through FABM) and vertical diffusion.
-!! The units of concentrations of state variables is handled inside
-!! the driver as molar mass per volume pore water.
-
 #include "fabm_driver.h"
 
 module fabm_hzg_maecs
@@ -526,6 +519,8 @@ end module fabm_hzg_maecs
 !-----------------------------------------------------------------------
 !BOP
 !
+
+!> calculate vertical sinking
 subroutine maecs_get_vertical_movement(self,_ARGUMENTS_GET_VERTICAL_MOVEMENT_)
 
 use maecs_functions
@@ -537,7 +532,7 @@ implicit none
  class(type_maecs_base_model),intent(in)          :: self
 _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_ 
  !   REALTYPE, intent(in)              ::vstokes 
-type (type_maecs_phy):: phy
+type (type_maecs_phy):: phy !< maecs phytoplankton type
 type (type_maecs_zoo) :: zoo
 type (type_maecs_om):: det
 type (type_maecs_om):: dom
