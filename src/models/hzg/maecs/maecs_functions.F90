@@ -444,6 +444,8 @@ endif
 ! --- total pool-size of available/free proteins/enzymes and RNA -------------------   
 phy%frac%TotFree= 1.0d0 
 ! -- remaining nitrogen fraction for uptake and nutrient processing --------------
+
+! $f_\textrm{V} + f_\textrm{LHC} + f_\textrm{Rub} + f_\textrm{other} = 1$
 phy%frac%NutUpt = smooth_small(phy%frac%TotFree - phy%frac%Rub - phy%frac%theta, maecs%small)
 
 if (maecs%GrazingOn) then
