@@ -19,6 +19,7 @@
 !
 ! !USES:
    use fabm_types
+   use fabm_standard_variables
 
    implicit none
 
@@ -297,10 +298,12 @@ end if
    sdet_init, minimum=_ZERO_, no_river_dilution=.true. )
   call self%set_variable_property(self%id_sdet,'particulate',.true.)
   call self%register_state_variable(self%id_no3,   'no3','mmolN/m**3','dissolved nitrate', &
-   no3_init, minimum=_ZERO_, no_river_dilution=.true. )
+   no3_init, minimum=_ZERO_, no_river_dilution=.true., &
+   standard_variable=mole_concentration_of_nitrate )
   call self%set_variable_property(self%id_no3,'particulate',.false.)
   call self%register_state_variable(self%id_nh3,   'nh3','mmolN/m**3','dissolved ammonium', &
-   nh3_init, minimum=_ZERO_, no_river_dilution=.true. )
+   nh3_init, minimum=_ZERO_, no_river_dilution=.true., &
+   standard_variable=mole_concentration_of_ammonium )
   call self%set_variable_property(self%id_nh3,'particulate',.false.)
   call self%register_state_variable(self%id_oxy,   'oxy','mmolO2/m**3','dissolved oxygen', &
    oxy_init, minimum=_ZERO_, no_river_dilution=.true. )
@@ -314,7 +317,8 @@ if (PhosphorusOn) then
        pdet_init, minimum=_ZERO_, no_river_dilution=.true. )
   call self%set_variable_property(self%id_pdet,'particulate',.true.)
       call self%register_state_variable(self%id_po4,   'po4','mmolP/m**3','dissolved phosphate', &
-       po4_init, minimum=_ZERO_, no_river_dilution=.true. )
+       po4_init, minimum=_ZERO_, no_river_dilution=.true., &
+       standard_variable=mole_concentration_of_phosphate )
   call self%set_variable_property(self%id_po4,'particulate',.false.)
 end if
 
