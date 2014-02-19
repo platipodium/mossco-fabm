@@ -1,7 +1,7 @@
 !> @file maecs.F90
-!! @brief main MAECS module
-!
-!> @authors: Richard Hofmeister, Markus Schartau, Kai Wirtz, Onur Kerimoglu
+!> @brief main MAECS module
+!> @author Richard Hofmeister, Markus Schartau, Kai Wirtz, Onur Kerimoglu
+!> @copyright HZG
 !  HZG 2011-2014
 ! 
 !> The MAECS module contains 
@@ -27,15 +27,33 @@ public type_hzg_maecs,type_maecs_env,type_maecs_rhs
 
 ! standard fabm model types
 
-type,extends(type_maecs_base_model),public :: type_hzg_maecs !> doxygen: first type extension
+!> @Brief here we extend a model 
+!! \todo describe the type_hzg_maecs
+type,extends(type_maecs_base_model),public :: type_hzg_maecs 
  contains
-  procedure :: initialize
+  procedure :: initialize !> initializes
   procedure :: do => maecs_do
   procedure :: get_light_extinction
   procedure :: get_vertical_movement=>maecs_get_vertical_movement
 end type type_hzg_maecs
 
 interface
+
+  !> @author 
+  !> Routine Author Name and Affiliation.
+  !
+  ! DESCRIPTION: 
+  !> Brief description of routine. 
+  !> @brief
+  !> Flow method (rate of change of position) used by integrator.
+  !> Compute \f$ \frac{d\lambda}{dt} , \frac{d\phi}{dt},  \frac{dz}{dt} \f$
+  !
+  ! REVISION HISTORY:
+  ! TODO_dd_mmm_yyyy - TODO_describe_appropriate_changes - TODO_name
+  !
+  !> @param[in] inParam      
+  !> @param[out] outParam      
+  !> @return returnValue
    subroutine maecs_get_vertical_movement(self, _ARGUMENTS_GET_VERTICAL_MOVEMENT_) 
    import type_hzg_maecs,type_environment,rk
    class (type_hzg_maecs),intent(in) :: self
@@ -520,7 +538,6 @@ end module fabm_hzg_maecs
 !BOP
 !
 
-!> calculate vertical sinking
 subroutine maecs_get_vertical_movement(self,_ARGUMENTS_GET_VERTICAL_MOVEMENT_)
 
 use maecs_functions
@@ -569,7 +586,7 @@ _FABM_LOOP_BEGIN_
    call calc_internal_states(self,phy,det,dom,zoo) 
    !write (*,'(A,2(F10.3))') 'phy%rel_QN, phy%rel_QP=', phy%rel_QN, phy%rel_QP
    
-   !< compute \f$ phyQstat=phy_{QN}*phy_{QP} \f$
+   !> compute \f$ phyQstat=phy_{QN}*phy_{QP} \f$
    phyQstat=phy%rel_QN*phy%rel_QP 
   
    ! Calculate sinking

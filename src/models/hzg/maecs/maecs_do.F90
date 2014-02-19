@@ -3,6 +3,21 @@
 !          Model for Adaptive Ecosystems in Coastal Seas 
 !  Original author(s): Richard Hofmeister, Markus Schartau & Kai Wirtz
 !  HZG 2011-2013
+!> @author 
+!> Routine Author Name and Affiliation.
+!
+! DESCRIPTION: 
+!> \todo a brief description of routine. 
+!> @brief
+!> formulas here
+!> Compute \f$ \frac{d\lambda}{dt} , \frac{d\phi}{dt},  \frac{dz}{dt} \f$
+!
+! REVISION HISTORY:
+! TODO_dd_mmm_yyyy - TODO_describe_appropriate_changes - TODO_name
+!
+!> @param[in] inParam      
+!> @param[out] outParam      
+!> @return returnValue
 
 subroutine maecs_do(self,_ARGUMENTS_DO_)
 
