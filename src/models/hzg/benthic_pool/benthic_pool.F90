@@ -34,8 +34,8 @@
       type (type_bottom_state_variable_id) :: id_det_ben,id_nut_ben
       type (type_state_variable_id)        :: id_det_pel,id_nut_pel
       type (type_horizontal_dependency_id) :: id_depth
-      type (type_diagnostic_variable_id)   :: id_dsink,id_ddiff,id_dremin,id_drhsdet,id_drhsnut,id_nloss
-
+      type (type_horizontal_diagnostic_variable_id)   :: id_dsink,id_ddiff,id_dremin,id_drhsdet,id_drhsnut,id_nloss
+      !type (type_diagnostic_variable_id)   :: id_ninflux
 !     Model parameters: maximum grazing rate, half-saturation prey density, loss rate
       real(rk) :: g_max,K,h_const,remin_max,v_d,depth_ben,diff,const_det,const_nut,k_remin,nut_loss_max,k_loss,nut_pel_influx
       logical  :: use_nut,use_det,do_sat_remin,do_nut_loss
@@ -122,21 +122,24 @@ g_max,K,h_const,remin_max,diff,v_d,d_ben,const_nut,const_det,k_remin,nut_loss_ma
    self%use_det = pelagic_detritus_variable/=''
    if (self%use_nut) call self%register_state_dependency(self%id_det_pel,pelagic_detritus_variable)    
    if (self%use_det) call self%register_state_dependency(self%id_nut_pel,pelagic_nutrient_variable)
-   call self%register_dependency(self%id_depth,standard_variables%bottom_depth)
+   call self%register_dependency(self%id_depth,standard_variables%bottom_depth) !for implementing the nut_influx
    
    ! Register diagnostic variables
-   call self%register_diagnostic_variable(self%id_dsink,'sinking','mmol/m**2/d',  'sinking rate',             &
+   !id_dsink,id_ddiff,id_dremin,id_drhsdet,id_drhsnut,id_nloss
+   call self%register_diagnostic_variable(self%id_dsink,'detsed','mmol/m**2/d',  'detritus sed. flux',             &
                      output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_ddiff,'diffusion','',  'diffusion',                  &
-                     output=output_time_step_integrated)
-   call self%register_diagnostic_variable(self%id_dremin,'remin_ben','',  'remin_ben',                 &
-                     output=output_time_step_integrated)
-   call self%register_diagnostic_variable(self%id_nloss,'nut_loss','',  'nut_loss',                 &
-                     output=output_time_step_integrated)
-   call self%register_diagnostic_variable(self%id_drhsdet,'ddet','',  'ddet',                          &
+   call self%register_diagnostic_variable(self%id_ddiff,'nutdif','mmol/m**2/d',  'nutrient diffusive flux ',                  &
                      output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_drhsnut,'dnut','',  'dnut',                          &
+   call self%register_diagnostic_variable(self%id_dremin,'detrem','mmol/m**2/d',  'detrital remin. rate',                 &
                      output=output_time_step_averaged)
+   call self%register_diagnostic_variable(self%id_nloss,'nutloss','mmol/m**2/d',  'nutrient loss rate',                 &
+                     output=output_time_step_averaged)
+   call self%register_diagnostic_variable(self%id_drhsdet,'ddet','mmol/m**2/d',  'RHS det',                          &
+                     output=output_time_step_averaged)
+   call self%register_diagnostic_variable(self%id_drhsnut,'dnut','mmol/m**2/d',  'RHS nut',                          &
+                     output=output_time_step_averaged)
+   !call self%register_diagnostic_variable(self%id_ninflux,'ninflux','',  'ninflux',                          &
+   !                  output=output_time_step_integrated)
    return
 
 99 call self%fatal_error('hzg_benthic_pool_init','Error reading namelist hzg_benthic_pool')
@@ -201,7 +204,7 @@ g_max,K,h_const,remin_max,diff,v_d,d_ben,const_nut,const_det,k_remin,nut_loss_ma
      remin = self%h_const  
    end if
    
-   ! Calculate detritus loss, if det_loss=true, this might be due to e.g., denitrification
+   ! Calculate detritus loss, if do_nut_loss=true, this might be due to e.g., denitrification
    if (self%do_nut_loss) then
      !det_loss_rate = self%det_loss_max*det_ben*det_ben/(det_ben+self%k_loss)
      nut_loss_rate = self%nut_loss_max*det_ben/(det_ben+self%k_loss)
@@ -211,7 +214,8 @@ g_max,K,h_const,remin_max,diff,v_d,d_ben,const_nut,const_det,k_remin,nut_loss_ma
 
    ! Calculate diffusive flux for particulate nutrients, the benthic variable (nut_ben. areal units) has to be converted to concentration using the depth of the benthic pool (d_ben) for being able to calculate the gradient. Then this gradient is assumed to be taking place within a distance equal to the depth of the benthic pool: 
    diffusion = self%diff*(nut_ben/self%depth_ben-nut_pel)/self%depth_ben
-
+   ! m2/d * mmol/m3 *1/m = mmol/m2/d
+   
    ! calculate rhs
    ddet = sink  - remin*det_ben
    dnut = remin*det_ben - nut_loss_rate * nut_ben- diffusion 
@@ -231,12 +235,12 @@ g_max,K,h_const,remin_max,diff,v_d,d_ben,const_nut,const_det,k_remin,nut_loss_ma
    end if 
 
    ! Export diagnostic variables
-   _SET_DIAGNOSTIC_(self%id_dsink,sink)
-   _SET_DIAGNOSTIC_(self%id_ddiff,diffusion*secs_pr_day)
-   _SET_DIAGNOSTIC_(self%id_dremin,remin*det_ben*secs_pr_day)
-   _SET_DIAGNOSTIC_(self%id_nloss,nut_loss_rate*nut_ben*secs_pr_day) 
-   _SET_DIAGNOSTIC_(self%id_drhsdet ,ddet)
-   _SET_DIAGNOSTIC_(self%id_drhsnut ,dnut)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_dsink,sink*secs_pr_day)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_ddiff,diffusion*secs_pr_day)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_dremin,remin*det_ben*secs_pr_day)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_nloss,nut_loss_rate*nut_ben*secs_pr_day) 
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_drhsdet, ddet*secs_pr_day)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_drhsnut, dnut*secs_pr_day)
 
 
    ! Leave spatial loops over the horizontal domain (if any).
@@ -273,6 +277,8 @@ g_max,K,h_const,remin_max,diff,v_d,d_ben,const_nut,const_det,k_remin,nut_loss_ma
     _GET_HORIZONTAL_(self%id_depth,depth_of_pelagic)  
     !print *, "depth = ", depth_of_pelagic 
     _SET_ODE_(self%id_nut_pel, self%nut_pel_influx/depth_of_pelagic)
+    
+    !_SET_DIAGNOSTIC_(self%id_ninflux,self%nut_pel_influx/depth_of_pelagic)
    end if
 
    ! Leave spatial loops (if any)
