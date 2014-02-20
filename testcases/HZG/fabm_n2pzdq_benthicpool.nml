@@ -1,0 +1,90 @@
+&fabm_nml 
+models = 'hzg_n2pzdq','hzg_benthic_pool','hzg_benthic_pool' 
+/ 
+&hzg_n2pzdq 
+
+DIN_initial = 90 
+DIP_initial = 4 
+phyC_initial = 2 
+phyN_initial = 0.2 
+phyP_initial = 0.01 
+detN_initial = 1e-07 
+detP_initial = 1e-07 
+zooC_initial = 0.1 
+p0 = 0 
+w_p = -0.05 
+w_d = -0.05 
+kc = 0.0015 
+affin_par = 0.15 
+upmax_N = 0.18 
+upmax_P = 0.03 
+grow_max = 1.5 
+iv = 0.02 
+halfsatN = 1 
+halfsatP = 0.1 
+rpn = 0 
+rem_N = 0.1 
+rem_P = 0.1 
+mort0_phy = 0.01 
+mortpar_phy = 4 
+qmax_N = 0.2 
+qmax_P = 0.01 
+qmin_N = 0.04 
+qmin_P = 0.002 
+grazmax = 1 
+mort_zoo = 0.02 
+n = 1 
+mort_zoo2 = 0.1 
+n2 = 0 
+qzn = 0.12 
+qzp = 0.01 
+eff = 0.9 
+e_C = 0.35 
+zexcdetfr = 0.75 
+k_detN = 1 
+k_detP = 1 
+/ 
+&hzg_benthic_pool 
+
+pelagic_nutrient_variable = 'hzg_n2pzdq_nut_N' 
+pelagic_detritus_variable = 'hzg_n2pzdq_det_N' 
+det_ben_initial = 0.01 
+nut_ben_initial = 10 
+const_nut = 10 
+const_det = 10 
+g_max = 1 
+K = 0.2 
+h_const = 0.01 
+remin_max = 0 
+k_remin = 1 
+nut_loss_max = 0.001 
+nut_pel_influx = 0.03 
+k_loss = 1 
+v_d = 0.05 
+d_ben = 0.1 
+diff = 5e-04 
+do_sat_remin = .false. 
+do_nut_loss = .true. 
+/ 
+&hzg_benthic_pool 
+
+pelagic_nutrient_variable = 'hzg_n2pzdq_nut_P' 
+pelagic_detritus_variable = 'hzg_n2pzdq_det_P' 
+det_ben_initial = 0.01 
+nut_ben_initial = 1 
+const_nut = 10 
+const_det = 10 
+g_max = 1 
+K = 0.2 
+h_const = 0.01 
+remin_max = 0.3 
+k_remin = 1 
+nut_loss_max = 0.03 
+nut_pel_influx = 0 
+k_loss = 1 
+v_d = 0.05 
+d_ben = 0.1 
+diff = 5e-04 
+do_sat_remin = .false. 
+do_nut_loss = .false. 
+/ 
