@@ -33,10 +33,11 @@
 !     Variable identifiers
       type (type_bottom_state_variable_id) :: id_det_ben,id_nut_ben
       type (type_state_variable_id)        :: id_det_pel,id_nut_pel
-      type (type_diagnostic_variable_id)   :: id_dsink,id_ddiff,id_dremin,id_drhsdet,id_drhsnut,id_dloss
+      type (type_horizontal_dependency_id) :: id_depth
+      type (type_diagnostic_variable_id)   :: id_dsink,id_ddiff,id_dremin,id_drhsdet,id_drhsnut,id_nloss
 
 !     Model parameters: maximum grazing rate, half-saturation prey density, loss rate
-      real(rk) :: g_max,K,h_const,remin_max,v_d,depth_ben,depth_pel,diff,const_det,const_nut,k_remin,nut_loss_max,k_loss,nut_pel_influx
+      real(rk) :: g_max,K,h_const,remin_max,v_d,depth_ben,diff,const_det,const_nut,k_remin,nut_loss_max,k_loss,nut_pel_influx
       logical  :: use_nut,use_det,do_sat_remin,do_nut_loss
       
       !     Model procedures
@@ -75,12 +76,12 @@
 !
 ! !LOCAL VARIABLES:
    real(rk)                  :: det_ben_initial=0.01, nut_ben_initial=0.01
-   real(rk)                  :: g_max = 1., K=1., h_const=0.05,remin_max=0.5, v_d=0.5, d_ben=0.1,d_pel=5, diff=1e-5,const_nut=10.,const_det=10.,k_remin=1.,nut_loss_max=0.1,k_loss=1.,nut_pel_influx=0.10
+   real(rk)                  :: g_max = 1., K=1., h_const=0.05,remin_max=0.5, v_d=0.5, d_ben=0.1, diff=1e-5,const_nut=10.,const_det=10.,k_remin=1.,nut_loss_max=0.1,k_loss=1.,nut_pel_influx=0.10
    character(len=64)         :: pelagic_nutrient_variable='',pelagic_detritus_variable=''
    logical                   :: do_sat_remin,do_nut_loss
    real(rk), parameter :: secs_pr_day = 86400.
    namelist /hzg_benthic_pool/  pelagic_nutrient_variable,pelagic_detritus_variable, det_ben_initial,nut_ben_initial, &
-g_max,K,h_const,remin_max,diff,v_d,d_ben,d_pel,const_nut,const_det,k_remin,nut_loss_max,nut_pel_influx,k_loss,do_sat_remin,do_nut_loss !pelagic_nutrient_variable,pelagic_detritus_variable,det_ben_initial,nut_ben_initial,g_max,K,h,diff 
+g_max,K,h_const,remin_max,diff,v_d,d_ben,const_nut,const_det,k_remin,nut_loss_max,nut_pel_influx,k_loss,do_sat_remin,do_nut_loss !pelagic_nutrient_variable,pelagic_detritus_variable,det_ben_initial,nut_ben_initial,g_max,K,h,diff 
                                     
 !EOP
 !-----------------------------------------------------------------------
@@ -97,7 +98,6 @@ g_max,K,h_const,remin_max,diff,v_d,d_ben,d_pel,const_nut,const_det,k_remin,nut_l
    call self%get_parameter(self%K,             'K',             default=K)
    call self%get_parameter(self%v_d,           'v_d',           default= v_d,        scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%depth_ben,     'd_ben',         default=d_ben)
-   call self%get_parameter(self%depth_pel,     'd_pel',         default=d_pel)
    call self%get_parameter(self%diff,          'diff',          default=diff,        scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%const_nut,     'const_nut',     default=const_nut)
    call self%get_parameter(self%const_det,     'const_det',     default=const_det)
@@ -122,6 +122,7 @@ g_max,K,h_const,remin_max,diff,v_d,d_ben,d_pel,const_nut,const_det,k_remin,nut_l
    self%use_det = pelagic_detritus_variable/=''
    if (self%use_nut) call self%register_state_dependency(self%id_det_pel,pelagic_detritus_variable)    
    if (self%use_det) call self%register_state_dependency(self%id_nut_pel,pelagic_nutrient_variable)
+   call self%register_dependency(self%id_depth,standard_variables%bottom_depth)
    
    ! Register diagnostic variables
    call self%register_diagnostic_variable(self%id_dsink,'sinking','mmol/m**2/d',  'sinking rate',             &
@@ -130,7 +131,7 @@ g_max,K,h_const,remin_max,diff,v_d,d_ben,d_pel,const_nut,const_det,k_remin,nut_l
                      output=output_time_step_integrated)
    call self%register_diagnostic_variable(self%id_dremin,'remin_ben','',  'remin_ben',                 &
                      output=output_time_step_integrated)
-   call self%register_diagnostic_variable(self%id_dloss,'det_loss','',  'det_loss',                 &
+   call self%register_diagnostic_variable(self%id_nloss,'nut_loss','',  'nut_loss',                 &
                      output=output_time_step_integrated)
    call self%register_diagnostic_variable(self%id_drhsdet,'ddet','',  'ddet',                          &
                      output=output_time_step_averaged)
@@ -233,7 +234,7 @@ g_max,K,h_const,remin_max,diff,v_d,d_ben,d_pel,const_nut,const_det,k_remin,nut_l
    _SET_DIAGNOSTIC_(self%id_dsink,sink)
    _SET_DIAGNOSTIC_(self%id_ddiff,diffusion*secs_pr_day)
    _SET_DIAGNOSTIC_(self%id_dremin,remin*det_ben*secs_pr_day)
-   _SET_DIAGNOSTIC_(self%id_dloss,nut_loss_rate*nut_ben*secs_pr_day) 
+   _SET_DIAGNOSTIC_(self%id_nloss,nut_loss_rate*nut_ben*secs_pr_day) 
    _SET_DIAGNOSTIC_(self%id_drhsdet ,ddet)
    _SET_DIAGNOSTIC_(self%id_drhsnut ,dnut)
 
@@ -258,8 +259,7 @@ g_max,K,h_const,remin_max,diff,v_d,d_ben,d_pel,const_nut,const_det,k_remin,nut_l
    _DECLARE_ARGUMENTS_DO_
 !
 ! !LOCAL VARIABLES:
-!   real(rk)                   :: nut_pel_influx_conc
-!   real(rk), parameter        :: secs_pr_day = 86400.0_rk
+   real(rk)                   :: depth_of_pelagic
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -269,8 +269,10 @@ g_max,K,h_const,remin_max,diff,v_d,d_ben,d_pel,const_nut,const_det,k_remin,nut_l
    !in order to avoid drying out of nutrients from the system due to this loss rate,
    !apply a constant rate of nutrient addition to the pelagic (eg., lateral inputs, nitrogen deposition, etc)
    if (self%use_nut .AND. self%do_nut_loss) then
-   !_GET_(self%id_nut_pel,nut_pel)      ! nutrient concentration - pelagic
-   _SET_ODE_(self%id_nut_pel, self%nut_pel_influx/self%depth_pel)
+   
+    _GET_HORIZONTAL_(self%id_depth,depth_of_pelagic)  
+    !print *, "depth = ", depth_of_pelagic 
+    _SET_ODE_(self%id_nut_pel, self%nut_pel_influx/depth_of_pelagic)
    end if
 
    ! Leave spatial loops (if any)
