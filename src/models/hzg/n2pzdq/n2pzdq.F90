@@ -252,11 +252,11 @@
    ! Register diagnostic variables
    call self%register_diagnostic_variable(self%id_GPP,'GPP','mmol/m**3',  'gross primary production',            &
                      output=output_time_step_integrated)
-   call self%register_diagnostic_variable(self%id_dLlim,'Llim','',  'Llim',                          &
+   call self%register_diagnostic_variable(self%id_dLlim,'Llim','-',  'Llim',                          &
                      output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_dNlim,'Nlim','',  'Nlim',                       &
+   call self%register_diagnostic_variable(self%id_dNlim,'Nlim','-',  'Nlim',                       &
                      output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_dPlim,'Plim','',  'Plim',                     &
+   call self%register_diagnostic_variable(self%id_dPlim,'Plim','-',  'Plim',                     &
                      output=output_time_step_averaged)
    call self%register_diagnostic_variable(self%id_dMort,'sp. phyto mortality rate','1/d',  'mort_phy',                         &
                      output=output_time_step_averaged)
@@ -266,11 +266,11 @@
                      output=output_time_step_averaged)
    call self%register_diagnostic_variable(self%id_dqpc,'QPC','mmolP/mmolC',     'QPC',                     &
                      output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_deN,'eN','',  'N_eff',           &
+   call self%register_diagnostic_variable(self%id_deN,'eN','-',  'N_eff',           &
                      output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_deP,'eP','',  'P_eff',           &
+   call self%register_diagnostic_variable(self%id_deP,'eP','-',  'P_eff',           &
                      output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_deC,'eC','',  'C_eff',           &
+   call self%register_diagnostic_variable(self%id_deC,'eC','-',  'C_eff',           &
                      output=output_time_step_averaged)
    call self%register_diagnostic_variable(self%id_dgraz,'grazing rate','mmolC/m**3/d',  'graz',           &
                      output=output_time_step_averaged)
