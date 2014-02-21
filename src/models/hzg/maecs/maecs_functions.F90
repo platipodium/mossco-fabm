@@ -203,9 +203,9 @@ select case (mm_method)
          phy%P = phy%C * maecs%aver_QP_phy
       end if
    end if
-   phy%N_reg = phy%N
-   phy%C_reg = phy%C
-!   phy%P_reg = phy%P
+   phy%reg%N = phy%N
+   phy%reg%C = phy%C
+!   phy%reg%P = phy%P
 
  case (_KAI_)
 ! -------------------------------------------------------------------------------
@@ -215,27 +215,27 @@ select case (mm_method)
 ! TODO: insert h ~ level height, here 10cm 
    min_Cmass = maecs%small_finite * 1.0d-2 / maecs%a_spm  
    min_Nmass = min_Cmass * maecs%aver_QN_phy
-   phy%C_reg = smooth_small( phy%C , min_Cmass)
-   if (abs(phy%C-phy%C_reg) .gt. 1d-2*min_Cmass) then
-      phy%N_reg = phy%C_reg * maecs%aver_QN_phy
+   phy%reg%C = smooth_small( phy%C , min_Cmass)
+   if (abs(phy%C-phy%reg%C) .gt. 1d-2*min_Cmass) then
+      phy%reg%N = phy%reg%C * maecs%aver_QN_phy
       ischanged = .true. 
    else 
-      phy%N_reg = smooth_small( phy%N , min_Nmass)
-      if (abs(phy%N-phy%N_reg) .gt. 1d-2*min_Nmass) then
-         phy%C_reg = phy%N_reg / maecs%aver_QN_phy
+      phy%reg%N = smooth_small( phy%N , min_Nmass)
+      if (abs(phy%N-phy%reg%N) .gt. 1d-2*min_Nmass) then
+         phy%reg%C = phy%reg%N / maecs%aver_QN_phy
          ischanged = .true.
       end if  
    end if
-!write (*,'(A,4(F10.3))') 'P=',phy%P,phy%C_reg * maecs%aver_QP_phy,smooth_small(phy%P,min_Cmass * maecs%aver_QP_phy)
+!write (*,'(A,4(F10.3))') 'P=',phy%P,phy%reg%C * maecs%aver_QP_phy,smooth_small(phy%P,min_Cmass * maecs%aver_QP_phy)
    if (ischanged) then ! retune P and Rub
 
-!      if (maecs%PhosphorusOn)  phy%P_reg =  phy%C_reg * maecs%aver_QP_phy
+!      if (maecs%PhosphorusOn)  phy%reg%P =  phy%reg%C * maecs%aver_QP_phy
       if (maecs%RubiscoOn) then 
-         phy%Rub =  phy%C_reg * maecs%frac_Rub_ini
+         phy%Rub =  phy%reg%C * maecs%frac_Rub_ini
       end if
    else  ! additional check for Rub and P; TODO: omitt ??
        phy%Rub = smooth_small( phy%Rub , min_Cmass * maecs%frac_Rub_ini)
-!      if (maecs%PhosphorusOn)  phy%P_reg =  smooth_small(phy%P,min_Cmass * maecs%aver_QP_phy)
+!      if (maecs%PhosphorusOn)  phy%reg%P =  smooth_small(phy%P,min_Cmass * maecs%aver_QP_phy)
    end if ! ischanged
   
  case (2)
@@ -245,23 +245,23 @@ select case (mm_method)
 ! TODO: insert h ~ level height, here 10cm 
    min_Cmass = maecs%small_finite * 1.0d-3 / maecs%a_spm  
    min_Nmass = min_Cmass * maecs%aver_QN_phy
-   phy%C_reg = smooth_small( phy%C , min_Cmass)
-   delta_C   = phy%C_reg - phy%C
+   phy%reg%C = smooth_small( phy%C , min_Cmass)
+   delta_C   = phy%reg%C - phy%C
    delta_N = 0.0_rk
   
    if (abs(delta_C) .gt. 1d-2*min_Cmass) then !.and. phy%N .lt. 1*min_Nmass
-      phy%N_reg = phy%N + 1*delta_C * maecs%aver_QN_phy
+      phy%reg%N = phy%N + 1*delta_C * maecs%aver_QN_phy
       ischanged = .true. 
    else 
-      phy%N_reg = smooth_small( phy%N , min_Nmass)
-      delta_N   = phy%N_reg - phy%N
+      phy%reg%N = smooth_small( phy%N , min_Nmass)
+      delta_N   = phy%reg%N - phy%N
       if (abs(delta_N) .gt. 1d-2*min_Nmass) then
-         phy%C_reg = phy%C + delta_N / maecs%aver_QN_phy
-         delta_C   = phy%C_reg - phy%C
+         phy%reg%C = phy%C + delta_N / maecs%aver_QN_phy
+         delta_C   = phy%reg%C - phy%C
          ischanged = .true.
       end if  
    end if
-!!      if (phy%N_reg .gt. 0.2 * phy%C_reg) phy%N_reg = 0.2 * phy%C_reg
+!!      if (phy%reg%N .gt. 0.2 * phy%reg%C) phy%reg%N = 0.2 * phy%reg%C
 
  case (3)
 ! -------------------------------------------------------------------------------
@@ -270,9 +270,9 @@ select case (mm_method)
 ! set small boundary depending on numerical resolution
 ! TODO: insert h ~ level height, here 10cm 
    min_Cmass = maecs%small_finite * 1.0d-3 / maecs%a_spm  
-   phy%C_reg = smooth_small( phy%C , min_Cmass)
-   phy%N_reg = smooth_small( phy%N , min_Cmass * maecs%aver_QN_phy)
-!   if (maecs%PhosphorusOn)  phy%P_reg = smooth_small( phy%P , min_Cmass * maecs%aver_QP_phy)
+   phy%reg%C = smooth_small( phy%C , min_Cmass)
+   phy%reg%N = smooth_small( phy%N , min_Cmass * maecs%aver_QN_phy)
+!   if (maecs%PhosphorusOn)  phy%reg%P = smooth_small( phy%P , min_Cmass * maecs%aver_QP_phy)
 
    if (maecs%RubiscoOn) then 
      phy%Rub = smooth_small( phy%Rub , min_Cmass * maecs%frac_Rub_ini)
@@ -294,13 +294,13 @@ if (present(method)) mm_method=method
 
 select case (mm_method)
 case (_MARKUS_)
-   phy%rel_chloropl = maecs%rel_chloropl_min + phy%frac%Rub * phy%rel_QN**maecs%sigma
+   phy%rel_chloropl = maecs%rel_chloropl_min + phy%frac%Rub * phy%relQ%N**maecs%sigma
       
 case (_KAI_)
-!   phy%rel_chloropl = smooth_small(phy%frac%Rub * phy%rel_QN**maecs%sigma,maecs%rel_chloropl_min)
-   phy%rel_chloropl = smooth_small(phy%frac%Rub * phy%rel_QN**maecs%sigma,maecs%rel_chloropl_min)
+!   phy%rel_chloropl = smooth_small(phy%frac%Rub * phy%relQ%N**maecs%sigma,maecs%rel_chloropl_min)
+   phy%rel_chloropl = smooth_small(phy%frac%Rub * phy%relQ%N**maecs%sigma,maecs%rel_chloropl_min)
 
-!write (*,'(A,3(F10.3))') '0 Relchl=',phy%rel_chloropl,phy%frac%Rub * phy%rel_QN,maecs%rel_chloropl_min
+!write (*,'(A,3(F10.3))') '0 Relchl=',phy%rel_chloropl,phy%frac%Rub * phy%relQ%N,maecs%rel_chloropl_min
 
 end select
 
@@ -324,39 +324,39 @@ T_Kelv       = env%Temp + 273.d0 ! temperature in Kelvin
 ! ----------------------------------------------------------------------------
 ! +++ determine rates for photoautotophic growth ++++++++++++++++++++++++++++++++++++++++++++++++++
 ! --- temperature dependence of metabolic rates (with T_ref given in units [Kelvin]) --------------
-sens%func_T  = exp(-maecs%AE_all *(1.0d0/T_Kelv - 1.0d0/maecs%T_ref ))
+sens%f_T  = exp(-maecs%AE_all *(1.0d0/T_Kelv - 1.0d0/maecs%T_ref ))
 
 ! --- (potential) maximum photosynthetic rate -----------------------------------------------------
-sens%P_max_T = maecs%P_max * sens%func_T
+sens%P_max_T = maecs%P_max * sens%f_T
 
 ! --- light response curve ------------------------------------------------------------------------
 sens%a_light = maecs%alpha * par /(sens%P_max_T)  ! par NOCH BAUSTELLE, jetzt PAR in zellmitte 
-sens%S_phot  = 1.0d0 - exp(- sens%a_light * phy%theta) ! [dimensionless]
+sens%upt_pot%C  = 1.0d0 - exp(- sens%a_light * phy%theta) ! [dimensionless]
 
 ! --- carbon specific N-uptake: sites vs. processing ----------------------------------
 ! non-zero nutrient concentration for regulation
 NutF    = smooth_small(nut%N,maecs%small)
 ! optimal partitioning between
 ! surface uptake sites and internal enzymes (for assimilation)
-fA%N    =  fOptUpt(maecs%AffN,maecs%V_NC_max * sens%func_T, NutF)
+fA%N    =  fOptUpt(maecs%AffN,maecs%V_NC_max * sens%f_T, NutF)
 
-sens%up_NC   = uptflex(maecs%AffN,maecs%V_NC_max*sens%func_T,NutF, fA%N)
+sens%upt_pot%N   = uptflex(maecs%AffN,maecs%V_NC_max*sens%f_T,NutF, fA%N)
 
 !  P-uptake coefficients
 if (maecs%PhosphorusOn) then 
    NutF    = smooth_small(nut%P,maecs%small)
 ! optimal partitioning 
-   fA%P    =  fOptUpt(maecs%AffP,maecs%V_PC_max * sens%func_T, NutF)
-   sens%up_PC  = uptflex(maecs%AffP,maecs%V_PC_max*sens%func_T,NutF,fA%P)
+   fA%P    =  fOptUpt(maecs%AffP,maecs%V_PC_max * sens%f_T, NutF)
+   sens%upt_pot%P  = uptflex(maecs%AffP,maecs%V_PC_max*sens%f_T,NutF,fA%P)
 end if
-!write (*,'(A,4(F10.3))') 'vP=',sens%up_PC,maecs%V_PC_max * sens%func_T,nut%P,maecs%small*1E3
+!write (*,'(A,4(F10.3))') 'vP=',sens%upt_pot%P,maecs%V_PC_max * sens%f_T,nut%P,maecs%small*1E3
 
 !  Si-uptake coefficients
 if (maecs%SiliconOn) then 
-   NutF    = smooth_small(nut%S,maecs%small)
+   NutF    = smooth_small(nut%Si,maecs%small)
 ! optimal partitioning 
-   fA%S    =  fOptUpt(maecs%AffSi,maecs%V_SiC_max * sens%func_T, NutF)
-   sens%up_SiC = uptflex(maecs%AffSi,maecs%V_SiC_max * sens%func_T,nutF,fA%S)
+   fA%Si    =  fOptUpt(maecs%AffSi,maecs%V_SiC_max * sens%f_T, NutF)
+   sens%upt_pot%Si = uptflex(maecs%AffSi,maecs%V_SiC_max * sens%f_T,nutF,fA%Si)
 end if
 ! TODO check temperature dependence of nutrient affinity
 
@@ -378,17 +378,17 @@ min_Cmass = maecs%small_finite * 1.0d-3 / maecs%a_spm
 
 ! ------------------------------------------------------------------------------
 !              calculate general quotas 
-phy%QN    = phy%N_reg / phy%C_reg
+phy%Q%N    = phy%reg%N / phy%reg%C
 ! added for mixing effects in estuaries kw Jul, 15 2013
-phy%QN  = smooth_small(phy%QN, maecs%QN_phy_0)
+phy%Q%N  = smooth_small(phy%Q%N, maecs%QN_phy_0)
 
 phy%frac%Rub=maecs%frac_Rub_ini
 
 if (maecs%PhotoacclimOn) then
    if (maecs%RubiscoOn) then 
 ! trait + transporter needs division to become a trait again
-     phy%frac%Rub = phy%Rub / phy%C_reg
-!     phy%frac%Rub = phy%Rub / phy%N_reg
+     phy%frac%Rub = phy%Rub / phy%reg%C
+!     phy%frac%Rub = phy%Rub / phy%reg%N
    end if    
 end if
 
@@ -398,48 +398,47 @@ phy%frac%Rub = _ONE_ - smooth_small(_ONE_- phy%frac%Rub ,maecs%small_finite + ma
 !dom%QN      = dom%N  /(dom%C + min_Cmass )  ! N:C ratio of dissolved organic matter (DOM)
 !det%QN      = det%N /(det%C + min_Cmass)   ! N:C ratio of detritus
 if (maecs%PhosphorusOn) then 
-   phy%QP     = phy%P / phy%C_reg
+   phy%Q%P     = phy%P / phy%reg%C
 ! added for mixing effects in estuaries kw Jul, 15 2013
-   phy%QP     = smooth_small(phy%QP, maecs%QP_phy_0)
+   phy%Q%P     = smooth_small(phy%Q%P, maecs%QP_phy_0)
 
-   phy%rel_QP = ( phy%QP - maecs%QP_phy_0 ) * maecs%iK_QP
-   phy%rel_QP = smooth_small(phy%rel_QP, maecs%small_finite)
+   phy%relQ%P = ( phy%Q%P - maecs%QP_phy_0 ) * maecs%iK_QP
+   phy%relQ%P = smooth_small(phy%relQ%P, maecs%small_finite)
 ! added for deep detritus traps with extreme quotas kw Jul, 16 2013
 
-   phy%rel_QP = _ONE_ - smooth_small(_ONE_- phy%rel_QP, maecs%small_finite)
-!write (*,'(A,4(F10.3))') 'rel_QP=',phy%rel_QP,phy%QP*1E3,(phy%QP - maecs%QP_phy_0)*1E3,maecs%QP_phy_0*1E3
+   phy%relQ%P = _ONE_ - smooth_small(_ONE_- phy%relQ%P, maecs%small_finite)
+!write (*,'(A,4(F10.3))') 'relQ%P=',phy%relQ%P,phy%Q%P*1E3,(phy%Q%P - maecs%QP_phy_0)*1E3,maecs%QP_phy_0*1E3
 
-   phy%QPN    = phy%P / phy%N_reg
 !   dom%QP     = dom%P  / (dom%C  + min_Cmass)  ! P:C ratio of DOM
 !   det%QP     = det%P / (det%C + min_Cmass)  ! P:C ratio of detritus
 end if 
   
 if (maecs%SiliconOn) then 
-   phy%QSi    = phy%S / phy%C_reg
+   phy%Q%Si    = phy%Si / phy%reg%C
 ! added for mixing effects in estuaries kw Jul, 15 2013
-   phy%QSi     = smooth_small(phy%QSi, maecs%QSi_phy_0)
+   phy%Q%Si     = smooth_small(phy%Q%Si, maecs%QSi_phy_0)
 
-   phy%rel_QSi = ( phy%QSi - maecs%QSi_phy_0 ) /(maecs%QSi_phy_max-maecs%QSi_phy_0) 
+   phy%relQ%Si = ( phy%Q%Si - maecs%QSi_phy_0 ) /(maecs%QSi_phy_max-maecs%QSi_phy_0) 
 
 ! added for deep detritus traps with extreme quotas kw Jul, 16 2013
-   phy%rel_QSi = _ONE_ - smooth_small(_ONE_- phy%rel_QSi, maecs%small_finite)
-!   phy%QSiN    = phy%Si / phy%N_reg
+   phy%relQ%Si = _ONE_ - smooth_small(_ONE_- phy%relQ%Si, maecs%small_finite)
+!   phy%Q%SiN    = phy%Sii / phy%reg%N
 end if   
 
 ! fraction of free (biochemically available) intracellular nitrogen
-phy%rel_QN  = (phy%QN - maecs%QN_phy_0) * maecs%iK_QN
+phy%relQ%N  = (phy%Q%N - maecs%QN_phy_0) * maecs%iK_QN
 ! added for deep detritus traps with extreme quotas kw Jul, 16 2013
-phy%rel_QN = smooth_small(phy%rel_QN, maecs%small_finite)
-phy%rel_QN  = _ONE_ - smooth_small(_ONE_- phy%rel_QN, maecs%small_finite)
+phy%relQ%N = smooth_small(phy%relQ%N, maecs%small_finite)
+phy%relQ%N  = _ONE_ - smooth_small(_ONE_- phy%relQ%N, maecs%small_finite)
 
 if (maecs%PhotoacclimOn) then  
   ! calculate rel_chloropl
   call calc_rel_chloropl(maecs,phy,method=_KAI_)
 
   ! conversion of bulk chlorophyll concentration to chlorophyll content in chloroplasts  
-  phy%theta     = phy%chl / (phy%rel_chloropl * phy%C_reg)   ! trait variable
+  phy%theta     = phy%chl / (phy%rel_chloropl * phy%reg%C)   ! trait variable
 ! cell specific CHL:C ratio of chloroplasts / carbon bound to LHC per CHL-pigment
-  phy%frac%theta= phy%chl/phy%C_reg * maecs%itheta_max ! []     no smaller than o(1.d-5)!
+  phy%frac%theta= phy%chl/phy%reg%C * maecs%itheta_max ! []     no smaller than o(1.d-5)!
 endif
 ! --- total pool-size of available/free proteins/enzymes and RNA -------------------   
 phy%frac%TotFree= 1.0d0 
@@ -450,13 +449,13 @@ phy%frac%NutUpt = smooth_small(phy%frac%TotFree - phy%frac%Rub - phy%frac%theta,
 
 if (maecs%GrazingOn) then
   ! ---- herbivore stoichiometry ---------------------------
-  zoo%QN    = maecs%const_NC_zoo
-  zoo%N     = zoo%C * zoo%QN
+  zoo%Q%N    = maecs%const_NC_zoo
+  zoo%N     = zoo%C * zoo%Q%N
   zoo%yield = maecs%yield_zoo
   zoo%flopp =  _ONE_ - maecs%yield_zoo
   if (maecs%PhosphorusOn) then 
-    zoo%QP    = maecs%const_PC_zoo
-    zoo%P     = zoo%C * zoo%QP
+    zoo%Q%P    = maecs%const_PC_zoo
+    zoo%P     = zoo%C * zoo%Q%P
   endif
 endif
 end subroutine

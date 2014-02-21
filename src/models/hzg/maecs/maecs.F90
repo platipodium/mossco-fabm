@@ -11,7 +11,7 @@
 !! get_vertical_movement (=> maecs_get_vertical_movement)
 !! and maybe some humanly explanation here
 
-FABM sediment driver module provides infrastructure for the
+!! FABM sediment driver module provides infrastructure for the
 !! MOSSCO sediment component.
 !! The driver provides tendencies for state variables as sum of
 !! local rates (through FABM) and vertical diffusion.
@@ -555,7 +555,7 @@ _FABM_LOOP_BEGIN_
    ! Retrieve phtoplankton state
    
    !Retrieve the 'phyQstat' directly as a diagnostic variable: does not work yet.
-   !fabm_get_bulk_diagnostic_data(self%id_phyqstat,phyQstatD) !where, phyQstat=rel_QN*rel_QP
+   !fabm_get_bulk_diagnostic_data(self%id_phyqstat,phyQstatD) !where, phyQstat=relQ%N*relQ%P
    !_GET_(self%id_phyqstat,phyQstatD)
    
    !Calculate manually
@@ -572,10 +572,10 @@ _FABM_LOOP_BEGIN_
    call min_mass(self,phy,method=2) 
    !write (*,'(A,2(F10.3))') 'After: phy%C, phy%N=', phy%C, phy%N
    call calc_internal_states(self,phy,det,dom,zoo) 
-   !write (*,'(A,2(F10.3))') 'phy%rel_QN, phy%rel_QP=', phy%rel_QN, phy%rel_QP
+   !write (*,'(A,2(F10.3))') 'phy%relQ%N, phy%relQ%P=', phy%relQ%N, phy%relQ%P
    
    !< compute \f$ phyQstat=phy_{QN}*phy_{QP} \f$
-   phyQstat=phy%rel_QN*phy%rel_QP 
+   phyQstat=phy%relQ%N*phy%relQ%P 
   
    ! Calculate sinking
 

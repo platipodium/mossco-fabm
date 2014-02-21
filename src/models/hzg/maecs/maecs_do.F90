@@ -68,9 +68,9 @@ if (self%PhosphorusOn) then
       _GET_(self%id_domP, dom%P)  ! Dissolved Organic Phosphorus in mmol-P/m**3
 end if
 if (self%SiliconOn) then
-      _GET_(self%id_nutS, nut%S)  ! Dissolved Inorganic Silicon Si in mmol-Si/m**3
-      _GET_(self%id_phyS, phy%S)  ! Phytplankton Silicon in mmol-Si/m**3
-      _GET_(self%id_detS, det%S)  ! Detritus Silicon in mmol-Si/m**3
+      _GET_(self%id_nutS, nut%Si)  ! Dissolved Inorganic Silicon Si in mmol-Si/m**3
+      _GET_(self%id_phyS, phy%Si)  ! Phytplankton Silicon in mmol-Si/m**3
+      _GET_(self%id_detS, det%Si)  ! Detritus Silicon in mmol-Si/m**3
 end if
 if (self%GrazingOn) then
       _GET_(self%id_zooC, zoo%C)  ! Zooplankton Carbon in mmol-C/m**3
@@ -111,8 +111,8 @@ call calc_internal_states(self,phy,det,dom,zoo)
 
 if (.not. self%PhotoacclimOn) then  
    phy%chl = phy%C * self%frac_chl_ini   ! total Chl mg-CHL/m3
-   phy%frac%theta  = self%frac_chl_ini * phy%QN  * self%itheta_max
-   phy%theta       = self%frac_chl_ini * phy%QN / self%frac_Rub_ini! g-CHL/mol-N*m3
+   phy%frac%theta  = self%frac_chl_ini * phy%Q%N  * self%itheta_max
+   phy%theta       = self%frac_chl_ini * phy%Q%N / self%frac_Rub_ini! g-CHL/mol-N*m3
 end if 
 
 call calc_sensitivities(self,sens,phy,env,nut)
@@ -123,17 +123,17 @@ call photosynthesis(self,sens,phy,uptake,exud,acclim)
 
 ! ----------------       grazing        -------------------------------------------
 if (self%GrazingOn) then
-  call grazing(self%g_max * sens%func_T,self%k_grazC,phy%C,graz_rate)
+  call grazing(self%g_max * sens%f_T,self%k_grazC,phy%C,graz_rate)
   zoo%feeding = graz_rate
-  zoo_respC   = self%basal_resp_zoo * sens%func_T  !  basal respiration of grazers
-  nquot       = type_maecs_om(1.0_rk, phy%QN, phy%QP, phy%QSi )
+  zoo_respC   = self%basal_resp_zoo * sens%f_T  !  basal respiration of grazers
+  nquot       = type_maecs_om(1.0_rk, phy%Q%N, phy%Q%P, phy%Q%Si )
   mswitch     = type_maecs_switch(self%PhosphorusOn,self%SiliconOn,.true. )
 ! --- calculates zooplankton loss rates (excretion->Nut, floppy+egestion->Det), specific to C
   call grazing_losses(zoo,zoo_respC,nquot,lossZ,floppZ, mswitch) 
 !  --- transform from specific to bulk grazing rate
   graz_rate   = graz_rate * zoo%C 
 !  --- quadratic closure term
-  zoo_mort    = self%mort_zoo * sens%func_T  * zoo%C
+  zoo_mort    = self%mort_zoo * sens%f_T  * zoo%C
 
 else
   graz_rate   = 0.0_rk
@@ -155,8 +155,8 @@ aggreg_rate = self%phi_agg * (1.0_rk - exp(-0.02*dom%C)) * (phy%N + det%N)
 
 ! ------------------------------------------------------------------
 !  ---  hydrolysis & remineralisation rate (temp dependent)
-degradT     = self%hydrol * sens%func_T
-reminT      = self%remin  * sens%func_T
+degradT     = self%hydrol * sens%f_T
+reminT      = self%remin  * sens%f_T
 
 ! right hand side of ODE (rhs)    
 !  #define UNIT /self%secs_pr_day
@@ -179,28 +179,28 @@ rhsv%phyN =  uptake%N             * phy%C &
            - exud%N               * phy%C & 
            - aggreg_rate          * phy%N &
            - self%dil             * phy%N &          
-           - graz_rate * phy%QN          
+           - graz_rate * phy%Q%N          
 
 !_____________________________________________________________________________
 
 if (self%PhotoacclimOn) then
 ! PHYTOPLANKTON CHLa
      ! note that theta*rel_chloropl in units [mg Chla (mmol C)^{-1}] 
-   dQN_dt        = (rhsv%phyN * phy%C_reg - rhsv%phyC * phy%N_reg) / (phy%C_reg*phy%C_reg)
+   dQN_dt        = (rhsv%phyN * phy%reg%C - rhsv%phyC * phy%reg%N) / (phy%reg%C*phy%reg%C)
 ! TODO: dangerous to work with RHS instead of net uptake rates (mortality has no physiological effect)
 
    dRchl_phyC_dt =  acclim%dRchl_dtheta * acclim%dtheta_dt   & 
                   + acclim%dRchl_dfracR * acclim%dfracR_dt   & 
                   + acclim%dRchl_dQN    * dQN_dt 
 
-   rhsv%chl = phy%theta * phy%frac%Rub * phy%rel_QN**self%sigma * rhsv%phyC + dRchl_phyC_dt * phy%C
+   rhsv%chl = phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC + dRchl_phyC_dt * phy%C
 
-!write (*,'(A,4(F10.3))') 'rhs chl=', phy%theta * phy%frac%Rub * phy%rel_QN**self%sigma * rhsv%phyC,dRchl_phyC_dt * phy%C_reg*1E1,phy%rel_QN**self%sigma,phy%theta
+!write (*,'(A,4(F10.3))') 'rhs chl=', phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC,dRchl_phyC_dt * phy%reg%C*1E1,phy%relQ%N**self%sigma,phy%theta
 
 !_____________________________________________ _________________________________
 
 if (self%RubiscoOn) then 
-    rhsv%Rub  = acclim%dfracR_dt * phy%C + phy%Rub/phy%C_reg * rhsv%phyC 
+    rhsv%Rub  = acclim%dfracR_dt * phy%C + phy%Rub/phy%reg%C * rhsv%phyC 
 
 
    end if 
@@ -273,7 +273,7 @@ if (self%PhosphorusOn) then
               - exud%P               * phy%C    & 
               - self%dil             * phy%P    &            
               - aggreg_rate          * phy%P    & 
-              - graz_rate            * phy%QP    
+              - graz_rate            * phy%Q%P    
   !  --- DETRITUS P 
    rhsv%detP = floppZ%P              * zoo%C    &
               + aggreg_rate          * phy%P    &
@@ -295,20 +295,20 @@ end if
 !
 if (self%SiliconOn) then 
   ! ---  PHYTOPLANKTON Si
-   rhsv%phyS = uptake%S              * phy%C    & 
-              - self%dil             * phy%S    &            
-              - aggreg_rate          * phy%S    & 
-              - graz_rate            * phy%QSi    
+   rhsv%phyS = uptake%Si              * phy%C    & 
+              - self%dil             * phy%Si    &            
+              - aggreg_rate          * phy%Si    & 
+              - graz_rate            * phy%Q%Si    
   !  --- DETRITUS Si
-   rhsv%detS = floppZ%S              * zoo%C    &
-              + aggreg_rate          * phy%S    &
-              - self%dil             * det%S    &         
-              - degradT              * det%S
+   rhsv%detS = floppZ%Si              * zoo%C    &
+              + aggreg_rate          * phy%Si    &
+              - self%dil             * det%Si    &         
+              - degradT              * det%Si
   !  --- Dissolved Si
-   rhsv%nutS = - uptake%S            * phy%C    & 
-              + degradT              * det%S    & 
-              + lossZ%S              * zoo%C    &
-              + self%dil * (self%nutS_initial - nut%S)
+   rhsv%nutS = - uptake%Si            * phy%C    & 
+              + degradT              * det%Si    & 
+              + lossZ%Si              * zoo%C    &
+              + self%dil * (self%nutS_initial - nut%Si)
 
 end if 
 
@@ -349,8 +349,8 @@ end if
 !#S_DIA
   _SET_DIAGNOSTIC_(self%id_chl2, phy%theta*phy%rel_chloropl) !last bulk chlorophyll concentration
   _SET_DIAGNOSTIC_(self%id_fracR, phy%frac%Rub)             !last 
-  _SET_DIAGNOSTIC_(self%id_QN, phy%QN)                      !last 
-  _SET_DIAGNOSTIC_(self%id_QP, phy%QP)                      !last 
+  _SET_DIAGNOSTIC_(self%id_QN, phy%Q%N)                      !last 
+  _SET_DIAGNOSTIC_(self%id_QP, phy%Q%P)                      !last 
   _SET_DIAGNOSTIC_(self%id_tmp, acclim%tmp)                !last phy%rel_QSi
 !#E_DIA
 
@@ -358,8 +358,8 @@ if (self%DebugDiagOn) then
 !   _SET_DIAG_(self%id_chl_diag, phy%theta * phy%rel_chloropl ) !* phy%C
 !   _SET_DIAG_(self%id_fracR, phy%frac%Rub) 
 !   _SET_DIAG_(self%id_fracTheta, phy%frac%theta)
-!   _SET_DIAG_(self%id_fracQN, phy%QN)
-!   _SET_DIAG_(self%id_fracQP, phy%QP*1.0d3)
+!   _SET_DIAG_(self%id_fracQN, phy%Q%N)
+!   _SET_DIAG_(self%id_fracQP, phy%Q%P*1.0d3)
 !   _SET_DIAG_(self%id_reg_VNC, uptake%N)
 !   _SET_DIAG_(self%id_fac1,uptake%P  ) acclim%fac1
 !   _SET_DIAG_(self%id_fac2,exud%P )

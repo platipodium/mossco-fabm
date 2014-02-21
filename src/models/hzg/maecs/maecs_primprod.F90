@@ -85,16 +85,16 @@ IsVQSi      = .false. ! TODO
 ! chlorophyll-to-carbon ratio of chloroplast * chloroplast concentration of cell
 if (self%PhotoacclimOn) then  
    acc%dRchl_dtheta = phy%rel_chloropl 
-   acc%dRchl_dfracR = phy%theta * phy%rel_QN**self%sigma
-   acc%dRchl_dQN    = phy%theta * phy%frac%Rub * self%sigma * phy%rel_QN**(self%sigma - 1.0d0) * self%iK_QN
+   acc%dRchl_dfracR = phy%theta * phy%relQ%N**self%sigma
+   acc%dRchl_dQN    = phy%theta * phy%frac%Rub * self%sigma * phy%relQ%N**(self%sigma - 1.0d0) * self%iK_QN
 endif
 
-dbal_dv = 1.0d0 + phy%QN * self%zeta_CN
+dbal_dv = 1.0d0 + phy%Q%N * self%zeta_CN
 
 ! --- gross carbon uptake by phytoplankton (gross-primary production) ---------------
-!   phy%frac%Rub* sens%P_max_T* phy%rel_QN : carboxylation capacity = Rub * free proteins
+!   phy%frac%Rub* sens%P_max_T* phy%relQ%N : carboxylation capacity = Rub * free proteins
 !   fac_colim             : synchrony in  protein/RNA dynamics 
-!   sens%S_phot           : light harvesting (light limited growth)   
+!   sens%upt_pot%C           : light harvesting (light limited growth)   
  
 ! here, every possible nutrient is asked explicitely; thus first Si then P
 ! TODO: loop over structure elements with arbitrary number of nutrients
@@ -102,7 +102,7 @@ num_nut  = 0
 
 ! -- carbon specific Si-uptake with N, Si, and P co-limitation, according to queue model -
 if (self%SiliconOn) then 
-   ratio_rel  = phy%rel_QSi
+   ratio_rel  = phy%relQ%Si
    lim_Si     = 1.0d0
    num_nut    = num_nut + 1
 else
@@ -113,16 +113,16 @@ endif
 !         P-quota
 if (self%syn_nut .le. _ZERO_ .and. self%PhosphorusOn) then  !
    a1 = -self%syn_nut
-   syn_act = a1 * phy%rel_QP
-! relative production (0...1)phy%rel_QN *
+   syn_act = a1 * phy%relQ%P
+! relative production (0...1)phy%relQ%N *
 !   syn_act  = -self%syn_nut * grossC
-!   syn_act  = 2 *exp( -(1-phy%QP/self%QP_phy_max) * (grossC+self%syn_nut))
-!   ratio_rel  = phy%rel_QP/phy%rel_QN
+!   syn_act  = 2 *exp( -(1-phy%Q%P/self%QP_phy_max) * (grossC+self%syn_nut))
+!   ratio_rel  = phy%relQ%P/phy%relQ%N
 !   call queuefunc(2.0d0,ratio_rel,fac_colim,deriv_fac_colim)
-!   grossC   = phy%rel_QN * fac_colim * phy%frac%Rub * sens%P_max_T * sens%S_phot 
+!   grossC   = phy%relQ%N * fac_colim * phy%frac%Rub * sens%P_max_T * sens%upt_pot%C 
      ! TODO define above only once
-!   lossC = self%zeta_which fabm  CN * phy%frac%NutUpt * sens%up_NC ! ---  respiration due to N assimilation --------------------------------------
-!   a2 = phy%QP/self%QP_phy_max - _ONE_
+!   lossC = self%zeta_which fabm  CN * phy%frac%NutUpt * sens%upt_pot%N ! ---  respiration due to N assimilation --------------------------------------
+!   a2 = phy%Q%P/self%QP_phy_max - _ONE_
 !   a3 = a1 * a2
 !   syn_act  = exp(a3*(grossC-0.75d0))
 !   if (syn_act .gt. 1.0d2) syn_act = 1.0d2
@@ -145,8 +145,8 @@ acc%tmp   =   syn_act ! store
 
 if (self%PhosphorusOn) then 
   if (mod(num_nut,2) .eq. 1) then ! both P and Si 
-     ratio_rel = ratio_rel/phy%rel_QP
-     prod_rel   = ratio_rel*phy%rel_QP
+     ratio_rel = ratio_rel/phy%relQ%P
+     prod_rel   = ratio_rel*phy%relQ%P
 
      call queuefunc(syn_act,ratio_rel,fac_colim,deriv_fac_colim)
  ! relative nutrient limitation due to P shortage 
@@ -160,7 +160,7 @@ if (self%PhosphorusOn) then
      lim_P     = 1.0d0
   endif 
 ! contribution of P-status to gross assimilation
-  ratio_rel = phy%rel_QP * fac_colim
+  ratio_rel = phy%relQ%P * fac_colim
   num_nut   = num_nut + 1
 ! uptake dependency on nutrient availability
 else
@@ -170,8 +170,8 @@ endif
 ! -- always account for N-quota -
 if (num_nut .gt. 0) then 
 ! takes co-limitation factor from all other nutrients
-   prod_rel   = ratio_rel*phy%rel_QN
-   ratio_rel  = ratio_rel/phy%rel_QN
+   prod_rel   = ratio_rel*phy%relQ%N
+   ratio_rel  = ratio_rel/phy%relQ%N
    call queuefunc(syn_act,ratio_rel,fac_colim,deriv_fac_colim)
    fac_colim  = smooth_small(fac_colim,eps)* (f2_colim + hh*prod_rel)
 ! deriv_fac_colim: numerical derivative of queue response  
@@ -189,25 +189,25 @@ else
 end if
 ! relative nutrient limitation due to P shortage
 
-gross_nue   = fac_colim * phy%frac%Rub * sens%P_max_T * sens%S_phot  !Nitrogen use efficiency
-grossC      = phy%rel_QN * gross_nue  ! [d^{-1}]
-uptake%C    = phy%rel_QN * gross_nue - lossC     !* (1.0d0- self%exud_phy) ![d^{-1}]
+gross_nue   = fac_colim * phy%frac%Rub * sens%P_max_T * sens%upt_pot%C  !Nitrogen use efficiency
+grossC      = phy%relQ%N * gross_nue  ! [d^{-1}]
+uptake%C    = phy%relQ%N * gross_nue - lossC     !* (1.0d0- self%exud_phy) ![d^{-1}]
 
 ! ---------------------   derivatives of reg_V   -----------------------------------
-dV_dregV    = phy%frac%NutUpt * sens%up_NC  !corrected Apr 17 kw
+dV_dregV    = phy%frac%NutUpt * sens%upt_pot%N  !corrected Apr 17 kw
 
 ! +++ derivative of C-uptake rate with respect to N-quota ++++++++++++++++++++++++++++++
 dmu_dQ%N    = lim_N * gross_nue * self%iK_QN 
 
-a3          = phy%rel_QN 
+a3          = phy%relQ%N 
 a2          = lim_N + (dbal_dv -1.0d0)*(lim_N + a3)
-a1          = self%zeta_CN*(phy%QN - self%QN_phy_0) + lim_N*phy%frac%NutUpt/(phy%frac%Rub + eps)* &
-               self%K_QN_phy * (self%zeta_CN + 1.0d0/phy%QN)
+a1          = self%zeta_CN*(phy%Q%N - self%QN_phy_0) + lim_N*phy%frac%NutUpt/(phy%frac%Rub + eps)* &
+               self%K_QN_phy * (self%zeta_CN + 1.0d0/phy%Q%N)
 
 ! --- relative growth rate RGR: gross production - exudation - uptake respiration --  
 
-feedb_vq    = 1.0d0 - dbal_dv * a3 / (1.0d0 - self%QN_phy_0/phy%QN + a2 + a3)
-dmudV       = dbal_dv * feedb_vq/((phy%QN - self%QN_phy_0) * (1.0d0/a1 + 1.0d0/a2) + phy%QN )  
+feedb_vq    = 1.0d0 - dbal_dv * a3 / (1.0d0 - self%QN_phy_0/phy%Q%N + a2 + a3)
+dmudV       = dbal_dv * feedb_vq/((phy%Q%N - self%QN_phy_0) * (1.0d0/a1 + 1.0d0/a2) + phy%Q%N )  
 
 ! approximated 1/(mu/(dmudQ*Q) +1 - dVdQ)
 !   steady-state down-regulation of uptake I: balance of respiration and indirect benefits   
@@ -218,18 +218,18 @@ reg_V       = 1./(1.+exp(-self%tau_regV * grad_V));  ! 0.02
 !------------------------------------------------------------------------
 !     adjust all terms for down-regulated uptake      
 !-------------------------------------------------------------------------
-upt_act%N   = reg_V * sens%up_NC
+upt_act%N   = reg_V * sens%upt_pot%N
 uptake%N    = phy%frac%NutUpt * upt_act%N  ! [(mmolN) (mmolC)^{-1} d{-1}]
 ! ---  respiration due to N assimilation --------------------------------------
 lossC       = self%zeta_CN * uptake%N                           ! [d^{-1}]
 
 ! --- relative growth rate RGR: gross production - exudation - uptake respiration --  
 uptake%C    = grossC - lossC     !* (1.0d0- self%exud_phy) ![d^{-1}]
-!  write (*,'("  fagN",5(F9.4))') par,,up_NC,mu,din
+!  write (*,'("  fagN",5(F9.4))') par,,upt_pot%N,mu,din
 
 ! exud propto uptake%grossC^2 ???
 ! +++ derivatives of N-uptake rate ++++++++++++++++++++++++++++++++++++++++++
-dVNC_dfracR = -upt_act%N * (1.0d0 + phy%rel_QN**self%sigma * phy%theta * self%itheta_max)                        
+dVNC_dfracR = -upt_act%N * (1.0d0 + phy%relQ%N**self%sigma * phy%theta * self%itheta_max)                        
 
 dVNC_dQN    = -upt_act%N * acc%dRchl_dQN * self%itheta_max
 dVNC_dtheta = -upt_act%N * phy%rel_chloropl * self%itheta_max 
@@ -239,8 +239,8 @@ dmu_dQ%N     = dmu_dQ%N - self%zeta_CN * dVNC_dQN
 !      if (.not. self%PhotoacclimOn) exit ! break the loop for constant theta and frac_R
 ! --- derivatives of P-uptake rate ----------------------------------------------------------------          
 if (self%PhosphorusOn) then
-    dV_dregV = phy%frac%NutUpt * sens%up_PC
-    dmudV    = dbal_dv**2 / ((dbal_dv*lim_P+1.0d0) *phy%QP - self%QP_phy_0)  
+    dV_dregV = phy%frac%NutUpt * sens%upt_pot%P
+    dmudV    = dbal_dv**2 / ((dbal_dv*lim_P+1.0d0) *phy%Q%P - self%QP_phy_0)  
  !TODO check costs !
 ! prelim solution: stoichiometry in RNA (N:P ~ 4:1) and phospholipids (N:P~1:1)
 ! TODO: include proteins/mebranes (N:P >> 16:1) under low growth conditions 
@@ -250,12 +250,12 @@ if (self%PhosphorusOn) then
     q_NoLip  = 1./3.8  ! P-stoichiometry of active compounds (DNA, RNA)  
     q_Lip    = 1./0.8    ! storage P-stoichiometry 
     
-    f_Lip    = 1./(1.+exp(10*(1.-phy%rel_QP)))
+    f_Lip    = 1./(1.+exp(10*(1.-phy%relQ%P)))
     zeta_CP  = ((1.-f_Lip)*q_NoLip + f_Lip*q_Lip) * self%zeta_CN
 
     grad_V   = dV_dregV * (-zeta_CP  + lim_P * dmudV) 
     reg_V    = 1./(1.+exp(-self%tau_regV * grad_V));  ! 0.02
-    upt_act%P= reg_V * sens%up_PC 
+    upt_act%P= reg_V * sens%upt_pot%P 
 
 ! cell physiology regulating P - uptake is identical to N-uptake machinery
 ! TODO: explain, why (cf. Smith et al. 2009) 
@@ -269,40 +269,41 @@ end if
 ! --- derivatives of Si-uptake rate ----------------------------------------------------------------          
 if (self%SiliconOn) then
 !  uptake dependency on nutrient availability
-    dV_dregV = phy%frac%NutUpt * sens%up_SiC
+    dV_dregV = phy%frac%NutUpt * sens%upt_pot%Si
 
-    dmudV    = dbal_dv**2 / ((dbal_dv*lim_Si+1.0d0) *phy%QSi - self%QSi_phy_0)  
+    dmudV    = dbal_dv**2 / ((dbal_dv*lim_Si+1.0d0) *phy%Q%Si - self%QSi_phy_0)  
     grad_V   = dV_dregV * (-0.*self%zeta_CN   + lim_Si * dmudV)
     reg_V    = 1./(1.+exp(-self%tau_regV * grad_V));  ! 0.02
-    upt_act%S= reg_V * sens%up_SiC 
+    upt_act%Si= reg_V * sens%upt_pot%Si 
 
 ! final, realized uptake = actual uptake rate per site times relative machinery
-    uptake%S = phy%frac%NutUpt * upt_act%S    ! [(mmolSi) (mmolC)^{-1} d{-1}]
-    dmu_dQ%S = lim_Si * gross_nue /(self%QSi_phy_max-self%QSi_phy_0)
+    uptake%Si = phy%frac%NutUpt * upt_act%Si    ! [(mmolSi) (mmolC)^{-1} d{-1}]
+    dmu_dQ%Si = lim_Si * gross_nue /(self%QSi_phy_max-self%QSi_phy_0)
 else
-    dmu_dQ%S = 0.0d0
+    dmu_dQ%Si = 0.0d0
 end if 
 
 ! --- derivatives of C-uptake rate  --------------------------------------------         
-rel_phys    = phy%rel_QN * fac_colim 
-dmu_dtheta  = phy%frac%Rub * rel_phys * sens%P_max_T * sens%a_light * (1.0d0 - sens%S_phot) & 
+rel_phys    = phy%relQ%N * fac_colim 
+dmu_dtheta  = phy%frac%Rub * rel_phys * sens%P_max_T * sens%a_light * (1.0d0 - sens%upt_pot%C) & 
                       - self%zeta_CN * dVNC_dtheta               !OK
 
-rel_phys= rel_phys * sens%S_phot 
-!write (*,'(" phys ",4(F9.4))') rel_phys, phy%rel_QN, fac_colim, sens%S_phot 
-phy%frac%rel_phys=rel_phys
+rel_phys    = rel_phys * sens%upt_pot%C 
+!write (*,'(" phys ",4(F9.4))') rel_phys, phy%relQ%N, fac_colim, sens%upt_pot%C 
+
+phy%rel_phys= rel_phys
 dmu_dfracR  = rel_phys * sens%P_max_T - self%zeta_CN * dVNC_dfracR 
 
 ! +++ trade-off: effects on N uptake +++++++++++++++++++++++++++++++++++++++++++
 ! dmu is a central regulation parameter determining the coupling strength in ressource uptake; its position in the denominator makes it critical for frequently occuring low values
 ! TODO: replace with more robust formulation                                                
-dmu         = dmu_dQ%N * phy%QN + uptake%C - dVNC_dQN
+dmu         = dmu_dQ%N * phy%Q%N + uptake%C - dVNC_dQN
 ! rough estimate of maximal growth rate with frac_R=0.5 and q=1
 dmu_small   = eps * sens%P_max_T 
 dmu         = smooth_small(dmu , dmu_small); 
 
-dQN_dtheta  = (dVNC_dtheta -1* dmu_dtheta * phy%QN) / dmu
-dQN_dfracR  = (dVNC_dfracR -1* dmu_dfracR * phy%QN) / dmu
+dQN_dtheta  = (dVNC_dtheta -1* dmu_dtheta * phy%Q%N) / dmu
+dQN_dfracR  = (dVNC_dfracR -1* dmu_dfracR * phy%Q%N) / dmu
 !dQN_dtheta  = (1.0d0  + 0*dQN_dtheta * dVNC_dtheta) * dQN_dtheta
 !dQN_dfracR  = (1.0d0  + 0*dQN_dfracR * dVNC_dfracR) * dQN_dfracR
 
@@ -313,15 +314,15 @@ grad_theta  = dmu_dtheta + dmu_dQ%N * dQN_dtheta
 
 ! --- trade-off: effects on P uptake -----------------------------------------------------         
 if (self%PhosphorusOn .and. IsVQP ) then
-   dmuP       = dmu_dQ%P * phy%QP + uptake%C
+   dmuP       = dmu_dQ%P * phy%Q%P + uptake%C
    dmuP       = smooth_small(dmuP , dmu_small); 
 ! rough estimate of maximal growth rate with frac_R=0.5 and q=1
 
-   dVPC_dfracR = -upt_act%P * (1.0d0 + phy%rel_QN**self%sigma * phy%theta * self%itheta_max)                        
+   dVPC_dfracR = -upt_act%P * (1.0d0 + phy%relQ%N**self%sigma * phy%theta * self%itheta_max)                        
    dVPC_dtheta = -upt_act%P * phy%rel_chloropl * self%itheta_max 
 
-   dQP_dtheta = (dVPC_dtheta - 0.0d0* dmu_dtheta * phy%QP) /dmuP
-   dQP_dfracR = (dVPC_dfracR - 0.0d0* dmu_dfracR * phy%QP) /dmuP
+   dQP_dtheta = (dVPC_dtheta - 0.0d0* dmu_dtheta * phy%Q%P) /dmuP
+   dQP_dfracR = (dVPC_dfracR - 0.0d0* dmu_dfracR * phy%Q%P) /dmuP
 !   dQP_dtheta = (1.0d0  + 0*dQP_dtheta * dVPC_dtheta) * dQP_dtheta
 !   dQP_dfracR = (1.0d0  + 0*dQP_dfracR * dVPC_dfracR) * dQP_dfracR
    grad_theta = grad_theta + dmu_dQ%P * dQP_dtheta
@@ -365,11 +366,11 @@ exud%C      = self%exud_phy * grossC                        ![d^{-1}]
 
 ! --- carbon specific nitrogen & phosporus exudation   ----------------------------
 exud%N      = self%exud_phy * uptake%N   ! [(mmolN) (mmolC)^{-1} d^{-1}]
-exud%P      = phy%QPN * exud%N   ! [(mmolP) (mmolC)^{-1} d^{-1}]
+exud%P      = phy%P / phy%reg%N * exud%N   ! [(mmolP) (mmolC)^{-1} d^{-1}]
 
 ! set few volatile diag variables ___________________________________
 if (self%DebugDiagOn) then
-!  acc%tmp    = sens%S_phot
+!  acc%tmp    = sens%upt_pot%C
 !  acc%fac1   = phy%theta * phy%rel_chloropl 
   acc%fac2   = grad_fracR
 endif

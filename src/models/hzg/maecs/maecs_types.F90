@@ -41,12 +41,17 @@ end type type_maecs_base_model
 !#SP#
 
 !!-------------------------------------------------------------------
-type type_maecs_om
-   real(rk) :: C,N,P,S
-end type
-
 type type_maecs_switch
    logical :: isP, isSi, isTotIng
+end type
+
+type type_maecs_om
+   real(rk) :: C,N,P,Si
+end type
+
+type type_maecs_basic_traits ! traits that apply to all -planktonic- life forms
+   real(rk) :: lESD, vESD
+   real(rk) :: trophy
 end type
 
 type type_maecs_allocation_fractions
@@ -54,25 +59,28 @@ type type_maecs_allocation_fractions
    real(rk) :: theta
    real(rk) :: NutUpt ! remaining nitrogen fraction for uptake and processing            [dimensionless]
    real(rk) :: TotFree ! nitrogen fraction of free/available proteins/enzymes and RNA    [dimensionless]
-   real(rk) :: rel_phys ! physiological(=energetical&nutritional) status 0...1
 end type
 
-type type_maecs_phy
-      real(rk)   :: C,N,P,S
-      real(rk)   :: C_reg, N_reg, P_reg
+type,extends(type_maecs_om) :: type_maecs_life
+      type (type_maecs_om)            :: Q       ! quotaformer QN,QP,QPN
+      type (type_maecs_basic_traits)  :: tr
+end type type_maecs_life
+
+type,extends(type_maecs_life) :: type_maecs_phy
+      type (type_maecs_om) :: relQ   ! former rel_QN, rel_QP, rel_QNP
+      type (type_maecs_om) :: reg    ! former C_reg, N_reg, P_reg
       real(rk)   :: chl, Rub
       real(rk)   :: rel_chloropl
-      real(rk)   :: rel_QN, rel_QP, rel_QSi
-      real(rk)   :: QN, QP, QSi, QPN, theta
+      real(rk)   :: theta
+      real(rk)   :: rel_phys ! physiological/energy/nutritional status 0...1
       type (type_maecs_allocation_fractions) :: frac
-end type
+end type type_maecs_phy
 
-type type_maecs_zoo
-      real(rk)   :: C,N,P
+
+type,extends(type_maecs_life) :: type_maecs_zoo
       real(rk)   :: yield,flopp
-      real(rk)   :: QN,QP
       real(rk)   :: feeding
-end type
+end type type_maecs_zoo
 
 ! Time and Chl derivatives of trait variables
 type type_maecs_traitdyn
@@ -85,25 +93,13 @@ type type_maecs_traitdyn
 end type
 
 
-! TODO generalize matter structure C,N,P,QN,QP
-
-type type_maecs_derivative
-   real(rk) :: dregV
-   real(rk) :: dtheta
-   real(rk) :: dfracR
-   real(rk) :: dfracP
-   real(rk) :: dQN
-end type
-
 type type_maecs_sensitivities
-   real(rk) :: func_T   ! temperature dependency of metabolic rates
+   real(rk) :: f_T       ! temperature dependency of metabolic rates
    real(rk) :: P_max_T  ! temperature dependent maximum photosynthetic rate                        [d^{-1}]
-   real(rk) :: a_light  ! exponent of light limitation 'S_phot'                             [dimensionless]
-   real(rk) :: S_phot   ! light limitation                                                  [dimensionless]
-   real(rk) :: up_NC    ! C specific N-uptake
-   real(rk) :: up_PC    ! C specific P-uptake	
-   real(rk) :: up_SiC   ! C specific Si-uptake	
-end type
+   real(rk) :: a_light  ! exponent of light limitation 'upt_pot%C'                             [dimensionless]
+   type (type_maecs_om) :: upt_pot  ! potential uptake rates
+				    ! depending on ambient concentration incl. light limitation                                                   [dimensionless]
+end type type_maecs_sensitivities
 
 end module
 

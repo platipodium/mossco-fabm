@@ -50,9 +50,9 @@ subroutine grazing_losses(zoo,resC,Q_prey,lossZNut,lossZDet,mswitch)
   lossZNut%C     = resC  ! [d^{-1}]
 ! -------------- assuming homeostasis for zooplankton relaxation towards Redfield ratio
 !                 nitrogen excretion (urea or ammonia)
-   lossZNut%N     = lossZNut%C*zoo%QN + zoo%yield * zoo%feeding * ( Q_prey%N - zoo%QN ) ! [molN/molC d^{-1}]
-! lossZNut%N     = zoo%yield * zoo%feeding * ( Q_prey%N - zoo%QN ) ! [molN/molC d^{-1}]
-!  lossZNut%N  = lossZNut%C *  zoo%QN + excess_N_graz ! includes basal excretion
+   lossZNut%N     = lossZNut%C*zoo%Q%N + zoo%yield * zoo%feeding * ( Q_prey%N - zoo%Q%N ) ! [molN/molC d^{-1}]
+! lossZNut%N     = zoo%yield * zoo%feeding * ( Q_prey%N - zoo%Q%N ) ! [molN/molC d^{-1}]
+!  lossZNut%N  = lossZNut%C *  zoo%Q%N + excess_N_graz ! includes basal excretion
 
 ! --------------- respiration and/or excretion rates adjusted to maintain constant C:N:P ratio
   if (lossZNut%N .lt. 0.0d0) then
@@ -60,19 +60,19 @@ subroutine grazing_losses(zoo,resC,Q_prey,lossZNut,lossZDet,mswitch)
      if (mswitch%isTotIng) then  
         lossZDet%N  = lossZDet%N + lossZNut%N
         if (lossZDet%N .lt. 0.0d0 ) then ! compensate by respiration
-          lossZNut%C  = lossZNut%C - lossZDet%N/zoo%QN
+          lossZNut%C  = lossZNut%C - lossZDet%N/zoo%Q%N
           lossZDet%N  = 0.0d0
         endif
      else
-        lossZNut%C  = lossZNut%C - lossZNut%N/zoo%QN
+        lossZNut%C  = lossZNut%C - lossZNut%N/zoo%Q%N
      endif
      lossZNut%N  = 0.0d0
   end if 
 
   if (mswitch%isP) then ! P-relaxation
-!    lossZNut%P  = lossZNut%C * zoo%QP  + excess_P_graz ! includes basal excretion
-    lossZNut%P   = lossZNut%C*zoo%QP + zoo%yield * zoo%feeding * ( Q_prey%P - zoo%QP ) ![mmolP m^{-3} d^{-1}] 
-!    lossZNut%P    = zoo%yield * zoo%feeding * ( Q_prey%P - zoo%QP ) ![mmolP m^{-3} d^{-1}] 
+!    lossZNut%P  = lossZNut%C * zoo%Q%P  + excess_P_graz ! includes basal excretion
+    lossZNut%P   = lossZNut%C*zoo%Q%P + zoo%yield * zoo%feeding * ( Q_prey%P - zoo%Q%P ) ![mmolP m^{-3} d^{-1}] 
+!    lossZNut%P    = zoo%yield * zoo%feeding * ( Q_prey%P - zoo%Q%P ) ![mmolP m^{-3} d^{-1}] 
 ! -------------- loss by floppy feeding to detritus
     lossZDet%P   = zoo%flopp * zoo%feeding* Q_prey%P 
 !    lossZDet%P    = lossZDet%C * Q_prey%P
@@ -80,13 +80,13 @@ subroutine grazing_losses(zoo,resC,Q_prey,lossZNut,lossZDet,mswitch)
       if (mswitch%isTotIng) then  ! compensate with unused prey components
          lossZDet%P  =  lossZDet%P + lossZNut%P 
          if (lossZDet%P .lt. 0.0d0 ) then ! compensate by respiration & exudation
-            lossZNut%C  = lossZNut%C - lossZDet%P/zoo%QP 
-            lossZNut%N  = lossZNut%N - lossZDet%P/zoo%QP * zoo%QN
+            lossZNut%C  = lossZNut%C - lossZDet%P/zoo%Q%P 
+            lossZNut%N  = lossZNut%N - lossZDet%P/zoo%Q%P * zoo%Q%N
             lossZDet%P  = 0.0d0
          endif
       else
-         lossZNut%C   = lossZNut%C - lossZNut%P/zoo%QP 
-         lossZNut%N   = lossZNut%N - lossZNut%P/zoo%QP * zoo%QN
+         lossZNut%C   = lossZNut%C - lossZNut%P/zoo%Q%P 
+         lossZNut%N   = lossZNut%N - lossZNut%P/zoo%Q%P * zoo%Q%N
       endif ! mswitch%isTotIng
       lossZNut%P   = 0.0d0
     end if ! lossZNut%P
@@ -94,9 +94,9 @@ subroutine grazing_losses(zoo,resC,Q_prey,lossZNut,lossZDet,mswitch)
 
   if (mswitch%isSi) then ! Si-release
 ! neglecting silicification in zooplankton such as in choanoflagellates, radiolarians
-    lossZNut%S   = zoo%yield * zoo%feeding * Q_prey%S !(mmolSi m^{-3} d^{-1}) 
+    lossZNut%Si   = zoo%yield * zoo%feeding * Q_prey%Si !(mmolSi m^{-3} d^{-1}) 
 ! -------------- loss by floppy feeding to detritus
-    lossZDet%S   = zoo%flopp * zoo%feeding* Q_prey%S 
+    lossZDet%Si   = zoo%flopp * zoo%feeding* Q_prey%Si 
   end if ! mswitch%isSi
   
   end subroutine grazing_losses
