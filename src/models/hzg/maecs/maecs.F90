@@ -593,18 +593,10 @@ _FABM_LOOP_BEGIN_
    call calc_internal_states(self,phy,det,dom,zoo) 
    !write (*,'(A,2(F10.3))') 'phy%relQ%N, phy%relQ%P=', phy%relQ%N, phy%relQ%P
    
-<<<<<<< HEAD
+
    !< compute \f$ phyQstat=phy_{QN}*phy_{QP} \f$
    phyQstat=phy%relQ%N*phy%relQ%P 
-=======
-<<<<<<< HEAD
-   !> compute \f$ phyQstat=phy_{QN}*phy_{QP} \f$
-   phyQstat=phy%rel_QN*phy%rel_QP 
-=======
-   !< compute \f$ phyQstat=phy_{QN}*phy_{QP} \f$
-   phyQstat=phy%relQ%N*phy%relQ%P 
->>>>>>> extended and compacted hierarchy in maecs types
->>>>>>> tmp
+
   
    ! Calculate sinking
 
