@@ -21,7 +21,7 @@ end type
 type,extends(type_maecs_life) type_maecs_phy
       real(rk)   :: Rub, theta       ! redundancy, cf. "Rub, theta" above
       real(rk)   :: chl, rel_chloropl
-      type (type_maecs_om) :: rel_quota   ! former rel_QN, rel_QP, rel_QNP
+      type (type_maecs_om) :: rel_quota   ! former relQ%N, relQ%P, relQ%NP
       type (type_maecs_om) :: reg         ! former C_reg, N_reg, P_reg
       type (type_maecs_allocation_fractions) :: frac
 end type
