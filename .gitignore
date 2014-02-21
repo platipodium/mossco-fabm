@@ -11,3 +11,4 @@ VERSION
 include/version.h
 *.pyc
 /src/models/hzg/maecs/doc/latex/*
+/src/models/hzg/maecs/doc/html/*
