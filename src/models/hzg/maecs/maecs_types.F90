@@ -33,7 +33,8 @@ real(rk) ::  nutN_initial, nutP_initial, nutS_initial, phyC_initial, phyN_initia
 real(rk) ::  P_max, alpha, sigma, theta_LHC, rel_chloropl_min, QN_phy_0, QN_phy_max, V_NC_max, AffN, zeta_CN, exud_phy, QP_phy_0, QP_phy_max, V_PC_max, AffP, QSi_phy_0, QSi_phy_max, V_SiC_max, AffSi, syn_nut, adap_rub, adap_theta, tau_regV, phi_agg, vS_phy, vS_det, hydrol, remin, Ae_all, T_ref
 real(rk) ::  const_NC_zoo, const_PC_zoo, g_max, k_grazC, yield_zoo, basal_resp_zoo, mort_zoo
 real(rk) ::  a_water, a_spm, a_chl, frac_PAR, small, dil
-real(rk) ::  K_QN_phy, iK_QN, iK_QP, itheta_max, aver_QN_phy, aver_QP_phy, small_finite
+real(rk) ::  iK_QN, iK_QP, iK_QSi
+real(rk) ::  K_QN_phy, itheta_max, aver_QN_phy, aver_QP_phy, small_finite
 logical  ::  RubiscoOn, PhotoacclimOn, PhosphorusOn, SiliconOn, GrazingOn, BioCarbochemOn, BioOxyOn, DebugDiagOn, ChemostatOn, UptakeLock, detritus_no_river_dilution, plankton_no_river_dilution
 end type type_maecs_base_model
 
@@ -90,16 +91,24 @@ type type_maecs_traitdyn
       real(rk)   :: dRchl_dfracR 
       real(rk)   :: dRchl_dQN
       real(rk)   :: tmp,fac1,fac2  ! for volatile diagnostics
+      type (type_maecs_om) :: dV_dfracR, dV_dtheta
 end type
-
+                                       
 
 type type_maecs_sensitivities
    real(rk) :: f_T       ! temperature dependency of metabolic rates
    real(rk) :: P_max_T  ! temperature dependent maximum photosynthetic rate                        [d^{-1}]
    real(rk) :: a_light  ! exponent of light limitation 'upt_pot%C'                             [dimensionless]
-   type (type_maecs_om) :: upt_pot  ! potential uptake rates
-				    ! depending on ambient concentration incl. light limitation                                                   [dimensionless]
+   type (type_maecs_om) :: upt_pot ! potential uptake rates
+				   ! depending on ambient concentration incl. light limitation [dimensionless]
 end type type_maecs_sensitivities
+
+! new meta structure for pointing/looping over elements
+type stoichiometry_pointer
+   real(rk),pointer  :: upt, upt_act, upt_pot
+   real(rk)          :: relQ, Q
+   real(rk)          :: iKQ
+end type
 
 end module
 
