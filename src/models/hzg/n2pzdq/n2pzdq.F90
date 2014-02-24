@@ -1,31 +1,16 @@
 #include "fabm_driver.h"
 
-!-----------------------------------------------------------------------
-!BOP
-!
-! !MODULE: fabm_npzd --- NPZD biogeochemical model based upon
-! Fennel \& Neumann (1996, German Journal of Hydrography),
-! with minor modifications by Burchard et al. (2005, Ocean Dynamics)
-! taken from GOTM and adapted for FABM by Jorn Bruggeman
-!
-! !INTERFACE:
+!> @file n2pzdq.F90
+!> @brief NPZD model extended with 2 nutrients and variable stoichiometry of phyto
+!> @author Lena Spruch, Kai Wirtz, Onur Kerimoglu
+!> @copyright HZG
+
+!> @brief module "fabm_hzg_npzd_n2pzdq".
+!! this is the module to be included in the FABM library
+
+!> see Section 1 for a general overview to see what the model is about.
    module fabm_hzg_n2pzdq
-!
-! !DESCRIPTION:
-! The NPZD (nutrient-phytoplankton-zooplankton-detritus) model described here
-! consists of $I=4$ state variables.
-! Nutrient uptake (phytoplankton growth) is limited by light and nutrient
-! availability, the latter of which is modelled by means
-! of Michaelis-Menten kinetics, see eq.\ (\ref{dnp}).
-! The half-saturation nutrient concentration $\alpha$ used in this
-! formulation has typically a value between 0.2 and 1.5 mmol N\, m$^{-3}$.
-! Zooplankton grazing which is limited by the phytoplankton standing stock
-! is modelled by means of an Ivlev formulation, see eq.\ (\ref{dpz}).
-! All other processes are based on linear first-order kinematics,
-! see eqs.\ (\ref{dpn}) - (\ref{dzd}).
-! For all details of the NPZD model implemented here,
-! see \cite{Burchardetal2005b}.
-!
+
 ! !USES:
    use fabm_types
 
@@ -33,17 +18,7 @@
 
 !  default: all is private.
    private
-!
-! !PUBLIC MEMBER FUNCTIONS:
-!   public type_gotm_n2pzdq, gotm_n2pzdq_init, gotm_n2pzdq_do, & !gotm_n2pzdq_do_ppdd, &
-!          gotm_n2pzdq_get_light_extinction, gotm_n2pzdq_get_conserved_quantities
-!
-! !PRIVATE DATA MEMBERS:
-!
-! !REVISION HISTORY:!
-!  Original author(s): Lena Spruch, Kai Wirtz, Onur Kerimoglu
-!
-!
+
 ! !PUBLIC DERIVED TYPES:
    type,extends(type_base_model),public    ::  type_hzg_n2pzdq
 !     Variable identifiers
@@ -74,17 +49,11 @@
 
    contains
 
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Initialise the NPZD model
-!
-! !INTERFACE:
+!> @brief here the n2pzdq namelist is read,variables exported by the model
+!! are registered in FABM and variables imported from FABM are made available
+
+!> here a more detailed description can be provided
    subroutine initialize(self,configunit)
-!
-! !DESCRIPTION:
-!  Here, the npzd namelist is read and te variables exported
-!  by the model are registered with FABM.
 !
 ! !INPUT PARAMETERS:
    class (type_hzg_n2pzdq), intent(inout), target :: self
@@ -406,7 +375,7 @@
    !  rpd = self%rpdl
    !end if
 
-   ! N/C and P/C cell-quotas 
+   ! @internal QN and QP are obtained by computing Q_N=N/C and Q_P=P/C 
    qnc = phyN/phyC 
    qpc = phyP/phyC
 
