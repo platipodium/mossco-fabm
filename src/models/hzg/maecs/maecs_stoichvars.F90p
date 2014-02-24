@@ -1,0 +1,31 @@
+
+! nitrogen
+     i = 1
+elem(i)%relQ      = smooth_small(phy%relQ%N,eps)
+elem(i)%Q         = smooth_small(phy%Q%N,eps)
+elem(i)%upt_pot   => sens%upt_pot%N
+elem(i)%upt_act   => upt_act%N
+elem(i)%upt       => uptake%N
+elem(i)%iKQ       = self%iK_QN
+
+! phosphorus
+if (self%PhosphorusOn) then
+     i = i + 1
+elem(i)%relQ      = smooth_small(phy%relQ%P,eps)
+elem(i)%Q         = smooth_small(phy%Q%P,eps)
+elem(i)%upt_pot   => sens%upt_pot%P
+elem(i)%upt_act   => upt_act%P
+elem(i)%upt       => uptake%P
+elem(i)%iKQ       = self%iK_QP
+end if
+
+! silicon
+if (self%SiliconOn) then
+     i = i + 1
+elem(i)%relQ      = smooth_small(phy%relQ%Si,eps)
+elem(i)%Q         = smooth_small(phy%Q%Si,eps)
+elem(i)%upt_pot   => sens%upt_pot%Si
+elem(i)%upt_act   => upt_act%Si
+elem(i)%upt       => uptake%Si
+elem(i)%iKQ       = self%iK_QSi
+end if
