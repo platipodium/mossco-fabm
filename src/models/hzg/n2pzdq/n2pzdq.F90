@@ -1,14 +1,13 @@
 #include "fabm_driver.h"
 
 !> @file n2pzdq.F90
-!> @brief NPZD model extended with 2 nutrients and variable stoichiometry of phyto
+!> @brief This file contains the fabm_hzg_n2pzdq module
+
+!> @brief This modeule  describes an NPZD model extended with 2 nutrients 
+!! and variable stoichiometry of phyto
 !> @author Lena Spruch, Kai Wirtz, Onur Kerimoglu
 !> @copyright HZG
-
-!> @brief module "fabm_hzg_npzd_n2pzdq".
-!! this is the module to be included in the FABM library
-
-!> see Section 1 for a general overview to see what the model is about.
+!> @details See Section 1 for a general overview to see what the model is about.
    module fabm_hzg_n2pzdq
 
 ! !USES:
@@ -19,28 +18,35 @@
 !  default: all is private.
    private
 
-! !PUBLIC DERIVED TYPES:
+!> @brief This is the derived model type
+
+!> @details
+!> \latexonly \nomenclature{$\alpha$}{affin\_par} \endlatexonly
+!> \latexonly \nomenclature{$V_{max,N} $}{upmax\_N} \endlatexonly
+!> \param affin_par \f$ \alpha \f$ - initial slope of the P-I curve
+!> \param upmax_N \f$ V_{max,N} \f$ -maximum nitrogen uptake rate
    type,extends(type_base_model),public    ::  type_hzg_n2pzdq
 !     Variable identifiers
       type (type_state_variable_id)        :: id_DIN,id_DIP,id_phyC,id_phyN,id_phyP,id_detN,id_detP,id_zooC
       type (type_state_variable_id)        :: id_dic
-      type (type_dependency_id)            :: id_par
+      type (type_dependency_id)            :: id_par ! \var p. a. r.
       type (type_dependency_id)            :: id_temp
       type (type_horizontal_dependency_id) :: id_I_0
       type (type_diagnostic_variable_id)   :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR,id_dMort,id_dLlim,id_dNlim,id_dPlim,id_dqnc,id_dqpc,id_deN,id_deP,id_deC,id_dgraz,id_dmortz
       type (type_conserved_quantity_id)    :: id_totN,id_totP
 
 !     Model parameters
-      real(rk) :: p0,affin_par,upmax_N,upmax_P,grow_max,iv,halfsatN,halfsatP, & 
-                  rem_N,rem_P,mort0_phy,mortpar_phy,qmax_N,qmax_P,qmin_N,qmin_P,kc,w_p,w_d,rpn,grazmax,mort_zoo,n,qzn,qzp,eff,e_C,k_detN,k_detP,mort_zoo2,n2,zexcdetfr 
+      real(rk) :: p0,upmax_N,upmax_P,grow_max,iv,halfsatN,halfsatP, & 
+                  rem_N,rem_P,mort0_phy,mortpar_phy,qmax_N,qmax_P,qmin_N,qmin_P,kc,w_p,w_d,rpn,grazmax,mort_zoo,n,qzn,qzp,eff,e_C,k_detN,k_detP,mort_zoo2,n2,zexcdetfr
+      real(rk) :: affin_par 
       real(rk) :: dic_per_n
-      logical  :: use_dic
+      logical  :: use_dic 
       
             contains
 
 !     Model procedures
-      procedure :: initialize
-      procedure :: do
+      procedure :: initialize 
+      procedure :: do         
       procedure :: get_light_extinction
       
    end type type_hzg_n2pzdq
@@ -51,19 +57,15 @@
 
 !> @brief here the n2pzdq namelist is read,variables exported by the model
 !! are registered in FABM and variables imported from FABM are made available
-
-!> here a more detailed description can be provided
+!> @details @todo here a more detailed description can be provided
    subroutine initialize(self,configunit)
-!
+
 ! !INPUT PARAMETERS:
    class (type_hzg_n2pzdq), intent(inout), target :: self
    integer,                 intent(in)            :: configunit
-!
-! !REVISION HISTORY:
-!  Original author(s): Hans Burchard & Karsten Bolding
-!
+
 ! !LOCAL VARIABLES:
-   real(rk)          :: DIN_initial
+   real(rk)          :: DIN_initial 
    real(rk)          :: DIP_initial
    real(rk)          :: phyC_initial
    real(rk)          :: phyN_initial
@@ -72,7 +74,7 @@
    real(rk)          :: detP_initial
    real(rk)          :: zooC_initial
    real(rk)          :: p0
-   real(rk)          :: w_p
+   real(rk)          :: w_p 
    real(rk)          :: w_d
    real(rk)          :: affin_par
    real(rk)          :: upmax_N
@@ -276,61 +278,11 @@
    end subroutine initialize
 !EOC
 
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Right hand sides of NPZD model
-!
-! !INTERFACE:
+
+!> @brief This is the main routine where right-hand-sides are calculated
+!> \details Here details about specific processes are provided.
    subroutine do(self,_ARGUMENTS_DO_)
-!
-! !DESCRIPTION:
-! Seven processes expressed as sink terms are included in this
-! conservative model, see eqs.\ (\ref{dnp}) - (\ref{dzd}). \\
-!
-! Nutrient uptake by phytoplankton:
-! \begin{equation}\label{dnp}
-! d_{np} = r_{\max}\frac{I_{PAR}}{I_{opt}}
-! \exp\left(1-\frac{I_{PAR}}{I_{opt}}\right)
-! \frac{c_n}{\alpha+c_n}c_p
-! \end{equation}
-!
-! with
-!
-! \begin{equation}
-! I_{opt}=\max\left(\frac14I_{PAR},I_{\min}\right).
-! \end{equation}
-!
-! Grazing of zooplankton on phytoplankton:
-! \begin{equation}\label{dpz}
-! d_{pz}=g_{\max}\left(1-\exp\left(-I_v^2c_p^2\right)\right)c_z
-! \end{equation}
-!
-! Phytoplankton excretion:
-! \begin{equation}\label{dpn}
-! d_{pn} = r_{pn} c_p
-! \end{equation}
-!
-! Zooplankton excretion:
-! \begin{equation}\label{dzn}
-! d_{zn} = r_{zn} c_z
-! \end{equation}
-!
-! Remineralisation of detritus into nutrients:
-! \begin{equation}\label{ddn}
-! d_{dn} = r_{dn} c_d
-! \end{equation}
-!
-! Phytoplankton mortality:
-! \begin{equation}\label{dpd}
-! d_{pd} = r_{pd} c_p
-! \end{equation}
-!
-! Zooplankton mortality:
-! \begin{equation}\label{dzd}
-! d_{zd} = r_{zd} c_z
-! \end{equation}
-!
+   
 ! !INPUT PARAMETERS:
    class (type_hzg_n2pzdq),intent(in) :: self
    _DECLARE_ARGUMENTS_DO_
@@ -365,29 +317,19 @@
    _GET_(self%id_temp,temp_fact)             ! local photosynthetically active radiation
    _GET_HORIZONTAL_(self%id_I_0,I_0)    ! surface short wave radiation
 
-   ! Light acclimation formulation based on surface light intensity.
-   !iopt = max(0.25*I_0,self%I_min)
-
-   ! Loss rate of phytoplankton to detritus depends on local light intensity.
-   !if (par .ge. self%I_min) then
-   !  rpd = self%rpdu
-   !else
-   !  rpd = self%rpdl
-   !end if
-
-   ! @internal QN and QP are obtained by computing Q_N=N/C and Q_P=P/C 
+   
+   !> @fn fabm_hzg_n2pzdq::do ( class (type_hzg_n2pzdq), intent(in) self, _ARGUMENTS_DO_ )
+   !> Phytoplankton processes:
+   !> \n Phyto quatas are calculated as: \f$ Q_N=P_N/P_C \f$ , \f$ Q_P=P_P/P_C \f$
+   !> \n Production: \f$  phy_{prod}, Nlim, Plim \f$ is obtained by calling \ref fprod
+   !> \n Mortality: \f$ phy_{mort}=phy_{mort}0*e^{(-mortpar_phy*Nlim,Plim)}*det_N \f$
+   !> \n N-uptake: \ref fupN function is called 
+   !> \n P-uptake: \ref fupP function is called 
    qnc = phyN/phyC 
    qpc = phyP/phyC
-
-   ! Define some intermediate quantities that will be reused multiple times.
-   !primprod = fprod(self,par,qnc,qpc)
-
-   ! phytoplankton processes
+  
    call fprod(self, par,temp_fact,qnc,qpc, primprod,Nlim,Plim,Llim)
-   !Nlim = 1-self%qmin_N/qnc
-   !Plim = 1-self%qmin_P/qpc
 
-   !primprod = self%grow_max**Llim
    !mort_phy = self%mort0_phy*exp(-3*(Nlim+Plim+Llim))
    mort_phy = self%mort0_phy*exp(-self%mortpar_phy*(Nlim*Plim))*detN!*Llim
    !mort_phy = self%mort0_phy*exp(-min(Nlim,Plim,Llim))
@@ -395,11 +337,18 @@
    uptakeN = fupN(self,DIN,qnc)*temp_fact
    uptakeP = fupP(self,DIP,qpc)*temp_fact
    
-   ! pelagic remineralisation
+
+   ! Remineralisation of detritus into nutrients:
+   ! \begin{equation}\label{ddn}
+   ! d_{dn} = r_{dn} c_d
+   ! \end{equation}
    reminN = self%rem_N*temp_fact !*detN/(detN+self%k_detN)
    reminP = self%rem_P*temp_fact !*detP/(detP+self%k_detP)
 
-   ! zooplankton processes
+   !> @fn fabm_hzg_n2pzdq::do ( class (type_hzg_n2pzdq), intent(in) self, _ARGUMENTS_DO_ )
+   !> Zooplankton processes:
+   !> \f$ G= \f$
+   !> \f$ d_{zd} = r_{zd} c_z \f$
    !grazing = self%grazmax*(1.0_rk-exp(-self%iv*phyC))
    !grazing = self%grazmax*phyC**2.0/(phyC**2.0+self%iv**2.0)
    grazing = self%grazmax*(1.0_rk-exp(-self%iv*self%iv*phyC*phyC))*temp_fact
@@ -481,11 +430,9 @@
 
 !-----------------------------------------------------------------------
 !BOP
-!
-! !IROUTINE: Get the light extinction coefficient due to biogeochemical
-! variables
-!
-! !INTERFACE:
+
+!> @brief to calculate light extinction when kc chnages with depth
+!> \details get_light: some more description here?
    subroutine get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
 !
 ! !INPUT PARAMETERS:
@@ -517,60 +464,27 @@
    end subroutine get_light_extinction
 !EOC
 
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Phytoplankton primary production
-!
-! !INTERFACE:
-!  pure real(rk) function fprod(self,par,qnc,qpc)
-!
-! !DESCRIPTION:
-! Here, the classical Michaelis-Menten formulation for nutrient uptake
-! is formulated.
-!
-! !INPUT PARAMETERS:
-!  type (type_gotm_n2pzdq), intent(in) :: self
-!  real(rk), intent(in)         :: par,qnc,qpc
-!
-! !REVISION HISTORY:
-!  Original author(s): Hans Burchard, Karsten Bolding
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-!  !fnp = self%gmax*(1.0_rk-self%q_min/qnc)*(par/self%I_opt*exp(1-par/self%I_opt))
-!  fprod = max(self%grow_max*min((1-self%qmin_N/qnc),(1-self%qmin_P/qpc))*(1-exp(-self%affin_par*par)),0.0_rk)
-!  end function fprod
-!EOC
-!-----------------------------------------------------------------------
-!BOP
-!
-! !INTERFACE:
+
+!> @brief subroutine: primary production
+!> @details
+!> \n Light limitation, \f$ Llim = (-\alpha*par) / \sqrt{grow_max^2+\alpha^2} \f$
+!> \n N-limitation, \f$ Nlim=1-qmin_N/qnc \f$
+!> \n N-limitation, \f$ Plim=1-qmin_P/qpc \f$
+!> \n primary production, \f$ primprod=rmax*min(Nlim,Plim)*Llim*temp_fact \f$
    subroutine fprod(self,par,temp_fact,qnc,qpc,primprod,Nlim,Plim,Llim)
-!
-! !IROUTINE: Phytoplankton primary production
-! !DESCRIPTION:
-! Here, the classical Michaelis-Menten formulation for nutrient uptake
-! is formulated.
-!
-! !INPUT PARAMETERS:
+   
+  !INPUT PARAMETERS:
    type (type_hzg_n2pzdq),    intent(in)   :: self
    real(rk), intent(in)         :: par,temp_fact,qnc,qpc
    real(rk), intent(out)        :: primprod,Nlim,Plim,Llim
    real(rk), parameter          :: secs_pr_day = 86400.0_rk
-
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-
-   ! N- P- and light limitation 
-   !Llim = 1-exp(-self%affin_par*par)
-   !Llim = par/self%affin_par*exp(1-par/self%affin_par)
+   
+   ! CALCULATIONS
    Llim = (self%affin_par*par)/((((self%grow_max*secs_pr_day)**2.0)+(self%affin_par**2.0)*(par**2))**0.5)
    Nlim = 1-self%qmin_N/qnc
    Plim = 1-self%qmin_P/qpc
-
+   
+   
    primprod = self%grow_max*min(Nlim,Plim)*Llim*temp_fact
    !primprod = self%grow_max*min(Nlim,Plim)
 
@@ -578,25 +492,16 @@
 !EOC
 !-----------------------------------------------------------------------
 !BOP
-!
-! !IROUTINE: Nutrient (N) uptake by phytoplankton
-!
-! !INTERFACE:
+!> @brief nitrogen uptake function
+!> @details Process description:quota-dependent regulation of uptake rate 
+!! (forced to stay above 0) times the limitation dependent on external concentration
+!> \n \f$ fupN=max(0, upmax_N(1-(Q_N-Q_{min})/(Qmax_N-Qmin_N))*DIN/(DIN+K_N) \f$
    pure real(rk) function fupN(self,DIN,qnc)
-!
-! !DESCRIPTION:
-! 
 !
 ! !INPUT PARAMETERS:
    type (type_hzg_n2pzdq), intent(in) :: self
    real(rk), intent(in)         :: qnc,DIN
-!
-! !REVISION HISTORY:
-!  Original author(s): Hans Burchard, Karsten Bolding
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
+
    fupN = max(self%upmax_N-self%upmax_N/(self%qmax_N-self%qmin_N)*(qnc-self%qmin_N),0.0_rk)*DIN/(DIN+self%halfsatN)
 
    end function fupN
@@ -604,10 +509,9 @@
 
 !-----------------------------------------------------------------------
 !BOP
-!
-! !IROUTINE: Nutrient (P) uptake by phytoplankton
-!
-! !INTERFACE:
+!> @brief phosphorus uptake function
+!> @details Calculated as:
+!> \f$ fupP=max(x,y) \f$
    pure real(rk) function fupP(self,DIP,qpc)
 !
 ! !DESCRIPTION:
@@ -623,8 +527,9 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   
    fupP = max(self%upmax_P-self%upmax_P/(self%qmax_P-self%qmin_P)*(qpc-self%qmin_P),0.0_rk)*DIP/(DIP+self%halfsatP)
-
+   
    end function fupP
 !EOC
 

@@ -15,9 +15,12 @@ default: doc
 doc:
 	$(DOXYGEN) $(DOXYGEN_CONFIG)
 	$(MAKE) -C latex
+	makeindex ./latex/refman.nlo -s nomencl.ist -o ./latex/refman.nls 	
+	$(MAKE) -C latex
 	@cp latex/refman.pdf n2pzdq_documentation.pdf
 
 clean:
 	@rm -rf latex
+	@rm -rf html
 	@rm -f n2pzdq_documentation.pdf
 

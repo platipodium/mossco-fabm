@@ -1,5 +1,5 @@
 /**
-@mainpage N2PZDQ: 2-Nutrients, Quota resolveing NPZD model 
+@mainpage N2PZDQ: 2-Nutrients, Quota resolving NPZD model 
 
 @section general-overview General Overview
 
@@ -19,9 +19,13 @@ For all details of the NPZD model implemented here, see \cite{Burchardetal2005b}
 Here is a diagram of fluxes:
 
 
+## Conventions
+For the sake of readibility of the formulas, conventional symbols (e.g., Greek letters, sub and superscripts, etc) are used. For the correspondance between the symbols and parameters in the model code, see the Nomenclature section at the end of this report.
+
 ~~~~sh
 maybe some script here
 ~~~~
+
 
 
 @section references References

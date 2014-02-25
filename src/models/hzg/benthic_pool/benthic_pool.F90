@@ -126,17 +126,17 @@ g_max,K,h_const,remin_max,diff,v_d,d_ben,const_nut,const_det,k_remin,nut_loss_ma
    
    ! Register diagnostic variables
    !id_dsink,id_ddiff,id_dremin,id_drhsdet,id_drhsnut,id_nloss
-   call self%register_diagnostic_variable(self%id_dsink,'detsed','mmol/m**2/d',  'detritus sed. flux',             &
+   call self%register_diagnostic_variable(self%id_dsink,'detsed','mmol/m**2/d',  'det_sed_flux',             &
                      output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_ddiff,'nutdif','mmol/m**2/d',  'nutrient diffusive flux ',                  &
+   call self%register_diagnostic_variable(self%id_ddiff,'nutdif','mmol/m**2/d',  'nut_diff_flux',                  &
                      output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_dremin,'detrem','mmol/m**2/d',  'detrital remin. rate',                 &
+   call self%register_diagnostic_variable(self%id_dremin,'detrem','mmol/m**2/d',  'det_remin_rate',                 &
                      output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_nloss,'nutloss','mmol/m**2/d',  'nutrient loss rate',                 &
+   call self%register_diagnostic_variable(self%id_nloss,'nutloss','mmol/m**2/d',  'nut_loss_rate',                 &
                      output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_drhsdet,'ddet','mmol/m**2/d',  'RHS det',                          &
+   call self%register_diagnostic_variable(self%id_drhsdet,'ddet','mmol/m**2/d',  'det_RHS',                          &
                      output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_drhsnut,'dnut','mmol/m**2/d',  'RHS nut',                          &
+   call self%register_diagnostic_variable(self%id_drhsnut,'dnut','mmol/m**2/d',  'nut_RHS',                          &
                      output=output_time_step_averaged)
    !call self%register_diagnostic_variable(self%id_ninflux,'ninflux','',  'ninflux',                          &
    !                  output=output_time_step_integrated)
