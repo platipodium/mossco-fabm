@@ -68,14 +68,16 @@ num_nut  = i
 ! TODO: energetic costs of P-assimilation not brought up as an extra term but 
 !          assumed to be already included in protein synthesis
 ! \partial (\zeta_CN V_N) / \partial V_P
-    q_NoLip  = 1./3.8  ! P-elemiometry of active compounds (DNA, RNA)  
-    q_Lip    = 1./0.8    ! storage P-elemiometry   
+!    q_NoLip  = 3.8  ! P-stoichiometry of active compounds (DNA, RNA)  
+    q_NoLip  = 16   ! Redfield-stoichiometry 
+    q_Lip    = 0.8  ! storage P-elemiometry   
     f_Lip    = 1./(1.+exp(10*(1.-phy%relQ%P)))
 
 zeta_X(1)         = self%zeta_CN
 if (self%PhosphorusOn) then
    if (num_nut .gt. 2) zeta_X(3:num_nut) = 0.0d0
    zeta_X(2)      = self%zeta_CN * ((1.-f_Lip)*q_NoLip + f_Lip*q_Lip)
+!   zeta_X(2)      = self%zeta_CN * 0
 end if
 ! --- relative amount of carbon invested into light harvesting complex (LHC) -------
 ! chlorophyll-to-carbon ratio of chloroplast * chloroplast concentration of cell
@@ -124,6 +126,9 @@ sigmv(1)         = sigmp
 
 qp_Y = elem(num_nut)%relQ
 
+dqp_X_dq_X(num_nut)  = 1.0d0
+dqp_X_dqp_Y(num_nut) = 0.0d0
+
 if (num_nut .gt. 1) then
  sigmv(2:num_nut)  = 0.0d0
 
@@ -154,8 +159,6 @@ if (num_nut .gt. 1) then
  end do
 else
  qp_X = qp_Y   ! initial value for num_nut=1
- dqp_X_dq_X(1)  = 1.0d0
- dqp_X_dqp_Y(1) = 0.0d0
 ! write (*,'(A,3(F11.5))') 'qp1:',phy%Q%N,elem(num_nut)%relQ,phy%relQ%N
 
 end if
@@ -187,6 +190,9 @@ do i = 1, num_nut
 !   steady-state down-regulation of uptake I: balance of respiration and indirect benefits  
    dmu_dV    = (1.0d0 + zeta_X(i) * elem(i)%Q) * d_QX/(1.0d0 + elem(i)%Q * (d_QX + sigmv(i)))
    e_N       = e_N0 + d_X * elem(i)%iKQ/elem(i)%relQ
+   if(i .eq. 2) acc%fac1   = elem(i)%Q
+   if(i .eq. 2) acc%fac2   = dqp_X_dq_X(i)
+
    dmu_dV    = dmu_dV * e_N / (e_N + sigmv(i))
 
    dmu_daV   = (-zeta_X(i) + dmu_dV) * phy%frac%NutUpt * elem(i)%upt_pot 
@@ -203,6 +209,9 @@ do i = 1, num_nut
    dmuQ_dtheta = dmuQ_dtheta - dmu_dV * elem(i)%upt_act * phy%rel_chloropl * self%itheta_max
 
 end do
+!  acc%tmp    = sens%upt_pot%C
+!  acc%fac1   = upt_act%P
+
 
 ! ---  respiration due to N assimilation --------------------------------------
 lossC       = self%zeta_CN * uptake%N                           ! [d^{-1}]
@@ -225,7 +234,7 @@ if (self%RubiscoOn) then
    grad_fracR = dmu_dfracR              &   ! marginal C gain of light independent processes 
               + dmuQ_dfracR                    ! marginal loss due to reduced uptake 
 
-   acc%fac2 = dmuQ_dfracR
+!   acc%fac2 = dmuQ_dfracR
 !   acc%tmp  = dmuP
 
 ! --- regulation speed in Rubisco expression -------------------------------------- 
@@ -264,7 +273,7 @@ exud%P      = phy%P / phy%reg%N * exud%N   ! [(mmolP) (mmolC)^{-1} d^{-1}]
 if (self%DebugDiagOn) then
 !  acc%tmp    = sens%upt_pot%C
 !  acc%fac1   = phy%theta * phy%rel_chloropl 
-  acc%fac2   = grad_fracR
+!  acc%fac2   = grad_fracR
 endif
 
 end subroutine photosynthesis

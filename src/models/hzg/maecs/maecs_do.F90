@@ -374,6 +374,8 @@ end if
   _SET_DIAGNOSTIC_(self%id_QN, phy%Q%N)                      !last 
   _SET_DIAGNOSTIC_(self%id_QP, phy%Q%P)                      !last 
   _SET_DIAGNOSTIC_(self%id_tmp, acclim%tmp)                !last phy%rel_QSi
+  _SET_DIAGNOSTIC_(self%id_fac1,acclim%fac1) 
+  _SET_DIAGNOSTIC_(self%id_fac2,acclim%fac2) 
 !#E_DIA
 
 if (self%DebugDiagOn) then

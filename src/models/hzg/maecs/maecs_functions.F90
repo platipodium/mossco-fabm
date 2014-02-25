@@ -75,9 +75,9 @@ subroutine queuefunc(n,x,qfunc,qderiv)
    real(rk), intent(out)         :: qfunc, qderiv
    real(rk)                      :: px
 
-   if(abs(_ONE_-x) .lt. 1E-5) then
+   if(abs(_ONE_-x) .lt. 1E-3) then
       qfunc  = n/(n+_ONE_)
-      qderiv = qfunc/2
+      qderiv = qfunc/2 ! 1./(2*(1+hh)); 
    else
       px = x**(n+_ONE_)
       qfunc =  (x-px)/(_ONE_-px)
