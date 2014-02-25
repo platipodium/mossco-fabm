@@ -19,12 +19,12 @@ implicit none
 
 type (type_maecs_base_model), intent(in)   :: self
 type (type_maecs_sensitivities),intent(in), target :: sens
-type (type_maecs_phy), intent(inout), target :: phy
+type (type_maecs_phy), intent(inout) :: phy
 type (type_maecs_om), intent(out), target  :: uptake
 type (type_maecs_om), intent(out)          :: exud
 type (type_maecs_traitdyn), intent(out)    :: acc
 
-real(rk) :: fac_colim            ! colimitation due to 'ratio_free_PN' (dimensionless)
+real(rk) :: fac_colim          ! colimitation factor (dimensionless)
 integer  :: num_nut, i
 real(rk) :: eps
 ! --- UPTAKE KINETICS
@@ -51,17 +51,17 @@ real(rk), dimension(5) :: sigmv ! relative quota-uptake feed-back
 real(rk), dimension(5) :: dqp_X_dq_X, dqp_X_dqp_Y  ! derivatives
 real(rk), dimension(5) :: zeta_X  ! C-costs of assimilation of nutrient X
 !real(rk), dimension(5) :: upt_act
-type (stoichiometry_pointer) :: elem(1:4) ! pointer structure for addressing all elements wthin loops
+type (stoichiometry_pointer), dimension(5) :: elem ! pointer structure for addressing all elements wthin loops
 ! TODO: self%num_nut
 ! 
 eps     =  self%small_finite ! just  a shorter namer
 
-!elem(1)%upt => uptake%C
-!elem(2)%upt => uptake%N
 ! prepare loop over structure elements by assigning a poinzer structure
 ! here, every possible nutrient is asked explicitely; thus first Si then P
 include './maecs_stoichvars.F90p'
+
 num_nut  = i
+! write (*,'(A,(I4))') 'num_nut:',num_nut
 
 ! prelim solution: elemiometry in RNA (N:P ~ 4:1) and phospholipids (N:P~1:1)
 ! TODO: include proteins/mebranes (N:P >> 16:1) under low growth conditions 
@@ -74,6 +74,7 @@ num_nut  = i
 
 zeta_X(1)         = self%zeta_CN
 if (self%PhosphorusOn) then
+   if (num_nut .gt. 2) zeta_X(3:num_nut) = 0.0d0
    zeta_X(2)      = self%zeta_CN * ((1.-f_Lip)*q_NoLip + f_Lip*q_Lip)
 end if
 ! --- relative amount of carbon invested into light harvesting complex (LHC) -------
@@ -94,7 +95,7 @@ dbal_dv = 1.0d0 + phy%Q%N * self%zeta_CN  ! partial derivative of the balance eq
 
 ! --- synchrony in nutrient assimilation depends on growth cycle and N-quota
 !         
-if (self%syn_nut .le. _ZERO_ .and. self%PhosphorusOn) then  !
+if (self%syn_nut .le. _ZERO_ ) then  !
    syn_act = -self%syn_nut * phy%relQ%N
 else
    syn_act  = self%syn_nut
@@ -124,8 +125,7 @@ sigmv(1)         = sigmp
 qp_Y = elem(num_nut)%relQ
 
 if (num_nut .gt. 1) then
- sigmv(1:num_nut-1) = 0.0d0
- zeta_X(1:num_nut-1) = 0.0d0
+ sigmv(2:num_nut)  = 0.0d0
 
  ! loop over all nutrients starting from pre-final
  do i = num_nut-1, 1, -1  
@@ -154,8 +154,10 @@ if (num_nut .gt. 1) then
  end do
 else
  qp_X = qp_Y   ! initial value for num_nut=1
- dqp_X_dq_X(i)  = 1.0d0
- dqp_X_dqp_Y(i) = 0.0d0
+ dqp_X_dq_X(1)  = 1.0d0
+ dqp_X_dqp_Y(1) = 0.0d0
+! write (*,'(A,3(F11.5))') 'qp1:',phy%Q%N,elem(num_nut)%relQ,phy%relQ%N
+
 end if
 
 fac_colim   = qp_X
@@ -164,12 +166,6 @@ fac_colim   = qp_X
 !   fac_colim             : synchrony in  protein/RNA dynamics 
 !   sens%upt_pot%C        : light harvesting (light limited growth)   
 grossC      = fac_colim * phy%frac%Rub * sens%P_max_T * sens%upt_pot%C  ! primary production
-
-! ---  respiration due to N assimilation --------------------------------------
-lossC       = self%zeta_CN * uptake%N                           ! [d^{-1}]
-
-! --- relative growth rate RGR: gross production - exudation - uptake respiration --  
-uptake%C    = grossC - lossC     !* (1.0d0- self%exud_phy) ![d^{-1}]
 
 phy%rel_phys= fac_colim * sens%upt_pot%C  ! auxiliary variable for sinking routine
 
@@ -208,12 +204,21 @@ do i = 1, num_nut
 
 end do
 
+! ---  respiration due to N assimilation --------------------------------------
+lossC       = self%zeta_CN * uptake%N                           ! [d^{-1}]
+! write (*,'(A,3(F10.4))') 'rgr:',fac_colim,lossC,sens%upt_pot%C
+
+! --- relative growth rate RGR: gross production - exudation - uptake respiration --  
+uptake%C    = grossC - lossC     !* (1.0d0- self%exud_phy) ![d^{-1}]
+
+! write (*,'(A,3(F10.3))') 'upt:',upt_act%N,uptake%N,uptake%C 
+
 ! --- photoacclimation and photosynthesis ------------------------------------------------            
 !     differential coupling between pigment synthesis and costs due to N-uptake     
 ! positive gradient term due to PAR adsorption by CHL 
 ! ---  partitioning to chloroplast and rubisco --------------------------------------------
 
-if (self%PhotoacclimOn .and. self%RubiscoOn) then
+if (self%RubiscoOn) then
 ! --- derivatives of C-uptake rate  --------------------------------------------         
    dmu_dfracR  = fac_colim * sens%P_max_T * sens%upt_pot%C + self%zeta_CN * upt_act%N * dfV_dfracR
 
@@ -229,11 +234,8 @@ if (self%PhotoacclimOn .and. self%RubiscoOn) then
 
 ! *** ADAPTIVE EQUATION FOR 'frac_R'
    acc%dfracR_dt = flex_fracR * grad_fracR  
-
-!write (*,'(A,2(F10.3))') '2:',acc%dfracR_dt*1E3, grad_fracR *1E3
-else
-   acc%dfracR_dt = 0.0d0
 end if
+!write (*,'(A,2(F10.3))') 'dfracR_dt: ',acc%dfracR_dt*1E3, grad_fracR *1E3
 
 if (self%PhotoacclimOn) then
 
@@ -248,8 +250,7 @@ if (self%PhotoacclimOn) then
 
   ! *** ADAPTIVE EQUATION FOR 'theta'
    acc%dtheta_dt = flex_theta * grad_theta
-else
-   acc%dtheta_dt = 0.0d0
+
 end if
 ! --- carbon exudation   ----------------------------------------------------------
 !  TODO: discuss and adjust; data?

@@ -91,7 +91,7 @@ type type_maecs_traitdyn
       real(rk)   :: dRchl_dfracR 
       real(rk)   :: dRchl_dQN
       real(rk)   :: tmp,fac1,fac2  ! for volatile diagnostics
-      type (type_maecs_om) :: dV_dfracR, dV_dtheta
+!      type (type_maecs_om) :: dV_dfracR, dV_dtheta
 end type
                                        
 
@@ -108,7 +108,7 @@ type stoichiometry_pointer
    real(rk),pointer  :: upt, upt_act, upt_pot
    real(rk)          :: relQ, Q
    real(rk)          :: iKQ
-end type
+end type stoichiometry_pointer
 
 end module
 

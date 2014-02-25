@@ -332,6 +332,7 @@ sens%P_max_T = maecs%P_max * sens%f_T
 ! --- light response curve ------------------------------------------------------------------------
 sens%a_light = maecs%alpha * par /(sens%P_max_T)  ! par NOCH BAUSTELLE, jetzt PAR in zellmitte 
 sens%upt_pot%C  = 1.0d0 - exp(- sens%a_light * phy%theta) ! [dimensionless]
+! write (*,'(A,5(F10.4))') 'PAR Pm a th S:',par, sens%P_max_T,sens%a_light , phy%theta,sens%upt_pot%C
 
 ! --- carbon specific N-uptake: sites vs. processing ----------------------------------
 ! non-zero nutrient concentration for regulation
@@ -437,6 +438,7 @@ if (maecs%PhotoacclimOn) then
 
   ! conversion of bulk chlorophyll concentration to chlorophyll content in chloroplasts  
   phy%theta     = phy%chl / (phy%rel_chloropl * phy%reg%C)   ! trait variable
+
 ! cell specific CHL:C ratio of chloroplasts / carbon bound to LHC per CHL-pigment
   phy%frac%theta= phy%chl/phy%reg%C * maecs%itheta_max ! []     no smaller than o(1.d-5)!
 endif

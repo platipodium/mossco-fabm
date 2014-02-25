@@ -70,6 +70,7 @@ logical  :: out = .true.
   _GET_(self%id_detN, det%N)  ! Detritus Nitrogen in mmol-N/m**3
   _GET_(self%id_domC, dom%C)  ! Dissolved Organic Carbon in mmol-C/m**3
   _GET_(self%id_domN, dom%N)  ! Dissolved Organic Nitrogen in mmol-N/m**3
+
 if (self%RubiscoOn) then
       _GET_(self%id_Rub, phy%Rub)  ! fraction of Rubisco in -
 end if
@@ -125,9 +126,11 @@ call calc_internal_states(self,phy,det,dom,zoo)
 !write (*,'(A,2(F10.3))') '2 P,chl=',phy%C,phy%chl
 
 if (.not. self%PhotoacclimOn) then  
-   phy%chl = phy%C * self%frac_chl_ini   ! total Chl mg-CHL/m3
-   phy%frac%theta  = self%frac_chl_ini * phy%Q%N  * self%itheta_max
-   phy%theta       = self%frac_chl_ini * phy%Q%N / self%frac_Rub_ini! g-CHL/mol-N*m3
+   phy%chl         = phy%C * self%frac_chl_ini   ! total Chl mg-CHL/m3
+   phy%frac%theta  = self%frac_chl_ini * self%itheta_max
+   phy%theta       = self%frac_chl_ini /(self%frac_Rub_ini*phy%relQ%N**self%sigma)
+! g-CHL/mol-C*m3
+! write (*,'(A,2(F10.3))') 'theta:',phy%relQ%N**self%sigma,phy%theta   
 end if 
 
 call calc_sensitivities(self,sens,phy,env,nut)
@@ -194,7 +197,9 @@ rhsv%phyN =  uptake%N             * phy%C &
            - exud%N               * phy%C & 
            - aggreg_rate          * phy%N &
            - self%dil             * phy%N &          
-           - graz_rate * phy%Q%N          
+           - graz_rate * phy%Q%N       
+   
+!rhsv%phyN = 0.0_rk
 
 !_____________________________________________________________________________
 
@@ -213,12 +218,10 @@ if (self%PhotoacclimOn) then
 !write (*,'(A,4(F10.3))') 'rhs chl=', phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC,dRchl_phyC_dt * phy%reg%C*1E1,phy%relQ%N**self%sigma,phy%theta
 
 !_____________________________________________ _________________________________
+end if 
 
 if (self%RubiscoOn) then 
-    rhsv%Rub  = acclim%dfracR_dt * phy%C + phy%Rub/phy%reg%C * rhsv%phyC 
-
-
-   end if 
+   rhsv%Rub  = acclim%dfracR_dt * phy%C + phy%Rub/phy%reg%C * rhsv%phyC 
 end if 
 !________________________________________________________________________________
 !
@@ -328,6 +331,10 @@ if (self%SiliconOn) then
 end if 
 
 !#S_ODE
+! write (*,*) ' ' 
+!write(*,*) ''
+! write (*,'(A,2(F12.2))') 'S-N-C:',rhsv%phyN*1E5,rhsv%phyC*1E5
+
 !---------- ODE for each state variable ----------
   _SET_ODE_(self%id_nutN, rhsv%nutN UNIT)
   _SET_ODE_(self%id_phyC, rhsv%phyC UNIT)
