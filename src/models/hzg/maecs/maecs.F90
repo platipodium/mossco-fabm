@@ -265,7 +265,7 @@ dil          = 0.0_rk             !
 
 
 !--------- read namelists --------- 
-write(0,*) ' read namelists ....'
+!write(0,*) ' read namelists ....'
 open(namlst,file='maecs_switch.nml',status='old')
 read(namlst,nml=maecs_switch,err=90,end=99)
 open(namlst,file='maecs_init.nml',status='old')
@@ -334,8 +334,10 @@ call self%get_parameter(self%hydrol       ,'hydrol',        default=hydrol)
 call self%get_parameter(self%remin        ,'remin',         default=remin)
 call self%get_parameter(self%Ae_all       ,'Ae_all',        default=Ae_all)
 call self%get_parameter(self%T_ref        ,'T_ref',         default=T_ref)
-if (PhotoacclimOn) then
+if (RubiscoOn) then
     call self%get_parameter(self%adap_rub     ,'adap_rub',      default=adap_rub)
+end if
+if (PhotoacclimOn) then
     call self%get_parameter(self%adap_theta   ,'adap_theta',    default=adap_theta)
 end if
 if (PhosphorusOn) then
@@ -376,6 +378,7 @@ call self%get_parameter(self%dil          ,'dil',           default=dil)
 self%K_QN_phy     = QN_phy_max-QN_phy_0
 self%iK_QN        = 1.0d0/self%K_QN_phy
 self%iK_QP        = 1.0d0/(QP_phy_max-QP_phy_0)
+self%iK_QSi       = 1.0d0/(QSi_phy_max-QSi_phy_0)
 self%itheta_max   = 1.0d0/theta_LHC
 self%aver_QN_phy  = 5.0d-1*(QN_phy_max+QN_phy_0)
 self%aver_QP_phy  = 5.0d-1*(QP_phy_max+QP_phy_0)
@@ -404,8 +407,6 @@ call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_nu
 call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_phyN)
 call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_detN)
 call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_domN)
-
-
 
 if (RubiscoOn) then
     Rub = frac_Rub_ini * phyC_initial  ! trait times biomass
@@ -465,6 +466,10 @@ call self%register_diagnostic_variable(self%id_QN,      'QN','-', ' QN', &
 call self%register_diagnostic_variable(self%id_QP,      'QP','-', ' QP', &
   output=output_instantaneous)
 call self%register_diagnostic_variable(self%id_tmp,     'tmp','-', ' tmp', &
+  output=output_instantaneous)
+call self%register_diagnostic_variable(self%id_fac1,     'fac1','-', ' fac1', &
+  output=output_instantaneous)
+call self%register_diagnostic_variable(self%id_fac2,     'fac2','-', ' fac2', &
   output=output_instantaneous)
 
 !!------- Register environmental dependencies  ------- 

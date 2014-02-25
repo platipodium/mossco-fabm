@@ -12,11 +12,12 @@ endif
 
 DEFINES=-D$(FORTRAN_COMPILER) -D_FABM_F2003_
 
-FEATURES	=
+FEATURES	= 
 FEATURE_LIBS	=
 EXTRA_LIBS	=
 INCDIRS		=
 LDFLAGS		=
+DEBUG_FLAGS     = 
 
 FABMBASE = ${LIBFABM}(fabm_standard_variables.o) ${LIBFABM}(fabm_properties.o) ${LIBFABM}(fabm_types.o) ${LIBFABM}(fabm_expressions.o)
 
