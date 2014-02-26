@@ -21,10 +21,9 @@
 !> @brief This is the derived model type
 
 !> @details
-!> \latexonly \nomenclature{$\alpha$}{affin\_par} \endlatexonly
-!> \latexonly \nomenclature{$V_{max,N} $}{upmax\_N} \endlatexonly
-!> \param affin_par \f$ \alpha \f$ - initial slope of the P-I curve
-!> \param upmax_N \f$ V_{max,N} \f$ -maximum nitrogen uptake rate
+! \latexonly \nomenclature{$\alpha$}{affin\_par  :initial slope of the P-I curve } \endlatexonly \param affin_par \f$ \alpha \f$ :initial slope of the P-I curve 
+! instead of this duplicated work, the '\describepar' alias can be used:
+!> \describepar{affin\_par, \alpha, : initial slope of the P-I curve}
    type,extends(type_base_model),public    ::  type_hzg_n2pzdq
 !     Variable identifiers
       type (type_state_variable_id)        :: id_DIN,id_DIP,id_phyC,id_phyN,id_phyP,id_detN,id_detP,id_zooC
@@ -38,7 +37,7 @@
 !     Model parameters
       real(rk) :: p0,upmax_N,upmax_P,grow_max,iv,halfsatN,halfsatP, & 
                   rem_N,rem_P,mort0_phy,mortpar_phy,qmax_N,qmax_P,qmin_N,qmin_P,kc,w_p,w_d,rpn,grazmax,mort_zoo,n,qzn,qzp,eff,e_C,k_detN,k_detP,mort_zoo2,n2,zexcdetfr
-      real(rk) :: affin_par 
+      real(rk) :: affin_par !! \f$ \alpha \f$ - initial slope of the P-I curve (this is just an example)
       real(rk) :: dic_per_n
       logical  :: use_dic 
       
@@ -280,7 +279,7 @@
 
 
 !> @brief This is the main routine where right-hand-sides are calculated
-!> \details Here details about specific processes are provided.
+!> @details Here details about specific processes are provided.
    subroutine do(self,_ARGUMENTS_DO_)
    
 ! !INPUT PARAMETERS:
@@ -338,8 +337,9 @@
    uptakeP = fupP(self,DIP,qpc)*temp_fact
    
 
-   ! Remineralisation of detritus into nutrients:
-   ! \begin{equation}\label{ddn}
+   !> @fn fabm_hzg_n2pzdq::do ( class (type_hzg_n2pzdq), intent(in) self, _ARGUMENTS_DO_ )
+   !>  Remineralisation of detritus into nutrients:
+   !>n \begin{equation}\label{ddn}
    ! d_{dn} = r_{dn} c_d
    ! \end{equation}
    reminN = self%rem_N*temp_fact !*detN/(detN+self%k_detN)
@@ -377,7 +377,8 @@
     end if
   end if
 
-   ! calculate rhs 
+   !> @fn fabm_hzg_n2pzdq::do ( class (type_hzg_n2pzdq), intent(in) self, _ARGUMENTS_DO_ )
+   !> Calculate rhs: 
    dn    = reminN*detN - uptakeN*phyC+(1-self%zexcdetfr)*(1-e_N)*qnc*grazing*zooC
    dp    = reminP*detP - uptakeP*phyC+(1-self%zexcdetfr)*(1-e_P)*qpc*grazing*zooC
    dphyC = primprod*phyC - mort_phy*phyC - grazing*zooC
@@ -471,6 +472,7 @@
 !> \n N-limitation, \f$ Nlim=1-qmin_N/qnc \f$
 !> \n N-limitation, \f$ Plim=1-qmin_P/qpc \f$
 !> \n primary production, \f$ primprod=rmax*min(Nlim,Plim)*Llim*temp_fact \f$
+!> \n P=affin_par * X
    subroutine fprod(self,par,temp_fact,qnc,qpc,primprod,Nlim,Plim,Llim)
    
   !INPUT PARAMETERS:

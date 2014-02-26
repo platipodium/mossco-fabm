@@ -108,7 +108,27 @@
   \newpage{\pagestyle{empty}\cleardoublepage}%
 }
 
+
+% ============ take nomenclature package into account
 \makenomenclature
+\renewcommand{\nomname}{Symbols} % sectiontitle for nomenclature
+\renewcommand{\nomgroup}[1]{
+	      \item[\textbf{Symbols used in formulas, respective model parameters, and their descriptions\phantomsection}]% for the foot note, replace ] with $^*$]
+              \addcontentsline{toc}{section}{Symbols}%
+              \markboth{\nomname}{Roman symbols and description}~ \\%
+              \hspace*{-\leftmargin} \rule{\textwidth}{0.5pt}{}}
+\setlength{\nomitemsep}{-\parsep+1pt}    % skip between the nomenclature entries
+%\renewcommand{\nompreamble}{Symbol \hspace{4pt} Description\vspace*{-10pt}\\ \rule{\textwidth}{0.5pt}}
+%\setlength{\nomlabelwidth}{45pt}   % Length between symbol and description
+%\renewcommand{\nompostamble}{\rule{\textwidth}{0.5pt}\\%
+%             $^*$\,\small{Note that some few symbols are not listed here which become clear in the context of the text.}}
+\renewcommand{\eqdeclaration}[1]{, e.\,g. in Eq.\,(#1)}
+
+%A dirty hack to avoid doxygen interpreting the \n of \nomenclature, occuring when the nomenclature command is aliased
+\newcommand{\omenclature}[2]{\nomenclature{#1}{#2}}
+%of course now we should use the \omenclature command in the alias
+%======== end of declaration for nomenclature package 
+
 
 \begin{document}
 
@@ -130,6 +150,8 @@
 %\clearemptydoublepage
 \pagenumbering{arabic}
 \hypersetup{pageanchor=true}
+
+\printnomenclature
 
 %extra stuff
 \input{extra_latex_file}
