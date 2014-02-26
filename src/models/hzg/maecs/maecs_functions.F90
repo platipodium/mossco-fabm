@@ -11,7 +11,7 @@
    private
    public   uptflex       ,& 
             queuefunc, queuefunc0, queuederiv ,&
-            smooth_small, sinking, min_mass, calc_rel_chloropl, &
+            smooth_small, sinking, min_mass, &
             calc_sensitivities, calc_internal_states
 
  contains  
@@ -281,32 +281,6 @@ end select
 end subroutine min_mass
 
 !------------------------------------------------------
-subroutine calc_rel_chloropl(maecs,phy,method)
-
-implicit none
-
-type (type_maecs_base_model), intent(in) :: maecs
-type (type_maecs_phy), intent(inout) :: phy
-integer, intent(in), optional        :: method
-integer :: mm_method=_MARKUS_
-
-if (present(method)) mm_method=method
-
-select case (mm_method)
-case (_MARKUS_)
-   phy%rel_chloropl = maecs%rel_chloropl_min + phy%frac%Rub * phy%relQ%N**maecs%sigma
-      
-case (_KAI_)
-!   phy%rel_chloropl = smooth_small(phy%frac%Rub * phy%relQ%N**maecs%sigma,maecs%rel_chloropl_min)
-   phy%rel_chloropl = smooth_small(phy%frac%Rub * phy%relQ%N**maecs%sigma,maecs%rel_chloropl_min)
-
-!write (*,'(A,3(F10.3))') '0 Relchl=',phy%rel_chloropl,phy%frac%Rub * phy%relQ%N,maecs%rel_chloropl_min
-
-end select
-
-end subroutine
-
-!------------------------------------------------------
 subroutine calc_sensitivities(maecs,sens,phy,env,nut)
 
 implicit none
@@ -406,8 +380,7 @@ if (maecs%PhosphorusOn) then
    phy%relQ%P = ( phy%Q%P - maecs%QP_phy_0 ) * maecs%iK_QP
    phy%relQ%P = smooth_small(phy%relQ%P, maecs%small_finite)
 ! added for deep detritus traps with extreme quotas kw Jul, 16 2013
-
-   phy%relQ%P = _ONE_ - smooth_small(_ONE_- phy%relQ%P, maecs%small_finite)
+!   phy%relQ%P = _ONE_ - smooth_small(_ONE_- phy%relQ%P, maecs%small_finite)
 !write (*,'(A,4(F10.3))') 'relQ%P=',phy%relQ%P,phy%Q%P*1E3,(phy%Q%P - maecs%QP_phy_0)*1E3,maecs%QP_phy_0*1E3
 
 !   dom%QP     = dom%P  / (dom%C  + min_Cmass)  ! P:C ratio of DOM
@@ -422,19 +395,20 @@ if (maecs%SiliconOn) then
    phy%relQ%Si = ( phy%Q%Si - maecs%QSi_phy_0 ) /(maecs%QSi_phy_max-maecs%QSi_phy_0) 
 
 ! added for deep detritus traps with extreme quotas kw Jul, 16 2013
-   phy%relQ%Si = _ONE_ - smooth_small(_ONE_- phy%relQ%Si, maecs%small_finite)
+!   phy%relQ%Si = _ONE_ - smooth_small(_ONE_- phy%relQ%Si, maecs%small_finite)
 !   phy%Q%SiN    = phy%Sii / phy%reg%N
 end if   
 
 ! fraction of free (biochemically available) intracellular nitrogen
 phy%relQ%N  = (phy%Q%N - maecs%QN_phy_0) * maecs%iK_QN
+phy%relQ%N  = smooth_small(phy%relQ%N, maecs%small_finite)
 ! added for deep detritus traps with extreme quotas kw Jul, 16 2013
-phy%relQ%N = smooth_small(phy%relQ%N, maecs%small_finite)
-phy%relQ%N  = _ONE_ - smooth_small(_ONE_- phy%relQ%N, maecs%small_finite)
+!phy%relQ%N  = _ONE_ - smooth_small(_ONE_- phy%relQ%N, maecs%small_finite)
+
+  ! calculate rel_chloropl
+phy%rel_chloropl = smooth_small(phy%frac%Rub * phy%relQ%N**maecs%sigma,maecs%rel_chloropl_min)
 
 if (maecs%PhotoacclimOn) then  
-  ! calculate rel_chloropl
-  call calc_rel_chloropl(maecs,phy,method=_KAI_)
 
   ! conversion of bulk chlorophyll concentration to chlorophyll content in chloroplasts  
   phy%theta     = phy%chl / (phy%rel_chloropl * phy%reg%C)   ! trait variable

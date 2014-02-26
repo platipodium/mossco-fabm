@@ -471,6 +471,10 @@ call self%register_diagnostic_variable(self%id_fac1,     'fac1','-', ' fac1', &
   output=output_instantaneous)
 call self%register_diagnostic_variable(self%id_fac2,     'fac2','-', ' fac2', &
   output=output_instantaneous)
+call self%register_diagnostic_variable(self%id_aVN,     'aVN','-', ' aVN', &
+  output=output_instantaneous)
+call self%register_diagnostic_variable(self%id_aVP,     'aVP','-', ' aVP', &
+  output=output_instantaneous)
 
 !!------- Register environmental dependencies  ------- 
 call self%register_dependency(self%id_temp,varname_temp)

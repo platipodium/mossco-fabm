@@ -376,6 +376,10 @@ end if
   _SET_DIAGNOSTIC_(self%id_tmp, acclim%tmp)                !last phy%rel_QSi
   _SET_DIAGNOSTIC_(self%id_fac1,acclim%fac1) 
   _SET_DIAGNOSTIC_(self%id_fac2,acclim%fac2) 
+  _SET_DIAGNOSTIC_(self%id_aVN,acclim%aV%N) 
+  _SET_DIAGNOSTIC_(self%id_aVP,acclim%aV%P) 
+
+
 !#E_DIA
 
 if (self%DebugDiagOn) then
