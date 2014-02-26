@@ -129,6 +129,7 @@ real(rk)  :: QN_phy_max   ! maximum N-quota
 real(rk)  :: V_NC_max     ! maximum N uptake rate
 real(rk)  :: AffN         ! N-Affinity
 real(rk)  :: zeta_CN      ! respiratory costs of N-synthesis/NO3-reduction
+real(rk)  :: zstoich_PN   ! P-stoichiometry of active compounds(-> P costs)
 real(rk)  :: exud_phy     ! phytoplankton exudation per production
 real(rk)  :: QP_phy_0     ! subsistence P-quota
 real(rk)  :: QP_phy_max   ! subsistence P-quota
@@ -191,8 +192,8 @@ namelist /maecs_init/ &
 
 namelist /maecs_pars/ &
   P_max, alpha, sigma, theta_LHC, rel_chloropl_min, QN_phy_0, QN_phy_max, &
-  V_NC_max, AffN, zeta_CN, exud_phy, QP_phy_0, QP_phy_max, V_PC_max, AffP, &
-  QSi_phy_0, QSi_phy_max, V_SiC_max, AffSi, syn_nut, adap_rub, adap_theta, &
+  V_NC_max, AffN, zeta_CN, zstoich_PN, exud_phy, QP_phy_0, QP_phy_max, V_PC_max, &
+  AffP, QSi_phy_0, QSi_phy_max, V_SiC_max, AffSi, syn_nut, adap_rub, adap_theta, &
   tau_regV, phi_agg, vS_phy, vS_det, hydrol, remin, Ae_all, T_ref
 
 namelist /maecs_graz/ &
@@ -229,6 +230,7 @@ QN_phy_max   = 0.2_rk             ! mol-N/mol-C
 V_NC_max     = 0.2_rk             ! mmol-N/(m3 d)
 AffN         = 0.1_rk             ! m3/(mmol-N d)
 zeta_CN      = 2.3_rk             ! mol-C/mol-N
+zstoich_PN   = 3.8_rk             ! mol-N/mol-P
 exud_phy     = 0.0_rk             ! 
 QP_phy_0     = 0.0_rk             ! mol-P/mol-C
 QP_phy_max   = 0.02_rk            ! mol-P/mol-C
@@ -324,6 +326,7 @@ call self%get_parameter(self%QN_phy_max   ,'QN_phy_max',    default=QN_phy_max)
 call self%get_parameter(self%V_NC_max     ,'V_NC_max',      default=V_NC_max)
 call self%get_parameter(self%AffN         ,'AffN',          default=AffN)
 call self%get_parameter(self%zeta_CN      ,'zeta_CN',       default=zeta_CN)
+call self%get_parameter(self%zstoich_PN   ,'zstoich_PN',    default=zstoich_PN)
 call self%get_parameter(self%exud_phy     ,'exud_phy',      default=exud_phy)
 call self%get_parameter(self%syn_nut      ,'syn_nut',       default=syn_nut)
 call self%get_parameter(self%tau_regV     ,'tau_regV',      default=tau_regV)
@@ -464,6 +467,8 @@ call self%register_diagnostic_variable(self%id_QP,      'QP','-', ' QP', &
 call self%register_diagnostic_variable(self%id_aVN,     'aVN','-', ' aVN', &
   time_treatment=time_treatment_last)
 call self%register_diagnostic_variable(self%id_aVP,     'aVP','-', ' aVP', &
+  time_treatment=time_treatment_last)
+call self%register_diagnostic_variable(self%id_aVSi,    'aVSi','-', ' aVSi', &
   time_treatment=time_treatment_last)
 call self%register_diagnostic_variable(self%id_rQSi,    'rQSi','-', ' rQSi', &
   time_treatment=time_treatment_last)

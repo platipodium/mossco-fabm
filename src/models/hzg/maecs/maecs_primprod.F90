@@ -69,9 +69,9 @@ num_nut  = i
 !          assumed to be already included in protein synthesis
 ! \partial (\zeta_CN V_N) / \partial V_P
 !    q_NoLip  = 3.8  ! P-stoichiometry of active compounds (DNA, RNA)  
-    q_NoLip  = self%Ae_all
+    q_NoLip  = self%zstoich_PN
 !    q_NoLip  = 16   ! Redfield-stoichiometry 
-    q_Lip    = 0.8  ! storage P-elemiometry   
+    q_Lip    = 0.8  ! storage P-stoichiometry   
     f_Lip    = 1./(1.+exp(10*(1.-phy%relQ%P)))
 
 zeta_X(1)         = self%zeta_CN

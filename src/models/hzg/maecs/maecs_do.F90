@@ -370,6 +370,7 @@ end if
   _SET_DIAGNOSTIC_(self%id_QP, phy%Q%P)                     !last 
   _SET_DIAGNOSTIC_(self%id_aVN, acclim%aV%N)                !last 
   _SET_DIAGNOSTIC_(self%id_aVP, acclim%aV%P)                !last 
+  _SET_DIAGNOSTIC_(self%id_aVSi, acclim%aV%Si)              !last 
   _SET_DIAGNOSTIC_(self%id_rQSi, phy%relQ%Si)               !last 
   _SET_DIAGNOSTIC_(self%id_tmp, acclim%tmp)                 !last 
   _SET_DIAGNOSTIC_(self%id_fac1, acclim%fac1)               !last 
