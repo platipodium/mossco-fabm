@@ -70,7 +70,6 @@ logical  :: out = .true.
   _GET_(self%id_detN, det%N)  ! Detritus Nitrogen in mmol-N/m**3
   _GET_(self%id_domC, dom%C)  ! Dissolved Organic Carbon in mmol-C/m**3
   _GET_(self%id_domN, dom%N)  ! Dissolved Organic Nitrogen in mmol-N/m**3
-
 if (self%RubiscoOn) then
       _GET_(self%id_Rub, phy%Rub)  ! fraction of Rubisco in -
 end if
@@ -331,10 +330,6 @@ if (self%SiliconOn) then
 end if 
 
 !#S_ODE
-! write (*,*) ' ' 
-!write(*,*) ''
-! write (*,'(A,2(F12.2))') 'S-N-C:',rhsv%phyN*1E5,rhsv%phyC*1E5
-
 !---------- ODE for each state variable ----------
   _SET_ODE_(self%id_nutN, rhsv%nutN UNIT)
   _SET_ODE_(self%id_phyC, rhsv%phyC UNIT)
@@ -371,15 +366,14 @@ end if
 !#S_DIA
   _SET_DIAGNOSTIC_(self%id_chl2, phy%theta*phy%rel_chloropl) !last bulk chlorophyll concentration
   _SET_DIAGNOSTIC_(self%id_fracR, phy%frac%Rub)             !last 
-  _SET_DIAGNOSTIC_(self%id_QN, phy%Q%N)                      !last 
-  _SET_DIAGNOSTIC_(self%id_QP, phy%Q%P)                      !last 
-  _SET_DIAGNOSTIC_(self%id_tmp, acclim%tmp)                !last phy%rel_QSi
-  _SET_DIAGNOSTIC_(self%id_fac1,acclim%fac1) 
-  _SET_DIAGNOSTIC_(self%id_fac2,acclim%fac2) 
-  _SET_DIAGNOSTIC_(self%id_aVN,acclim%aV%N) 
-  _SET_DIAGNOSTIC_(self%id_aVP,acclim%aV%P) 
-
-
+  _SET_DIAGNOSTIC_(self%id_QN, phy%Q%N)                     !last 
+  _SET_DIAGNOSTIC_(self%id_QP, phy%Q%P)                     !last 
+  _SET_DIAGNOSTIC_(self%id_aVN, acclim%aV%N)                !last 
+  _SET_DIAGNOSTIC_(self%id_aVP, acclim%aV%P)                !last 
+  _SET_DIAGNOSTIC_(self%id_rQSi, phy%relQ%Si)               !last 
+  _SET_DIAGNOSTIC_(self%id_tmp, acclim%tmp)                 !last 
+  _SET_DIAGNOSTIC_(self%id_fac1, acclim%fac1)               !last 
+  _SET_DIAGNOSTIC_(self%id_fac2, acclim%fac2)               !last 
 !#E_DIA
 
 if (self%DebugDiagOn) then
