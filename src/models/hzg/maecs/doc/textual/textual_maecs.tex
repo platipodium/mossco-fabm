@@ -12,7 +12,8 @@
 % \renewcommand{\baselinestretch}{1.4}\normalsize
 % % --------------------------------------------------------------------------------------------- 
 % -----------------------------------------------------------------------------------------
-\begin{subsection}{Model structure}
+
+\begin{section}{Model structure}
 
 MAECS resolves major functional groups and their dynamics not unlike simple state-of-the-art ecosystem models. All energy and material fluxes in the ecosystem derive from primary production of phytoplankton, here expressed in terms of biomass carbon (C) concentration. Phytoplankton experiences various local and trait dependent loss rates, from sinking, respiration, exudation, to grazing. 
 MAECS versions differ in the degree of resolution in ecological processes; a full account of grazing interactions in the plankton is only addressed by versions that includes size as a major trait. Grazers convert only a fraction of captured phytoplankton to their own biomass; in size-based variants of MAECS we have implemented different formulations for whether this fraction immediately contributes to the biomass of adult grazers or their egg stage, or how many grazer groups are simulated (see below).
@@ -20,14 +21,65 @@ MAECS versions differ in the degree of resolution in ecological processes; a ful
 Physiological regulation in unicellular autotrophs makes the very kernel of the MAECS version documented here. 
 The intracellular nutrient quotas, in this model version resolved for nitrogen (N), phosphorus (P), and silicon (Si), change over time when uptake does not match demand due to biomass build-up. Differential uptake regulation then leads to highly variable stoichiometries, that not only reflect ambient nutrient and light concentration, but also generalized optimality criteria.
 
-For describing the living compartment of plankton ecosystems MAECS employs much more trait variables (e.g., allocation coefficients) compared to bulk variables (e.g., phytoplankton or zooplankton biomass). The adaptive trait dynamics infers the need of calculating (sometimes long) derivative terms, which also challenges this documentation; however, the gradient-derived terms include very few  additional process parameters, so that the number of tunable parameters in relation to simulated and testable dynamics is significantly reduced compared to models that share a similar resolution in plankton physiology or ecology. Most importantly, MAECS seeks to express biophysical and evolutionary principles as much as possible; this means to avoid heuristic functions such as Michaelis-Menten, Droop, Geider, or Liebig. Biophysical origins of model formulations further reduces the number of tunable parameters, in particular in the ecological part. Prominent counter-examples, i.e.~yet uncertain model formulations or parameters, comprise aggregation dynamics or variations in metabolic interdependency. 
+For describing the living compartment of plankton ecosystems MAECS employs much more trait variables (e.g., allocation coefficients) compared to bulk variables (e.g., phytoplankton or zooplankton biomass). The adaptive trait dynamics infers the need of calculating (sometimes long) derivative terms, which also challenges this documentation; however, the gradient-derived terms include very few  additional process parameters, so that the number of tunable parameters in relation to simulated and testable dynamics is significantly reduced compared to models that share a similar resolution in plankton physiology or ecology. Most importantly, MAECS seeks to account for biophysical and evolutionary principles as much as possible; resulting in expressions replacing heuristic functions such as Michaelis-Menten approximations of nutrient uptake, Droop representation of cell growth, or Liebig's rule of minimum. Biophysical origins of model formulations further reduces the number of tunable parameters, in particular in the ecological part. Prominent counter-examples, i.e.~yet uncertain model formulations or parameters, comprise aggregation dynamics or variations in metabolic interdependency. 
+
+
+\begin{subsection}{Mass equations}
+
+Basic mass equations common to the two MAECS variants (size and physiology). All coefficients and their meanings are listed in \tabref{tab:par}. 
+
+Net change in autotroph C, N, P, Si (cf.~\Eq{eq:biogrowth} and \Eq{eq:phyxdyn}) $\ldots$
+\beql{eq:dynphyc}
+\dift\phyc =\uref{\rgr_\mathrm{tot}}{rgr_tot}\cdot\phyc
+\eeq
+\beql{eq:dynphyx}
+\dift\phyx = \uref{V_{\nind}}{uptake}\cdot \phyc  - \uref{M}{rgr_tot}\cdot\phyx 
+   \msep \nind= \mathrm{N, P, Si}  
+\eeq
+
+%[TODO: unify  notation, e.g. capital letter abrreviations]
+
+$\ldots$ in dissolved inorganic nutrients ($\nind$=N, P), optionally including silicate  
+\beql{eq:dyndix}
+\dift\mathrm{DI}\nind = - V_\nind\: \phyc + \uref{\omega_\mathrm{DOM}}{hydrol}\:\mathrm{DO}\nind
+\eeq
+\beql{eq:dyndsi}
+\dift\mathrm{DSi} = - V_\mathrm{Si}\: \phyc + \uref{\omega_\mathrm{Det}}{hydrol}\:\mathrm{Det}_\mathrm{Si}
+\eeq
+[TODO: include DIC into code]
+
+$\ldots$ in dissolved organic nutrients ($\nind$=C, N, P),
+\beql{eq:dyndom}
+\dift\mathrm{DO}\nind = E\:\phyx +\omega_\mathrm{Det}\:\mathrm{Det}_{\nind}-\omega_\mathrm{DOM}\:\mathrm{DO}\nind
+\eeq
+
+$\ldots$ and in the detrital pool ($\nind$=C, N, P, Si).
+\beql{eq:dyndet}
+\dift\mathrm{Det}_{\nind} = M'\:\phyx + M_Z\:\zoox-\omega_\mathrm{Det}\:\mathrm{Det}_{\nind}
+\eeq
+where the phytoplankton mortality $M'$ collects contributions from sloppy grazing ($(1-y)G$) and, in 0D setups, and from sinking ($S$ in \Eq{eq:sink}). Remineralization of DOM $\omega_\mathrm{DOM}$ and hydrolysis of detritus $\omega_\mathrm{Det}$ both change with ambient temperature and substrate quality
+\beql{eq:hydrol}
+ \omega_\mathrm{DOM} = f_T\:\fracd{\mathrm{DON}}{\mathrm{DOC}}\:\omega_\mathrm{DOM}^*
+\qquad\qquad
+ \omega_\mathrm{Det} = f_T\:\fracd{\mathrm{Det}_\mathrm{N}}{\mathrm{Det}_\mathrm{C}}\:\omega_\mathrm{Det}^*
+\eeq
+%in analogy to POM
+Because of the quality dependency in degradation rates [TODO: justify], element cycles in the water column are easily decoupled within MAECS.
+
+Note that in a chemostat mode, to the dynamics of \emph{all} concentration variables a dilution ($D$) loss is added, which only for dissolved nutrients also contains reservoir inflow ($-D\cdot(\mathrm{DI}\nind-\mathrm{DI}\nind^0$).
+
+[TODO: Parameter table]
 
 \end{subsection}
+
+
+\end{section}
 
 %
 % -------------------------------------  growth rate components
 %
-\vspace{8mm} \hrule
+%\vspace{8mm} \hrule
+\begin{section}{Process Descriptions}
 \begin{subsection}{Growth rate components and primary production}
 
 %\emph{Auxiliary variables:} \\
@@ -45,7 +97,7 @@ The relative growth rate of autotrophic unicells (phytoplankton) collects primar
 \eeq
 with sinking loss given in \Eq{eq:sink} (relevant only in 0D), aggregate formation in \Eq{eq:agg} [TODO: living cells in aggregates], grazing $G$ explained in \secref{sec:grazing}, exudation rate $E$ formulated in \Eq{eq:exud}, dilution rate $D$ (for running the model in a chemostat mode), and respiration $R$ in \Eq{eq:resp}.
 
-Gross C assimilation $P$ changes with stoichiometric balance as expressed by the multi--nutrient co--limitation factor $\climf$, maximal photosynthetic capacity $P_\mathrm{max}$ (further depending on, e.g. partitioning, \Eq{eq:Pmax}, or size in the ecological version, \cite{Wirtz2011,Wirtz2013a}) and light harvesting success $S$
+Gross C assimilation $P$ changes with stoichiometric balance as expressed by the multi--nutrient co--limitation factor $\climf$(\Eq{eq:totc}), maximal photosynthetic capacity $P_\mathrm{max}$ (further depending on, e.g. partitioning, \Eq{eq:Pmax}, or size in the ecological version, \cite{Wirtz2011,Wirtz2013a}) and light harvesting success $LH$
 \beql{eq:primprod}
 P = \uref{P_\mathrm{max}}{Pmax}\cdot\uref{\climf}{totc}\cdot \mathrm{LH}
 \eeq
@@ -55,6 +107,7 @@ Light harvesting $\mathrm{LH}$ is primarily controlled by ambient light intensit
  \mathrm{LH} = 1-\eh{-\alpha\theta \textrm{PAR}/P_\mathrm{max}}
 \eeq
 \end{subsection}
+
 
 %
 % -------------------------------------  Auxiliary
@@ -87,19 +140,19 @@ The co-limitation factor $\climf$ is constructed within a metabolic network view
 \beql{eq:totc}
 \climf = q_\mathrm{N}\cdot \uref{g_h}{queuefunc}(q_\mathrm{X}'/q_\mathrm{N}) \cdot c_{hq} \msep c_{hq}=1+\uref{c_h}{ch}+h\cdot q_\mathrm{N} \uref{q_\mathrm{X}'}{multi2} 
 \eeq
-The relative quota $q_\nind$ expresses the  availability of nutrient $\nind$ above a subsistence threshold $Q_\nind^0$ normalized by  a reference pool size $Q_\nind^*-Q_\nind^0$. In contrast to most other structured models, $Q_\nind^*$ does not impose an upper boundary of the cell quota $Q_\nind$.
+The relative quota $q_\nind$ expresses the  availability of nutrient $\nind$ above a subsistence threshold $Q_\nind^0$ normalized by  a reference pool size $Q_\nind^*-Q_\nind^0$. In contrast to most other models resolving variable internal stores \citep[e.g.][]{Morel1987}, $Q_\nind^*$ does not impose [TODO: 'does not impose'=? is it rather 'is not a prescribed'? but what is it then?] an upper boundary of the cell quota $Q_\nind$.
 \beql{eq:relquot}
  q_\nind = \frac{Q_\nind-Q_\nind^0}{\Delta Q_\nind} \msep \Delta Q_\nind = Q_\nind^*-Q_\nind^0 \qquad \mathrm{and}\quad\nind=\mathrm{N}, \mathrm{P}, \mathrm{Si}, \ldots
 \eeq
 In \Eq{eq:totc}, the product $h q_\mathrm{N}q_\nind'$ describes the non-linear metabolic interdependency between intracellular turnover of element N and $\nind$ that is not covered by the simple queuing function. $g_h$ expresses a ''stop and go'' dependency while neglecting possible amplification and inhibition effects as explained by Wirtz\&Kerimoglu (in prep.). The product term leads to a quadratic influence of the first element ($q_\mathrm{N}$) and can be considered as most simple account of non-linear metabolic interdependency. It also ensures symmetry of $\climf$ with respect to exchanging the order of nutrients as $\fQ{1}g_h(\fQ{2}'/\fQ{1}) c_{hq12} \approx  \fQ{2}g_h(\fQ{1}'/\fQ{2}) c_{hq21}$.
 
-The queuing function $g_h$ can be derived from assuming Poisson statistics in phase-locking of sub-networks:
+The queuing function $g_h$ can be derived from assuming Poisson statistics in phase-locking of sub-networks [TODO: 'Poisson statistics in phase-locking of sub-networks' sounds scary, please expand!]:
 \beql{eq:queuefunc}
 g_h(x)=\fracd{x-x_h}{1-x_h} \msep x_h=x^{1+h^{-1}}
 \eeq
-The function $g_h$ introduces as new control parameter the metabolic interdependency $h$. $h$ resembles the processing intermittency introduced by \cite{Wirtz2012b}, which describes the probability of phase-locking in independent sub-steps in a process chain.
+The function $g_h$ introduces as new control parameter the metabolic interdependency $h$. $h$ resembles the processing intermittency introduced by \cite{Wirtz2012b}, which describes the probability of phase-locking [TODO: 'phase-locking' is again an unusual term: expand with a sentence?] in independent sub-steps in a process chain.
 
-The  correction coefficient $c_h$ in \Eq{eq:totc} follows from imposing convergence of $\climf$ to the product and Liebig rules. Compliance to the Liebig rule leads to $c_0=0$ since $g_0$ describes a stepwise linear function. For the product rule, we use the identity $g_h(1)=1/(1+h)$ and assume that $q_\nind=q_\mathrm{Y}=1/2$,  to obtain $1/4 = 1/2\cdot(1+h/4+c_h)/(1+h)$, or $c_h=-1/2+h/4$. However, the offset in this linear relation conflicts with the condition $c_0=0$. Both conditions can be approximately reconciled by a logarithmic function 
+The  correction coefficient $c_h$ in \Eq{eq:totc} follows from imposing convergence of $\climf$ to the product and Liebig rules. Compliance to the Liebig rule leads to $c_0=0$ since $g_0$ describes a stepwise linear function [TODO: it's not clear: when ch=h=0, \Eq{eq:totc} reduces to $\fQ{N}g_0(\fQ{X}'/\fQ{N}), with g_0=-\inf/-\inf$]. For the product rule, we use the identity $g_h(1)=1/(1+h)$ and assume that $q_\nind=q_\mathrm{Y}=1/2$,  to obtain $1/4 = 1/2\cdot(1+h/4+c_h)/(1+h)$ [TODO: it's very unclear where this equation came from], or $c_h=-1/2+h/4$. However, the offset in this linear relation conflicts with the condition $c_0=0$. Both conditions can be approximately reconciled by a logarithmic function [TODO: does \Eq{eq:ch} have something to do with all the other equations in this paragraph? if so, how? if not, why not directly listing those 'conditions', providing \Eq{eq:ch} saying that it is one of the potentially many pragmatic solutions?] 
 \beql{eq:ch}
 c_h  = \log(1/4^h + h/2)
 \eeq
@@ -109,7 +162,7 @@ It is mandatory in MAECS to resolve nitrogen. If optionally one, two, or more fu
 \fQ{\nind}' = \fQ{\nind} \cdot g_h(\fQ{\nind+1}'/\fQ{\nind})\cdot c_{hq}\qquad
 \nind=\mathrm{P}, \mathrm{Si}, \ldots
 \eeq
-For the final element we have $\fQ{\nind}' = \fQ{\nind}$. From the (subjective) ordering of elements in the recursive scheme only a small asymmetry arises. 
+For the final element we have $\fQ{\nind}' = \fQ{\nind}$. From the (subjective) ordering of elements in the recursive scheme only a small asymmetry arises. [TODO: no matter how small it is, the asymmetry probably requires us to document (and maybe also provide justification, if any) the order we chose]  
 %marginal C gain  (WP10)&	&\nTblEq{eq:upact}\\[0.ex]
 
 \end{subsection}
@@ -119,10 +172,7 @@ For the final element we have $\fQ{\nind}' = \fQ{\nind}$. From the (subjective) 
 %
 \vspace{8mm} \hrule
 \begin{subsection}{Uptake system allocation and PI-coefficients}
-It is assumed that the fraction of free proteins or allocatable resources does not change.
-Structural compounds such as cell wall, nucleus, or other non directly functional components are thus
- kept at a fixed ratio. The pool of free organics (in terms of cellular carbon) is partitioned between
- photosynthetic machinery and nutrient uptake. Photosynthetic machinery is further sub-divided into light harvesting and processing. The relative pool size of free resource (here in units C!) invested into light-independent reactions, primarily those in Rubisco and the Calvin cycle \citep{Friend1991} is denoted as $f_R$, the one for the light harvesting complex (LHC) $f_\theta$.
+It is assumed that the fraction of free proteins or allocatable resources does not change. [TODO: it is not clear what this means: maybe a diagram helps?] Structural compounds such as cell wall, nucleus, or other non directly functional components are thus kept at a fixed ratio. The pool of free organics (in terms of cellular carbon) is partitioned between photosynthetic machinery and nutrient uptake. Photosynthetic machinery is further sub-divided into light harvesting and processing. The relative pool size of free resource (here in units C!) invested into light-independent reactions, primarily those in Rubisco and the Calvin cycle \citep{Friend1991} is denoted as $f_R$, the one for the light harvesting complex (LHC) $f_\theta$.
 This way, the coefficient $f_V$ for C-allocation to nutrient uptake becomes a linear function of the C-allocation to LHC $f_\theta$ and to Rubisco $f_R$:
 \beql{eq:alloc}
 f_V =1- f_R -f_\theta
@@ -139,6 +189,7 @@ f_\theta = f_R\:\fQ{N}^\sigma \:\theta/\theta_{C} \quad\mathrm{or}\quad\theta= f
 \eeq
 where C stoichiometry of pigment complexes is denoted by $\theta_{C}$. The exponent $\sigma$ describes an additional linkage of LHC synthesis on the N-status of the cell. \cite{Wirtz2010} proposed that $\sigma=1$ for diatoms, while $\sigma=0$ for other autotrophs.
 
+[TODO: 1) so far, it's not clear what's the relevance of $\theta$ or $f_\theta$ for physiological processes. Maybe a sentence. 2) it's also not clear where these novel and mysterious parameters such as $f_R$ and $\theta$ come from. Maybe it's helpful to hint that they are being dynamically optimized, referring to \secref{sec:adapreg}]
 \end{subsection}
 
 %
@@ -186,10 +237,127 @@ or, in the MAECS notation where traits/characteristics are transported as bulk b
 \end{subsection}
 
 %
-% -------------------------------------  trait dynamics and derivatives
+% -------------------------------------  Grazing
 %
 \vspace{8mm} \hrule
-\begin{subsection}{Adaptive trait regulation and differential trade-off}
+
+\begin{subsection}{Grazing}\label{sec:grazing}
+
+Before merging with the ecological MAECS version, we use primitive (non-biophysical) standards for describing heterotrophic activities:
+
+\beql{eq:dynzoo}
+\dift{\zooc} =  (y \cdot{G} - \tau_\mathrm{C}- M_Z)\cdot \zooc
+\eeq
+with quadratic and temperature sensitive mortality to represent top-down pressure
+\beql{eq:mortzoo}
+ M_Z = f_T \cdot M_Z^0\cdot \zooc
+\eeq
+and a Holling-III response function for functional grazing response:
+\beql{eq:graz}
+ G =  g_\mathrm{max}\,f_T \cdot\fracd{\phyc^2}{K_G^2 + \phyc^2}
+\eeq
+
+[TODO: more complicated loss/leakage terms $\tau_\nind$ to ensure homeostasis and mass conservation]
+
+\end{subsection}
+
+\vspace{8mm} \hrule
+%
+% -------------------------------------  Sinking loss 
+%
+
+\begin{subsection}{Sinking loss}
+Vertical losses account for enhanced settling due to aggregate formation which occurs under high concentrations of particles and exopolymeres. As a coastal model, already the basic version of MAECS resolves a benthic compartment independently from the coupled diagenesis model (see below).
+
+The relative loss rate $S$ is, in an idealized picture, the ratio between $v_\mathrm{s}$ and the mixed layer depth (MLD)
+\beql{eq:sink}
+S  = (1+\uref{f_\mathrm{agg}}{agg})\cdot\fracd{v_\mathrm{s}}{\mathrm{MLD}}
+\eeq
+
+[TODO: add size as trait or explicit parameter; the following part comes from the size-based model version]
+
+The velocity $v_\mathrm{s}$ of a sinking particle is described by Stokes' law, which for a spherical cell with diameter ESD$=\eh{\lcsize}$ reads 
+\beql{eq:stokes}
+v_\mathrm{s} = \fracd{g\, \rho'(\lcsize)\,\eh{2\lcsize}}{18 \nu(T)} 
+\eeq
+
+The unitless excess density $\rho'$, the density difference between water and the suspended body, divided by water density, is known to be a function of the physiology and size of the suspended cells \citep{Waite1997,Kioerboe1998,Miklasz2010}. Dead cells are relatively heavy-weighted ($\rho'=\rho^\dag$, $\rho^\dag>0$), but $\rho^\dag$ decreases in large (siliceous) phytoplankton due to an increasing fraction of vacuoles. The allometric relation of vacuolation and excess density reduction is 
+\beql{eq:densallom}
+ \rho^\dag = \rho^\dag_0\,\eh{-\alpha_\rho\lcsize}
+\eeq
+As vacuoles usually contain a higher concentration of inorganic compounds than the surrounding cytoplasm, the exponent $\alpha_\rho$ should be close to the size scaling slope reported for carbon density by \cite{Menden2000}.
+
+Linear dependency between excess density and relative production
+\beql{eq:dens}
+\rho' =  ( 1 - f_\mathrm{vac}\cdot p)\cdot\,\rho^\dag
+\eeq
+$f_\mathrm{vac}$ is the relative volumetric fraction that can be filled with material of reduced density (e.g., gases, lipids, or solutes, the latter listed in \cite{Boyd2002}). This quantity relates to the vacuole structure \citep{Raven2004} and can therefore be formulated as the relative density difference with respect to cells without vacuolation ($\rho^\dag_0$ in \Eq{eq:densallom})
+\beql{eq:vac}
+f_\mathrm{vac} = \displaystyle\frac{\rho^\dag_0 -\rho^\dag}{\rho^\dag_0} = 1-\eh{-\alpha_\rho\lcsize}
+%\csize^{-\alpha_\rho}
+\eeq
+\end{subsection}
+
+\vspace{8mm} \hrule
+%
+% -------------------------------------   aggregation
+%
+
+\begin{subsection}{Particle aggregation}
+
+[check with Richard; re-introduce into code]
+
+Aggregation depends on stickiness and particle surface
+\beql{eq:agg}
+f_\mathrm{agg} =f_\mathrm{agg}^*\:\mathrm{EP}\cdot\phyc\cdot\textrm{ESD}^n
+\eeq
+
+The relative fraction of exopolymeres within the DOM pool is inversely related to DOM quality, which is expressed in terms of the N:C stoichiometry. 
+Stickiness associated with exopolymeres ($\mathrm{EP}$) correlates with DOM quantity and inverse quality
+\beql{eq:ep}
+\mathrm{EP}=\fracd{\mathrm{DOC}}{\mathrm{DON}}\:\mathrm{DOC}
+\eeq
+Stickiness not only enhances coagulation efficiency in particle aggregation, it also increases the critical bottom shear stress for sediment resuspension (''biostabilization'').
+Resuspension of benthic material occurs when bottom shear stress exceeds that ''sticky'' threshold.
+
+\beql{eq:resus}
+\mathrm{RS} = \mathrm{RS}^*\:\max\Big\{V_\mathrm{bshear}-V^*_\mathrm{EP}\:\mathrm{EP}, 0\Big\}\
+\eeq
+
+so we have for  material fluxes due to resuspension
+\beql{eq:ep}
+ \dift C_{X}^\mathrm{z=H} = \ldots + \mathrm{RS} C_{X}^\mathrm{ben}
+\msep C_X=\phyx, \mathrm{Det}_{X}	
+\eeq
+
+\end{subsection}
+
+\vspace{8mm} \hrule
+%
+% -------------------------------------  auxiliary
+%
+\begin{subsection}{Other stuff}
+
+Photoinhibition by depletion of D1-protein
+\beql{eq:inhibit}
+u = \fracd{\fQ{N}}{\fQ{N}+u^*\:\chlc^2}
+\eeq
+
+Exudation reflects imbalance between C uptake and assimilation 
+\beql{eq:exud}
+E= e^*\:P_\mathrm{max}^*\:f_T\:\mathrm{LH}
+\eeq
+
+\end{subsection}
+
+
+\end{section} %process descriptions
+%
+% -------------------------------------  trait dynamics and derivatives
+%
+%\vspace{8mm} \hrule
+
+\begin{section}{Adaptive trait regulation and differential trade-off} \label{sec:adapreg}
 
 Adaptive trait dynamics in its general form has been proposed as an optimality-seeking principle guiding transient adaptive regulation phenomena on very different levels of description, from organ physiology to population ecology \citep{Wirtz2000,Wirtz2003,Smith2011}. 
 This principle/equation is applied to all physiological traits in MAECS, in particular to those that primarily control nutrient uptake ($f_\textrm{R}$ and $\theta$ through $f_\textrm{V}$, and activity $a_{\mathrm{V},\nind}$. 
@@ -220,7 +388,7 @@ where the derivative of uptake rate on quota may only become non-zero (1) for ni
 \beql{eq:up_qn}
 \pdiff{\Vn}{\qn}  =\fracd{\Vn}{f_V}\pdiff{f_V}{\qn}  = - \fracd{\sigma f_R\theta}{f_V\theta_{C} \Delta\qn} \Vn = -\sigma' \Vn
 \eeq
-\end{subsection}
+%\end{subsection}
 
 %
 % -------------------------------------  derivatives under co-limitation
@@ -424,177 +592,21 @@ and bulk Rubisco concentrations
 %R_{\rm chl} \cdot \frac{\dd \rm PhyC}{\dd t} + \frac{\dd R_{\rm chl}}{\dd t} \cdot {\rm PhyC}
 \end{subsection}
 
+\end{section} %end the section: adaptive regulation
+
 %
 % ----------------------- Mass equations
 %
 
-\begin{subsection}{Mass equations}
 
-Basic mass equations common to the two MAECS variants (size and physiology). All coefficients and their meanings are listed in \tabref{tab:par}. 
-
-Net change in autotroph C, N, P, Si (cf.~\Eq{eq:biogrowth} and \Eq{eq:phyxdyn}) $\ldots$
-\beql{eq:dynphyc}
-\dift\phyc =\uref{\rgr_\mathrm{tot}}{rgr_tot}\cdot\phyc
-\eeq
-\beql{eq:dynphyx}
-\dift\phyx = \uref{V_{\nind}}{uptake}\cdot \phyc  - \uref{M}{rgr_tot}\cdot\phyx 
-   \msep \nind= \mathrm{N, P, Si}  
-\eeq
-
-%[TODO: unify  notation, e.g. capital letter abrreviations]
-
-$\ldots$ in dissolved inorganic nutrients ($\nind$=N, P), optionally including silicate  
-\beql{eq:dyndix}
-\dift\mathrm{DI}\nind = - V_\nind\: \phyc + \uref{\omega_\mathrm{DOM}}{hydrol}\:\mathrm{DO}\nind
-\eeq
-\beql{eq:dyndsi}
-\dift\mathrm{DSi} = - V_\mathrm{Si}\: \phyc + \uref{\omega_\mathrm{Det}}{hydrol}\:\mathrm{Det}_\mathrm{Si}
-\eeq
-[TODO: include DIC into code]
-
-$\ldots$ in dissolved organic nutrients ($\nind$=C, N, P),
-\beql{eq:dyndom}
-\dift\mathrm{DO}\nind = E\:\phyx +\omega_\mathrm{Det}\:\mathrm{Det}_{\nind}-\omega_\mathrm{DOM}\:\mathrm{DO}\nind
-\eeq
-
-$\ldots$ and in the detrital pool ($\nind$=C, N, P, Si).
-\beql{eq:dyndet}
-\dift\mathrm{Det}_{\nind} = M'\:\phyx + M_Z\:\zoox-\omega_\mathrm{Det}\:\mathrm{Det}_{\nind}
-\eeq
-where the phytoplankton mortality $M'$ collects contributions from sloppy grazing ($(1-y)G$) and, in 0D setups, and from sinking ($S$ in \Eq{eq:sink}). Remineralization of DOM $\omega_\mathrm{DOM}$ and hydrolysis of detritus $\omega_\mathrm{Det}$ both change with ambient temperature and substrate quality
-\beql{eq:hydrol}
- \omega_\mathrm{DOM} = f_T\:\fracd{\mathrm{DON}}{\mathrm{DOC}}\:\omega_\mathrm{DOM}^*
-\qquad\qquad
- \omega_\mathrm{Det} = f_T\:\fracd{\mathrm{Det}_\mathrm{N}}{\mathrm{Det}_\mathrm{C}}\:\omega_\mathrm{Det}^*
-\eeq
-%in analogy to POM
-Because of the quality dependency in degradation rates, element cycles in the water column are easily decoupled within MAECS.
-
-Note that in a chemostat mode, to the dynamics of \emph{all} concentration variables a dilution ($D$) loss is added, which only for dissolved nutrients also contains reservoir inflow ($-D\cdot(\mathrm{DI}\nind-\mathrm{DI}\nind^0$).
- 
-\end{subsection}
-
-%
-% -------------------------------------  Grazing
-%
-\vspace{8mm} \hrule
-
-\begin{subsection}{Grazing}\label{sec:grazing}
-
-Before merging with the ecological MAECS version, we use primitive (non-biophysical) standards for describing heterotrophic activities:
-
-\beql{eq:dynzoo}
-\dift{\zooc} =  (y \cdot{G} - \tau_\mathrm{C}- M_Z)\cdot \zooc
-\eeq
-with quadratic and temperature sensitive mortality to represent top-down pressure
-\beql{eq:mortzoo}
- M_Z = f_T \cdot M_Z^0\cdot \zooc
-\eeq
-and a Holling-III response function for functional grazing response:
-\beql{eq:graz}
- G =  g_\mathrm{max}\,f_T \cdot\fracd{\phyc^2}{K_G^2 + \phyc^2}
-\eeq
-
-[TODO: more complicated loss/leakage terms $\tau_\nind$ to ensure homeostasis and mass conservation]
-
-\end{subsection}
-
-\vspace{8mm} \hrule
-%
-% -------------------------------------  Sinking loss 
-%
-
-\begin{subsection}{Sinking loss}
-Vertical losses account for enhanced settling due to aggregate formation which occurs under high concentrations of particles and exopolymeres. As a coastal model, already the basic version of MAECS resolves a benthic compartment independently from the coupled diagenesis model (see below).
-
-The relative loss rate $S$ is, in an idealized picture, the ratio between $v_\mathrm{s}$ and the mixed layer depth (MLD)
-\beql{eq:sink}
-S  = (1+\uref{f_\mathrm{agg}}{agg})\cdot\fracd{v_\mathrm{s}}{\mathrm{MLD}}
-\eeq
-
-[TODO: add size as trait or explicit parameter; the following part comes from the size-based model version]
-
-The velocity $v_\mathrm{s}$ of a sinking particle is described by Stokes' law, which for a spherical cell with diameter ESD$=\eh{\lcsize}$ reads 
-\beql{eq:stokes}
-v_\mathrm{s} = \fracd{g\, \rho'(\lcsize)\,\eh{2\lcsize}}{18 \nu(T)} 
-\eeq
-
-The unitless excess density $\rho'$, the density difference between water and the suspended body, divided by water density, is known to be a function of the physiology and size of the suspended cells \citep{Waite1997,Kioerboe1998,Miklasz2010}. Dead cells are relatively heavy-weighted ($\rho'=\rho^\dag$, $\rho^\dag>0$), but $\rho^\dag$ decreases in large (siliceous) phytoplankton due to an increasing fraction of vacuoles. The allometric relation of vacuolation and excess density reduction is 
-\beql{eq:densallom}
- \rho^\dag = \rho^\dag_0\,\eh{-\alpha_\rho\lcsize}
-\eeq
-As vacuoles usually contain a higher concentration of inorganic compounds than the surrounding cytoplasm, the exponent $\alpha_\rho$ should be close to the size scaling slope reported for carbon density by \cite{Menden2000}.
-
-Linear dependency between excess density and relative production
-\beql{eq:dens}
-\rho' =  ( 1 - f_\mathrm{vac}\cdot p)\cdot\,\rho^\dag
-\eeq
-$f_\mathrm{vac}$ is the relative volumetric fraction that can be filled with material of reduced density (e.g., gases, lipids, or solutes, the latter listed in \cite{Boyd2002}). This quantity relates to the vacuole structure \citep{Raven2004} and can therefore be formulated as the relative density difference with respect to cells without vacuolation ($\rho^\dag_0$ in \Eq{eq:densallom})
-\beql{eq:vac}
-f_\mathrm{vac} = \displaystyle\frac{\rho^\dag_0 -\rho^\dag}{\rho^\dag_0} = 1-\eh{-\alpha_\rho\lcsize}
-%\csize^{-\alpha_\rho}
-\eeq
-\end{subsection}
-
-\vspace{8mm} \hrule
-%
-% -------------------------------------   aggregation
-%
-
-\begin{subsection}{Particle aggregation}
-
-[check with Richard; re-introduce into code]
-
-Aggregation depends on stickiness and particle surface
-\beql{eq:agg}
-f_\mathrm{agg} =f_\mathrm{agg}^*\:\mathrm{EP}\cdot\phyc\cdot\textrm{ESD}^n
-\eeq
-
-The relative fraction of exopolymeres within the DOM pool is inversely related to DOM quality, which is expressed in terms of the N:C stoichiometry. 
-Stickiness associated with exopolymeres ($\mathrm{EP}$) correlates with DOM quantity and inverse quality
-\beql{eq:ep}
-\mathrm{EP}=\fracd{\mathrm{DOC}}{\mathrm{DON}}\:\mathrm{DOC}
-\eeq
-Stickiness not only enhances coagulation efficiency in particle aggregation, it also increases the critical bottom shear stress for sediment resuspension (''biostabilization'').
-Resuspension of benthic material occurs when bottom shear stress exceeds that ''sticky'' threshold.
-
-\beql{eq:resus}
-\mathrm{RS} = \mathrm{RS}^*\:\max\Big\{V_\mathrm{bshear}-V^*_\mathrm{EP}\:\mathrm{EP}, 0\Big\}\
-\eeq
-
-so we have for  material fluxes due to resuspension
-\beql{eq:ep}
- \dift C_{X}^\mathrm{z=H} = \ldots + \mathrm{RS} C_{X}^\mathrm{ben}
-\msep C_X=\phyx, \mathrm{Det}_{X}	
-\eeq
-
-\end{subsection}
-
-\vspace{8mm} \hrule
-%
-% -------------------------------------  auxiliary
-%
-\begin{subsection}{Other stuff}
-
-Photoinhibition by depletion of D1-protein
-\beql{eq:inhibit}
-u = \fracd{\fQ{N}}{\fQ{N}+u^*\:\chlc^2}
-\eeq
-
-Exudation reflects imbalance between C uptake and assimilation 
-\beql{eq:exud}
-E= e^*\:P_\mathrm{max}^*\:f_T\:\mathrm{LH}
-\eeq
-
-\end{subsection}
 
 
 % % ---------------------------------------------------------------------------------------
-\begin{subsection}{Acknowledgements}
+\begin{section}{Acknowledgements}
 %\section{Acknowledgements}
 We thank  ....
 The work was supported by the Helmholtz society via the program PACES.
-\end{subsection}
+\end{section}
 % -------------------------------------------------------------------------------------
 %\end{section}
 \begin{comment}
