@@ -1,25 +1,12 @@
 !> @file maecs.F90
 !> @brief main MAECS module
 !> @author Richard Hofmeister, Markus Schartau, Kai Wirtz, Onur Kerimoglu
-!> @copyright HZG
-!  HZG 2011-2014
-! 
-!> The MAECS module contains 
-!! initialize
-!! do (=> maecs_do)
-!! get_light_extinction
-!! get_vertical_movement (=> maecs_get_vertical_movement)
-!! and maybe some humanly explanation here
-
-!! FABM sediment driver module provides infrastructure for the
-!! MOSSCO sediment component.
-!! The driver provides tendencies for state variables as sum of
-!! local rates (through FABM) and vertical diffusion.
-!! The units of concentrations of state variables is handled inside
-!! the driver as molar mass per volume pore water.
+!> @copyright HZG [dates?]
 
 #include "fabm_driver.h"
 
+!> @brief This is the module registered in FABM
+!> @details all the maecs_types are made available to this module
 module fabm_hzg_maecs
 use fabm_types
 use maecs_types
@@ -34,33 +21,23 @@ public type_hzg_maecs,type_maecs_env,type_maecs_rhs
 
 ! standard fabm model types
 
-!> @Brief here we extend a model 
-!! \todo describe the type_hzg_maecs
+!> @brief this is the model type FABM uses to create the mode
+!! @details the parent type (type_maecs_base_model) was defined in maecs_types module
 type,extends(type_maecs_base_model),public :: type_hzg_maecs 
  contains
-  procedure :: initialize !> initializes
+  procedure :: initialize
   procedure :: do => maecs_do
   procedure :: get_light_extinction
   procedure :: get_vertical_movement=>maecs_get_vertical_movement
 end type type_hzg_maecs
 
-interface
 
-  !> @author 
-  !> Routine Author Name and Affiliation.
-  !
-  ! DESCRIPTION: 
-  !> Brief description of routine. 
-  !> @brief
-  !> Flow method (rate of change of position) used by integrator.
-  !> Compute \f$ \frac{d\lambda}{dt} , \frac{d\phi}{dt},  \frac{dz}{dt} \f$
-  !
-  ! REVISION HISTORY:
-  ! TODO_dd_mmm_yyyy - TODO_describe_appropriate_changes - TODO_name
-  !
-  !> @param[in] inParam      
-  !> @param[out] outParam      
-  !> @return returnValue
+interface
+  !> @brief handles vertical movement for depth-varying movement rates
+  !> @details phyto sinking rate depends on the nutritional state, so for each node:
+  !! \n \f$ phy\%relQ \f$ obtained by calling calc_internal_states(self,phy,det,dom,zoo) 
+  !! \n then \f$ phyQstat=phy\%relQ\%N * phy\%relQ\%P \f$
+  !! \n finally, vsink = sinking(self\%vS_phy, phyQstat, vsink)
    subroutine maecs_get_vertical_movement(self, _ARGUMENTS_GET_VERTICAL_MOVEMENT_) 
    import type_hzg_maecs,type_environment,rk
    class (type_hzg_maecs),intent(in) :: self
@@ -83,18 +60,16 @@ end interface
 ! --- HZG model types
 !!--------------------------------------------------------------------
 
-contains
-! !IROUTINE: Initialise the maecs model
-!
-! !INTERFACE:
+ contains
+
+!> @brief initializes the model
+!! @details here the maecs namelists are read and assigned respectively in the 
+!! model type (self), state & diagnostic variables are registered in FABM 
+!! model tree and dependencies are imported from FABM
 subroutine initialize(self, configunit)
-! !DESCRIPTION:
-!  Here, the namelists are read and the variables exported
-!  by the model are registered with FABM.
-!
-! !INPUT PARAMETERS:
-class (type_hzg_maecs), intent(inout), target :: self
-integer,                  intent(in)            :: configunit
+
+ class (type_hzg_maecs), intent(inout), target :: self
+ integer,                  intent(in)            :: configunit
 !
 ! !LOCAL VARIABLES:
 integer    :: namlst=19
@@ -507,13 +482,8 @@ end subroutine initialize
 ! set small boundary depending on numerical resolution
 
 
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Get the light extinction coefficient due to biogeochemical
-! variables
-!
-! !INTERFACE:
+!> @brief to calculate light extinction when kc chnages with depth
+!> @details extinction coef=\f$ a_water + a_spm* (p+d+z) \f$
    subroutine get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
 !  
 ! !INPUT PARAMETERS:
@@ -557,6 +527,8 @@ end module fabm_hzg_maecs
 !BOP
 !
 
+! as this subroutine had to be placed outside the module such that a non-standard
+! name could be assigned,documentation had to be placed at the interface
 subroutine maecs_get_vertical_movement(self,_ARGUMENTS_GET_VERTICAL_MOVEMENT_)
 
 use maecs_functions
@@ -605,8 +577,7 @@ _FABM_LOOP_BEGIN_
    call calc_internal_states(self,phy,det,dom,zoo) 
    !write (*,'(A,2(F10.3))') 'phy%relQ%N, phy%relQ%P=', phy%relQ%N, phy%relQ%P
    
-
-   !< compute \f$ phyQstat=phy_{QN}*phy_{QP} \f$
+   !calculate Q state
    phyQstat = phy%relQ%N * phy%relQ%P 
 
   

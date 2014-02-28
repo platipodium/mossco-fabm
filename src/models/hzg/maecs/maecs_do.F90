@@ -1,24 +1,15 @@
+!> @file maecs.F90
+!> @brief main MAECS module
+!> @author Richard Hofmeister, Markus Schartau, Kai Wirtz, Onur Kerimoglu
+!> @copyright HZG
+
 #include "fabm_driver.h"
+
 !-----------------------------------------------------------------------------------
 !          Model for Adaptive Ecosystems in Coastal Seas 
-!  Original author(s): Richard Hofmeister, Markus Schartau & Kai Wirtz
-!  HZG 2011-2013
-!> @author 
-!> Routine Author Name and Affiliation.
 !
-! DESCRIPTION: 
-!> \todo a brief description of routine. 
-!> @brief
-!> formulas here
-!> Compute \f$ \frac{d\lambda}{dt} , \frac{d\phi}{dt},  \frac{dz}{dt} \f$
-!
-! REVISION HISTORY:
-! TODO_dd_mmm_yyyy - TODO_describe_appropriate_changes - TODO_name
-!
-!> @param[in] inParam      
-!> @param[out] outParam      
-!> @return returnValue
-
+!> @brief This is the main routine where right-hand-sides are calculated
+!> @details Here details about specific processes are provided.
 subroutine maecs_do(self,_ARGUMENTS_DO_)
 
 use fabm_types

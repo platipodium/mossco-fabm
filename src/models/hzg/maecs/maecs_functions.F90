@@ -1,14 +1,20 @@
+!> @file maecs_functions.F90
+!> @brief various maecs functions
+!> @author Richard Hofmeister, Markus Schartau, Kai Wirtz, Onur Kerimoglu
+!> @copyright HZG
+
 #include "fabm_driver.h"
 !---------------------------------------------------------
 ! !MODULE: MAECS_functions --- more to come
-!          Model for Adaptive Ecosystems in Coastal Seas 
+!> @brief  all functions called by maecs_do are defined here
    module maecs_functions
 
 ! !USES:
    use fabm_types
    use maecs_types
 
-   private
+   !private !!DOES THIS HAVE ANY FUNCTION?
+   
    public   uptflex       ,& 
             queuefunc, queuefunc0, queuederiv ,&
             smooth_small, sinking, min_mass, &
@@ -17,6 +23,10 @@
  contains  
 
 !---------------------------------------------------------
+!> @brief  smoothly ..?
+!> @details 
+!> @return smooth_small
+!> @todo: add a description and details
 pure real(rk) function smooth_small(x, eps)
 !
 !  continous smoothing function by kw Apr 2012
@@ -36,8 +46,10 @@ pure real(rk) function smooth_small(x, eps)
    end function smooth_small 
 
 !-----------------------------------------------------------------------
-!  potential nutrient uptake depending 
-!                        on external conc and allocation to sites/processing
+!> @brief calc's pot nut upt as f(external conc, allocations)
+!> @details 
+!> @return uptflex
+!> @todo: add equations
 pure real(rk) function uptflex(Aff0, Vmax0, Nut, fAv)
    implicit none
    real(rk), intent(in)      :: Aff0, Vmax0, Nut, fAv
@@ -52,25 +64,26 @@ pure real(rk) function uptflex(Aff0, Vmax0, Nut, fAv)
    end function uptflex
 
 !-----------------------------------------------------------------------
+!> @brief opt. partitioning between surf upt sites and intern. enzymes for nut assim.
+!> @details 
+!> @return fOptUpt
+!> @todo: add equations
 pure real(rk) function fOptUpt(Aff0, Vmax0, Nut)
    implicit none
-! optimal partitioning between
-! surface uptake sites and internal enzymes (for assimilating nutrients)
+
    real(rk), intent(in)      :: Aff0, Vmax0, Nut
 
    fOptUpt     = _ONE_/(sqrt(Aff0*Nut/(Vmax0)) + _ONE_ );
    end function fOptUpt
 
 !-----------------------------------------------------------------------
-!pure real(rk) function queuefunc(n,x)
+!> @brief the queue function 
+!> @details 
+!> n->inf :liebig  n~1:product
+!> @todo: add equations
 subroutine queuefunc(n,x,qfunc,qderiv)
-!
-!  response function from queing theory
-!  synchrony of processing n->inf :liebig  n~1:product
-!
-! !USES:
+
    implicit none
-! !INPUT PARAMETERS:
    real(rk), intent(in)          :: x, n
    real(rk), intent(out)         :: qfunc, qderiv
    real(rk)                      :: px
@@ -86,6 +99,10 @@ subroutine queuefunc(n,x,qfunc,qderiv)
    end subroutine queuefunc
 
 !-----------------------------------------------
+!> @brief approximation of the queue function 
+!> @details 
+!> n->inf :liebig  n~1:product
+!> @todo: add equations
 subroutine queuefunc1(n,x,qfunc,qderiv)
 !
 !  response function from queing theory:  numerical approximation
@@ -105,10 +122,11 @@ subroutine queuefunc1(n,x,qfunc,qderiv)
    end subroutine queuefunc1
 
 !-------------------------------------------------------------
+!> @brief derivative of the queue function ??
+!> @details 
+!> @return queuederiv
+!> @todo: add equations
 real(rk) function queuederiv(n,x)
-!
-!  response function from queing theory
-!  synchrony of processing n->inf :liebig  n~1:product
 !
    implicit none
    real(rk), intent(in)          :: x, n
@@ -120,6 +138,9 @@ real(rk) function queuederiv(n,x)
    end function queuederiv
 
 !-------------------------------------------------------------
+!> @brief calculation of the sinking rate
+!> @details 
+!> @todo: add equations
 subroutine sinking(vS ,phys_status,sinkvel)
    implicit none
    real(rk), intent(in)     :: vS ,phys_status
@@ -179,6 +200,9 @@ subroutine sinking(vS ,phys_status,sinkvel)
 #define _KAI_ 0
 #define _MARKUS_ 1
 !------------------------------------------------------
+!> @brief minimum mass
+!> @details 
+!> @todo: add equations
 subroutine min_mass(maecs,phy,method)
 
 implicit none
@@ -281,6 +305,9 @@ end select
 end subroutine min_mass
 
 !------------------------------------------------------
+!> @brief calculate sensitivities
+!> @details 
+!> @todo: add a better description and equations
 subroutine calc_sensitivities(maecs,sens,phy,env,nut)
 
 implicit none
@@ -339,6 +366,9 @@ end if
 end subroutine
 
 !------------------------------------------------------
+!> @brief calculate the internal states 
+!> @details 
+!> @todo: add equations
 subroutine calc_internal_states(maecs,phy,det,dom,zoo)
 
 implicit none
