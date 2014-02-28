@@ -1,0 +1,72 @@
+%\documentclass[11pt]{elsart} %Kai's elsart package
+%\documentclass[preprint,authoryear,12pt]{elsarticle} %New elsarticle package
+%\documentclass{svjour3}                     % onecolumn (standard format)
+%\documentclass[smallextended]{svjour3}     % onecolumn (second format)
+%\documentclass[twocolumn]{svjour3}         % twocolumn
+%\smartqed  % flush right qed marks, e.g. at end of proof
+%\usepackage{mathptmx}  
+\usepackage[authoryear,round]{natbib}
+\usepackage[parfill]{parskip} 
+%\usepackage[dvips,usenames]{color}
+\usepackage{epsfig,graphicx,amsmath,units,cancel} %,amsmath
+\usepackage[table]{xcolor}
+\usepackage{textcomp,verbatim}%,lineno
+%\marginparsep0mm\topmargin2mm\textwidth159mm \oddsidemargin-10mm  \textheight 223mm 
+%\makeatletter\setlength\@frontmatterwidth{159mm}\makeatother
+\renewcommand{\bottomfraction}{1.0}\renewcommand{\topfraction}{1.0}\renewcommand{\textfraction}{0.0}
+%  Macros & definitions
+\definecolor{lightgrey}{rgb}{0.6,0.36,0.6}
+\providecommand{\nTblEq}[1]{\refstepcounter{tblEqCounter}\label{#1}\thetag{\thetblEqCounter}}
+\newcounter{tblEqCounter}
+\newcommand{\tabref}[1]{Table~\ref{#1}}\newcommand{\figref}[1]{Figure~\ref{#1}}
+\newcommand{\secref}[1]{Sec.~\ref{#1}}
+%\newcommand{\beq}{\begin{linenomath} \begin{equation}}
+%\newcommand{\eeq}{\end{equation}\end{linenomath}  \vspace{0.0cm}}     
+\newcommand{\beq}{\begin{equation}}
+\newcommand{\beql}[1]{\beq \label{#1}}
+\newcommand{\beal}[1]{\bea \label{#1}}
+\newcommand{\eeq}{\end{equation}}     %\vspace{-0.1cm}
+\newcommand{\bea}{\begin{eqnarray}} \newcommand{\eea}{\end{eqnarray}}
+%\newcommand{\bea}{\begin{align}} 
+%\newcommand{\eea}{\end{align}}
+\newcommand{\fracd}[2]{\displaystyle\frac{#1}{#2}}
+\newcommand{\Eq}[1]{Eq.(\ref{#1})}  \newcommand{\Eqs}[2]{Eqs.(\ref{#1})--(\ref{#2})}
+\newcommand{\climf}{\textrm{LF}}
+\newcommand{\nind}{\textrm{X}}
+\newcommand{\rgr}{\mu}
+\newcommand{\vmax}[1]{V_{\mathrm{max},#1}}
+\newcommand{\phyc}{\mathrm{Phy}_\mathrm{C}}\newcommand{\phyx}{\mathrm{Phy}_{X}}
+\newcommand{\chlc}{\mathrm{Chl\!\!:\!\!C}}
+%\newcommand{\qn}[1]{Q_{\mathrm{N}#1}}
+\newcommand{\qx}[1]{Q_{#1}}
+\newcommand{\qn}{Q_{\mathrm{N}}}\newcommand{\qno}{Q_{\mathrm{N}0}}
+\newcommand{\qp}{Q_{\mathrm{P}}}\newcommand{\qpo}{Q_{\mathrm{P}0}}
+\newcommand{\fQ}[1]{q_\mathrm{#1}}
+\newcommand{\Vn}{V_\mathrm{N}}
+\newcommand{\phyn}{\mathrm{Phy}_\mathrm{N}}
+\newcommand{\zooc}{\mathrm{Zoo}_\mathrm{C}}\newcommand{\zoox}{\mathrm{Zoo}_{X}}
+%\newcommand{\dift}{\nicefrac{\displaystyle\mathrm{d}}{\displaystyle\mathrm{d}t}\:}%   \diff{}{t}
+\newcommand{\dift}{\diff{}{t}}
+%\newcommand{\dift}{\raisebox{-.4ex}{\diff{}{t}}}
+%\newcommand{\maecs}{\mu}
+\newcommand{\uref}[2]{\underset{\color{lightgrey}(\ref{eq:#2})}{#1}}
+\newcommand{\lsize}{\ell}%\mathrm{ESD}
+%\newcommand{\cpsz}{\csize_\mathrm{p}}\newcommand{\zsize}{\csize_\mathrm{z}}
+\newcommand{\lcsize}{\ell}%_\mathrm{ESD}\psize 
+\newcommand{\lpsize}{\widetilde{\lcsize}}\newcommand{\psize}{\sigma}
+\newcommand{\fsel}{f_\mathrm{sel}}
+\newcommand{\diff}[2]{\displaystyle\frac{\textrm{d}#1}{\textrm{d}#2}}
+\newcommand{\pdiff}[2]{\displaystyle \frac{\partial #1}{\partial #2}}
+\definecolor{red}{rgb}{0.7,0.13,0.13}\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\newcommand{\gray}[1]{\textcolor{gray}{\footnotesize #1}} 
+\newcommand{\imax}{\ensuremath{I_{\mathrm{max}}}}
+%\newcommand{\ptot}{\ensuremath{\mathrm{Prob}\{\scriptsize\mathrm{capture}\}}\,}
+\newcommand{\psv}{\sigma_\ell}%{s_0^2}
+\newcommand{\affin}{a}%{s_0^2}
+\newcommand{\syn}{n}
+\newcommand{\arrh}[1]{f^{\scriptstyle\mathrm{A},#1}_T}
+\newcommand{\msep}{\qquad\textrm{with}\quad}
+\newcommand{\eh}[1]{\textrm{e}^{#1}}
+\newcommand{\blp}{\left\{ \begin{array} {c@{\quad:\qquad}l}}
+\newcommand{\elp}{\end{array} \right.}\newcommand{\eqp}{\lefteqn{\quad.}}
+\parindent 0pt

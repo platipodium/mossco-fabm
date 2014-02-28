@@ -15,9 +15,14 @@ default: doc
 doc:
 	$(DOXYGEN) $(DOXYGEN_CONFIG)
 	$(MAKE) -C latex
+	makeindex ./latex/refman.nlo -s nomencl.ist -o ./latex/refman.nls 	
+	$(MAKE) -C latex
 	@cp latex/refman.pdf maecs_documentation.pdf
 
+	
 clean:
 	@rm -rf latex
-	@rm -f maecs_documentation.pdf
+	@rm -rf html
 
+realclean: clean
+	$(RM) *.dvi *.ps *.pdf

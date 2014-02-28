@@ -3,17 +3,20 @@
 
 @section general-overview General Overview
 
-The  goal of MAECS is...
+With regard to the conceptualization of trophic interactions, MAECS resembles the classical N-P-Z-D models (1). The emphasis is on the regulation of a number of physiological processes in the phytoplankton unit, which are resolved following a sophisticated optimization scheme. Energy & nutrient allocation scheme of the phytoplankton, as well as the optimization concept used in MAECS is hinted by the model described by \cite Wirtz2010. See the last section (2) (available only in the pdf form of the documentation) for a detailed description and model equations with some narration.
 
+\todo (1) include a diagram here
 
+\todo (2) find out how to refer to latex-only sections from the mainpage
+
+In order to re-generate this documentation, make sure the prerequisites (doxygen,latex, bibtex) installed in your system, then type:
 ~~~~sh
-maybe some script here
+make
 ~~~~
-
-
-@section references References
-
-- K. W. Wirtz and M. Pahlow (2010): ...
+inside: 
+~~~~sh
+$FABMDIR/src/models/hzg/maecs/doc/
+~~~~
 
 
 */
