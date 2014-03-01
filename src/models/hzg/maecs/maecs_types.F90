@@ -1,14 +1,11 @@
 !> @file maecs_types.F90
 !> @brief maecs_types module
 !> @author Richard Hofmeister, Kai Wirtz, Onur Kerimoglu
-!> @copyright HZG
-!  HZG 2011-2014
 
 #include "fabm_driver.h"
 
 !> @brief  Data types used in fabm_hzg_maecs are defined here
 !> @details 
-!> @todo: !!! documentation is interfering with the parser !!!
 module maecs_types
 
 use fabm_types
@@ -30,7 +27,7 @@ type type_maecs_env
 end type
 
 !> @brief stores right hand sides
-!> @todo: need for a parameter list?
+!> @todo: do we need a parameter list for each maecs type?
 type type_maecs_rhs
  real(rk) :: nutN,nutP,nutS,phyC,phyN,phyP,phyS,zooC,detC,detN,detP,detS,domC,domN,domP,Rub,chl
 end type
@@ -39,7 +36,7 @@ end type
 !> @details this model type parents the FABM-recognized type_maecs_base_model 
 !> \n Model parameters, descriptions and corresponding symbols used in formulas:
 !> \describepar{P\_max, P_{max}, : phyto max. growth rate}
-!> @todo: complete the parameter list
+!> @todo: parser should do this!!
 type,extends(type_base_model),public :: type_maecs_base_model
 type (type_state_variable_id)        :: id_nutN,id_nutP,id_nutS,id_phyC,id_phyN,id_phyP,id_phyS,id_zooC,id_detC,id_detN,id_detP,id_detS,id_domC,id_domN,id_domP,id_Rub,id_chl
 type (type_dependency_id)            :: id_temp

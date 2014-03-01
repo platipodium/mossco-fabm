@@ -1,7 +1,5 @@
-!> @file maecs.F90
-!> @brief main MAECS module
+!> @file maecs_do.F90
 !> @author Richard Hofmeister, Markus Schartau, Kai Wirtz, Onur Kerimoglu
-!> @copyright HZG
 
 #include "fabm_driver.h"
 
@@ -9,7 +7,23 @@
 !          Model for Adaptive Ecosystems in Coastal Seas 
 !
 !> @brief This is the main routine where right-hand-sides are calculated
-!> @details Here details about specific processes are provided.
+!> @details
+!> **Phytoplankton Equations** 
+!> \n We distinguish between mass state variables (in units of carbon, nitrogen, & phosphorus) 
+!!   and property state variables. \latexonly See also: Section \ref{sec:masseq} \endlatexonly \n
+!>  Current 'traits' are: 
+!> - nitrogen allocated to rubisco (frac_Rub) 
+!> - Chla content of chloroplasts  (theta) \n 
+!
+!> **General code structure:**
+!> 1. Calculation of quotas
+!> 2. Calculation of fluxes and mass exchange rates
+!> 3. Specify rates of change of traits variables 
+!> 4. Assign mass exchange rates ('rhs(j,i)')
+!> 5. Assign rates of change of 'traits' property variables  
+!
+!> @todo: althougth HIDE_IN_BODY_DOCS=NO, the body-documentation is not included! HAS TO BE FIXED
+!> @todo: add equations
 subroutine maecs_do(self,_ARGUMENTS_DO_)
 
 use fabm_types
@@ -94,19 +108,10 @@ end if
   _GET_(self%id_par, env%par)  ! light photosynthetically active radiation
 !#E_GED
 
-! *** PHYTOPLANKTON EQUATIONS 
-! We distinguish between mass state variables (in units of carbon, nitrogen, & phosphorus) 
-!   and property state variables. 
-! Current 'traits' are: 1) nitrogen allocated to rubisco (frac_Rub) 
-!                       2) Chla content of chloroplasts  (theta)
-! General code structure:
-!  A) Calculation of quotas
-!  B) Calculation of fluxes and mass exchange rates
-!  C) Specify rates of change of traits variables 
-!  D) Assign mass exchange rates ('rhs(j,i)')
-!  E) Assign rates of change of 'traits' property variables  
 
-! *** BEGIN A) 
+!> @fn ::subroutine maecs_do ()
+!> 1. Calculation of quotas  
+!> @todo: add equations
 
 ! --- checking and correcting extremely low state values  ------------  
 call min_mass(self,phy,method=2) !_KAI_ minimal reasonable Phy-C and -Nitrogen
@@ -124,6 +129,13 @@ if (.not. self%PhotoacclimOn) then
 end if 
 
 call calc_sensitivities(self,sens,phy,env,nut)
+
+
+!> @fn maecs_do()
+!> *here some in-body-doc*
+!> 2. Calculation of fluxes and mass exchange rates
+!> 3. Specify rates of change of traits variables 
+!> @todo: add equations
 
 ! --- ALGAL GROWTH and EXUDATION RATES, physiological trait dynamics ----------------
 call photosynthesis(self,sens,phy,uptake,exud,acclim)
@@ -165,6 +177,15 @@ aggreg_rate = self%phi_agg * (1.0_rk - exp(-0.02*dom%C)) * (phy%N + det%N)
 !  ---  hydrolysis & remineralisation rate (temp dependent)
 degradT     = self%hydrol * sens%f_T
 reminT      = self%remin  * sens%f_T
+
+
+
+!> @fn subroutine maecs_do ()
+!> *here some in-body-doc*
+!> 4. Assign mass exchange rates ('rhs(j,i)')
+!> 5. Assign rates of change of 'traits' property variables  
+!> @todo: add equations
+
 
 ! right hand side of ODE (rhs)    
 !  #define UNIT /self%secs_pr_day

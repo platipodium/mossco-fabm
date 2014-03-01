@@ -1,3 +1,5 @@
+!> @file maecs_primprod.F90
+!> @author Kai Wirtz
 
 ! nitrogen
      i = 1

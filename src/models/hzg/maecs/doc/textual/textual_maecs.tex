@@ -24,7 +24,7 @@ The intracellular nutrient quotas, in this model version resolved for nitrogen (
 For describing the living compartment of plankton ecosystems MAECS employs much more trait variables (e.g., allocation coefficients) compared to bulk variables (e.g., phytoplankton or zooplankton biomass). The adaptive trait dynamics infers the need of calculating (sometimes long) derivative terms, which also challenges this documentation; however, the gradient-derived terms include very few  additional process parameters, so that the number of tunable parameters in relation to simulated and testable dynamics is significantly reduced compared to models that share a similar resolution in plankton physiology or ecology. Most importantly, MAECS seeks to account for biophysical and evolutionary principles as much as possible; resulting in expressions replacing heuristic functions such as Michaelis-Menten approximations of nutrient uptake, Droop representation of cell growth, or Liebig's rule of minimum. Biophysical origins of model formulations further reduces the number of tunable parameters, in particular in the ecological part. Prominent counter-examples, i.e.~yet uncertain model formulations or parameters, comprise aggregation dynamics or variations in metabolic interdependency. 
 
 
-\begin{subsection}{Mass equations}
+\begin{subsection}{Mass equations}\label{sec:masseq}
 
 Basic mass equations common to the two MAECS variants (size and physiology). All coefficients and their meanings are listed in \tabref{tab:par}. 
 

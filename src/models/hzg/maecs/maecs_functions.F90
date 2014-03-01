@@ -1,12 +1,10 @@
 !> @file maecs_functions.F90
-!> @brief various maecs functions
 !> @author Richard Hofmeister, Markus Schartau, Kai Wirtz, Onur Kerimoglu
-!> @copyright HZG
 
 #include "fabm_driver.h"
 !---------------------------------------------------------
 ! !MODULE: MAECS_functions --- more to come
-!> @brief  all functions called by maecs_do are defined here
+!> @brief  functions called by maecs_do, maecs_grazing and maecs_primprod
    module maecs_functions
 
 ! !USES:

@@ -1,9 +1,9 @@
-!
+!> @file maecs_primprod.F90
+!> @author Richard Hofmeister, Markus Schartau, Kai Wirtz, Onur Kerimoglu
+
 #include "fabm_driver.h"
-!---------------------------------------------------------
-!BOP
-! !MODULE: MAECS_functions --- more to come
-!  Model for Adaptive Ecosystems in Coastal Seas 
+
+!> @brief Primary production module
    module maecs_primprod
 
    use fabm_types
@@ -14,6 +14,10 @@
 
  contains  
 
+!> @brief  calculates grazing rate
+!> @details 
+!> This is the subroutine, where the optimal regulation of phytoplankton traits
+!> are described, which is central to the physiological-MAECS
 subroutine photosynthesis(self,sens,phy,uptake,exud,acc)
 implicit none
 
@@ -56,8 +60,11 @@ type (stoichiometry_pointer), dimension(5) :: elem ! pointer structure for addre
 ! 
 eps     =  self%small_finite ! just  a shorter namer
 
-! prepare loop over structure elements by assigning a poinzer structure
-! here, every possible nutrient is asked explicitely; thus first Si then P
+
+!> @fn maecs_primprod::photosynthesis()
+!> *here some in-body-doc*
+!> Prepare loop over structure elements by assigning a poinzer structure
+!! here, every possible nutrient is asked explicitely; thus first Si then P
 include './maecs_stoichvars.F90p'
 
 num_nut  = i

@@ -1,7 +1,5 @@
 !> @file maecs.F90
-!> @brief main MAECS module
 !> @author Richard Hofmeister, Markus Schartau, Kai Wirtz, Onur Kerimoglu
-!> @copyright HZG [dates?]
 
 #include "fabm_driver.h"
 
@@ -37,7 +35,7 @@ interface
   !> @details phyto sinking rate depends on the nutritional state, so for each node:
   !! \n \f$ phy\%relQ \f$ obtained by calling calc_internal_states(self,phy,det,dom,zoo) 
   !! \n then \f$ phyQstat=phy\%relQ\%N * phy\%relQ\%P \f$
-  !! \n finally, vsink = sinking(self\%vS_phy, phyQstat, vsink)
+  !! \n finally, vsink = maecs_functions::sinking(self\%vS_phy, phyQstat, vsink)
    subroutine maecs_get_vertical_movement(self, _ARGUMENTS_GET_VERTICAL_MOVEMENT_) 
    import type_hzg_maecs,type_environment,rk
    class (type_hzg_maecs),intent(in) :: self
@@ -46,6 +44,11 @@ interface
  end interface
 
 interface
+  !> @brief this is the module where all the left-hand sides are calculated
+  !> @details this is only the interface documentation
+  !> @todo for some reason the documentation for the real maecs_do module included inside
+  !! maecs_do.F90 is not included in the data-type documentation, but only in the file-documentation.
+  !! find out why.
   subroutine maecs_do(self, _ARGUMENTS_DO_)
   import type_hzg_maecs,type_environment,rk
   class (type_hzg_maecs),intent(in) :: self
@@ -65,7 +68,10 @@ end interface
 !> @brief initializes the model
 !! @details here the maecs namelists are read and assigned respectively in the 
 !! model type (self), state & diagnostic variables are registered in FABM 
-!! model tree and dependencies are imported from FABM
+!! model tree and dependencies are imported from FABM 
+!> \n **Model parameters, descriptions and corresponding symbols used in formulas:**
+!> \describepar{alpha, \alpha, : initial slope of the P-I curve}
+!! @todo parser could do this here either.
 subroutine initialize(self, configunit)
 
  class (type_hzg_maecs), intent(inout), target :: self
