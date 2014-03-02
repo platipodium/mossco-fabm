@@ -1,6 +1,6 @@
 
 ! nitrogen
-     i = 1
+     i = self%nutind%iN
 elem(i)%relQ      = smooth_small(phy%relQ%N,eps)
 elem(i)%Q         = smooth_small(phy%Q%N,eps)
 elem(i)%upt_pot   => sens%upt_pot%N
@@ -11,7 +11,7 @@ elem(i)%aV        => acc%aV%N
 
 ! phosphorus
 if (self%PhosphorusOn) then
-     i = i + 1
+     i = self%nutind%iP
 elem(i)%relQ      = smooth_small(phy%relQ%P,eps)
 elem(i)%Q         = smooth_small(phy%Q%P,eps)
 elem(i)%upt_pot   => sens%upt_pot%P
@@ -19,11 +19,12 @@ elem(i)%upt_act   => upt_act%P
 elem(i)%upt       => uptake%P
 elem(i)%iKQ       = self%iK_QP
 elem(i)%aV        => acc%aV%P
+num_nut           = num_nut + 1
 end if
 
 ! silicon
 if (self%SiliconOn) then
-     i = i + 1
+     i = self%nutind%iSi
 elem(i)%relQ      = smooth_small(phy%relQ%Si,eps)
 elem(i)%Q         = smooth_small(phy%Q%Si,eps)
 elem(i)%upt_pot   => sens%upt_pot%Si
@@ -31,4 +32,5 @@ elem(i)%upt_act   => upt_act%Si
 elem(i)%upt       => uptake%Si
 elem(i)%iKQ       = self%iK_QSi
 elem(i)%aV        => acc%aV%Si
+num_nut           = num_nut + 1
 end if

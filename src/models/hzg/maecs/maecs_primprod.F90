@@ -25,6 +25,7 @@ type (type_maecs_om), intent(out)          :: exud
 type (type_maecs_traitdyn), intent(out), target    :: acc
 
 integer  :: num_nut, i
+integer  :: iN=2, iP=1,  iSi=3   ! order of recursive colimitation scheme
 integer  :: j, j2
 real(rk) :: eps
 ! --- UPTAKE KINETICS
@@ -58,9 +59,9 @@ eps     =  self%small_finite ! just  a shorter namer
 
 ! prepare loop over structure elements by assigning a poinzer structure
 ! here, every possible nutrient is asked explicitely; thus first Si then P
+num_nut  = 1  ! always count on N
 include './maecs_stoichvars.F90p'
 
-num_nut  = i
 ! write (*,'(A,(I4))') 'num_nut:',num_nut
 
 ! prelim solution: elemiometry in RNA (N:P ~ 4:1) and phospholipids (N:P~1:1)
@@ -74,10 +75,10 @@ num_nut  = i
     q_Lip    = 0.8  ! storage P-stoichiometry   
     f_Lip    = 1./(1.+exp(10*(1.-phy%relQ%P)))
 
-zeta_X(1)         = self%zeta_CN
+zeta_X(iN)         = self%zeta_CN
 if (self%PhosphorusOn) then
    if (num_nut .gt. 2) zeta_X(3:num_nut) = 0.0d0
-   zeta_X(2)      = self%zeta_CN * ((1.-f_Lip)*q_NoLip + f_Lip*q_Lip)
+   zeta_X(iP)      = self%zeta_CN * ((1.-f_Lip)*q_NoLip + f_Lip*q_Lip)
 !   zeta_X(2)      = self%zeta_CN * 0
 end if
 ! --- relative amount of carbon invested into light harvesting complex (LHC) -------
@@ -100,7 +101,7 @@ dbal_dv = 1.0d0 + phy%Q%N * self%zeta_CN  ! partial derivative of the balance eq
 ! --- synchrony in nutrient assimilation depends on growth cycle and N-quota
 !         
 if (self%syn_nut .le. _ZERO_ ) then  !
-   syn_act = -self%syn_nut * phy%relQ%N
+   syn_act = -self%syn_nut * elem(1)%relQ
 else
    syn_act  = self%syn_nut
 endif 
