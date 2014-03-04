@@ -11,7 +11,6 @@
    use maecs_functions
    private
    public    photosynthesis     
-
  contains  
 
 subroutine photosynthesis(self,sens,phy,uptake,exud,acc)
@@ -25,12 +24,9 @@ type (type_maecs_om), intent(out)          :: exud
 type (type_maecs_traitdyn), intent(out), target    :: acc
 
 integer  :: num_nut, i
-integer  :: iN=2, iP=1,  iSi=3   ! order of recursive colimitation scheme
-integer  :: j, j2
 real(rk) :: eps
 ! --- UPTAKE KINETICS
 type (type_maecs_om), target :: upt_act ! free C-specific uptake rate [molX molC^{-1} d^{-1}]
-
 ! --- DERIVATIVES OF C-UPTAKE (FOR TRAIT-BASED ADAPTIVE DYNAMICS)
 real(rk) :: dmu_dV, dmu_dV0   ! [...]
 real(rk) :: dmuQ_dfracR,   dmuQ_dtheta
@@ -52,35 +48,24 @@ real(rk), dimension(5) :: sigmv ! relative quota-uptake feed-back
 real(rk), dimension(5) :: dqp_X_dq_X, dqp_X_dqp_Y  ! derivatives
 real(rk), dimension(5) :: zeta_X  ! C-costs of assimilation of nutrient X
 !real(rk), dimension(5) :: upt_act
-type (stoichiometry_pointer), dimension(5) :: elem ! pointer structure for addressing all elements wthin loops
-! TODO: self%num_nut
-! 
-eps     =  self%small_finite ! just  a shorter namer
+type (stoich_pointer), dimension(5)::elem ! struct-pointer addressing elements wthin loops
+!
+eps     =  self%small_finite ! just  a shorter namer for a small thing
+
+! TODO: energetic costs of P-assimilation \partial (\zeta_CN V_N) / \partial V_P not
+!    resolved but assumed to be already included in protein synthesis
+! prelim solution: stoichiometry in RNA (N:P ~ 4:1) and phospholipids (N:P~1:1)
+! TODO: include proteins/mebranes (N:P >> 16:1) under low growth conditions 
+!  q_NoLip  = 3.8  ! P-stoichiometry of active compounds (DNA, RNA)  
+q_NoLip  = self%zstoich_PN !   16 : Redfield-stoichiometry 
+q_Lip    = 0.8  ! storage P-stoichiometry   
+f_Lip    = 1./(1.+exp(10*(1.-phy%relQ%P)))
 
 ! prepare loop over structure elements by assigning a poinzer structure
 ! here, every possible nutrient is asked explicitely; thus first Si then P
-num_nut  = 1  ! always count on N
-include './maecs_stoichvars.F90p'
+include './maecs_stoichvars.F90p' ! order of recursive colimitation scheme
+num_nut  = self%nutind%nutnum  ! total number of nutrients
 
-! write (*,'(A,(I4))') 'num_nut:',num_nut
-
-! prelim solution: elemiometry in RNA (N:P ~ 4:1) and phospholipids (N:P~1:1)
-! TODO: include proteins/mebranes (N:P >> 16:1) under low growth conditions 
-! TODO: energetic costs of P-assimilation not brought up as an extra term but 
-!          assumed to be already included in protein synthesis
-! \partial (\zeta_CN V_N) / \partial V_P
-!    q_NoLip  = 3.8  ! P-stoichiometry of active compounds (DNA, RNA)  
-    q_NoLip  = self%zstoich_PN
-!    q_NoLip  = 16   ! Redfield-stoichiometry 
-    q_Lip    = 0.8  ! storage P-stoichiometry   
-    f_Lip    = 1./(1.+exp(10*(1.-phy%relQ%P)))
-
-zeta_X(iN)         = self%zeta_CN
-if (self%PhosphorusOn) then
-   if (num_nut .gt. 2) zeta_X(3:num_nut) = 0.0d0
-   zeta_X(iP)      = self%zeta_CN * ((1.-f_Lip)*q_NoLip + f_Lip*q_Lip)
-!   zeta_X(2)      = self%zeta_CN * 0
-end if
 ! --- relative amount of carbon invested into light harvesting complex (LHC) -------
 ! chlorophyll-to-carbon ratio of chloroplast * chloroplast concentration of cell
 !if (self%PhotoacclimOn) then  
@@ -101,7 +86,7 @@ dbal_dv = 1.0d0 + phy%Q%N * self%zeta_CN  ! partial derivative of the balance eq
 ! --- synchrony in nutrient assimilation depends on growth cycle and N-quota
 !         
 if (self%syn_nut .le. _ZERO_ ) then  !
-   syn_act = -self%syn_nut * elem(1)%relQ
+   syn_act = -self%syn_nut * elem(self%nutind%nhi)%relQ
 else
    syn_act  = self%syn_nut
 endif 
@@ -117,7 +102,7 @@ c_h1 = 1.0d0  + log( 1.0d0/(4**hh) + 0.5*hh );
 !  auxiliary variable expressing the ratio between gross and net production
 dbal_dv = 1.0d0 + phy%Q%N * self%zeta_CN
 
-e_N0    = 1.0d0 / (phy%Q%N * dbal_dv) 
+! e_N0    = 1.0d0 / (phy%Q%N * dbal_dv) 
 
 qp_Y    = elem(num_nut)%relQ
 dqp_X_dq_X(num_nut)  = 1.0d0
@@ -128,8 +113,6 @@ dqp_X_dqp_Y(num_nut) = 0.0d0
 !   extended optimality functions
 
 if (num_nut .gt. 1) then
- sigmv(2:num_nut)  = 0.0d0
-
  ! loop over all nutrients starting from pre-final
  do i = num_nut-1, 1, -1  
 
@@ -162,6 +145,7 @@ else
 
 end if
 
+!   final efficiency in interdependent multi-nutrient processing
 fac_colim   = qp_X
 
 phy%rel_phys= fac_colim * sens%upt_pot%C  ! auxiliary variable for sinking routine
@@ -169,12 +153,13 @@ phy%rel_phys= fac_colim * sens%upt_pot%C  ! auxiliary variable for sinking routi
 ! recursive product following from chain rule; first term : 1/LF
 prod_dq     = 1.0d0/smooth_small(qp_X,eps)
 
-! derivative of f_V (fraction of nutrient uptake machinery) on f_R (PS) and theta
+! derivative of f_V (fraction of nutrient uptake machinery) on f_R (PS) and theta (LHC)
 dfV_dfracR  = - acc%dRchl_dfracR * self%itheta_max - 1.0d0 
 dfV_dtheta  = - acc%dRchl_dtheta * self%itheta_max
 
 !  auxiliary variable for the feed-back of N-quota and N-uptake change
-sigmv(1)    =   acc%dRchl_dQN  * self%itheta_max / phy%frac%NutUpt
+! \todo stability   sigmv(1)    =   acc%dRchl_dQN  * self%itheta_max / phy%frac%NutUpt
+sigmv(1:num_nut)  = 0.0d0
 
 ! $\partial mu/\partial Q dQ/dV|_{tot}$ : initial zero berfore loop
 dmuQ_dfracR = 0.0d0
@@ -184,14 +169,14 @@ do i = 1, num_nut
  ! ------------------ derivatives of co-limited growth function ---------------------
    d_X       = prod_dq * dqp_X_dq_X(i)
    prod_dq   = prod_dq * dqp_X_dqp_Y(i)
-   e_N       = e_N0 + d_X * elem(i)%iKQ / elem(i)%relQ
+!   e_N       = e_N0 + d_X * elem(i)%iKQ / elem(i)%relQ
 
    d_QX      = d_X* dbal_dv * elem(i)%iKQ + sigmv(i)* phy%Q%N * self%zeta_CN  ! 
 
 !   steady-state down-regulation of uptake I: balance of respiration and indirect benefits  
    dmu_dV    = (1.0d0 + zeta_X(i) * elem(i)%Q) * d_QX/(1.0d0 + elem(i)%Q * (d_QX + sigmv(i)))
 
-   dmu_dV    = dmu_dV * e_N / (e_N + sigmv(i))
+!   dmu_dV    = dmu_dV * e_N / (e_N + sigmv(i))
 
 !   steady-state down-regulation of uptake I: balance of respiration and indirect benefits  
    dmu_daV   = (-zeta_X(i) + dmu_dV) * phy%frac%NutUpt * elem(i)%upt_pot 
@@ -214,8 +199,8 @@ end do
 !   phy%frac%Rub* sens%P_max_T* phy%rel_QN : carboxylation capacity = Rub * free proteins
 !   fac_colim       : final synchrony in  protein/RNA dynamics (multi-nutrient processing)
 !   sens%upt_pot%C  : light harvesting (light limited growth)
-Pmaxc     =  fac_colim * sens%P_max_T
-grossC    =  phy%frac%Rub * Pmaxc * sens%upt_pot%C  ! primary production
+Pmaxc     = fac_colim * sens%P_max_T
+grossC    = phy%frac%Rub * Pmaxc * sens%upt_pot%C  ! primary production
 
 ! ---  respiration due to N assimilation --------------------------------------
 lossC     = self%zeta_CN * uptake%N                           ! [d^{-1}]
@@ -246,7 +231,6 @@ end if
 !write (*,'(A,2(F10.3))') 'dfracR_dt: ',acc%dfracR_dt*1E3, grad_fracR *1E3
 
 if (self%PhotoacclimOn) then
-
 ! --- derivatives of C-uptake rate  --------------------------------------------         
 !     positive gradient term due to PAR adsorption by CHL 
    dmu_dtheta = Pmaxc* phy%frac%Rub * (1.0d0-sens%upt_pot%C)*sens%a_light & 
@@ -270,12 +254,11 @@ exud%N      = self%exud_phy * uptake%N   ! [(mmolN) (mmolC)^{-1} d^{-1}]
 exud%P      = phy%P / phy%reg%N * exud%N   ! [(mmolP) (mmolC)^{-1} d^{-1}]
 
 ! set few volatile diag variables ___________________________________
-if (self%DebugDiagOn) then
+!if (self%DebugDiagOn) then
 !  acc%tmp    = sens%upt_pot%C
 !  acc%fac1   = phy%theta * phy%rel_chloropl 
 !  acc%fac2   = grad_fracR
-endif
-
+! endif
 end subroutine photosynthesis
 
 end module maecs_primprod

@@ -8,6 +8,7 @@ elem(i)%upt_act   => upt_act%N
 elem(i)%upt       => uptake%N
 elem(i)%iKQ       = self%iK_QN
 elem(i)%aV        => acc%aV%N
+zeta_X(i)         = self%zeta_CN
 
 ! phosphorus
 if (self%PhosphorusOn) then
@@ -19,7 +20,8 @@ elem(i)%upt_act   => upt_act%P
 elem(i)%upt       => uptake%P
 elem(i)%iKQ       = self%iK_QP
 elem(i)%aV        => acc%aV%P
-num_nut           = num_nut + 1
+zeta_X(i)         = self%zeta_CN * ((1.-f_Lip)*q_NoLip + f_Lip*q_Lip)
+
 end if
 
 ! silicon
@@ -32,5 +34,5 @@ elem(i)%upt_act   => upt_act%Si
 elem(i)%upt       => uptake%Si
 elem(i)%iKQ       = self%iK_QSi
 elem(i)%aV        => acc%aV%Si
-num_nut           = num_nut + 1
+zeta_X(i)         = _ZERO_
 end if

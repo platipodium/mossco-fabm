@@ -587,6 +587,7 @@ else
  nm = 3
 endif
 
+! evaluate number of considered limiting nutrients  
 self%nutind%nutnum = 1
 if (self%PhosphorusOn) then
   self%nutind%nutnum = self%nutind%nutnum + 1
@@ -596,6 +597,14 @@ end if
 if (self%SiliconOn) then
   self%nutind%nutnum = self%nutind%nutnum + 1
 end if
+
+! special setting for synchrony dependency on relative quota: nutrient index
+nh = nint(10*(self%NutOrder-floor(self%NutOrder))) 
+if ( nh .gt. 0 .and. nh .le. nm) then
+  self%nutind%nhi = nh  ! element number corr. to first lower digit
+else
+  self%nutind%nhi = 1  ! default: first element
+endif
 
 !write (*,'(A,5(I4))') 'No No N P Si:',nm,self%nutind%nutnum,self%nutind%iN,self%nutind%iP,self%nutind%iSi
  

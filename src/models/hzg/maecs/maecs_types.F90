@@ -13,7 +13,7 @@ public type_maecs_sensitivities, type_maecs_om, &
 !  Original author(s): Richard Hofmeister & Kai Wirtz
 type type_maecs_nutindex
    integer :: iN, iP, iSi
-   integer :: nutnum   
+   integer :: nutnum, nhi   
 end type
 ! standard fabm model types
 type,extends(type_base_model),public :: type_maecs_base_model
@@ -110,12 +110,12 @@ type type_maecs_sensitivities
 end type type_maecs_sensitivities
 
 ! new meta structure for pointing/looping over elements
-type stoichiometry_pointer
+type stoich_pointer
    real(rk),pointer  :: upt, upt_act, upt_pot
    real(rk),pointer  :: aV
    real(rk)          :: relQ, Q
    real(rk)          :: iKQ
-end type stoichiometry_pointer
+end type stoich_pointer
 
 end module
 
