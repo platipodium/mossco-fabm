@@ -13,11 +13,22 @@ DOXYGEN_CONFIG := maecs-doxyfile
 default: doc 
 
 doc:
+	#combine the problematic maecs_do.F90 with maecs.F90
+	#when called from the makefile, the '-en' opt of the echo command are not recognized
+	#@./combine_maecs_maecsdo.sh
+	
+	#regular doxygen stuff
 	$(DOXYGEN) $(DOXYGEN_CONFIG)
 	$(MAKE) -C latex
+	#build the nomenclature
 	makeindex ./latex/refman.nlo -s nomencl.ist -o ./latex/refman.nls 	
 	$(MAKE) -C latex
 	@cp latex/refman.pdf maecs_documentation.pdf
+	
+	# restore the _F90 codes spared by the combine_ script above
+	@mv ../maecs_F90 ../maecs.F90
+	@mv ../maecs_do_F90 ../maecs_do.F90
+	#@rm ../maecs_maecsdo_combined.F90
 
 	
 clean:

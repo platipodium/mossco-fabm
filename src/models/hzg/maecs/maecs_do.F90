@@ -1,29 +1,34 @@
-!> @file maecs_do.F90
-!> @author Richard Hofmeister, Markus Schartau, Kai Wirtz, Onur Kerimoglu
-
 #include "fabm_driver.h"
 
 !-----------------------------------------------------------------------------------
 !          Model for Adaptive Ecosystems in Coastal Seas 
-!
+
+! @ingroup main
+! @page do documentation of maecs_do
 !> @brief This is the main routine where right-hand-sides are calculated
 !> @details
+!> NOTE: Although this subroutine looks as if it's not a part of any module,
+!! it is temporarily included in the fabm_hzg_maecs module (inside maecs.F90)
+!! when compiling the documentation, such that the subroutine is documented 
+!! under the 'Data Type Documentation' chapter, where the in-body docs are listed
+!>
 !> **Phytoplankton Equations** 
-!> \n We distinguish between mass state variables (in units of carbon, nitrogen, & phosphorus) 
-!!   and property state variables. \latexonly See also: Section \ref{sec:masseq} \endlatexonly \n
+!> \n We distinguish between mass state variables 
+!! (in units of carbon, nitrogen, & phosphorus) and property state variables. 
+!! \latexonly For a textual narration and equations, see: Section \ref{sec:ModStr} \endlatexonly \n
 !>  Current 'traits' are: 
 !> - nitrogen allocated to rubisco (frac_Rub) 
-!> - Chla content of chloroplasts  (theta) \n 
-!
+!> - Chla content of chloroplasts  (theta) 
+!>
 !> **General code structure:**
 !> 1. Calculation of quotas
-!> 2. Calculation of fluxes and mass exchange rates
-!> 3. Specify rates of change of traits variables 
-!> 4. Assign mass exchange rates ('rhs(j,i)')
-!> 5. Assign rates of change of 'traits' property variables  
-!
-!> @todo: althougth HIDE_IN_BODY_DOCS=NO, the body-documentation is not included! HAS TO BE FIXED
-!> @todo: add equations
+!> 2. Calculation of fluxes and mass exchange rates & Specify rates of change of traits variables 
+!> 3. Assign mass exchange rates ('rhs(j,i)')
+!> 4. Assign rates of change of 'traits' property variables
+!>
+!> \n **Detailed Descriptions:**
+! @todo: althougth HIDE_IN_BODY_DOCS=NO, the body-documentation is not included! HAS TO BE FIXED
+! @todo: add equations
 subroutine maecs_do(self,_ARGUMENTS_DO_)
 
 use fabm_types
@@ -109,9 +114,17 @@ end if
 !#E_GED
 
 
-!> @fn ::subroutine maecs_do ()
-!> 1. Calculation of quotas  
-!> @todo: add equations
+! @ingroup main
+!> @fn fabm_hzg_maecs::maecs_do () 
+!> 1. Calculation of quotas
+!>   - call min_mass with method=2, store phy\%C and \%N in phy\%reg
+!>   - call calc_internal_states
+!>   - if PhotoacclimOn=.false., calculate: 
+!>     + phy\%chl=phy\%C * self\%frac_chl_ini 
+!>     + phy\%frac\%theta = self\%frac_chl_ini * self\%itheta_max
+!>     + phy\%theta= self\%frac_chl_ini / (self\%frac_Rub_ini * phy\%relQ\%N**self\%sigma)
+!>   - call calc_sensitivities
+! @todo: replace 
 
 ! --- checking and correcting extremely low state values  ------------  
 call min_mass(self,phy,method=2) !_KAI_ minimal reasonable Phy-C and -Nitrogen
@@ -131,11 +144,16 @@ end if
 call calc_sensitivities(self,sens,phy,env,nut)
 
 
-!> @fn maecs_do()
-!> *here some in-body-doc*
-!> 2. Calculation of fluxes and mass exchange rates
-!> 3. Specify rates of change of traits variables 
-!> @todo: add equations
+!> @fn fabm_hzg_maecs::maecs_do ()
+!> 2. Calculation of fluxes and mass exchange rates 
+!! & Specify rates of change of traits variables
+!>   - call photosynthesis
+!>   - if GrazingOn: 
+!>     + call grazing
+!>     + call grazing_losses
+!>     + calculate graz_rate and zoo_mort
+!>   - calc. aggreg_rate
+!>   - calc. degradT and reminT
 
 ! --- ALGAL GROWTH and EXUDATION RATES, physiological trait dynamics ----------------
 call photosynthesis(self,sens,phy,uptake,exud,acclim)
@@ -179,12 +197,10 @@ degradT     = self%hydrol * sens%f_T
 reminT      = self%remin  * sens%f_T
 
 
-
-!> @fn subroutine maecs_do ()
-!> *here some in-body-doc*
-!> 4. Assign mass exchange rates ('rhs(j,i)')
-!> 5. Assign rates of change of 'traits' property variables  
-!> @todo: add equations
+!> @fn fabm_hzg_maecs::maecs_do ()
+!> 3. Assign mass exchange rates ('rhs(j,i)')
+!>   - phyC= uptake - dil - exud - aggreg_rate - graz_rate
+!> @todo: add the rhs equations
 
 
 ! right hand side of ODE (rhs)    
@@ -213,6 +229,12 @@ rhsv%phyN =  uptake%N             * phy%C &
 !rhsv%phyN = 0.0_rk
 
 !_____________________________________________________________________________
+
+!> @fn fabm_hzg_maecs::maecs_do ()
+!> 4. Assign rates of change of 'traits' property variables
+!>    - if PhotoacclimOn: rhsv%chl
+!>    - if RubiscoOn: rhsv%Rub
+!> @todo: move this part down
 
 if (self%PhotoacclimOn) then
 ! PHYTOPLANKTON CHLa
@@ -418,3 +440,91 @@ end if
   _LOOP_END_
 
 end subroutine maecs_do
+
+   
+   
+!> @brief handles vertical movement for depth-varying movement rates
+!> @details phyto sinking rate depends on the nutritional state, so for each node:
+!! \n \f$ phy\%relQ \f$ obtained by calling calc_internal_states(self,phy,det,dom,zoo) 
+!! \n then \f$ phyQstat=phy\%relQ\%N * phy\%relQ\%P \f$
+!! \n finally, vsink = maecs_functions::sinking(self\%vS_phy, phyQstat, vsink)
+subroutine maecs_get_vertical_movement(self,_ARGUMENTS_GET_VERTICAL_MOVEMENT_)
+
+use maecs_functions
+use maecs_types
+
+implicit none
+!
+! !INPUT PARAMETERS:
+ class(type_maecs_base_model),intent(in)          :: self
+_DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_ 
+ !   REALTYPE, intent(in)              ::vstokes 
+type (type_maecs_phy):: phy !< maecs phytoplankton type
+type (type_maecs_zoo) :: zoo
+type (type_maecs_om):: det
+type (type_maecs_om):: dom
+
+!
+! !LOCAL VARIABLES: 
+REALTYPE    :: phyQstat,vsink
+REALTYPE, parameter :: secs_pr_day = 86400.d0 
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+
+_FABM_LOOP_BEGIN_
+   
+   ! Retrieve phtoplankton state
+   
+   !Retrieve the 'phyQstat' directly as a diagnostic variable: does not work yet.
+   !fabm_get_bulk_diagnostic_data(self%id_phyqstat,phyQstatD) !where, phyQstat=relQ%N*relQ%P
+   !_GET_(self%id_phyqstat,phyQstatD)
+   
+   !Calculate manually
+   _GET_(self%id_phyC, phy%C)  ! Phytplankton Carbon in mmol-C/m**3
+   _GET_(self%id_phyN, phy%N)  ! Phytplankton Nitrogen in mmol-N/m**3
+   if (self%GrazingOn) then
+     _GET_(self%id_zooC, zoo%C)  ! Zooplankton Carbon in mmol-C/m**3
+   end if
+   if (self%PhosphorusOn) then
+     _GET_(self%id_phyP, phy%P)  ! Phytplankton Phosphorus in mmol-P/m**3
+   end if
+
+   !write (*,'(A,2(F10.3))') 'Before: phy%C, phy%N=', phy%C, phy%N
+   call min_mass(self,phy,method=2) 
+   !write (*,'(A,2(F10.3))') 'After: phy%C, phy%N=', phy%C, phy%N
+   call calc_internal_states(self,phy,det,dom,zoo) 
+   !write (*,'(A,2(F10.3))') 'phy%relQ%N, phy%relQ%P=', phy%relQ%N, phy%relQ%P
+   
+   !calculate Q state
+   phyQstat = phy%relQ%N * phy%relQ%P 
+
+  
+   ! Calculate sinking
+
+   call sinking(self%vS_phy, phyQstat, vsink)
+   vsink = vsink / secs_pr_day
+   !write (*,'(A,2(F10.3))') 'phyQstat, vsink=', phyQstat, vsink
+   
+   !set the rates
+   _SET_VERTICAL_MOVEMENT_(self%id_detC,-1.0_rk*self%vS_det/secs_pr_day)
+   _SET_VERTICAL_MOVEMENT_(self%id_detN,-1.0_rk*self%vs_det/secs_pr_day)
+
+   _SET_VERTICAL_MOVEMENT_(self%id_phyN,vsink)
+   _SET_VERTICAL_MOVEMENT_(self%id_phyC,vsink)
+   if (self%PhosphorusOn) then
+      _SET_VERTICAL_MOVEMENT_(self%id_phyP,vsink)
+      _SET_VERTICAL_MOVEMENT_(self%id_detP,-1.0_rk*self%vs_det/secs_pr_day)
+   end if
+   if (self%SiliconOn) then
+      _SET_VERTICAL_MOVEMENT_(self%id_phyS,vsink)
+      _SET_VERTICAL_MOVEMENT_(self%id_detS,-1.0_rk*self%vs_det/secs_pr_day)
+   end if
+   if (self%PhotoacclimOn) then 
+      _SET_VERTICAL_MOVEMENT_(self%id_chl,vsink)
+      _SET_VERTICAL_MOVEMENT_(self%id_Rub,vsink)
+   end if
+  
+_FABM_LOOP_END_
+  
+end subroutine maecs_get_vertical_movement
