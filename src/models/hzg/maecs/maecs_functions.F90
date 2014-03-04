@@ -21,14 +21,12 @@
  contains  
 
 !---------------------------------------------------------
-!> @brief  smoothly ..?
+!> @brief  continous smoothing function by kw Apr 2012
 !> @details 
-!> @return smooth_small
-!> @todo: add a description and details
+!! smoothly converges x to eps/2 for x<eps  
+!! \f[ x=eps+(x-eps)*e^{x/eps}/(1+e^{x/eps}) \f]
 pure real(rk) function smooth_small(x, eps)
-!
-!  continous smoothing function by kw Apr 2012
-!  avoids step-like shifts at small lower boundaries
+
    implicit none
    real(rk), intent(in)          :: x, eps
    real(rk)                      :: arg, larger
@@ -47,7 +45,7 @@ pure real(rk) function smooth_small(x, eps)
 !> @brief calc's pot nut upt as f(external conc, allocations)
 !> @details 
 !> @return uptflex
-!> @todo: add equations
+!> @todo: find where it is in the text, add equations
 pure real(rk) function uptflex(Aff0, Vmax0, Nut, fAv)
    implicit none
    real(rk), intent(in)      :: Aff0, Vmax0, Nut, fAv
@@ -65,7 +63,7 @@ pure real(rk) function uptflex(Aff0, Vmax0, Nut, fAv)
 !> @brief opt. partitioning between surf upt sites and intern. enzymes for nut assim.
 !> @details 
 !> @return fOptUpt
-!> @todo: add equations
+!> @todo: find where it is in the text, add equations
 pure real(rk) function fOptUpt(Aff0, Vmax0, Nut)
    implicit none
 
@@ -77,7 +75,9 @@ pure real(rk) function fOptUpt(Aff0, Vmax0, Nut)
 !-----------------------------------------------------------------------
 !> @brief the queue function 
 !> @details 
-!> n->inf :liebig  n~1:product
+!> provides both the queuing function and it's derivative 
+!> with the parameter n->inf :liebig and n~1:product
+!> \latexonly For narration and equations, see: Section \ref{sec:colim} \endlatexonly \n
 !> @todo: add equations
 subroutine queuefunc(n,x,qfunc,qderiv)
 
@@ -138,6 +138,7 @@ real(rk) function queuederiv(n,x)
 !-------------------------------------------------------------
 !> @brief calculation of the sinking rate
 !> @details 
+!! \latexonly For a textual narration and equations, see: Section \ref{sec:sink} \endlatexonly \n
 !> @todo: add equations
 subroutine sinking(vS ,phys_status,sinkvel)
    implicit none
@@ -199,8 +200,15 @@ subroutine sinking(vS ,phys_status,sinkvel)
 #define _MARKUS_ 1
 !------------------------------------------------------
 !> @brief minimum mass
-!> @details 
+!> @details  pushes the phyC,N and P to some lower boundary according to 4 different methods (controlled by the mm_method parameter):
+!> phy\%N and phy\%C are stored in phy\%reg\%N and phy\%reg\%C, respectively
+!> 1. if phy\%N <= 1e-7; phy\%N=1e-7, phy\%C=phy\%N/QN(aver), phy\%P=phy\%C*QP(aver)
+!> 2. ..
+!> 3. ..
+!> 4. ..
+!> @todo: mm_method to be read from the nml
 !> @todo: add equations
+!> @todo: why phy\%P is not stored also in phy\%reg\%P?? 
 subroutine min_mass(maecs,phy,method)
 
 implicit none
@@ -227,7 +235,7 @@ select case (mm_method)
    end if
    phy%reg%N = phy%N
    phy%reg%C = phy%C
-!   phy%reg%P = phy%P
+!   phy%reg%P = phy%P 
 
  case (_KAI_)
 ! -------------------------------------------------------------------------------
