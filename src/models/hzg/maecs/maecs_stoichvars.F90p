@@ -1,6 +1,3 @@
-!> @file maecs_primprod.F90
-!> @author Kai Wirtz
-
 ! nitrogen
      i = 1
 elem(i)%relQ      = smooth_small(phy%relQ%N,eps)

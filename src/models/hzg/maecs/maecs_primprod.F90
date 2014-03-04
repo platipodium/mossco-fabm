@@ -65,6 +65,9 @@ eps     =  self%small_finite ! just  a shorter namer
 !> *here some in-body-doc*
 !> Prepare loop over structure elements by assigning a poinzer structure
 !! here, every possible nutrient is asked explicitely; thus first Si then P
+!>
+!> First, the following is included from maecs_stoichvars.F90p:
+!> @include 'maecs_stoichvars.F90p'
 include './maecs_stoichvars.F90p'
 
 num_nut  = i
