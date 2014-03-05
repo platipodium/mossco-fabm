@@ -1,11 +1,16 @@
-#remove the potential remnants of a previous operation
-rm ../maecs.F90_*
+#!/bin/bash
 
 #move the original maecs.F90 as maecs.F90_ORIGINAL
 mv ../maecs.F90 ../maecs_F90
 
-#remove the line containing 'end module fabm_hzg_maecs' 
-cp ../maecs_F90 ../maecs.F90_1
+#create a temporary file with some documentation
+echo "!> @file maecs_maecsdo_combined.F90" > ../maecs.F90_1
+#echo -en "\n" >> ../maecs.F90_1
+echo "!> @brief A temporary file built by combining maecs.F90 and maecs_do.F90 for documentation purposes">> ../maecs.F90_1
+echo -en "\n" >> ../maecs.F90_1
+
+#append the original file and remove the line containing 'end module fabm_hzg_maecs' 
+cat ../maecs_F90 >> ../maecs.F90_1
 sed -i '/end module fabm_hzg_maecs/d' ../maecs.F90_1
 
 #append the contents of maecs_do inside the intermediate file
@@ -16,7 +21,7 @@ cat ../maecs_do.F90 >> ../maecs.F90_2
 cp ../maecs.F90_2 ../maecs.F90_3
 echo -en "\n" >> ../maecs.F90_3
 echo "end module fabm_hzg_maecs" >> ../maecs.F90_3
-echo -en "\n" >> ../maecs.F90_3
+#echo -en "\n" >> ../maecs.F90_3
 
 #copy the resulting maecs.F90_3 file as an .F90 code so that it's parsed by doxygen
 cp ../maecs.F90_3 maecs_maecsdo_combined.F90
@@ -25,4 +30,4 @@ cp ../maecs.F90_3 maecs_maecsdo_combined.F90
 mv ../maecs_do.F90 ../maecs_do_F90
 
 #remove the intermediate files
-rm ../maecs.F90_1 ../maecs.F90_2 ../maecs.F90_3
+rm ../maecs.F90_*
