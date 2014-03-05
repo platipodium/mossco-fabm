@@ -1,6 +1,4 @@
-!> @file maecs_maecsdo_combined.F90 
-!> @brief A temporary file built by combining maecs.F90 and maecs_do.F90 for documentation purposes
-!> @author Richard Hofmeister, Markus Schartau, Kai Wirtz, Onur Kerimoglu
+! @file maecs.F90 
 
 #include "fabm_driver.h"
 
@@ -491,6 +489,14 @@ end subroutine initialize
 !#SP#
 ! set inverse parameters to avoid numerically expensive divisions
 ! set small boundary depending on numerical resolution
+
+
+!documentation for the parser-generated initialize section
+!> @fn fabm_hzg_maecs::initialize()
+!> @todo from the rhsv argument of the SET_ODE's in maecs_do, it looks as if id_chl
+!! and id_Rub are (correctly) handled as bulk variables (-phyC multiplied traits). however
+!! registered names, units and description of these variables looks as if they are (wrongly)
+!! handled as property variables?? So we should change the units, names and desc's ?
 
 
 !> @brief to calculate light extinction when kc changes with depth

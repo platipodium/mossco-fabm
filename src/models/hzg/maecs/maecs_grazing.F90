@@ -1,5 +1,5 @@
 !> @file maecs_grazing.F90
-!> @author Richard Hofmeister, Markus Schartau, Kai Wirtz, Onur Kerimoglu
+!> @author Richard Hofmeister, Markus Schartau, Kai Wirtz
 
 #include "fabm_driver.h"
 

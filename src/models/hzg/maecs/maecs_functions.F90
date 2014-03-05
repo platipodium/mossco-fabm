@@ -23,7 +23,7 @@
 !---------------------------------------------------------
 !> @brief  continous smoothing function by kw Apr 2012
 !> @details 
-!! smoothly converges x to eps/2 for x<eps  
+!! smoothly converges x to **eps/2** for x<eps  
 !! \f[ x=eps+(x-eps)*e^{x/eps}/(1+e^{x/eps}) \f]
 pure real(rk) function smooth_small(x, eps)
 
@@ -206,9 +206,10 @@ subroutine sinking(vS ,phys_status,sinkvel)
 !> 2. ..
 !> 3. ..
 !> 4. ..
-!> @todo: mm_method to be read from the nml
+!> @todo: assign some meaningful names to case numbers
+!> @todo: mm_method to be read from the nml?
 !> @todo: add equations
-!> @todo: why phy\%P is not stored also in phy\%reg\%P?? 
+!> @todo: Q: why phy\%P is not stored also in phy\%reg\%P?? 
 subroutine min_mass(maecs,phy,method)
 
 implicit none
@@ -374,7 +375,7 @@ end subroutine
 !------------------------------------------------------
 !> @brief calculate the internal states 
 !> @details 
-!> @todo: add equations
+!> @todo the theta-related calculations should obviously be related to \ref{eq:ftheta} but I get lost. See the Q's therein
 subroutine calc_internal_states(maecs,phy,det,dom,zoo)
 
 implicit none
@@ -385,25 +386,22 @@ type (type_maecs_om), intent(inout) :: dom
 type (type_maecs_zoo), intent(inout) :: zoo
 real(rk) :: min_Cmass
 
-min_Cmass = maecs%small_finite * 1.0d-3 / maecs%a_spm
+! min_Cmass = maecs%small_finite * 1.0d-3 / maecs%a_spm
 
-! ------------------------------------------------------------------------------
-!              calculate general quotas 
+
+!> @fn maecs_functions::calc_internal_states()
+!> 1. Calculate elemental absolute and relative quotas (Q and relQ):
+!>   - phy\%Q\%X = phy\%X / phy\%C where x=N,P,Si
+!>   - phy\%relQ\%X= (phy\%Q\%X - maecs\%qN_phy_0) / maecs\%iK_QN where x=N,P,Si
 phy%Q%N    = phy%reg%N / phy%reg%C
 ! added for mixing effects in estuaries kw Jul, 15 2013
 phy%Q%N  = smooth_small(phy%Q%N, maecs%QN_phy_0)
 
-phy%frac%Rub=maecs%frac_Rub_ini
-
-if (maecs%PhotoacclimOn) then
-   if (maecs%RubiscoOn) then 
-! trait + transporter needs division to become a trait again
-     phy%frac%Rub = phy%Rub / phy%reg%C
-!     phy%frac%Rub = phy%Rub / phy%reg%N
-   end if    
-end if
-
-phy%frac%Rub = _ONE_ - smooth_small(_ONE_- phy%frac%Rub ,maecs%small_finite + maecs%rel_chloropl_min)
+! fraction of free (biochemically available) intracellular nitrogen
+phy%relQ%N  = (phy%Q%N - maecs%QN_phy_0) * maecs%iK_QN
+phy%relQ%N  = smooth_small(phy%relQ%N, maecs%small_finite)
+! added for deep detritus traps with extreme quotas kw Jul, 16 2013
+!phy%relQ%N  = _ONE_ - smooth_small(_ONE_- phy%relQ%N, maecs%small_finite)
 
 ! --- stoichiometry of non-living organic matter  ---------------------------------
 !dom%QN      = dom%N  /(dom%C + min_Cmass )  ! N:C ratio of dissolved organic matter (DOM)
@@ -435,13 +433,36 @@ if (maecs%SiliconOn) then
 !   phy%Q%SiN    = phy%Sii / phy%reg%N
 end if   
 
-! fraction of free (biochemically available) intracellular nitrogen
-phy%relQ%N  = (phy%Q%N - maecs%QN_phy_0) * maecs%iK_QN
-phy%relQ%N  = smooth_small(phy%relQ%N, maecs%small_finite)
-! added for deep detritus traps with extreme quotas kw Jul, 16 2013
-!phy%relQ%N  = _ONE_ - smooth_small(_ONE_- phy%relQ%N, maecs%small_finite)
 
-  ! calculate rel_chloropl
+!> @fn maecs_functions::calc_internal_states()
+!> 2. Calculate Rubisco fraction (convert from the bulk variable) 
+!>    - @f$ f_R = \mathrm{phy\%Rub} / phy_C @f$
+!>    - @todo ?????????? phy\%frac\%Rub=1-phy\%frac\%Rub : ?????????
+phy%frac%Rub=maecs%frac_Rub_ini
+
+if (maecs%PhotoacclimOn) then
+   if (maecs%RubiscoOn) then 
+! trait + transporter needs division to become a trait again
+     phy%frac%Rub = phy%Rub / phy%reg%C
+!     phy%frac%Rub = phy%Rub / phy%reg%N
+   end if    
+end if
+
+phy%frac%Rub = _ONE_ - smooth_small(_ONE_- phy%frac%Rub ,maecs%small_finite + maecs%rel_chloropl_min)
+
+
+!> @fn maecs_functions::calc_internal_states()
+!> 3. Calculate @f$ \theta \mathrm{ and } f_{\theta} @f$ \latexonly  See also: \ref{sec:uptsys} \endlatexonly
+!>    - @f$ \mathrm{phy\%rel_chloropl} =  f_R*q_N^{\sigma} @f$
+!>      - Q: phy\%rel\_chloropl =    What is this variable? units? chloroplast/carbon?
+!>    - @f$ \mathrm{phy\%theta} =  phy_{chl}/phy_C / \mathrm{phy\%rel_chloropl} @f$
+!>      - Q: does not seem to be equal to \ref{eq:ftheta} unless @f$ phy_{chl}/phy_C = f_\theta / \theta_C @f$
+!>      - Q: what is actually phy\%chl? the bulk or the trait variable? i assumed it is the bulk
+!>    - @f$ \mathrm{phy\%frac\%theta}= phy_{chl}/phy_C * \mathrm{maecs\%itheta_max} @f$
+!>      - Q: does not seem to be related to anything ?? 
+!>    - @f$ f_V = \mathrm{phy\%frac\%TotFree} - f_{\theta} - f_R  @f$, where phy\%frac\%TotFree=1.0
+
+! calculate rel_chloropl
 phy%rel_chloropl = smooth_small(phy%frac%Rub * phy%relQ%N**maecs%sigma,maecs%rel_chloropl_min)
 
 if (maecs%PhotoacclimOn) then  
@@ -456,9 +477,13 @@ endif
 phy%frac%TotFree= 1.0d0 
 ! -- remaining nitrogen fraction for uptake and nutrient processing --------------
 
-! $f_\textrm{V} + f_\textrm{LHC} + f_\textrm{Rub} + f_\textrm{other} = 1$
 phy%frac%NutUpt = smooth_small(phy%frac%TotFree - phy%frac%Rub - phy%frac%theta, maecs%small)
 
+
+!> @fn maecs_functions::calc_internal_states()
+!> 4. Calculate zooplankton states:
+!>    - @f$ zoo_{QX} = \mathrm{maecs\%const_NC_zoo} \mathrm{ , } zoo_{X} = zoo_C * zoo_{QN} \mathrm{ , } X=N,P @f$
+!>    - @f$ zoo_{yield} = \mathrm{maecs\%yield_zoo} \mathrm{ , } zoo_{flopp} = 1-\mathrm{maecs\%yield_zoo} @f$
 if (maecs%GrazingOn) then
   ! ---- herbivore stoichiometry ---------------------------
   zoo%Q%N    = maecs%const_NC_zoo

@@ -1,10 +1,5 @@
 #include "fabm_driver.h"
 
-!-----------------------------------------------------------------------------------
-!          Model for Adaptive Ecosystems in Coastal Seas 
-
-! @ingroup main
-! @page do documentation of maecs_do
 !> @brief This is the main routine where right-hand-sides are calculated
 !> @details
 !> NOTE: Although this subroutine looks as if it's not a part of any module,
@@ -120,11 +115,11 @@ end if
 !>   - call min_mass with method=2, store phy\%C and \%N in phy\%reg
 !>   - call calc_internal_states
 !>   - if PhotoacclimOn=.false., calculate: 
-!>     + phy\%chl=phy\%C * self\%frac_chl_ini 
-!>     + phy\%frac\%theta = self\%frac_chl_ini * self\%itheta_max
-!>     + phy\%theta= self\%frac_chl_ini / (self\%frac_Rub_ini * phy\%relQ\%N**self\%sigma)
+!>     - phy\%chl=phy\%C * self\%frac_chl_ini 
+!>     - phy\%frac\%theta = self\%frac_chl_ini * self\%itheta_max
+!>     - phy\%theta= self\%frac_chl_ini / (self\%frac_Rub_ini * phy\%relQ\%N**self\%sigma)
 !>   - call calc_sensitivities
-! @todo: replace 
+!> @todo: min_mass correction of phy%\C and phy\%N at this stage requires specification of threshold values. What about back-calculating phy\%reg\%N from the smooth_small corrected phy\%Q\%N?
 
 ! --- checking and correcting extremely low state values  ------------  
 call min_mass(self,phy,method=2) !_KAI_ minimal reasonable Phy-C and -Nitrogen
@@ -149,9 +144,9 @@ call calc_sensitivities(self,sens,phy,env,nut)
 !! & Specify rates of change of traits variables
 !>   - call photosynthesis
 !>   - if GrazingOn: 
-!>     + call grazing
-!>     + call grazing_losses
-!>     + calculate graz_rate and zoo_mort
+!>     - call grazing
+!>     - call grazing_losses
+!>     - calculate graz_rate and zoo_mort
 !>   - calc. aggreg_rate
 !>   - calc. degradT and reminT
 
@@ -199,7 +194,7 @@ reminT      = self%remin  * sens%f_T
 
 !> @fn fabm_hzg_maecs::maecs_do ()
 !> 3. Assign mass exchange rates ('rhs(j,i)')
-!>   - phyC= uptake - dil - exud - aggreg_rate - graz_rate
+!>   - phyC= uptake - dil - exud - aggreg\_rate - graz\_rate
 !> @todo: add the rhs equations
 
 
@@ -234,7 +229,6 @@ rhsv%phyN =  uptake%N             * phy%C &
 !> 4. Assign rates of change of 'traits' property variables
 !>    - if PhotoacclimOn: rhsv%chl
 !>    - if RubiscoOn: rhsv%Rub
-!> @todo: move this part down
 
 if (self%PhotoacclimOn) then
 ! PHYTOPLANKTON CHLa
@@ -256,6 +250,7 @@ end if
 if (self%RubiscoOn) then 
    rhsv%Rub  = acclim%dfracR_dt * phy%C + phy%Rub/phy%reg%C * rhsv%phyC 
 end if 
+
 !________________________________________________________________________________
 !
 ! ZOOPLANKTON zoo%feeding
@@ -441,8 +436,6 @@ end if
 
 end subroutine maecs_do
 
-   
-   
 !> @brief handles vertical movement for depth-varying movement rates
 !> @details phyto sinking rate depends on the nutritional state, so for each node:
 !! \n \f$ phy\%relQ \f$ obtained by calling calc_internal_states(self,phy,det,dom,zoo) 
