@@ -1,4 +1,3 @@
-
 ! nitrogen
      i = self%nutind%iN
 elem(i)%relQ      = smooth_small(phy%relQ%N,eps)

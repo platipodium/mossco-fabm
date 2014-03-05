@@ -1,9 +1,9 @@
-!
+!> @file maecs_primprod.F90
+!> @author Richard Hofmeister, Markus Schartau, Kai Wirtz, Onur Kerimoglu
+
 #include "fabm_driver.h"
-!---------------------------------------------------------
-!BOP
-! !MODULE: MAECS_functions --- more to come
-!  Model for Adaptive Ecosystems in Coastal Seas 
+
+!> @brief Primary production module
    module maecs_primprod
 
    use fabm_types
@@ -13,6 +13,10 @@
    public    photosynthesis     
  contains  
 
+!> @brief  calculates grazing rate
+!> @details 
+!> This is the subroutine, where the optimal regulation of phytoplankton traits
+!> are described, which is central to the physiological-MAECS
 subroutine photosynthesis(self,sens,phy,uptake,exud,acc)
 implicit none
 

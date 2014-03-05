@@ -1,12 +1,10 @@
-!
+!> @file maecs_grazing.F90
+!> @author Richard Hofmeister, Markus Schartau, Kai Wirtz
+
 #include "fabm_driver.h"
-!---------------------------------------------------------
-!BOP
-! +++ zooplankton grazing +++++++++++++++++++++++++++++++++++++++++++++++++
-!
-! !MODULE: MAECS_functions --- more to come
-!  Model for Adaptive Ecosystems in Coastal Seas 
-   module maecs_grazing
+
+!> @brief Grazing module
+module maecs_grazing
 
 ! !USES:
    use fabm_types
@@ -16,6 +14,9 @@
    public   grazing, grazing_losses
  contains  
 
+!> @brief  calculates grazing rate
+!> @details 
+!> @todo: add a description and details
 subroutine grazing(Imax,HalfSat,preyconc,rate)
 !
   implicit none
@@ -28,8 +29,11 @@ subroutine grazing(Imax,HalfSat,preyconc,rate)
 
 
 !---------------------------------------------------------
-!subroutine grazing_exudates(rate,resC,NC_zoo,Q_prey%N,PC_zoo,Q_prey%P,lossC,lossN,lossP,isP)
-! --------- loss rates of grazers to inorganic and   organic particulate
+!grazing_exudates(rate,resC,NC_zoo,Q_prey%N,PC_zoo,Q_prey%P,lossC,lossN,lossP,isP)
+!> @brief  loss rates of grazers to inorganic and  organic particulate
+!> @details 
+!> assumes a constant C:N:P unit feeding on variable C:N:P food 
+!> @todo: add a description and details
 subroutine grazing_losses(zoo,resC,Q_prey,lossZNut,lossZDet,mswitch)
 !
   implicit none

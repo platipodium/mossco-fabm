@@ -1,4 +1,16 @@
+!> @file maecs_types.F90
+!> @brief maecs_types module
+!> @author Richard Hofmeister, Kai Wirtz
+
 #include "fabm_driver.h"
+
+!> @brief  Data types used in fabm_hzg_maecs are defined here
+!> @details 
+!> todo: we should consider including parameter tables for some maecs types.
+!! Parser could do it just like in the initialize subroutine. 
+! by adding:
+! \\describepar{model_par, symbol, : some description}
+! lines before each type 
 module maecs_types
 
 use fabm_types
@@ -7,9 +19,6 @@ public type_maecs_sensitivities, type_maecs_om, &
        type_maecs_traitdyn, type_maecs_phy, type_maecs_zoo, &
        type_maecs_allocation_fractions
 
-! the maecs base type containing parameters and variables id's
-
-!  Original author(s): Richard Hofmeister & Kai Wirtz
 type type_maecs_nutindex
    integer :: iN, iP, iSi
    integer :: nutnum, nhi   

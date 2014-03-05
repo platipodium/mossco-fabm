@@ -65,6 +65,9 @@ end interface
 !!----------------------------------------------------------------------
 ! --- HZG model types
 !!--------------------------------------------------------------------
+
+contains 
+
 !> @brief initializes the model
 !! @details here the maecs namelists are read and assigned respectively in the model type (self),
 !! state & diagnostic variables are registered in FABM and dependencies are imported from FABM

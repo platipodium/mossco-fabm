@@ -1,14 +1,18 @@
+!> @file maecs_functions.F90
+!> @author Richard Hofmeister, Markus Schartau, Kai Wirtz, Onur Kerimoglu
+
 #include "fabm_driver.h"
 !---------------------------------------------------------
 ! !MODULE: MAECS_functions --- more to come
-!          Model for Adaptive Ecosystems in Coastal Seas 
+!> @brief  functions called by maecs_do, maecs_grazing and maecs_primprod
    module maecs_functions
 
 ! !USES:
    use fabm_types
    use maecs_types
 
-   private
+   !private !!DOES THIS HAVE ANY FUNCTION?
+   
    public   uptflex       ,& 
             queuefunc, queuefunc0, queuederiv ,&
             smooth_small, sinking, min_mass, &
@@ -17,10 +21,12 @@
  contains  
 
 !---------------------------------------------------------
+!> @brief  continous smoothing function by kw Apr 2012
+!> @details 
+!! smoothly converges x to **eps/2** for x<eps  
+!! \f[ x=eps+(x-eps)*e^{x/eps}/(1+e^{x/eps}) \f]
 pure real(rk) function smooth_small(x, eps)
-!
-!  continous smoothing function by kw Apr 2012
-!  avoids step-like shifts at small lower boundaries
+
    implicit none
    real(rk), intent(in)          :: x, eps
    real(rk)                      :: arg, larger
@@ -36,8 +42,10 @@ pure real(rk) function smooth_small(x, eps)
    end function smooth_small 
 
 !-----------------------------------------------------------------------
-!  potential nutrient uptake depending 
-!                        on external conc and allocation to sites/processing
+!> @brief calc's pot nut upt as f(external conc, allocations)
+!> @details 
+!> @return uptflex
+!> @todo: find where it is in the text, add equations
 pure real(rk) function uptflex(Aff0, Vmax0, Nut, fAv)
    implicit none
    real(rk), intent(in)      :: Aff0, Vmax0, Nut, fAv
@@ -52,25 +60,28 @@ pure real(rk) function uptflex(Aff0, Vmax0, Nut, fAv)
    end function uptflex
 
 !-----------------------------------------------------------------------
+!> @brief opt. partitioning between surf upt sites and intern. enzymes for nut assim.
+!> @details 
+!> @return fOptUpt
+!> @todo: find where it is in the text, add equations
 pure real(rk) function fOptUpt(Aff0, Vmax0, Nut)
    implicit none
-! optimal partitioning between
-! surface uptake sites and internal enzymes (for assimilating nutrients)
+
    real(rk), intent(in)      :: Aff0, Vmax0, Nut
 
    fOptUpt     = _ONE_/(sqrt(Aff0*Nut/(Vmax0)) + _ONE_ );
    end function fOptUpt
 
 !-----------------------------------------------------------------------
-!pure real(rk) function queuefunc(n,x)
+!> @brief the queue function 
+!> @details 
+!> provides both the queuing function and it's derivative 
+!> with the parameter n->inf :liebig and n~1:product
+!> \latexonly For narration and equations, see: Section \ref{sec:colim} \endlatexonly \n
+!> @todo: add equations
 subroutine queuefunc(n,x,qfunc,qderiv)
-!
-!  response function from queing theory
-!  synchrony of processing n->inf :liebig  n~1:product
-!
-! !USES:
+
    implicit none
-! !INPUT PARAMETERS:
    real(rk), intent(in)          :: x, n
    real(rk), intent(out)         :: qfunc, qderiv
    real(rk)                      :: px
@@ -86,6 +97,10 @@ subroutine queuefunc(n,x,qfunc,qderiv)
    end subroutine queuefunc
 
 !-----------------------------------------------
+!> @brief approximation of the queue function 
+!> @details 
+!> n->inf :liebig  n~1:product
+!> @todo: add equations
 subroutine queuefunc1(n,x,qfunc,qderiv)
 !
 !  response function from queing theory:  numerical approximation
@@ -105,10 +120,11 @@ subroutine queuefunc1(n,x,qfunc,qderiv)
    end subroutine queuefunc1
 
 !-------------------------------------------------------------
+!> @brief derivative of the queue function ??
+!> @details 
+!> @return queuederiv
+!> @todo: add equations
 real(rk) function queuederiv(n,x)
-!
-!  response function from queing theory
-!  synchrony of processing n->inf :liebig  n~1:product
 !
    implicit none
    real(rk), intent(in)          :: x, n
@@ -120,6 +136,10 @@ real(rk) function queuederiv(n,x)
    end function queuederiv
 
 !-------------------------------------------------------------
+!> @brief calculation of the sinking rate
+!> @details 
+!! \latexonly For a textual narration and equations, see: Section \ref{sec:sink} \endlatexonly \n
+!> @todo: add equations
 subroutine sinking(vS ,phys_status,sinkvel)
    implicit none
    real(rk), intent(in)     :: vS ,phys_status
@@ -179,6 +199,17 @@ subroutine sinking(vS ,phys_status,sinkvel)
 #define _KAI_ 0
 #define _MARKUS_ 1
 !------------------------------------------------------
+!> @brief minimum mass
+!> @details  pushes the phyC,N and P to some lower boundary according to 4 different methods (controlled by the mm_method parameter):
+!> phy\%N and phy\%C are stored in phy\%reg\%N and phy\%reg\%C, respectively
+!> 1. if phy\%N <= 1e-7; phy\%N=1e-7, phy\%C=phy\%N/QN(aver), phy\%P=phy\%C*QP(aver)
+!> 2. ..
+!> 3. ..
+!> 4. ..
+!> @todo: assign some meaningful names to case numbers
+!> @todo: mm_method to be read from the nml?
+!> @todo: add equations
+!> @todo: Q: why phy\%P is not stored also in phy\%reg\%P?? 
 subroutine min_mass(maecs,phy,method)
 
 implicit none
@@ -205,7 +236,7 @@ select case (mm_method)
    end if
    phy%reg%N = phy%N
    phy%reg%C = phy%C
-!   phy%reg%P = phy%P
+!   phy%reg%P = phy%P 
 
  case (_KAI_)
 ! -------------------------------------------------------------------------------
@@ -281,6 +312,9 @@ end select
 end subroutine min_mass
 
 !------------------------------------------------------
+!> @brief calculate sensitivities
+!> @details 
+!> @todo: add a better description and equations
 subroutine calc_sensitivities(maecs,sens,phy,env,nut)
 
 implicit none
@@ -339,6 +373,9 @@ end if
 end subroutine
 
 !------------------------------------------------------
+!> @brief calculate the internal states 
+!> @details 
+!> @todo the theta-related calculations should obviously be related to \ref{eq:ftheta} but I get lost. See the Q's therein
 subroutine calc_internal_states(maecs,phy,det,dom,zoo)
 
 implicit none
@@ -349,25 +386,22 @@ type (type_maecs_om), intent(inout) :: dom
 type (type_maecs_zoo), intent(inout) :: zoo
 real(rk) :: min_Cmass
 
-min_Cmass = maecs%small_finite * 1.0d-3 / maecs%a_spm
+! min_Cmass = maecs%small_finite * 1.0d-3 / maecs%a_spm
 
-! ------------------------------------------------------------------------------
-!              calculate general quotas 
+
+!> @fn maecs_functions::calc_internal_states()
+!> 1. Calculate elemental absolute and relative quotas (Q and relQ):
+!>   - phy\%Q\%X = phy\%X / phy\%C where x=N,P,Si
+!>   - phy\%relQ\%X= (phy\%Q\%X - maecs\%qN_phy_0) / maecs\%iK_QN where x=N,P,Si
 phy%Q%N    = phy%reg%N / phy%reg%C
 ! added for mixing effects in estuaries kw Jul, 15 2013
 phy%Q%N  = smooth_small(phy%Q%N, maecs%QN_phy_0)
 
-phy%frac%Rub=maecs%frac_Rub_ini
-
-if (maecs%PhotoacclimOn) then
-   if (maecs%RubiscoOn) then 
-! trait + transporter needs division to become a trait again
-     phy%frac%Rub = phy%Rub / phy%reg%C
-!     phy%frac%Rub = phy%Rub / phy%reg%N
-   end if    
-end if
-
-phy%frac%Rub = _ONE_ - smooth_small(_ONE_- phy%frac%Rub ,maecs%small_finite + maecs%rel_chloropl_min)
+! fraction of free (biochemically available) intracellular nitrogen
+phy%relQ%N  = (phy%Q%N - maecs%QN_phy_0) * maecs%iK_QN
+phy%relQ%N  = smooth_small(phy%relQ%N, maecs%small_finite)
+! added for deep detritus traps with extreme quotas kw Jul, 16 2013
+!phy%relQ%N  = _ONE_ - smooth_small(_ONE_- phy%relQ%N, maecs%small_finite)
 
 ! --- stoichiometry of non-living organic matter  ---------------------------------
 !dom%QN      = dom%N  /(dom%C + min_Cmass )  ! N:C ratio of dissolved organic matter (DOM)
@@ -399,13 +433,36 @@ if (maecs%SiliconOn) then
 !   phy%Q%SiN    = phy%Sii / phy%reg%N
 end if   
 
-! fraction of free (biochemically available) intracellular nitrogen
-phy%relQ%N  = (phy%Q%N - maecs%QN_phy_0) * maecs%iK_QN
-phy%relQ%N  = smooth_small(phy%relQ%N, maecs%small_finite)
-! added for deep detritus traps with extreme quotas kw Jul, 16 2013
-!phy%relQ%N  = _ONE_ - smooth_small(_ONE_- phy%relQ%N, maecs%small_finite)
 
-  ! calculate rel_chloropl
+!> @fn maecs_functions::calc_internal_states()
+!> 2. Calculate Rubisco fraction (convert from the bulk variable) 
+!>    - @f$ f_R = \mathrm{phy\%Rub} / phy_C @f$
+!>    - @todo ?????????? phy\%frac\%Rub=1-phy\%frac\%Rub : ?????????
+phy%frac%Rub=maecs%frac_Rub_ini
+
+if (maecs%PhotoacclimOn) then
+   if (maecs%RubiscoOn) then 
+! trait + transporter needs division to become a trait again
+     phy%frac%Rub = phy%Rub / phy%reg%C
+!     phy%frac%Rub = phy%Rub / phy%reg%N
+   end if    
+end if
+
+phy%frac%Rub = _ONE_ - smooth_small(_ONE_- phy%frac%Rub ,maecs%small_finite + maecs%rel_chloropl_min)
+
+
+!> @fn maecs_functions::calc_internal_states()
+!> 3. Calculate @f$ \theta \mathrm{ and } f_{\theta} @f$ \latexonly  See also: \ref{sec:uptsys} \endlatexonly
+!>    - @f$ \mathrm{phy\%rel_chloropl} =  f_R*q_N^{\sigma} @f$
+!>      - Q: phy\%rel\_chloropl =    What is this variable? units? chloroplast/carbon?
+!>    - @f$ \mathrm{phy\%theta} =  phy_{chl}/phy_C / \mathrm{phy\%rel_chloropl} @f$
+!>      - Q: does not seem to be equal to \ref{eq:ftheta} unless @f$ phy_{chl}/phy_C = f_\theta / \theta_C @f$
+!>      - Q: what is actually phy\%chl? the bulk or the trait variable? i assumed it is the bulk
+!>    - @f$ \mathrm{phy\%frac\%theta}= phy_{chl}/phy_C * \mathrm{maecs\%itheta_max} @f$
+!>      - Q: does not seem to be related to anything ?? 
+!>    - @f$ f_V = \mathrm{phy\%frac\%TotFree} - f_{\theta} - f_R  @f$, where phy\%frac\%TotFree=1.0
+
+! calculate rel_chloropl
 phy%rel_chloropl = smooth_small(phy%frac%Rub * phy%relQ%N**maecs%sigma,maecs%rel_chloropl_min)
 
 if (maecs%PhotoacclimOn) then  
@@ -420,9 +477,13 @@ endif
 phy%frac%TotFree= 1.0d0 
 ! -- remaining nitrogen fraction for uptake and nutrient processing --------------
 
-! $f_\textrm{V} + f_\textrm{LHC} + f_\textrm{Rub} + f_\textrm{other} = 1$
 phy%frac%NutUpt = smooth_small(phy%frac%TotFree - phy%frac%Rub - phy%frac%theta, maecs%small)
 
+
+!> @fn maecs_functions::calc_internal_states()
+!> 4. Calculate zooplankton states:
+!>    - @f$ zoo_{QX} = \mathrm{maecs\%const_NC_zoo} \mathrm{ , } zoo_{X} = zoo_C * zoo_{QN} \mathrm{ , } X=N,P @f$
+!>    - @f$ zoo_{yield} = \mathrm{maecs\%yield_zoo} \mathrm{ , } zoo_{flopp} = 1-\mathrm{maecs\%yield_zoo} @f$
 if (maecs%GrazingOn) then
   ! ---- herbivore stoichiometry ---------------------------
   zoo%Q%N    = maecs%const_NC_zoo
