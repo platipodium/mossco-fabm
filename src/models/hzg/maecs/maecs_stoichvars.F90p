@@ -34,5 +34,5 @@ elem(i)%upt_act   => upt_act%Si
 elem(i)%upt       => uptake%Si
 elem(i)%iKQ       = self%iK_QSi
 elem(i)%aV        => acc%aV%Si
-zeta_X(i)         = _ZERO_
+zeta_X(i)         = 0.0_rk
 end if

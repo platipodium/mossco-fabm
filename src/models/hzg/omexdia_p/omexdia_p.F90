@@ -27,7 +27,6 @@
    private
 !
 ! !PUBLIC MEMBER FUNCTIONS:
-   public type_hzg_omexdia_p
 !
 ! !PRIVATE DATA MEMBERS:
 !   real(rk), parameter :: secs_pr_day = 86400.0_rk

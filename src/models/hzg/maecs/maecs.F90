@@ -28,7 +28,7 @@ use maecs_types
 
 private
 
-public type_hzg_maecs,type_maecs_env,type_maecs_rhs
+public type_maecs_env,type_maecs_rhs
 ! --- HZG model types
 
 

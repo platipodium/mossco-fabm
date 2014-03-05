@@ -5,8 +5,7 @@ use fabm_types
 
 public type_maecs_sensitivities, type_maecs_om, &
        type_maecs_traitdyn, type_maecs_phy, type_maecs_zoo, &
-       type_maecs_allocation_fractions, &
-       type_maecs_base_model
+       type_maecs_allocation_fractions
 
 ! the maecs base type containing parameters and variables id's
 
