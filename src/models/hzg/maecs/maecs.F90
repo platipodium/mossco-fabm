@@ -1,25 +1,11 @@
-!> @file maecs.F90
-!> @brief main MAECS module
-!> @author Richard Hofmeister, Markus Schartau, Kai Wirtz, Onur Kerimoglu
-!> @copyright HZG
-!  HZG 2011-2014
-! 
-!> The MAECS module contains 
-!! initialize
-!! do (=> maecs_do)
-!! get_light_extinction
-!! get_vertical_movement (=> maecs_get_vertical_movement)
-!! and maybe some humanly explanation here
-
-!! FABM sediment driver module provides infrastructure for the
-!! MOSSCO sediment component.
-!! The driver provides tendencies for state variables as sum of
-!! local rates (through FABM) and vertical diffusion.
-!! The units of concentrations of state variables is handled inside
-!! the driver as molar mass per volume pore water.
+! @file maecs.F90 
 
 #include "fabm_driver.h"
 
+!> @brief This is the module registered in FABM
+!> @details all the maecs_types are made available to this module
+!! @todo looking at the rhs calculations in maecs_do, id_Rub and id_chl are set (correctly) as bulk variables (X*phyC).
+!! however from the units, it looks as if they are registered (wrongly) as property variables (X)??
 module fabm_hzg_maecs
 use fabm_types
 use maecs_types
@@ -28,40 +14,31 @@ use maecs_types
 
 private
 
-public type_maecs_env,type_maecs_rhs
+public type_hzg_maecs,type_maecs_env,type_maecs_rhs
 ! --- HZG model types
 
 
 ! standard fabm model types
 
-!> @Brief here we extend a model 
-!! \todo describe the type_hzg_maecs
+!> @brief this is the model type FABM uses to create the mode
+! @defgroup main main_model_members
+! @name //@{ //@}
+!> @details the parent type (type_maecs_base_model) was defined in maecs_types module
 type,extends(type_maecs_base_model),public :: type_hzg_maecs 
  contains
-  procedure :: initialize !> initializes
+  procedure :: initialize
   procedure :: do => maecs_do
   procedure :: get_light_extinction
-!  procedure :: init_incl
   procedure :: get_vertical_movement=>maecs_get_vertical_movement
 end type type_hzg_maecs
 
-interface
 
-  !> @author 
-  !> Routine Author Name and Affiliation.
-  !
-  ! DESCRIPTION: 
-  !> Brief description of routine. 
-  !> @brief
-  !> Flow method (rate of change of position) used by integrator.
-  !> Compute \f$ \frac{d\lambda}{dt} , \frac{d\phi}{dt},  \frac{dz}{dt} \f$
-  !
-  ! REVISION HISTORY:
-  ! TODO_dd_mmm_yyyy - TODO_describe_appropriate_changes - TODO_name
-  !
-  !> @param[in] inParam      
-  !> @param[out] outParam      
-  !> @return returnValue
+interface
+  ! @brief @brief interface for the external procedure contained in maecs_main module
+  ! @details phyto sinking rate depends on the nutritional state, so for each node:
+  ! \n \f$ phy\%relQ \f$ obtained by calling calc_internal_states(self,phy,det,dom,zoo) 
+  ! \n then \f$ phyQstat=phy\%relQ\%N * phy\%relQ\%P \f$
+  ! \n finally, vsink = maecs_functions::sinking(self\%vS_phy, phyQstat, vsink)
    subroutine maecs_get_vertical_movement(self, _ARGUMENTS_GET_VERTICAL_MOVEMENT_) 
    import type_hzg_maecs,type_environment,rk
    class (type_hzg_maecs),intent(in) :: self
@@ -70,6 +47,11 @@ interface
  end interface
 
 interface
+  ! @brief interface for the external procedure contained in maecs_main module
+  ! @details 
+  ! @todo for some reason the documentation for the real maecs_do module included inside
+  ! maecs_do.F90 is not included in the data-type documentation, but only in the file-documentation.
+  ! find out why.
   subroutine maecs_do(self, _ARGUMENTS_DO_)
   import type_hzg_maecs,type_environment,rk
   class (type_hzg_maecs),intent(in) :: self
@@ -83,61 +65,32 @@ end interface
 !!----------------------------------------------------------------------
 ! --- HZG model types
 !!--------------------------------------------------------------------
-
-contains
-! !IROUTINE: Initialise the maecs model
-!
-! !INTERFACE:
-subroutine initialize(self, configunit)
-! !DESCRIPTION:
-!  Here, the namelists are read and the variables exported
-!  by the model are registered with FABM.
-!
-! !INPUT PARAMETERS:
-class (type_hzg_maecs), intent(inout), target :: self
-integer,                  intent(in)            :: configunit
-!
-! !LOCAL VARIABLES:
-integer    :: namlst=19
-!!------- Initial values of model maecs ------- 
-!> \describepar{nutN_initial , \mathrm{DIN} , Dissolved Inorganic Nitrogen DIN, 30.0 mmol-N/m**3}
-!> \describepar{nutP_initial , \mathrm{Phy}_\mathrm{P} , Dissolved Inorganic Phosphorus DIP, 1.2 mmol-P/m**3}
-!> \describepar{nutS_initial , \mathrm{Phy}_\mathrm{Si} , Dissolved Inorganic Silicon Si, 20. mmol-Si/m**3}
-!> \describepar{phyC_initial , \mathrm{Phy}_\mathrm{C} , Phytplankton Carbon, 10 mmol-C/m**3}
-!> \describepar{phyN_initial ,  , Phytplankton Nitrogen, 0.8 mmol-N/m**3}
-!> \describepar{phyP_initial ,  , Phytplankton Phosphorus, 0.08 mmol-P/m**3}
-!> \describepar{phyS_initial ,  , Phytplankton Silicon, 0.8 mmol-Si/m**3}
-!> \describepar{zooC_initial ,  , Zooplankton Carbon, 0.1 mmol-C/m**3}
-!> \describepar{detC_initial ,  , Detritus Carbon, 1 mmol-C/m**3}
-!> \describepar{detN_initial ,  , Detritus Nitrogen, 0.1 mmol-N/m**3}
-!> \describepar{detP_initial ,  , Detritus Phosphorus, 0.01 mmol-P/m**3}
-!> \describepar{detS_initial ,  , Detritus Silicon, 0.1 mmol-Si/m**3}
-!> \describepar{domC_initial ,  , Dissolved Organic Carbon, 0.1 mmol-C/m**3}
-!> \describepar{domN_initial ,  , Dissolved Organic Nitrogen, 0.01 mmol-N/m**3}
-!> \describepar{domP_initial ,  , Dissolved Organic Phosphorus, 0.001 mmol-P/m**3}
-!> \describepar{frac_Rub_ini , f_R , fraction of Rubisco, 0.4 -}
+!> @brief initializes the model
+!! @details here the maecs namelists are read and assigned respectively in the model type (self),
+!! state & diagnostic variables are registered in FABM and dependencies are imported from FABM
+!>
+!> **Model parameters, descriptions and corresponding symbols used in formulas:**
+! initial values
+!> describepar{nutN_initial , \mathrm{DIN} , Dissolved Inorganic Nitrogen DIN, 30.0 mmol-N/m**3}
+!> describepar{nutP_initial , \mathrm{Phy}_\mathrm{P} , Dissolved Inorganic Phosphorus DIP, 1.2 mmol-P/m**3}
+!> describepar{nutS_initial , \mathrm{Phy}_\mathrm{Si} , Dissolved Inorganic Silicon Si, 20. mmol-Si/m**3}
+!> describepar{phyC_initial , \mathrm{Phy}_\mathrm{C} , Phytplankton Carbon, 10 mmol-C/m**3}
+!> describepar{phyN_initial ,  , Phytplankton Nitrogen, 0.8 mmol-N/m**3}
+!> describepar{phyP_initial ,  , Phytplankton Phosphorus, 0.08 mmol-P/m**3}
+!> describepar{phyS_initial ,  , Phytplankton Silicon, 0.8 mmol-Si/m**3}
+!> describepar{zooC_initial ,  , Zooplankton Carbon, 0.1 mmol-C/m**3}
+!> describepar{detC_initial ,  , Detritus Carbon, 1 mmol-C/m**3}
+!> describepar{detN_initial ,  , Detritus Nitrogen, 0.1 mmol-N/m**3}
+!> describepar{detP_initial ,  , Detritus Phosphorus, 0.01 mmol-P/m**3}
+!> describepar{detS_initial ,  , Detritus Silicon, 0.1 mmol-Si/m**3}
+!> describepar{domC_initial ,  , Dissolved Organic Carbon, 0.1 mmol-C/m**3}
+!> describepar{domN_initial ,  , Dissolved Organic Nitrogen, 0.01 mmol-N/m**3}
+!> describepar{domP_initial ,  , Dissolved Organic Phosphorus, 0.001 mmol-P/m**3}
+!> describepar{frac_Rub_ini , f_R , fraction of Rubisco, 0.4 -}
 !> describepar{Rub          , f_R\mathrm{Phy}_\mathrm{C}, trait x biomass}
-!> \describepar{frac_chl_ini , f_\theta\theta_C , Chl:C ratio, 0.034 mg-Chla/mmol-C}
+!> describepar{frac_chl_ini , f_\theta\theta_C , Chl:C ratio, 0.034 mg-Chla/mmol-C}
 !> describepar{chl          , f_\theta\theta_C\mathrm{Phy}_\mathrm{C}, trait x biomass}
-real(rk)  :: nutN_initial ! Dissolved Inorganic Nitrogen DIN
-real(rk)  :: nutP_initial ! Dissolved Inorganic Phosphorus DIP
-real(rk)  :: nutS_initial ! Dissolved Inorganic Silicon Si
-real(rk)  :: phyC_initial ! Phytplankton Carbon
-real(rk)  :: phyN_initial ! Phytplankton Nitrogen
-real(rk)  :: phyP_initial ! Phytplankton Phosphorus
-real(rk)  :: phyS_initial ! Phytplankton Silicon
-real(rk)  :: zooC_initial ! Zooplankton Carbon
-real(rk)  :: detC_initial ! Detritus Carbon
-real(rk)  :: detN_initial ! Detritus Nitrogen
-real(rk)  :: detP_initial ! Detritus Phosphorus
-real(rk)  :: detS_initial ! Detritus Silicon
-real(rk)  :: domC_initial ! Dissolved Organic Carbon
-real(rk)  :: domN_initial ! Dissolved Organic Nitrogen
-real(rk)  :: domP_initial ! Dissolved Organic Phosphorus
-real(rk)  :: frac_Rub_ini ! fraction of Rubisco
-real(rk)  :: Rub  ! trait times biomass
-real(rk)  :: frac_chl_ini ! Chl:C ratio
-real(rk)  :: chl  ! trait times biomass
+! other parameters
 !> describepar{P_max        , P_\mathrm{max}        , maximum potential photosynthetic rate, 12.0 d^{-1}}
 !> describepar{alpha        , \alpha        , specific light adsorption by chloroplasts, 0.12 m2 mol-C/(muE g-CHL)}
 !> describepar{sigma        , \sigma        , Q-dependency of Rubisco activity/chloroplast ratio, 0.0 }
@@ -183,6 +136,33 @@ real(rk)  :: chl  ! trait times biomass
 !> describepar{frac_PAR     ,      , photosynthetically active fraction of light, 1.0 }
 !> describepar{small        ,         , lower limit for denominator in ratios; small_finite=sqrt(small), 1e-04 }
 !> describepar{dil          ,           , dilution of all concentrations except dissolved inorganics, 0.0 }
+subroutine initialize(self, configunit)
+
+class (type_hzg_maecs), intent(inout), target :: self
+integer,                  intent(in)            :: configunit
+!
+! !LOCAL VARIABLES:
+integer    :: namlst=19
+!!------- Initial values of model maecs ------- 
+real(rk)  :: nutN_initial ! Dissolved Inorganic Nitrogen DIN
+real(rk)  :: nutP_initial ! Dissolved Inorganic Phosphorus DIP
+real(rk)  :: nutS_initial ! Dissolved Inorganic Silicon Si
+real(rk)  :: phyC_initial ! Phytplankton Carbon
+real(rk)  :: phyN_initial ! Phytplankton Nitrogen
+real(rk)  :: phyP_initial ! Phytplankton Phosphorus
+real(rk)  :: phyS_initial ! Phytplankton Silicon
+real(rk)  :: zooC_initial ! Zooplankton Carbon
+real(rk)  :: detC_initial ! Detritus Carbon
+real(rk)  :: detN_initial ! Detritus Nitrogen
+real(rk)  :: detP_initial ! Detritus Phosphorus
+real(rk)  :: detS_initial ! Detritus Silicon
+real(rk)  :: domC_initial ! Dissolved Organic Carbon
+real(rk)  :: domN_initial ! Dissolved Organic Nitrogen
+real(rk)  :: domP_initial ! Dissolved Organic Phosphorus
+real(rk)  :: frac_Rub_ini ! fraction of Rubisco
+real(rk)  :: Rub  ! trait times biomass
+real(rk)  :: frac_chl_ini ! Chl:C ratio
+real(rk)  :: chl  ! trait times biomass
 !!------- Parameters from nml-list maecs_pars ------- 
 real(rk)  :: P_max        ! maximum potential photosynthetic rate
 real(rk)  :: alpha        ! specific light adsorption by chloroplasts
@@ -574,22 +554,28 @@ end subroutine initialize
 !!   end of section generated by parser 
 !!----------------------------------------------------------------------
 !#SP#
+! set inverse parameters to avoid numerically expensive divisions
+! set small boundary depending on numerical resolution
 
-!-----------------------------------------------------------------------
-! !IROUTINE: Get the light extinction coefficient due to biogeochemical
-! variables
-!
-! !INTERFACE:
+
+!documentation for the parser-generated initialize section
+!> @fn fabm_hzg_maecs::initialize()
+!> @todo from the rhsv argument of the SET_ODE's in maecs_do, it looks as if id_chl
+!! and id_Rub are (correctly) handled as bulk variables (-phyC multiplied traits). however
+!! registered names, units and description of these variables looks as if they are (wrongly)
+!! handled as property variables?? So we should change the units, names and desc's ?
+
+
+!> @brief to calculate light extinction when kc changes with depth
+!> @details extinction coef=\f$ a_{\mathrm{water}} + a_{\mathrm{spm}}* (p+d+z) \f$
    subroutine get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
 !  
 ! !INPUT PARAMETERS:
    class(type_hzg_maecs),intent(in)          :: self 
    _DECLARE_ARGUMENTS_GET_EXTINCTION_
-!
-! !LOCAL VARIABLES:
+   
    real(rk) :: p,d,z
-!
-!-----------------------------------------------------------------------
+
    ! Enter spatial loops (if any)
    _LOOP_BEGIN_
   
@@ -609,165 +595,5 @@ end subroutine initialize
    _LOOP_END_
 
    end subroutine get_light_extinction
-!EOC
-
-
-subroutine maecs_init_stoichvars(self)
-   class(type_hzg_maecs),intent(inout)          :: self 
-
-!use maecs_types
-!implicit none
-
-!type (type_maecs_nutindex) :: ni
-real(rk)    :: norder, pb
-integer     :: nm
-
-norder = self%NutOrder
-nm     = 0
-if (norder .gt. 1.) then
-  ! --------- nitrogen -------------
-  pb     = 10**floor(log10(norder))
-  self%nutind%iN  = nint(norder/pb)
-  norder = norder - self%nutind%iN * pb
-  nm     = nm + 1
-  if (norder .gt. 0.99999) then
-    !  --------- phosphorus --------- 
-    pb     = 10**floor(log10(norder))
-    self%nutind%iP  = nint(norder/pb)
-    norder = norder - self%nutind%iP * pb
-    nm     = nm + 1
-    if (norder .gt. 0.99999) then
-      !  --------- silicon ----------- 
-      pb     = 10**floor(log10(norder))
-      self%nutind%iSi = nint(norder/pb)
-      norder = norder - self%nutind%iSi * pb
-      nm     = nm + 1
-    end if
-  end if  
-else
- self%nutind%iN  = 1
- self%nutind%iP  = 2
- self%nutind%iSi = 3
- nm = 3
-endif
-
-! evaluate number of considered limiting nutrients  
-self%nutind%nutnum = 1
-if (self%PhosphorusOn) then
-  self%nutind%nutnum = self%nutind%nutnum + 1
-end if
-
-! silicon
-if (self%SiliconOn) then
-  self%nutind%nutnum = self%nutind%nutnum + 1
-end if
-
-! special setting for synchrony dependency on relative quota: nutrient index
-nh = nint(10*(self%NutOrder-floor(self%NutOrder))) 
-if ( nh .gt. 0 .and. nh .le. nm) then
-  self%nutind%nhi = nh  ! element number corr. to first lower digit
-else
-  self%nutind%nhi = 1  ! default: first element
-endif
-
-!write (*,'(A,5(I4))') 'No No N P Si:',nm,self%nutind%nutnum,self%nutind%iN,self%nutind%iP,self%nutind%iSi
- 
-if (self%nutind%nutnum .gt. nm) call self%fatal_error('maecs_init','Not enough nutrient indices provided by NutOrder.')
-
-
-end subroutine maecs_init_stoichvars 
 
 end module fabm_hzg_maecs
-
-!-----------------------------------------------------------------------
-!BOP
-!
-
-subroutine maecs_get_vertical_movement(self,_ARGUMENTS_GET_VERTICAL_MOVEMENT_)
-
-use maecs_functions
-use maecs_types
-
-implicit none
-!
-! !INPUT PARAMETERS:
- class(type_maecs_base_model),intent(in)          :: self
-_DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_ 
- !   REALTYPE, intent(in)              ::vstokes 
-type (type_maecs_phy):: phy !< maecs phytoplankton type
-type (type_maecs_zoo) :: zoo
-type (type_maecs_om):: det
-type (type_maecs_om):: dom
-
-!
-! !LOCAL VARIABLES: 
-REALTYPE    :: phyQstat,vsink
-REALTYPE, parameter :: secs_pr_day = 86400.d0 
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-
-_FABM_LOOP_BEGIN_
-   
-   ! Retrieve phtoplankton state
-   
-   !Retrieve the 'phyQstat' directly as a diagnostic variable: does not work yet.
-   !fabm_get_bulk_diagnostic_data(self%id_phyqstat,phyQstatD) !where, phyQstat=relQ%N*relQ%P
-   !_GET_(self%id_phyqstat,phyQstatD)
-   
-   !Calculate manually
-   _GET_(self%id_phyC, phy%C)  ! Phytplankton Carbon in mmol-C/m**3
-   _GET_(self%id_phyN, phy%N)  ! Phytplankton Nitrogen in mmol-N/m**3
-   if (self%GrazingOn) then
-     _GET_(self%id_zooC, zoo%C)  ! Zooplankton Carbon in mmol-C/m**3
-   end if
-   if (self%PhosphorusOn) then
-     _GET_(self%id_phyP, phy%P)  ! Phytplankton Phosphorus in mmol-P/m**3
-   end if
-
-   !write (*,'(A,2(F10.3))') 'Before: phy%C, phy%N=', phy%C, phy%N
-   call min_mass(self,phy,method=2) 
-   !write (*,'(A,2(F10.3))') 'After: phy%C, phy%N=', phy%C, phy%N
-   call calc_internal_states(self,phy,det,dom,zoo) 
-   !write (*,'(A,2(F10.3))') 'phy%relQ%N, phy%relQ%P=', phy%relQ%N, phy%relQ%P
-   
-
-   !< compute \f$ phyQstat=phy_{QN}*phy_{QP} \f$
-   phyQstat = phy%relQ%N * phy%relQ%P 
-
-  
-   ! Calculate sinking
-
-   call sinking(self%vS_phy, phyQstat, vsink)
-   vsink = vsink / secs_pr_day
-   !write (*,'(A,2(F10.3))') 'phyQstat, vsink=', phyQstat, vsink
-   
-   !set the rates
-   _SET_VERTICAL_MOVEMENT_(self%id_detC,-1.0_rk*self%vS_det/secs_pr_day)
-   _SET_VERTICAL_MOVEMENT_(self%id_detN,-1.0_rk*self%vs_det/secs_pr_day)
-
-   _SET_VERTICAL_MOVEMENT_(self%id_phyN,vsink)
-   _SET_VERTICAL_MOVEMENT_(self%id_phyC,vsink)
-   if (self%PhosphorusOn) then
-      _SET_VERTICAL_MOVEMENT_(self%id_phyP,vsink)
-      _SET_VERTICAL_MOVEMENT_(self%id_detP,-1.0_rk*self%vs_det/secs_pr_day)
-   end if
-   if (self%SiliconOn) then
-      _SET_VERTICAL_MOVEMENT_(self%id_phyS,vsink)
-      _SET_VERTICAL_MOVEMENT_(self%id_detS,-1.0_rk*self%vs_det/secs_pr_day)
-   end if
-   if (self%PhotoacclimOn) then 
-      _SET_VERTICAL_MOVEMENT_(self%id_chl,vsink)
-      _SET_VERTICAL_MOVEMENT_(self%id_Rub,vsink)
-   end if
-  
-_FABM_LOOP_END_
-  
-end subroutine maecs_get_vertical_movement
-!EOC
-
-
-
-
-
-
