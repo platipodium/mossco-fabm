@@ -66,79 +66,78 @@ end interface
 ! --- HZG model types
 !!--------------------------------------------------------------------
 
-contains 
-
+contains
 !> @brief initializes the model
 !! @details here the maecs namelists are read and assigned respectively in the model type (self),
 !! state & diagnostic variables are registered in FABM and dependencies are imported from FABM
 !>
 !> **Model parameters, descriptions and corresponding symbols used in formulas:**
 ! initial values
-!> describepar{nutN_initial , \mathrm{DIN} , Dissolved Inorganic Nitrogen DIN, 30.0 mmol-N/m**3}
-!> describepar{nutP_initial , \mathrm{Phy}_\mathrm{P} , Dissolved Inorganic Phosphorus DIP, 1.2 mmol-P/m**3}
-!> describepar{nutS_initial , \mathrm{Phy}_\mathrm{Si} , Dissolved Inorganic Silicon Si, 20. mmol-Si/m**3}
-!> describepar{phyC_initial , \mathrm{Phy}_\mathrm{C} , Phytplankton Carbon, 10 mmol-C/m**3}
-!> describepar{phyN_initial ,  , Phytplankton Nitrogen, 0.8 mmol-N/m**3}
-!> describepar{phyP_initial ,  , Phytplankton Phosphorus, 0.08 mmol-P/m**3}
-!> describepar{phyS_initial ,  , Phytplankton Silicon, 0.8 mmol-Si/m**3}
-!> describepar{zooC_initial ,  , Zooplankton Carbon, 0.1 mmol-C/m**3}
-!> describepar{detC_initial ,  , Detritus Carbon, 1 mmol-C/m**3}
-!> describepar{detN_initial ,  , Detritus Nitrogen, 0.1 mmol-N/m**3}
-!> describepar{detP_initial ,  , Detritus Phosphorus, 0.01 mmol-P/m**3}
-!> describepar{detS_initial ,  , Detritus Silicon, 0.1 mmol-Si/m**3}
-!> describepar{domC_initial ,  , Dissolved Organic Carbon, 0.1 mmol-C/m**3}
-!> describepar{domN_initial ,  , Dissolved Organic Nitrogen, 0.01 mmol-N/m**3}
-!> describepar{domP_initial ,  , Dissolved Organic Phosphorus, 0.001 mmol-P/m**3}
-!> describepar{frac_Rub_ini , f_R , fraction of Rubisco, 0.4 -}
-!> describepar{Rub          , f_R\mathrm{Phy}_\mathrm{C}, trait x biomass}
-!> describepar{frac_chl_ini , f_\theta\theta_C , Chl:C ratio, 0.034 mg-Chla/mmol-C}
-!> describepar{chl          , f_\theta\theta_C\mathrm{Phy}_\mathrm{C}, trait x biomass}
+!> \describepar{nutN\_initial , \mathrm{DIN} , Dissolved Inorganic Nitrogen DIN, 30.0 mmol-N/m**3}
+!> \describepar{nutP\_initial , \mathrm{Phy}_\mathrm{P} , Dissolved Inorganic Phosphorus DIP, 1.2 mmol-P/m**3}
+!> \describepar{nutS\_initial , \mathrm{Phy}_\mathrm{Si} , Dissolved Inorganic Silicon Si, 20. mmol-Si/m**3}
+!> \describepar{phyC\_initial , \mathrm{Phy}_\mathrm{C} , Phytplankton Carbon, 10 mmol-C/m**3}
+!> \describepar{phyN\_initial , \mathrm{phyN_initial} , Phytplankton Nitrogen, 0.8 mmol-N/m**3}
+!> \describepar{phyP\_initial , \mathrm{phyP_initial} , Phytplankton Phosphorus, 0.08 mmol-P/m**3}
+!> \describepar{phyS\_initial , \mathrm{phyS_initial} , Phytplankton Silicon, 0.8 mmol-Si/m**3}
+!> \describepar{zooC\_initial , \mathrm{zooC_initial} , Zooplankton Carbon, 0.1 mmol-C/m**3}
+!> \describepar{detC\_initial , \mathrm{detC_initial} , Detritus Carbon, 1 mmol-C/m**3}
+!> \describepar{detN\_initial , \mathrm{detN_initial} , Detritus Nitrogen, 0.1 mmol-N/m**3}
+!> \describepar{detP\_initial , \mathrm{detP_initial} , Detritus Phosphorus, 0.01 mmol-P/m**3}
+!> \describepar{detS\_initial , \mathrm{detS_initial} , Detritus Silicon, 0.1 mmol-Si/m**3}
+!> \describepar{domC\_initial , \mathrm{domC_initial} , Dissolved Organic Carbon, 0.1 mmol-C/m**3}
+!> \describepar{domN\_initial , \mathrm{domN_initial} , Dissolved Organic Nitrogen, 0.01 mmol-N/m**3}
+!> \describepar{domP\_initial , \mathrm{domP_initial} , Dissolved Organic Phosphorus, 0.001 mmol-P/m**3}
+!> \describepar{frac\_Rub\_ini , f_R , fraction of Rubisco, 0.4 -}
+!> \describepar{Rub          , f_R\mathrm{Phy}_\mathrm{C}, trait x biomass}
+!> \describepar{frac\_chl\_ini , f_\theta\theta_C , Chl:C ratio, 0.034 mg-Chla/mmol-C}
+!> \describepar{chl          , f_\theta\theta_C\mathrm{Phy}_\mathrm{C}, trait x biomass}
 ! other parameters
-!> describepar{P_max        , P_\mathrm{max}        , maximum potential photosynthetic rate, 12.0 d^{-1}}
-!> describepar{alpha        , \alpha        , specific light adsorption by chloroplasts, 0.12 m2 mol-C/(muE g-CHL)}
-!> describepar{sigma        , \sigma        , Q-dependency of Rubisco activity/chloroplast ratio, 0.0 }
-!> describepar{theta_LHC    , \theta_\mathrm{C}    , Chlorophylla-to-C ratio of LHC, 1.2 mgChl mmolC^{-1}}
-!> describepar{rel_chloropl_min ,  , chloroplast-C to phy-C ratio, 0.01 mol-C/mol-C}
-!> describepar{QN_phy_0     , Q_{\mathrm{N}0}     , subsistence N-quota, 0.045 mol-N/mol-C}
-!> describepar{QN_phy_max   , Q_\mathrm{N}^\mathrm{ref}   , maximum N-quota, 0.24 mol-N/mol-C}
-!> describepar{V_NC_max     , V_\mathrm{max,N}^0     , maximum N uptake rate, 0.3 mol-N/(mol-C d)}
-!> describepar{AffN         , A_\mathrm{N}^0         , N-Affinity, 0.1 m3/(mmol-C d)}
-!> describepar{zeta_CN      , \zeta_\mathrm{CN}      , respiratory costs of N-synthesis/NO3-reduction, 2.3 mol-C/mol-N}
-!> describepar{zstoich_PN   ,    , P-stoichiometry of active compounds(-> P costs), 3.8 mol-N/mol-P}
-!> describepar{exud_phy     ,      , phytoplankton exudation per production, 0.0 }
-!> describepar{QP_phy_0     , Q_{\mathrm{P}0}     , subsistence P-quota, 0.0 mol-P/mol-C}
-!> describepar{QP_phy_max   , Q_\mathrm{P}^\mathrm{ref}   , subsistence P-quota, 0.02 mol-P/mol-C}
-!> describepar{V_PC_max     , V_\mathrm{max,P}^0     , maximum P uptake rate, 0.03 mol-P/(mol-C d)}
-!> describepar{AffP         , A_\mathrm{P}^0         , P-Affinity, 0.07 m3/(mmol-C d)}
-!> describepar{QSi_phy_0    , Q_{\mathrm{Si}0}    , subsistence Si-quota, 0.0 mol-Si/mol-C}
-!> describepar{QSi_phy_max  , Q_\mathrm{Si}^\mathrm{ref}  , subsistence Si-quota, 0.1 mol-Si/mol-C}
-!> describepar{V_SiC_max    , V_\mathrm{max,Si}^0    , maximum Si-uptake rate, 0.02 mol-Si/(mol-C d)}
-!> describepar{AffSi        , A_\mathrm{Si}^0        , Si-Affinity, 0.05 m3/(mmol-C d)}
-!> describepar{syn_nut      , 1/h      , synchrony n_queue in nutrient quota limitation, 2.0 }
-!> describepar{adap_rub     , \delta_R     , adap_rub, 1.0 }
-!> describepar{adap_theta   , \delta_\theta   , adap_theta, 1.0 }
-!> describepar{tau_regV     , \Delta t_\mathrm{v}     , tau_regV, 99.0 }
-!> describepar{phi_agg      ,       , quadratic aggregation rate, 5E-4 m^6 mmolN^{-2} d^{-1}}
-!> describepar{vS_phy       ,        , sinking velocity for phytoplankton, 5E-2 m d^{-1}}
-!> describepar{vS_det       ,        , sinking velocity for detritus, 2. m d^{-1}}
-!> describepar{hydrol       ,        , hydrolysis rate, 0.03 d^{-1}}
-!> describepar{remin        ,         , pelagic remineralisation, 0.03 d^{-1}}
-!> describepar{Ae_all       ,        , Activation energy, 4500.0 ...}
-!> describepar{T_ref        ,         , reference temperature, 288.0 degC}
-!> describepar{NutOrder     ,      , element order of recursive scheme. lower digit: synchrony element   , 123.1 serial order number N:P:Si}
-!> describepar{const_NC_zoo ,  , zooplankton N:C ratio, 0.3 mol/mol}
-!> describepar{const_PC_zoo ,  , zooplankton P:C ratio, 0.025 mol/mol}
-!> describepar{g_max        ,         , maximum grazing rate, 1. per d}
-!> describepar{k_grazC      ,       , half saturation graing, 5.0 mmolN/m**3}
-!> describepar{yield_zoo    ,     , yield of herbivory, 0.35 }
-!> describepar{basal_resp_zoo ,  , basal respiration, 0.04 per d}
-!> describepar{mort_zoo     ,      , quadratic mortality, 0.035 m**3/mmolN.d}
-!> describepar{a_water      ,       , background attenuation coefficient, 0.01 1/m}
-!> describepar{a_spm        ,         , attenuation coefficient of SPM, 0.001 m**3/m.mmolC}
-!> describepar{a_chl        ,         , attenuation coefficient due to Chl absorption, 0.02 m**3/m.mgChl}
-!> describepar{frac_PAR     ,      , photosynthetically active fraction of light, 1.0 }
-!> describepar{small        ,         , lower limit for denominator in ratios; small_finite=sqrt(small), 1e-04 }
-!> describepar{dil          ,           , dilution of all concentrations except dissolved inorganics, 0.0 }
+!> \describepar{P\_max        , P_\mathrm{max}        , maximum potential photosynthetic rate, 12.0 d^{-1}}
+!> \describepar{alpha        , \alpha        , specific light adsorption by chloroplasts, 0.12 m2 mol-C/(muE g-CHL)}
+!> \describepar{sigma        , \sigma        , Q-dependency of Rubisco activity/chloroplast ratio, 0.0 }
+!> \describepar{theta\_LHC    , \theta_\mathrm{C}    , Chlorophylla-to-C ratio of LHC, 1.2 mgChl mmolC^{-1}}
+!> \describepar{rel\_chloropl\_min , \mathrm{rel_chloropl_min} , chloroplast-C to phy-C ratio, 0.01 mol-C/mol-C}
+!> \describepar{QN\_phy\_0     , Q_{\mathrm{N}0}     , subsistence N-quota, 0.045 mol-N/mol-C}
+!> \describepar{QN\_phy\_max   , Q_\mathrm{N}^\mathrm{ref}   , maximum N-quota, 0.24 mol-N/mol-C}
+!> \describepar{V\_NC\_max     , V_\mathrm{max,N}^0     , maximum N uptake rate, 0.3 mol-N/(mol-C d)}
+!> \describepar{AffN         , A_\mathrm{N}^0         , N-Affinity, 0.1 m3/(mmol-C d)}
+!> \describepar{zeta\_CN      , \zeta_\mathrm{CN}      , respiratory costs of N-synthesis/NO3-reduction, 2.3 mol-C/mol-N}
+!> \describepar{zstoich\_PN   , \mathrm{zstoich_PN}   , P-stoichiometry of active compounds(-> P costs), 3.8 mol-N/mol-P}
+!> \describepar{exud\_phy     , \mathrm{exud_phy}     , phytoplankton exudation per production, 0.0 }
+!> \describepar{QP\_phy\_0     , Q_{\mathrm{P}0}     , subsistence P-quota, 0.0 mol-P/mol-C}
+!> \describepar{QP\_phy\_max   , Q_\mathrm{P}^\mathrm{ref}   , subsistence P-quota, 0.02 mol-P/mol-C}
+!> \describepar{V\_PC\_max     , V_\mathrm{max,P}^0     , maximum P uptake rate, 0.03 mol-P/(mol-C d)}
+!> \describepar{AffP         , A_\mathrm{P}^0         , P-Affinity, 0.07 m3/(mmol-C d)}
+!> \describepar{QSi\_phy\_0    , Q_{\mathrm{Si}0}    , subsistence Si-quota, 0.0 mol-Si/mol-C}
+!> \describepar{QSi\_phy\_max  , Q_\mathrm{Si}^\mathrm{ref}  , subsistence Si-quota, 0.1 mol-Si/mol-C}
+!> \describepar{V\_SiC\_max    , V_\mathrm{max,Si}^0    , maximum Si-uptake rate, 0.02 mol-Si/(mol-C d)}
+!> \describepar{AffSi        , A_\mathrm{Si}^0        , Si-Affinity, 0.05 m3/(mmol-C d)}
+!> \describepar{syn\_nut      , 1/h      , synchrony n\_queue in nutrient quota limitation, 2.0 }
+!> \describepar{adap\_rub     , \delta_R     , adap\_rub, 1.0 }
+!> \describepar{adap\_theta   , \delta_\theta   , adap\_theta, 1.0 }
+!> \describepar{tau\_regV     , \Delta t_\mathrm{v}     , tau\_regV, 99.0 }
+!> \describepar{phi\_agg      , \mathrm{phi_agg}      , quadratic aggregation rate, 5E-4 m^6 mmolN^{-2} d^{-1}}
+!> \describepar{vS\_phy       , \mathrm{vS_phy}       , sinking velocity for phytoplankton, 5E-2 m d^{-1}}
+!> \describepar{vS\_det       , \mathrm{vS_det}       , sinking velocity for detritus, 2. m d^{-1}}
+!> \describepar{hydrol       , \mathrm{hydrol}       , hydrolysis rate, 0.03 d^{-1}}
+!> \describepar{remin        , \mathrm{remin}        , pelagic remineralisation, 0.03 d^{-1}}
+!> \describepar{Ae\_all       , \mathrm{Ae_all}       , Activation energy, 4500.0 ...}
+!> \describepar{T\_ref        , \mathrm{T_ref}        , reference temperature, 288.0 degC}
+!> \describepar{NutOrder     , \mathrm{NutOrder}     , element order of recursive scheme. lower digit: synchrony element   , 123.1 serial order number N:P:Si}
+!> \describepar{const\_NC\_zoo , \mathrm{const_NC_zoo} , zooplankton N:C ratio, 0.3 mol/mol}
+!> \describepar{const\_PC\_zoo , \mathrm{const_PC_zoo} , zooplankton P:C ratio, 0.025 mol/mol}
+!> \describepar{g\_max        , \mathrm{g_max}        , maximum grazing rate, 1. per d}
+!> \describepar{k\_grazC      , \mathrm{k_grazC}      , half saturation graing, 5.0 mmolN/m**3}
+!> \describepar{yield\_zoo    , \mathrm{yield_zoo}    , yield of herbivory, 0.35 }
+!> \describepar{basal\_resp\_zoo , \mathrm{basal_resp_zoo} , basal respiration, 0.04 per d}
+!> \describepar{mort\_zoo     , \mathrm{mort_zoo}     , quadratic mortality, 0.035 m**3/mmolN.d}
+!> \describepar{a\_water      , \mathrm{a_water}      , background attenuation coefficient, 0.01 1/m}
+!> \describepar{a\_spm        , \mathrm{a_spm}        , attenuation coefficient of SPM, 0.001 m**3/m.mmolC}
+!> \describepar{a\_chl        , \mathrm{a_chl}        , attenuation coefficient due to Chl absorption, 0.02 m**3/m.mgChl}
+!> \describepar{frac\_PAR     , \mathrm{frac_PAR}     , photosynthetically active fraction of light, 1.0 }
+!> \describepar{small        , \mathrm{small}        , lower limit for denominator in ratios; small\_finite=sqrt(small), 1e-04 }
+!> \describepar{dil          , \mathrm{dil}          , dilution of all concentrations except dissolved inorganics, 0.0 }
 subroutine initialize(self, configunit)
 
 class (type_hzg_maecs), intent(inout), target :: self
