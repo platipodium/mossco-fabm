@@ -102,11 +102,10 @@ phy%frac%Rub = _ONE_ - smooth_small(_ONE_- phy%frac%Rub ,maecs%small_finite + ma
 
 !> @fn maecs_functions::calc_internal_states()
 !> 3. Calculate @f$ \theta \mathrm{ and } f_{\theta} @f$ \latexonly  See also: \ref{sec:uptsys} \endlatexonly
-!>    - @f$ \mathrm{phy\%rel_chloropl} =  f_R*q_N^{\sigma} @f$
-!>      - Q: phy\%rel\_chloropl =    
-!>    - @f$ \mathrm{phy\%theta} =  phy_{chl}/phy_C / \mathrm{phy\%rel_chloropl} @f$
-!>      - Q: does not seem to be equal to \ref{eq:ftheta} unless @f$ phy_{chl}/phy_C = f_\theta / \theta_C @f$
-!>      - Q: what is actually phy\%chl? the bulk or the trait variable? i assumed it is the bulk
+!>    - @f$ \mathrm{phy\%rel\_chloropl} =  f_R*q_N^{\sigma} @f$
+!>      - Q: phy\%rel\_chloropl = this is probably the 'relative chloroplast'. Is it unitless?
+!>    - @f$ \mathrm{phy\%theta} =  phy_{chl}/phy_C / \mathrm{phy\%rel\_chloropl} @f$
+!>      - Q: does not seem to be equal to \lref{eq.,eq:ftheta,.} unless @f$ phy_{chl}/phy_C = f_\theta / \theta_C @f$
 !>    - @f$ \mathrm{phy\%frac\%theta}= phy_{chl}/phy_C * \mathrm{maecs\%itheta_max} @f$
 !>      - Q: does not seem to be related to anything ?? 
 !>    - @f$ f_V = \mathrm{phy\%frac\%TotFree} - f_{\theta} - f_R  @f$, where phy\%frac\%TotFree=1.0
@@ -131,8 +130,8 @@ phy%frac%NutUpt = smooth_small(phy%frac%TotFree - phy%frac%Rub - phy%frac%theta,
 
 !> @fn maecs_functions::calc_internal_states()
 !> 4. Calculate zooplankton states:
-!>    - @f$ zoo_{QX} = \mathrm{maecs\%const_NC_zoo} \mathrm{ , } zoo_{X} = zoo_C * zoo_{QN} \mathrm{ , } X=N,P @f$
-!>    - @f$ zoo_{yield} = \mathrm{maecs\%yield_zoo} \mathrm{ , } zoo_{flopp} = 1-\mathrm{maecs\%yield_zoo} @f$
+!>    - @f$ zoo_{QX} = \mathrm{maecs\%const\_NC\_zoo} \mathrm{ , } zoo_{X} = zoo_C * zoo_{QN} \mathrm{ , } X=N,P @f$
+!>    - @f$ zoo\_{yield} = \mathrm{maecs\%yield\_zoo} \mathrm{ , } zoo_{flopp} = 1-\mathrm{maecs\%yield\_zoo} @f$
 if (maecs%GrazingOn) then
   ! ---- herbivore stoichiometry ---------------------------
   zoo%Q%N    = maecs%const_NC_zoo
