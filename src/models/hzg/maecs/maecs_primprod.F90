@@ -65,8 +65,11 @@ q_NoLip  = self%zstoich_PN !   16 : Redfield-stoichiometry
 q_Lip    = 0.8  ! storage P-stoichiometry   
 f_Lip    = 1./(1.+exp(10*(1.-phy%relQ%P)))
 
-! prepare loop over structure elements by assigning a poinzer structure
-! here, every possible nutrient is asked explicitely; thus first Si then P
+!> @fn maecs_primprod::photosynthesis()
+!> 1. Prepare loop over structure elements by assigning a poinzer structure
+!>    - Here, every possible nutrient is asked explicitely; thus first Si then P\n
+!>    - This is an example of adding a whole code source:
+!> @include 'maecs_stoichvars.F90p'
 include './maecs_stoichvars.F90p' ! order of recursive colimitation scheme
 num_nut  = self%nutind%nutnum  ! total number of nutrients
 
