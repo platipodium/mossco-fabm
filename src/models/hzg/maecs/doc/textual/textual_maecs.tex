@@ -105,7 +105,7 @@ P = \uref{P_\mathrm{max}}{Pmax}\cdot\uref{\climf}{totc}\cdot \mathrm{LH}
 \eeq
 
 Light harvesting $\mathrm{LH}$ is primarily controlled by ambient light intensity PAR and light adsorption by chloroplasts $\alpha\cdot\theta$ proportional to the chlorophyll concentration $\theta$ (cf.\Eq{eq:ftheta}). Its functional form derives from Poisson arrival statistics of photons
-\beq
+\beql{eq:LH}
  \mathrm{LH} = 1-\eh{-\alpha\theta \textrm{PAR}/P_\mathrm{max}}
 \eeq
 \end{subsection}
@@ -210,11 +210,19 @@ Potential uptake $V_\nind^*$  reflects ambient nutrient concentration, but also 
 \beql{eq:uptake}
 V_\nind^{*-1}  = \vmax{\nind}^{-1} + (A_\nind\:\mathrm{DI}\nind)^{-1} \msep\mathrm{DI}\nind=\mathrm{DIN}, \mathrm{DIP}, \mathrm{DSi}, \ldots 
 \eeq
+
 Nutrient uptake characteristics are temperature sensitive and assumed to depend on a sub-partitioning of allocatable proteins expressed by the coefficient $f_{A,\nind}$
 \beal{eq:uptakecoeff}
 \vmax{\nind} &=& (1-f_{A,\nind})   \cdot Q_0\cdot\uref{f_T}{arrhenius}\cdot\vmax{\nind}^0\\[1ex]
 A_\nind      &=& \quad f_{A,\nind}\quad\:\: \cdot Q_0\cdot f_T\cdot A_\nind^0
 \eea
+
+ONUR: What's presently implemented is:  
+\beal{eq:uptakecoeffcurr}
+\vmax{\nind} &=& (1-f_{A,\nind})   \cdot \uref{f_T}{arrhenius}\cdot\vmax{\nind}^0\\[1ex]
+A_\nind      &=& \quad f_{A,\nind}\quad\:\: \cdot A_\nind^0
+\eea
+
 [TODO: differential temperature sensitivity; see Smith 2013]
 
 Protein sub-partitioning of overall uptake machinery ($f_V$) into affinity and transport capabilities is instantaneously optimized 

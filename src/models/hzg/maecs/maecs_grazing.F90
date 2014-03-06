@@ -16,7 +16,7 @@ module maecs_grazing
 
 !> @brief  calculates grazing rate
 !> @details 
-!> @todo: add a description and details
+!> rate= @f$ I_{max} * F^2/(K^2+F^2) @f$
 subroutine grazing(Imax,HalfSat,preyconc,rate)
 !
   implicit none

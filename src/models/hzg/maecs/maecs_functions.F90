@@ -20,38 +20,212 @@
 
  contains  
 
-!---------------------------------------------------------
-!> @brief  continous smoothing function by kw Apr 2012
+ !------------------------------------------------------
+!> @brief calculate the internal states 
 !> @details 
-!! smoothly converges x to **eps/2** for x<eps  
-!! \f[ x=eps+(x-eps)*e^{x/eps}/(1+e^{x/eps}) \f]
-pure real(rk) function smooth_small(x, eps)
+!> @todo the theta-related calculations should obviously be related to \latexonly Eq. \ref{eq:ftheta} \endlatexonly but I get lost. See the Q's therein
+subroutine calc_internal_states(maecs,phy,det,dom,zoo)
 
-   implicit none
-   real(rk), intent(in)          :: x, eps
-   real(rk)                      :: arg, larger
-!--------------------------------------------------------------
-   
-   if (x .lt. 1.5d1*eps) then
-     arg     = x/eps
-     larger  = exp(arg)
-     smooth_small  = eps + (x - eps) * larger / (larger + 1.0d0) 
-   else
-    smooth_small  = x
-   endif
-   end function smooth_small 
+implicit none
+class (type_maecs_base_model),intent(in)     :: maecs
+type (type_maecs_phy), intent(inout) :: phy
+type (type_maecs_om), intent(inout) :: det
+type (type_maecs_om), intent(inout) :: dom
+type (type_maecs_zoo), intent(inout) :: zoo
+real(rk) :: min_Cmass
+
+! min_Cmass = maecs%small_finite * 1.0d-3 / maecs%a_spm
+
+
+!> @fn maecs_functions::calc_internal_states()
+!> 1. Calculate elemental absolute and relative quotas (Q and relQ):
+!>   - phy\%Q\%X = phy\%X / phy\%C where x=N,P,Si
+!>   - phy\%relQ\%X= (phy\%Q\%X - maecs\%qN_phy_0) / maecs\%iK_QN where x=N,P,Si
+phy%Q%N    = phy%reg%N / phy%reg%C
+! added for mixing effects in estuaries kw Jul, 15 2013
+phy%Q%N  = smooth_small(phy%Q%N, maecs%QN_phy_0)
+
+! fraction of free (biochemically available) intracellular nitrogen
+phy%relQ%N  = (phy%Q%N - maecs%QN_phy_0) * maecs%iK_QN
+phy%relQ%N  = smooth_small(phy%relQ%N, maecs%small_finite)
+! added for deep detritus traps with extreme quotas kw Jul, 16 2013
+!phy%relQ%N  = _ONE_ - smooth_small(_ONE_- phy%relQ%N, maecs%small_finite)
+
+! --- stoichiometry of non-living organic matter  ---------------------------------
+!dom%QN      = dom%N  /(dom%C + min_Cmass )  ! N:C ratio of dissolved organic matter (DOM)
+!det%QN      = det%N /(det%C + min_Cmass)   ! N:C ratio of detritus
+if (maecs%PhosphorusOn) then 
+   phy%Q%P     = phy%P / phy%reg%C
+! added for mixing effects in estuaries kw Jul, 15 2013
+   phy%Q%P     = smooth_small(phy%Q%P, maecs%QP_phy_0)
+
+   phy%relQ%P = ( phy%Q%P - maecs%QP_phy_0 ) * maecs%iK_QP
+   phy%relQ%P = smooth_small(phy%relQ%P, maecs%small_finite)
+! added for deep detritus traps with extreme quotas kw Jul, 16 2013
+!   phy%relQ%P = _ONE_ - smooth_small(_ONE_- phy%relQ%P, maecs%small_finite)
+!write (*,'(A,4(F10.3))') 'relQ%P=',phy%relQ%P,phy%Q%P*1E3,(phy%Q%P - maecs%QP_phy_0)*1E3,maecs%QP_phy_0*1E3
+
+!   dom%QP     = dom%P  / (dom%C  + min_Cmass)  ! P:C ratio of DOM
+!   det%QP     = det%P / (det%C + min_Cmass)  ! P:C ratio of detritus
+end if 
+  
+if (maecs%SiliconOn) then 
+   phy%Q%Si    = phy%Si / phy%reg%C
+! added for mixing effects in estuaries kw Jul, 15 2013
+   phy%Q%Si     = smooth_small(phy%Q%Si, maecs%QSi_phy_0)
+
+   phy%relQ%Si = ( phy%Q%Si - maecs%QSi_phy_0 ) /(maecs%QSi_phy_max-maecs%QSi_phy_0) 
+
+! added for deep detritus traps with extreme quotas kw Jul, 16 2013
+!   phy%relQ%Si = _ONE_ - smooth_small(_ONE_- phy%relQ%Si, maecs%small_finite)
+!   phy%Q%SiN    = phy%Sii / phy%reg%N
+end if   
+
+
+!> @fn maecs_functions::calc_internal_states()
+!> 2. Calculate Rubisco fraction (convert from the bulk variable) 
+!>    - @f$ f_R = \mathrm{phy\%Rub} / phy_C @f$
+!>    - @todo phy\%frac\%Rub=1-phy\%frac\%Rub : ?? what is this? from now on @f$ f_R @f$ is not what we think it is!!
+phy%frac%Rub=maecs%frac_Rub_ini
+
+if (maecs%PhotoacclimOn) then
+   if (maecs%RubiscoOn) then 
+! trait + transporter needs division to become a trait again
+     phy%frac%Rub = phy%Rub / phy%reg%C
+!     phy%frac%Rub = phy%Rub / phy%reg%N
+   end if    
+end if
+
+!?  WHAT IS THIS !?
+phy%frac%Rub = _ONE_ - smooth_small(_ONE_- phy%frac%Rub ,maecs%small_finite + maecs%rel_chloropl_min)
+
+
+!> @fn maecs_functions::calc_internal_states()
+!> 3. Calculate @f$ \theta \mathrm{ and } f_{\theta} @f$ \latexonly  See also: \ref{sec:uptsys} \endlatexonly
+!>    - @f$ \mathrm{phy\%rel_chloropl} =  f_R*q_N^{\sigma} @f$
+!>      - Q: phy\%rel\_chloropl =    
+!>    - @f$ \mathrm{phy\%theta} =  phy_{chl}/phy_C / \mathrm{phy\%rel_chloropl} @f$
+!>      - Q: does not seem to be equal to \ref{eq:ftheta} unless @f$ phy_{chl}/phy_C = f_\theta / \theta_C @f$
+!>      - Q: what is actually phy\%chl? the bulk or the trait variable? i assumed it is the bulk
+!>    - @f$ \mathrm{phy\%frac\%theta}= phy_{chl}/phy_C * \mathrm{maecs\%itheta_max} @f$
+!>      - Q: does not seem to be related to anything ?? 
+!>    - @f$ f_V = \mathrm{phy\%frac\%TotFree} - f_{\theta} - f_R  @f$, where phy\%frac\%TotFree=1.0
+
+! calculate rel_chloropl
+phy%rel_chloropl = smooth_small(phy%frac%Rub * phy%relQ%N**maecs%sigma,maecs%rel_chloropl_min)
+
+if (maecs%PhotoacclimOn) then  
+
+  ! conversion of bulk chlorophyll concentration to chlorophyll content in chloroplasts  
+  phy%theta     = phy%chl / (phy%rel_chloropl * phy%reg%C)   ! trait variable
+
+! cell specific CHL:C ratio of chloroplasts / carbon bound to LHC per CHL-pigment
+  phy%frac%theta= phy%chl/phy%reg%C * maecs%itheta_max ! []     no smaller than o(1.d-5)!
+endif
+! --- total pool-size of available/free proteins/enzymes and RNA -------------------   
+phy%frac%TotFree= 1.0d0 
+! -- remaining nitrogen fraction for uptake and nutrient processing --------------
+
+phy%frac%NutUpt = smooth_small(phy%frac%TotFree - phy%frac%Rub - phy%frac%theta, maecs%small)
+
+
+!> @fn maecs_functions::calc_internal_states()
+!> 4. Calculate zooplankton states:
+!>    - @f$ zoo_{QX} = \mathrm{maecs\%const_NC_zoo} \mathrm{ , } zoo_{X} = zoo_C * zoo_{QN} \mathrm{ , } X=N,P @f$
+!>    - @f$ zoo_{yield} = \mathrm{maecs\%yield_zoo} \mathrm{ , } zoo_{flopp} = 1-\mathrm{maecs\%yield_zoo} @f$
+if (maecs%GrazingOn) then
+  ! ---- herbivore stoichiometry ---------------------------
+  zoo%Q%N    = maecs%const_NC_zoo
+  zoo%N     = zoo%C * zoo%Q%N
+  zoo%yield = maecs%yield_zoo
+  zoo%flopp =  _ONE_ - maecs%yield_zoo
+  if (maecs%PhosphorusOn) then 
+    zoo%Q%P    = maecs%const_PC_zoo
+    zoo%P     = zoo%C * zoo%Q%P
+  endif
+endif
+end subroutine
+
+!------------------------------------------------------
+!> @brief calculate sensitivities
+!> @details Details:
+!> - sens\%f\_T \latexonly see eq. \ref{eq:arrhenius} \endlatexonly
+!> - sens\%P\_max \latexonly see eq. \ref{eq:Pmax} \endlatexonly
+!> - sens\%upt\_pot\%C \latexonly (=LH) see eq. \ref{eq:LH} \endlatexonly
+!> - sens\%upt\_pot\%X, (@f$=V_X@f$), X=N,P,Si calculated by uptflex() \latexonly according to eq. \ref{eq:uptakecoeffcurr} \endlatexonly
+!> @todo: a more intuitive name like calc_potentials?
+!> @todo: Q: why maecs instead of self?
+subroutine calc_sensitivities(maecs,sens,phy,env,nut)
+
+implicit none
+class (type_maecs_base_model), intent(in) :: maecs
+type (type_maecs_sensitivities), intent(out) :: sens
+type (type_maecs_phy),intent(in) :: phy
+type (type_maecs_env),intent(in) :: env
+type (type_maecs_om),intent(in) :: nut
+
+type (type_maecs_om) :: fA
+real(rk) :: par, T_Kelv, NutF
+
+par          = maecs%frac_PAR * env%par ! use active  fraction frac_PAR of available radiation
+T_Kelv       = env%Temp + 273.d0 ! temperature in Kelvin 
+! ----------------------------------------------------------------------------
+! +++ determine rates for photoautotophic growth ++++++++++++++++++++++++++++++++++++++++++++++++++
+! --- temperature dependence of metabolic rates (with T_ref given in units [Kelvin]) --------------
+sens%f_T  = exp(-maecs%Ae_all *(1.0d0/T_Kelv - 1.0d0/maecs%T_ref ))
+
+! --- (potential) maximum photosynthetic rate -----------------------------------------------------
+sens%P_max_T = maecs%P_max * sens%f_T
+
+! --- light response curve ------------------------------------------------------------------------
+sens%a_light = maecs%alpha * par /(sens%P_max_T)  ! par NOCH BAUSTELLE, jetzt PAR in zellmitte 
+sens%upt_pot%C  = 1.0d0 - exp(- sens%a_light * phy%theta) ! [dimensionless]
+! write (*,'(A,5(F10.4))') 'PAR Pm a th S:',par, sens%P_max_T,sens%a_light , phy%theta,sens%upt_pot%C
+
+! --- carbon specific N-uptake: sites vs. processing ----------------------------------
+! non-zero nutrient concentration for regulation
+NutF    = smooth_small(nut%N,maecs%small)
+! optimal partitioning between
+! surface uptake sites and internal enzymes (for assimilation)
+fA%N    =  fOptUpt(maecs%AffN,maecs%V_NC_max * sens%f_T, NutF)
+
+sens%upt_pot%N   = uptflex(maecs%AffN,maecs%V_NC_max*sens%f_T,NutF, fA%N)
+
+!  P-uptake coefficients
+if (maecs%PhosphorusOn) then 
+   NutF    = smooth_small(nut%P,maecs%small)
+! optimal partitioning 
+   fA%P    =  fOptUpt(maecs%AffP,maecs%V_PC_max * sens%f_T, NutF)
+   sens%upt_pot%P  = uptflex(maecs%AffP,maecs%V_PC_max*sens%f_T,NutF,fA%P)
+end if
+!write (*,'(A,4(F10.3))') 'vP=',sens%upt_pot%P,maecs%V_PC_max * sens%f_T,nut%P,maecs%small*1E3
+
+!  Si-uptake coefficients
+if (maecs%SiliconOn) then 
+   NutF    = smooth_small(nut%Si,maecs%small)
+! optimal partitioning 
+   fA%Si    =  fOptUpt(maecs%AffSi,maecs%V_SiC_max * sens%f_T, NutF)
+   sens%upt_pot%Si = uptflex(maecs%AffSi,maecs%V_SiC_max * sens%f_T,nutF,fA%Si)
+end if
+! TODO check temperature dependence of nutrient affinity
+
+
+end subroutine
 
 !-----------------------------------------------------------------------
 !> @brief calc's pot nut upt as f(external conc, allocations)
 !> @details 
-!> @return uptflex
-!> @todo: find where it is in the text, add equations
+!> uptake regulation: sites vs. processing\n
+!> \latexonly see eq. \ref{eq:uptake} - \ref{eq:optutpalloc} \endlatexonly
+!> - sens%upt\_pot%X = @f$ (A_X*DIX*V_{max,X})/(A_X*DIX + V_{max,X}))^{-1} @f$
+!> - @f$ A_X = f_{A,X}*A_X^0 @f$, where @f$ f_{A,X} @f$ =fOptUpt()
+!> - @f$ V_{max}=(1-f_{A,X})*V_{max}^0*f_T @f$
+
 pure real(rk) function uptflex(Aff0, Vmax0, Nut, fAv)
    implicit none
    real(rk), intent(in)      :: Aff0, Vmax0, Nut, fAv
    real(rk)                  :: Aff,Vmax
 
-! uptake regulation: sites vs. processing
    Aff     = fAv * Aff0    ! nutrient affinity 
    Vmax    = (_ONE_-fAv) * Vmax0   ! maximal N-uptake rate 
 
@@ -62,8 +236,7 @@ pure real(rk) function uptflex(Aff0, Vmax0, Nut, fAv)
 !-----------------------------------------------------------------------
 !> @brief opt. partitioning between surf upt sites and intern. enzymes for nut assim.
 !> @details 
-!> @return fOptUpt
-!> @todo: find where it is in the text, add equations
+!> calculates @f$ f_{A,X} @f$ \lref{see eq. ,eq:optutpalloc,.}
 pure real(rk) function fOptUpt(Aff0, Vmax0, Nut)
    implicit none
 
@@ -77,7 +250,7 @@ pure real(rk) function fOptUpt(Aff0, Vmax0, Nut)
 !> @details 
 !> provides both the queuing function and it's derivative 
 !> with the parameter n->inf :liebig and n~1:product
-!> \latexonly For narration and equations, see: Section \ref{sec:colim} \endlatexonly \n
+!> \latexonly see: Section \ref{sec:colim} \endlatexonly \n
 !> @todo: add equations
 subroutine queuefunc(n,x,qfunc,qderiv)
 
@@ -97,26 +270,27 @@ subroutine queuefunc(n,x,qfunc,qderiv)
    end subroutine queuefunc
 
 !-----------------------------------------------
-!> @brief approximation of the queue function 
+!> @brief numerical approximation of the queue function 
 !> @details 
-!> n->inf :liebig  n~1:product
-!> @todo: add equations
+!> n->inf :liebig  n~1:product\n
+!> Here is an example of adding a snip of code:
+!> @snippet maecs_functions.F90 queuefunc1_snippet 
 subroutine queuefunc1(n,x,qfunc,qderiv)
-!
-!  response function from queing theory:  numerical approximation
-!  synchrony of processing n->inf :liebig  n~1:product
-!
+
    implicit none
    real(rk), intent(in)       :: x, n
    real(rk), intent(out)      :: qfunc, qderiv
    real(rk)                   :: nn, hh,x0,en
 
+   ! [queuefunc1_snippet]
    nn = n+1.
    hh = 1./nn
    x0 = (log(exp(nn)-1))*hh
    en = exp(-nn*(x/(1+hh*x) - x0))
    qfunc =  1. - hh*log(1.+ en)
    qderiv = 1. / ( (1. + hh * x)**2 * (1.+1./en))
+   ! [queuefunc1_snippet]
+   
    end subroutine queuefunc1
 
 !-------------------------------------------------------------
@@ -138,8 +312,9 @@ real(rk) function queuederiv(n,x)
 !-------------------------------------------------------------
 !> @brief calculation of the sinking rate
 !> @details 
-!! \latexonly For a textual narration and equations, see: Section \ref{sec:sink} \endlatexonly \n
-!> @todo: add equations
+!> - sinkvel   = @f$ -vS * e^{-4*\mathrm{phys\_status}} @f$
+!>   - phys\_status calculated in fabm_hzg_maecs::maecs_get_vertical_movement()
+!>   - Future work: sinkvel=f(size) \latexonly (see section \ref{sec:sink}) \endlatexonly \n
 subroutine sinking(vS ,phys_status,sinkvel)
    implicit none
    real(rk), intent(in)     :: vS ,phys_status
@@ -206,10 +381,10 @@ subroutine sinking(vS ,phys_status,sinkvel)
 !> 2. ..
 !> 3. ..
 !> 4. ..
-!> @todo: assign some meaningful names to case numbers
+!> @todo: assign some meaningful names to case numbers?
 !> @todo: mm_method to be read from the nml?
+!> @todo: Q: phy\%reg\%P either non existent or commented out for different cases. Why?
 !> @todo: add equations
-!> @todo: Q: why phy\%P is not stored also in phy\%reg\%P?? 
 subroutine min_mass(maecs,phy,method)
 
 implicit none
@@ -310,193 +485,29 @@ select case (mm_method)
    end if    
 end select
 end subroutine min_mass
+   
 
-!------------------------------------------------------
-!> @brief calculate sensitivities
+   !---------------------------------------------------------
+!> @brief  continous smoothing function by kw Apr 2012
 !> @details 
-!> @todo: add a better description and equations
-subroutine calc_sensitivities(maecs,sens,phy,env,nut)
+!! smoothly converges x to **eps/2** for x<eps  
+!! \f[ x=eps+(x-eps)*e^{x/eps}/(1+e^{x/eps}) \f]
+pure real(rk) function smooth_small(x, eps)
 
-implicit none
-class (type_maecs_base_model), intent(in) :: maecs
-type (type_maecs_sensitivities), intent(out) :: sens
-type (type_maecs_phy),intent(in) :: phy
-type (type_maecs_env),intent(in) :: env
-type (type_maecs_om),intent(in) :: nut
-
-type (type_maecs_om) :: fA
-real(rk) :: par, T_Kelv, NutF
-
-par          = maecs%frac_PAR * env%par ! use active  fraction frac_PAR of available radiation
-T_Kelv       = env%Temp + 273.d0 ! temperature in Kelvin 
-! ----------------------------------------------------------------------------
-! +++ determine rates for photoautotophic growth ++++++++++++++++++++++++++++++++++++++++++++++++++
-! --- temperature dependence of metabolic rates (with T_ref given in units [Kelvin]) --------------
-sens%f_T  = exp(-maecs%Ae_all *(1.0d0/T_Kelv - 1.0d0/maecs%T_ref ))
-
-! --- (potential) maximum photosynthetic rate -----------------------------------------------------
-sens%P_max_T = maecs%P_max * sens%f_T
-
-! --- light response curve ------------------------------------------------------------------------
-sens%a_light = maecs%alpha * par /(sens%P_max_T)  ! par NOCH BAUSTELLE, jetzt PAR in zellmitte 
-sens%upt_pot%C  = 1.0d0 - exp(- sens%a_light * phy%theta) ! [dimensionless]
-! write (*,'(A,5(F10.4))') 'PAR Pm a th S:',par, sens%P_max_T,sens%a_light , phy%theta,sens%upt_pot%C
-
-! --- carbon specific N-uptake: sites vs. processing ----------------------------------
-! non-zero nutrient concentration for regulation
-NutF    = smooth_small(nut%N,maecs%small)
-! optimal partitioning between
-! surface uptake sites and internal enzymes (for assimilation)
-fA%N    =  fOptUpt(maecs%AffN,maecs%V_NC_max * sens%f_T, NutF)
-
-sens%upt_pot%N   = uptflex(maecs%AffN,maecs%V_NC_max*sens%f_T,NutF, fA%N)
-
-!  P-uptake coefficients
-if (maecs%PhosphorusOn) then 
-   NutF    = smooth_small(nut%P,maecs%small)
-! optimal partitioning 
-   fA%P    =  fOptUpt(maecs%AffP,maecs%V_PC_max * sens%f_T, NutF)
-   sens%upt_pot%P  = uptflex(maecs%AffP,maecs%V_PC_max*sens%f_T,NutF,fA%P)
-end if
-!write (*,'(A,4(F10.3))') 'vP=',sens%upt_pot%P,maecs%V_PC_max * sens%f_T,nut%P,maecs%small*1E3
-
-!  Si-uptake coefficients
-if (maecs%SiliconOn) then 
-   NutF    = smooth_small(nut%Si,maecs%small)
-! optimal partitioning 
-   fA%Si    =  fOptUpt(maecs%AffSi,maecs%V_SiC_max * sens%f_T, NutF)
-   sens%upt_pot%Si = uptflex(maecs%AffSi,maecs%V_SiC_max * sens%f_T,nutF,fA%Si)
-end if
-! TODO check temperature dependence of nutrient affinity
-
-
-end subroutine
-
-!------------------------------------------------------
-!> @brief calculate the internal states 
-!> @details 
-!> @todo the theta-related calculations should obviously be related to \ref{eq:ftheta} but I get lost. See the Q's therein
-subroutine calc_internal_states(maecs,phy,det,dom,zoo)
-
-implicit none
-class (type_maecs_base_model),intent(in)     :: maecs
-type (type_maecs_phy), intent(inout) :: phy
-type (type_maecs_om), intent(inout) :: det
-type (type_maecs_om), intent(inout) :: dom
-type (type_maecs_zoo), intent(inout) :: zoo
-real(rk) :: min_Cmass
-
-! min_Cmass = maecs%small_finite * 1.0d-3 / maecs%a_spm
-
-
-!> @fn maecs_functions::calc_internal_states()
-!> 1. Calculate elemental absolute and relative quotas (Q and relQ):
-!>   - phy\%Q\%X = phy\%X / phy\%C where x=N,P,Si
-!>   - phy\%relQ\%X= (phy\%Q\%X - maecs\%qN_phy_0) / maecs\%iK_QN where x=N,P,Si
-phy%Q%N    = phy%reg%N / phy%reg%C
-! added for mixing effects in estuaries kw Jul, 15 2013
-phy%Q%N  = smooth_small(phy%Q%N, maecs%QN_phy_0)
-
-! fraction of free (biochemically available) intracellular nitrogen
-phy%relQ%N  = (phy%Q%N - maecs%QN_phy_0) * maecs%iK_QN
-phy%relQ%N  = smooth_small(phy%relQ%N, maecs%small_finite)
-! added for deep detritus traps with extreme quotas kw Jul, 16 2013
-!phy%relQ%N  = _ONE_ - smooth_small(_ONE_- phy%relQ%N, maecs%small_finite)
-
-! --- stoichiometry of non-living organic matter  ---------------------------------
-!dom%QN      = dom%N  /(dom%C + min_Cmass )  ! N:C ratio of dissolved organic matter (DOM)
-!det%QN      = det%N /(det%C + min_Cmass)   ! N:C ratio of detritus
-if (maecs%PhosphorusOn) then 
-   phy%Q%P     = phy%P / phy%reg%C
-! added for mixing effects in estuaries kw Jul, 15 2013
-   phy%Q%P     = smooth_small(phy%Q%P, maecs%QP_phy_0)
-
-   phy%relQ%P = ( phy%Q%P - maecs%QP_phy_0 ) * maecs%iK_QP
-   phy%relQ%P = smooth_small(phy%relQ%P, maecs%small_finite)
-! added for deep detritus traps with extreme quotas kw Jul, 16 2013
-!   phy%relQ%P = _ONE_ - smooth_small(_ONE_- phy%relQ%P, maecs%small_finite)
-!write (*,'(A,4(F10.3))') 'relQ%P=',phy%relQ%P,phy%Q%P*1E3,(phy%Q%P - maecs%QP_phy_0)*1E3,maecs%QP_phy_0*1E3
-
-!   dom%QP     = dom%P  / (dom%C  + min_Cmass)  ! P:C ratio of DOM
-!   det%QP     = det%P / (det%C + min_Cmass)  ! P:C ratio of detritus
-end if 
-  
-if (maecs%SiliconOn) then 
-   phy%Q%Si    = phy%Si / phy%reg%C
-! added for mixing effects in estuaries kw Jul, 15 2013
-   phy%Q%Si     = smooth_small(phy%Q%Si, maecs%QSi_phy_0)
-
-   phy%relQ%Si = ( phy%Q%Si - maecs%QSi_phy_0 ) /(maecs%QSi_phy_max-maecs%QSi_phy_0) 
-
-! added for deep detritus traps with extreme quotas kw Jul, 16 2013
-!   phy%relQ%Si = _ONE_ - smooth_small(_ONE_- phy%relQ%Si, maecs%small_finite)
-!   phy%Q%SiN    = phy%Sii / phy%reg%N
-end if   
-
-
-!> @fn maecs_functions::calc_internal_states()
-!> 2. Calculate Rubisco fraction (convert from the bulk variable) 
-!>    - @f$ f_R = \mathrm{phy\%Rub} / phy_C @f$
-!>    - @todo ?????????? phy\%frac\%Rub=1-phy\%frac\%Rub : ?????????
-phy%frac%Rub=maecs%frac_Rub_ini
-
-if (maecs%PhotoacclimOn) then
-   if (maecs%RubiscoOn) then 
-! trait + transporter needs division to become a trait again
-     phy%frac%Rub = phy%Rub / phy%reg%C
-!     phy%frac%Rub = phy%Rub / phy%reg%N
-   end if    
-end if
-
-phy%frac%Rub = _ONE_ - smooth_small(_ONE_- phy%frac%Rub ,maecs%small_finite + maecs%rel_chloropl_min)
-
-
-!> @fn maecs_functions::calc_internal_states()
-!> 3. Calculate @f$ \theta \mathrm{ and } f_{\theta} @f$ \latexonly  See also: \ref{sec:uptsys} \endlatexonly
-!>    - @f$ \mathrm{phy\%rel_chloropl} =  f_R*q_N^{\sigma} @f$
-!>      - Q: phy\%rel\_chloropl =    What is this variable? units? chloroplast/carbon?
-!>    - @f$ \mathrm{phy\%theta} =  phy_{chl}/phy_C / \mathrm{phy\%rel_chloropl} @f$
-!>      - Q: does not seem to be equal to \ref{eq:ftheta} unless @f$ phy_{chl}/phy_C = f_\theta / \theta_C @f$
-!>      - Q: what is actually phy\%chl? the bulk or the trait variable? i assumed it is the bulk
-!>    - @f$ \mathrm{phy\%frac\%theta}= phy_{chl}/phy_C * \mathrm{maecs\%itheta_max} @f$
-!>      - Q: does not seem to be related to anything ?? 
-!>    - @f$ f_V = \mathrm{phy\%frac\%TotFree} - f_{\theta} - f_R  @f$, where phy\%frac\%TotFree=1.0
-
-! calculate rel_chloropl
-phy%rel_chloropl = smooth_small(phy%frac%Rub * phy%relQ%N**maecs%sigma,maecs%rel_chloropl_min)
-
-if (maecs%PhotoacclimOn) then  
-
-  ! conversion of bulk chlorophyll concentration to chlorophyll content in chloroplasts  
-  phy%theta     = phy%chl / (phy%rel_chloropl * phy%reg%C)   ! trait variable
-
-! cell specific CHL:C ratio of chloroplasts / carbon bound to LHC per CHL-pigment
-  phy%frac%theta= phy%chl/phy%reg%C * maecs%itheta_max ! []     no smaller than o(1.d-5)!
-endif
-! --- total pool-size of available/free proteins/enzymes and RNA -------------------   
-phy%frac%TotFree= 1.0d0 
-! -- remaining nitrogen fraction for uptake and nutrient processing --------------
-
-phy%frac%NutUpt = smooth_small(phy%frac%TotFree - phy%frac%Rub - phy%frac%theta, maecs%small)
-
-
-!> @fn maecs_functions::calc_internal_states()
-!> 4. Calculate zooplankton states:
-!>    - @f$ zoo_{QX} = \mathrm{maecs\%const_NC_zoo} \mathrm{ , } zoo_{X} = zoo_C * zoo_{QN} \mathrm{ , } X=N,P @f$
-!>    - @f$ zoo_{yield} = \mathrm{maecs\%yield_zoo} \mathrm{ , } zoo_{flopp} = 1-\mathrm{maecs\%yield_zoo} @f$
-if (maecs%GrazingOn) then
-  ! ---- herbivore stoichiometry ---------------------------
-  zoo%Q%N    = maecs%const_NC_zoo
-  zoo%N     = zoo%C * zoo%Q%N
-  zoo%yield = maecs%yield_zoo
-  zoo%flopp =  _ONE_ - maecs%yield_zoo
-  if (maecs%PhosphorusOn) then 
-    zoo%Q%P    = maecs%const_PC_zoo
-    zoo%P     = zoo%C * zoo%Q%P
-  endif
-endif
-end subroutine
-
+   implicit none
+   real(rk), intent(in)          :: x, eps
+   real(rk)                      :: arg, larger
+!--------------------------------------------------------------
+   
+   if (x .lt. 1.5d1*eps) then
+     arg     = x/eps
+     larger  = exp(arg)
+     smooth_small  = eps + (x - eps) * larger / (larger + 1.0d0) 
+   else
+    smooth_small  = x
+   endif
+   end function smooth_small 
+   
 end module maecs_functions
 !------------------------------------------------------
 

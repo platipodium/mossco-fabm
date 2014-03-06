@@ -16,14 +16,16 @@
 !> - Chla content of chloroplasts  (theta) 
 !>
 !> **General code structure:**
-!> 1. Calculation of quotas
-!> 2. Calculation of fluxes and mass exchange rates & Specify rates of change of traits variables 
+!> 1. Calculation of quotas, internal states, potential rates
+!> 2. Calculation of fluxes, mass exchange rates &  rates of change of traits variables 
 !> 3. Assign mass exchange rates ('rhs(j,i)')
 !> 4. Assign rates of change of 'traits' property variables
 !>
 !> \n **Detailed Descriptions:**
 ! @todo: althougth HIDE_IN_BODY_DOCS=NO, the body-documentation is not included! HAS TO BE FIXED
 ! @todo: add equations
+! @todo: why UNIT instead of secs_pr_day? 
+! @todo: 'sensitivities' does not seem to be a proper name choice. Something more intuitive?
 subroutine maecs_do(self,_ARGUMENTS_DO_)
 
 use fabm_types
@@ -111,15 +113,16 @@ end if
 
 ! @ingroup main
 !> @fn fabm_hzg_maecs::maecs_do () 
-!> 1. Calculation of quotas
-!>   - call min_mass with method=2, store phy\%C and \%N in phy\%reg
-!>   - call calc_internal_states
+!> 1. Calculation of quotas, internal states, potential rates
+!>   - call min_mass with method=2, store phy\%C and \%N in phy\%reg 
+!>   - call calc_internal_states: retrieve phy\%Q\%X, phy\%theta, phy\%frac\%X 
 !>   - if PhotoacclimOn=.false., calculate: 
 !>     - phy\%chl=phy\%C * self\%frac_chl_ini 
 !>     - phy\%frac\%theta = self\%frac_chl_ini * self\%itheta_max
 !>     - phy\%theta= self\%frac_chl_ini / (self\%frac_Rub_ini * phy\%relQ\%N**self\%sigma)
-!>   - call calc_sensitivities
+!>   - call calc_sensitivities: retrieve potential rates: @f$f_T@f$, sens\%upt\_pot\%C (=LH), sens\%upt\_pot\%X (= @f$ V_X @f$), sens\%P\_max
 !> @todo: min_mass correction of phy%\C and phy\%N at this stage requires specification of threshold values. What about back-calculating phy\%reg\%N from the smooth_small corrected phy\%Q\%N?
+!> @todo: calc_internal_states: I don't understand how @f$ \theta \mathrm{ and } f_{\theta} @f$ are calculated
 
 ! --- checking and correcting extremely low state values  ------------  
 call min_mass(self,phy,method=2) !_KAI_ minimal reasonable Phy-C and -Nitrogen
@@ -140,15 +143,18 @@ call calc_sensitivities(self,sens,phy,env,nut)
 
 
 !> @fn fabm_hzg_maecs::maecs_do ()
-!> 2. Calculation of fluxes and mass exchange rates 
+!> 2. Calculation of fluxes, mass exchange rates &  rates of change of traits variables 
 !! & Specify rates of change of traits variables
-!>   - call photosynthesis
+!>   - call maecs_primprod::photosynthesis(): this is where everything happens!
 !>   - if GrazingOn: 
-!>     - call grazing
-!>     - call grazing_losses
-!>     - calculate graz_rate and zoo_mort
-!>   - calc. aggreg_rate
-!>   - calc. degradT and reminT
+!>     - graz\_rate=rate retrieved from call maecs_grazing::grazing()
+!>     - lossZ\%X=lossZNut\%X, floppZ\%X=lossZDet\%X retrieved from call maecs_grazing::grazing_losses()
+!>     - calculate graz_rate retr= graz_rate * zoo\%C and zoo_mort
+!>   - calc. aggreg_rate @f$ = \mathrm{phi\_agg}*(1-e^{-0.02*\mathrm{dom\%C}}) * phy\%N *det\%N @f$
+!>     - future work: aggreg_rate=f(size), \latexonly (see section \ref{sec:partagg}) \endlatexonly \n
+!>   - calc. degradT=self\%hydrol * @f$ f_T @f$ and reminT=self\%remin * @f$ f_T @f$
+!> @todo: specific graz_rate becomes pop. grazing rate. Do this at the rhs calculations
+!> @todo: graz_rate: no temperature modification: forgotten?
 
 ! --- ALGAL GROWTH and EXUDATION RATES, physiological trait dynamics ----------------
 call photosynthesis(self,sens,phy,uptake,exud,acclim)
@@ -229,6 +235,7 @@ rhsv%phyN =  uptake%N             * phy%C &
 !> 4. Assign rates of change of 'traits' property variables
 !>    - if PhotoacclimOn: rhsv%chl
 !>    - if RubiscoOn: rhsv%Rub
+!> @todo: add the rhs equations
 
 if (self%PhotoacclimOn) then
 ! PHYTOPLANKTON CHLa
