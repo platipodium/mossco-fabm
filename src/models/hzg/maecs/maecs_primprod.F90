@@ -1,5 +1,5 @@
 !> @file maecs_primprod.F90
-!> @author Richard Hofmeister, Markus Schartau, Kai Wirtz, Onur Kerimoglu
+!> @author Kai Wirtz, Richard Hofmeister, Markus Schartau, Onur Kerimoglu
 
 #include "fabm_driver.h"
 
