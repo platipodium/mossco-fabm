@@ -508,10 +508,11 @@ The product of the quota-uptake differential (without feed-back) and the growth-
 \vspace{8mm} \hrule
 \begin{subsection}{Uptake activity regulation}\label{sec:uptreg}
 
-In the current version of MAECS, regulation of all uptake activity traits $a_\nind$ is supposed to be very fast compared to the simulated dynamics and therefore not integrated in time according to \Eq{eq:traitdyn}, but assumed to be in steady-state. If the marginal benefit of uptake $\mathrm{d}\rgr/\mathrm{d}a_\nind$ is negative, activity is ceased; at positive benefit, $a_\nind$ approaches one, while at neutral growth effect $\mathrm{d}\rgr/\mathrm{d}a_\nind\approx 0$, the activity smoothly varies at 1/2. This behavior is emulated by the non-linear function
+In the current version of MAECS, regulation of all uptake activity traits $a_\nind$ is supposed to be very fast compared to the simulated dynamics and therefore not integrated in time according to \Eq{eq:traitdyn}, but assumed to be in steady-state. If the marginal benefit of uptake $\mathrm{d}\rgr/\mathrm{d}a_\nind$ is negative, activity is ceased; at positive benefit, $a_\nind$ approaches one. While at neutral growth effect $\mathrm{d}\rgr/\mathrm{d}a_\nind\approx 0$,  the activity should for numerical reasons smoothly decrease to a
+small number. This behavior is emulated by the non-linear function
 
 \beql{eq:uptact}
-a_\nind = \Big(1+\eh{-\Delta t_\mathrm{v}\mathrm{d}\rgr/\mathrm{d}a_\nind}\Big)^{-1}
+a_\nind = \Big(1+\eh{ \pi -\Delta t_\mathrm{v}\mathrm{d}\rgr/\mathrm{d}a_\nind}\Big)^{-1}
 \eeq
 
 For optimization in N-uptake activity $a_\mathrm{N}$ based on its the marginal C gain the extended optimality principle integrates \Eq{eq:traitdyn} and \Eqs{eq:rgr_qx}{eq:dQdV_dmudQ}:
