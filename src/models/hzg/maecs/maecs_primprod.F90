@@ -20,7 +20,7 @@
 subroutine photosynthesis(self,sens,phy,uptake,exud,acc)
 implicit none
 
-type (type_maecs_base_model), intent(in)   :: self
+class (type_maecs_base_model), intent(in)   :: self
 type (type_maecs_sensitivities),intent(in), target :: sens
 type (type_maecs_phy), intent(inout)       :: phy
 type (type_maecs_om), intent(out), target  :: uptake

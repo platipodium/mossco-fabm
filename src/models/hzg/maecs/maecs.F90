@@ -14,7 +14,7 @@ use maecs_types
 
 private
 
-public type_hzg_maecs,type_maecs_env,type_maecs_rhs
+public type_maecs_env,type_maecs_rhs
 ! --- HZG model types
 
 
@@ -32,32 +32,18 @@ type,extends(type_maecs_base_model),public :: type_hzg_maecs
   procedure :: get_vertical_movement=>maecs_get_vertical_movement
 end type type_hzg_maecs
 
-
-interface
+!interface
   ! @brief @brief interface for the external procedure contained in maecs_main module
   ! @details phyto sinking rate depends on the nutritional state, so for each node:
   ! \n \f$ phy\%relQ \f$ obtained by calling calc_internal_states(self,phy,det,dom,zoo) 
   ! \n then \f$ phyQstat=phy\%relQ\%N * phy\%relQ\%P \f$
   ! \n finally, vsink = maecs_functions::sinking(self\%vS_phy, phyQstat, vsink)
-   subroutine maecs_get_vertical_movement(self, _ARGUMENTS_GET_VERTICAL_MOVEMENT_) 
-   import type_hzg_maecs,type_environment,rk
-   class (type_hzg_maecs),intent(in) :: self
-   _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_
-   end subroutine
- end interface
-
-interface
-  ! @brief interface for the external procedure contained in maecs_main module
-  ! @details 
-  ! @todo for some reason the documentation for the real maecs_do module included inside
-  ! maecs_do.F90 is not included in the data-type documentation, but only in the file-documentation.
-  ! find out why.
-  subroutine maecs_do(self, _ARGUMENTS_DO_)
-  import type_hzg_maecs,type_environment,rk
-  class (type_hzg_maecs),intent(in) :: self
-  _DECLARE_ARGUMENTS_DO_
-  end subroutine
-end interface
+!   subroutine maecs_get_vertical_movement(self, _ARGUMENTS_GET_VERTICAL_MOVEMENT_) 
+!   import type_hzg_maecs,type_environment,rk
+!   class (type_hzg_maecs),intent(in) :: self
+!   _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_
+!   end subroutine
+! end interface
 
 !#SP0
 !!----------------------------------------------------------------------
@@ -664,5 +650,7 @@ if (self%nutind%nutnum .gt. nm) call self%fatal_error('maecs_init','Not enough n
 
 
 end subroutine maecs_init_stoichvars 
+
+#include "maecs_do.F90"
 
 end module fabm_hzg_maecs

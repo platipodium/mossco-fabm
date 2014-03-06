@@ -33,7 +33,7 @@ use maecs_primprod
 use maecs_grazing
 
 ! !INPUT PARAMETERS:
- class (type_maecs_base_model),intent(in) :: self
+ class (type_hzg_maecs),intent(in) :: self
    _DECLARE_ARGUMENTS_DO_
 type (type_maecs_rhs)    :: rhsv
 type (type_maecs_phy)    :: phy   ! phytoplankton type containing state and trait information
@@ -449,7 +449,7 @@ use maecs_types
 implicit none
 !
 ! !INPUT PARAMETERS:
- class(type_maecs_base_model),intent(in)          :: self
+ class (type_hzg_maecs),intent(in) :: self
 _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_ 
  !   REALTYPE, intent(in)              ::vstokes 
 type (type_maecs_phy):: phy !< maecs phytoplankton type

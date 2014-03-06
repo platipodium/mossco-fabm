@@ -1,6 +1,6 @@
 #
 # Makefile to build the MAECS module
-#
+##${LIB}(maecs_do.o) \
 
 include ../../../Rules.make
 
@@ -15,7 +15,6 @@ ${LIB}(maecs_types.o) \
 ${LIB}(maecs_functions.o) \
 ${LIB}(maecs_primprod.o) \
 ${LIB}(maecs_grazing.o) \
-${LIB}(maecs_do.o) \
 ${LIB}(maecs.o) 
 
 all: objs

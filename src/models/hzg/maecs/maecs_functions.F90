@@ -214,7 +214,7 @@ subroutine min_mass(maecs,phy,method)
 
 implicit none
 
-type (type_maecs_base_model), intent(in)      :: maecs
+class (type_maecs_base_model), intent(in)      :: maecs
 type (type_maecs_phy), intent(inout)   :: phy
 integer, intent(in), optional          :: method
 
@@ -318,7 +318,7 @@ end subroutine min_mass
 subroutine calc_sensitivities(maecs,sens,phy,env,nut)
 
 implicit none
-type (type_maecs_base_model), intent(in) :: maecs
+class (type_maecs_base_model), intent(in) :: maecs
 type (type_maecs_sensitivities), intent(out) :: sens
 type (type_maecs_phy),intent(in) :: phy
 type (type_maecs_env),intent(in) :: env
@@ -379,7 +379,7 @@ end subroutine
 subroutine calc_internal_states(maecs,phy,det,dom,zoo)
 
 implicit none
-type (type_maecs_base_model),intent(in)     :: maecs
+class (type_maecs_base_model),intent(in)     :: maecs
 type (type_maecs_phy), intent(inout) :: phy
 type (type_maecs_om), intent(inout) :: det
 type (type_maecs_om), intent(inout) :: dom
