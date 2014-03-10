@@ -543,12 +543,9 @@ end subroutine initialize
 !#SP#
 
 
-!documentation for the parser-generated initialize section
-!> @fn fabm_hzg_maecs::initialize()
-!> @todo from the rhsv argument of the SET_ODE's in maecs_do, it looks as if id_chl
-!! and id_Rub are (correctly) handled as bulk variables (-phyC multiplied traits). however
-!! registered names, units and description of these variables looks as if they are (wrongly)
-!! handled as property variables?? So we should change the units, names and desc's ?
+!documentation for the parser-generated initialize section could be provided here
+! @fn fabm_hzg_maecs::initialize()
+!
 
 
 !> @brief to calculate light extinction when kc changes with depth
