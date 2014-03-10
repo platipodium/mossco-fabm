@@ -10,10 +10,10 @@
 !> **Phytoplankton Equations** 
 !> \n We distinguish between mass state variables 
 !! (in units of carbon, nitrogen, & phosphorus) and property state variables. 
-!! \latexonly For a textual narration and equations, see: Section \ref{sec:ModStr} \endlatexonly \n
+!! \lref{For a textual narration and equations, see sec.,sec:ModStr,.}\n
 !>  Current 'traits' are: 
-!> - nitrogen allocated to rubisco (frac_Rub) 
-!> - Chla content of chloroplasts  (theta) 
+!> - nitrogen allocated to rubisco [-] (frac_Rub) 
+!> - Chla content of chloroplasts [chl-a/chl-C] (theta) 
 !>
 !> **General code structure:**
 !> 1. Calculation of quotas, internal states, potential rates
