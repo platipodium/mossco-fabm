@@ -288,9 +288,9 @@
 !  Original author(s): Hans Burchard, Karsten Bolding
 !
 ! !LOCAL VARIABLES:
-   real(rk)                   :: DIN,DIP,phyC,phyN,phyP,detN,detP,zooC,par,temp_fact,I_0
-   real(rk)                   :: qnc,qpc,dn,reminN,reminP,mort_phy,mort_Z,uptakeN,uptakeP,grazing,primprod,Nlim,Plim,Llim,ee_C,e_N,e_P, &
-   dp,dphyC,dphyN,dphyP,ddetN,ddetP,dzooC
+   real(rk)                   :: DIN,DIP,phyC,phyN,phyP,detN,detP,zooC,par,temp,I_0
+   real(rk)                   :: temp_fact,qnc,qpc,dn,reminN,reminP,mort_phy,mort_Z,uptakeN,uptakeP,grazing,primprod,Nlim,Plim,Llim,ee_C,e_N,e_P, &
+   dp,dphyC,dphyN,dphyP,ddetN,ddetP,dzooC,z_exc_detN,z_exc_detP,z_exc_nutN,z_exc_nutP
    real(rk), parameter        :: secs_pr_day = 86400.
 !EOP
 !-----------------------------------------------------------------------
@@ -307,15 +307,18 @@
    _GET_(self%id_detN,detN) ! detritus N
    _GET_(self%id_detP,detP) ! detritus P
    _GET_(self%id_zooC,zooC) ! zooplankton C
-
+    
    ! Retrieve current environmental conditions.
-   _GET_(self%id_par,par)               ! local photosynthetically active radiation
-   _GET_(self%id_temp,temp_fact)             ! local photosynthetically active radiation
+   _GET_(self%id_par,par)          ! local photosynthetically active radiation
+   _GET_(self%id_temp,temp)        ! local temperature
    _GET_HORIZONTAL_(self%id_I_0,I_0)    ! surface short wave radiation
-
    
    !> @fn fabm_hzg_n2pzdq::do()
-   !> 1. Phytoplankton processes:
+   !> 1. temperature modification of reaction rates: no temp effect considered yet
+   temp_fact=1.0
+   
+   !> @fn fabm_hzg_n2pzdq::do()
+   !> 2. Phytoplankton processes:
    !>    -Phyto quatas are calculated as: \f$ phy_{QN}=phy_N/phy_C \f$ , \f$ phy_{QP}=phy_P/phy_C \f$
    !>    - Production: @f$  phy_{prod}, Nlim, Plim \f$ is obtained by calling fprod()   
    !>    - N-uptake: @f$ V_N= @f$ fupn() function is called 
@@ -335,14 +338,14 @@
    !mort_phy = self%mort0_phy 
 
    !> @fn fabm_hzg_n2pzdq::do()
-   !> 2. Remineralisation of detritus into nutrients:
-   !>     - r_{dn,N} rem\_N*temp\_fact
-   !>     - r_{dn,P}= rem\_P*temp\_fact
+   !> 3. Remineralisation of detritus into nutrients:
+   !>     - @f$ r_{dn,N} = \mathrm{rem\_N*temp\_fact} @f$
+   !>     - @f$ r_{dn,P}= \mathrm{rem\_P*temp\_fact} @f$
    reminN = self%rem_N*temp_fact !*detN/(detN+self%k_detN)
    reminP = self%rem_P*temp_fact !*detP/(detP+self%k_detP)
 
    !> @fn fabm_hzg_n2pzdq::do()
-   !> 3. Zooplankton processes:
+   !> 4. Zooplankton processes:
    !>    - @f$ G= G_{max}*(1-e^{-\mathrm{self\%iv}*phy_C^2})*temp\_fact @f$
    !>    - @f$ r_{zd} = (\mathrm{mort\_zoo}*zoo_C^n+ \mathrm{mort\_zoo2}*zoo_C^n2)*\mathrm{temp\_fact} @f$
    !>    - calc X,C assimilation efficiencies: @f$ e_X, ee_C @f$ as a function of @f$ zoo_{QX}, phy_{QX} @f$:
@@ -384,14 +387,14 @@
   
 
    !> @fn fabm_hzg_n2pzdq::do()
-   !> 4. Right-hand sides:
+   !> 5. Right-hand sides:
    !>    - @f$ d(N) = r_{dn,N}*det_N - V_N*phy_C + zoo_{exc,nutN}*zoo_C @f$
    !>    - @f$ d(P) = r_{dn,P}*det_P - V_P*phy_C + zoo_{exc,nutP}*zoo_C @f$
    !>    - @f$ d(phy_C) = phy_{prod}*phy_C - r_{pd}*phy_C  - G*zoo_C @f$ 
    !>    - @f$ d(phy_N) = V_N*phy_C - r_{pd}*phy_N  - G*zoo_C * phy_{QN} @f$
    !>    - @f$ d(phy_P) = V_P*phy_C - r_{pd}*phy_P  - G*zoo_C * phy_{QP} @f$
    !>    - @f$ d(det_N) = r_{pd}*phy_N + r_{zd}*zoo_C*zoo_{QN} - r_{dn,N}*det_N + zoo_{exc,det_N}*zoo_C @f$
-   !>    - @f$ d(det_P) = r_{pd}*phy_P + r_{zd}*zoo_C*zoo_{QP} - r_{dn,N}*det_N +zoo_{exc,det_P}*zoo_C @f$
+   !>    - @f$ d(det_P) = r_{pd}*phy_P + r_{zd}*zoo_C*zoo_{QP} - r_{dn,P}*det_P +zoo_{exc,det_P}*zoo_C @f$
    !>    - @f$ d(zoo_C) = G*zoo_C * ee_C - r_{zd}*zoo_C @f$
    dn    = reminN*detN - uptakeN*phyC +z_exc_nutN*zooC
    dp    = reminP*detP - uptakeP*phyC +z_exc_nutP*zooC
@@ -483,8 +486,8 @@
 !> @brief subroutine: primary production
 !> @details
 !> - Light limitation, @f$ Llim = (-\alpha*par) / \sqrt{grow_max^2+\alpha^2} @f$
-!> - N-limitation, @f$ Nlim=1-qmin_N/phy_{QN} @f$
-!> - N-limitation, @f$ Plim=1-qmin_P/phy_{QP} @f$
+!> - N-limitation, @f$ Nlim=1-Q_{min,N}/phy_{QN} @f$
+!> - P-limitation, @f$ Plim=1-Q_{min,P}/phy_{QP} @f$
 !> - primary production, @f$ phy_{prod}=P_{max}*min(Nlim,Plim)*Llim*\mathrm{temp\_fact} @f$
    subroutine fprod(self,par,temp_fact,qnc,qpc,primprod,Nlim,Plim,Llim)
    
