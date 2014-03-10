@@ -1,13 +1,13 @@
 !-------------------------------------------------------------------------------
 ! MAECS initialisation
 !-----------------------------------------------------------------------
-! nutN_initial     [float, unit = mmol-N/m**3]
+! nutN_initial     [float, unit = mmol-N/m**3] $\mathrm{DIN}$
 !                   initial Dissolved Inorganic Nitrogen DIN
-! nutP_initial     [float, unit = mmol-P/m**3] #PhosphorusOn
+! nutP_initial     [float, unit = mmol-P/m**3] $\mathrm{Phy}_\mathrm{P}$ #PhosphorusOn
 !                   initial Dissolved Inorganic Phosphorus DIP
-! nutS_initial     [float, unit = mmol-Si/m**3] #SiliconOn
+! nutS_initial     [float, unit = mmol-Si/m**3] $\mathrm{Phy}_\mathrm{Si}$ #SiliconOn
 !                   initial Dissolved Inorganic Silicon Si
-! phyC_initial     [float, unit = mmol-C/m**3] !$ trait transporter
+! phyC_initial     [float, unit = mmol-C/m**3] $\mathrm{Phy}_\mathrm{C}$ !TT trait transporter
 !                   initial Phytplankton Carbon
 ! phyN_initial     [float, unit = mmol-N/m**3]
 !                   initial Phytplankton Nitrogen
@@ -31,9 +31,9 @@
 !                   initial Dissolved Organic Nitrogen
 ! domP_initial     [float, unit = mmol-P/m**3] #PhosphorusOn
 !                   initial Dissolved Organic Phosphorus
-! frac_Rub_ini    [float, unit = -] #RubiscoOn
+! frac_Rub_ini    [float, unit = -] $f_R$ #RubiscoOn
 !                   initial fraction of Rubisco
-! frac_chl_ini [float, unit = mg-Chla/mmol-C] #PhotoacclimOn
+! frac_chl_ini [float, unit = mg-Chla/mmol-C] $f_\theta\theta_C$ #PhotoacclimOn
 !                   initial Chl:C ratio
 !-------------------------------------------------------------------------
 
@@ -41,11 +41,11 @@
    nutN_initial = 30.0,
    nutP_initial = 1.2,
    nutS_initial = 20.,
-   zooC_initial = 0.1,
    phyC_initial = 10,
    phyN_initial = 0.8,
    phyP_initial = 0.08,
    phyS_initial = 0.8,
+   zooC_initial = 0.1,
    detC_initial = 1,
    detN_initial = 0.1,
    detP_initial = 0.01,

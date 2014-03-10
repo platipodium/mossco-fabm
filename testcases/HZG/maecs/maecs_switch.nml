@@ -7,7 +7,7 @@
 !                  use Photoacclimation
 ! PhosphorusOn   [bool]
 !                  resolve Phosphorus cycle
-! SiliconOn   [bool]
+! SiliconOn      [bool]
 !                  resolve Silicon cycle
 ! GrazingOn      [bool]
 !                  use Zooplankton grazing
@@ -19,6 +19,12 @@
 !                  output of all diagnostics
 ! ChemostatOn    [bool]
 !                  use Chemostat mode 
+! UptakeLock     [bool]
+!                  use same allocation for all uptake systems (Smith2008)
+! detritus_no_river_dilution [bool]
+!                  use riverine det import
+! plankton_no_river_dilution [bool]
+!                  use riverine det import
 !-------------------------------------------------------------------------------
 
 &maecs_switch
@@ -31,4 +37,7 @@
    BioOxyOn = .false.,
    DebugDiagOn = .true.,
    ChemostatOn = .false.,
+   UptakeLock = .false.,
+   detritus_no_river_dilution=.false.,
+   plankton_no_river_dilution=.true.,
 /
