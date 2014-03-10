@@ -21,9 +21,7 @@
 !> @brief This is the derived model type
 
 !> @details
-! \latexonly \nomenclature{$\alpha$}{affin\_par  :initial slope of the P-I curve } \endlatexonly \param affin_par \f$ \alpha \f$ :initial slope of the P-I curve 
-! instead of this duplicated work, the '\describepar' alias can be used:
-!> \describepar{affin\_par, \alpha, : initial slope of the P-I curve}
+! \describepar{affin\_par, \alpha, : initial slope of the P-I curve}
    type,extends(type_base_model),public    ::  type_hzg_n2pzdq
 !     Variable identifiers
       type (type_state_variable_id)        :: id_DIN,id_DIP,id_phyC,id_phyN,id_phyP,id_detN,id_detP,id_zooC
@@ -56,7 +54,6 @@
 
 !> @brief here the n2pzdq namelist is read,variables exported by the model
 !! are registered in FABM and variables imported from FABM are made available
-!> @details @todo here a more detailed description can be provided
    subroutine initialize(self,configunit)
 
 ! !INPUT PARAMETERS:
@@ -317,49 +314,51 @@
    _GET_HORIZONTAL_(self%id_I_0,I_0)    ! surface short wave radiation
 
    
-   !> @fn fabm_hzg_n2pzdq::do ( class (type_hzg_n2pzdq), intent(in) self, _ARGUMENTS_DO_ )
-   !> Phytoplankton processes:
-   !> \n Phyto quatas are calculated as: \f$ Q_N=P_N/P_C \f$ , \f$ Q_P=P_P/P_C \f$
-   !> \n Production: \f$  phy_{prod}, Nlim, Plim \f$ is obtained by calling \ref fprod
-   !> \n Mortality: \f$ phy_{mort}=phy_{mort}0*e^{(-mortpar_phy*Nlim,Plim)}*det_N \f$
-   !> \n N-uptake: \ref fupN function is called 
-   !> \n P-uptake: \ref fupP function is called 
+   !> @fn fabm_hzg_n2pzdq::do()
+   !> 1. Phytoplankton processes:
+   !>    -Phyto quatas are calculated as: \f$ phy_{QN}=phy_N/phy_C \f$ , \f$ phy_{QP}=phy_P/phy_C \f$
+   !>    - Production: @f$  phy_{prod}, Nlim, Plim \f$ is obtained by calling fprod()   
+   !>    - N-uptake: @f$ V_N= @f$ fupn() function is called 
+   !>    - P-uptake: @f$V_P= @f$ fupp() function is called 
+   !>    - Mortality: @f$ r_{pd}=\mathrm{mortpar\_phy}*e^{(-\mathrm{mortpar\_phy}*Nlim,Plim)}*det_N @f$
    qnc = phyN/phyC 
    qpc = phyP/phyC
   
    call fprod(self, par,temp_fact,qnc,qpc, primprod,Nlim,Plim,Llim)
 
+   uptakeN = fupN(self,DIN,qnc)*temp_fact
+   uptakeP = fupP(self,DIP,qpc)*temp_fact
+   
    !mort_phy = self%mort0_phy*exp(-3*(Nlim+Plim+Llim))
    mort_phy = self%mort0_phy*exp(-self%mortpar_phy*(Nlim*Plim))*detN!*Llim
    !mort_phy = self%mort0_phy*exp(-min(Nlim,Plim,Llim))
    !mort_phy = self%mort0_phy 
-   uptakeN = fupN(self,DIN,qnc)*temp_fact
-   uptakeP = fupP(self,DIP,qpc)*temp_fact
-   
 
-   !> @fn fabm_hzg_n2pzdq::do ( class (type_hzg_n2pzdq), intent(in) self, _ARGUMENTS_DO_ )
-   !>  Remineralisation of detritus into nutrients:
-   !>n \begin{equation}\label{ddn}
-   ! d_{dn} = r_{dn} c_d
-   ! \end{equation}
+   !> @fn fabm_hzg_n2pzdq::do()
+   !> 2. Remineralisation of detritus into nutrients:
+   !>     - r_{dn,N} rem\_N*temp\_fact
+   !>     - r_{dn,P}= rem\_P*temp\_fact
    reminN = self%rem_N*temp_fact !*detN/(detN+self%k_detN)
    reminP = self%rem_P*temp_fact !*detP/(detP+self%k_detP)
 
-   !> @fn fabm_hzg_n2pzdq::do ( class (type_hzg_n2pzdq), intent(in) self, _ARGUMENTS_DO_ )
-   !> Zooplankton processes:
-   !> \f$ G= \f$
-   !> \f$ d_{zd} = r_{zd} c_z \f$
+   !> @fn fabm_hzg_n2pzdq::do()
+   !> 3. Zooplankton processes:
+   !>    - @f$ G= G_{max}*(1-e^{-\mathrm{self\%iv}*phy_C^2})*temp\_fact @f$
+   !>    - @f$ r_{zd} = (\mathrm{mort\_zoo}*zoo_C^n+ \mathrm{mort\_zoo2}*zoo_C^n2)*\mathrm{temp\_fact} @f$
+   !>    - calc X,C assimilation efficiencies: @f$ e_X, ee_C @f$ as a function of @f$ zoo_{QX}, phy_{QX} @f$:
+   !>      @snippet n2pzdq.F90 snip_n2pzdq_zoo_eff 
+   !>    - @f$ zoo_{exc,detX} = \gamma*(1-e_X)*phy_{QX}*G @f$
+   !>    - @f$ zoo_{exc,nutX} = (1-\gamma)*(1-e_X)*phy_{QX}*G @f$
+   
    !grazing = self%grazmax*(1.0_rk-exp(-self%iv*phyC))
    !grazing = self%grazmax*phyC**2.0/(phyC**2.0+self%iv**2.0)
    grazing = self%grazmax*(1.0_rk-exp(-self%iv*self%iv*phyC*phyC))*temp_fact
    mort_Z=(self%mort_zoo*(zooC**self%n)+self%mort_zoo2*(zooC**self%n2))*temp_fact
 
-   
-   ! define uptake efficiencies (e_N,e_P) for N and P, depending on C-efficiency and quotas
+   ! [snip_n2pzdq_zoo_eff]
    e_N = self%e_C*self%qzn/qnc
    e_P = self%e_C*self%qzp/qpc
    ee_C = self%e_C
-
 
   if (max(e_N,e_P) > 1) then
      e_N = 1
@@ -376,16 +375,31 @@
       end if
     end if
   end if
+  ! [snip_n2pzdq_zoo_eff]
+  
+  z_exc_detN= self%zexcdetfr*(1-e_N)*qnc*grazing
+  z_exc_nutN=(1-self%zexcdetfr)*(1-e_N)*qnc*grazing
+  z_exc_detP= self%zexcdetfr*(1-e_P)*qpc*grazing
+  z_exc_nutP=(1-self%zexcdetfr)*(1-e_P)*qpc*grazing
+  
 
-   !> @fn fabm_hzg_n2pzdq::do ( class (type_hzg_n2pzdq), intent(in) self, _ARGUMENTS_DO_ )
-   !> Calculate rhs: 
-   dn    = reminN*detN - uptakeN*phyC+(1-self%zexcdetfr)*(1-e_N)*qnc*grazing*zooC
-   dp    = reminP*detP - uptakeP*phyC+(1-self%zexcdetfr)*(1-e_P)*qpc*grazing*zooC
+   !> @fn fabm_hzg_n2pzdq::do()
+   !> 4. Right-hand sides:
+   !>    - @f$ d(N) = r_{dn,N}*det_N - V_N*phy_C + zoo_{exc,nutN}*zoo_C @f$
+   !>    - @f$ d(P) = r_{dn,P}*det_P - V_P*phy_C + zoo_{exc,nutP}*zoo_C @f$
+   !>    - @f$ d(phy_C) = phy_{prod}*phy_C - r_{pd}*phy_C  - G*zoo_C @f$ 
+   !>    - @f$ d(phy_N) = V_N*phy_C - r_{pd}*phy_N  - G*zoo_C * phy_{QN} @f$
+   !>    - @f$ d(phy_P) = V_P*phy_C - r_{pd}*phy_P  - G*zoo_C * phy_{QP} @f$
+   !>    - @f$ d(det_N) = r_{pd}*phy_N + r_{zd}*zoo_C*zoo_{QN} - r_{dn,N}*det_N + zoo_{exc,det_N}*zoo_C @f$
+   !>    - @f$ d(det_P) = r_{pd}*phy_P + r_{zd}*zoo_C*zoo_{QP} - r_{dn,N}*det_N +zoo_{exc,det_P}*zoo_C @f$
+   !>    - @f$ d(zoo_C) = G*zoo_C * ee_C - r_{zd}*zoo_C @f$
+   dn    = reminN*detN - uptakeN*phyC +z_exc_nutN*zooC
+   dp    = reminP*detP - uptakeP*phyC +z_exc_nutP*zooC
    dphyC = primprod*phyC - mort_phy*phyC - grazing*zooC
    dphyN = uptakeN*phyC - mort_phy*phyN - grazing*qnc*zooC
    dphyP = uptakeP*phyC - mort_phy*phyP - grazing*qpc*zooC
-   ddetN = mort_phy*phyN - reminN*detN + mort_Z*self%qzn*zooC + self%zexcdetfr*(1-e_N)*qnc*grazing*zooC
-   ddetP = mort_phy*phyP - reminP*detP + mort_Z*self%qzp*zooC + self%zexcdetfr*(1-e_P)*qpc*grazing*zooC
+   ddetN = mort_phy*phyN + mort_Z*self%qzn*zooC - reminN*detN + z_exc_detN*zooC
+   ddetP = mort_phy*phyP + mort_Z*self%qzp*zooC - reminP*detP + z_exc_detP*zooC
    dzooC = ee_C*grazing*zooC - mort_Z*zooC
 
    ! Set temporal derivatives
@@ -468,11 +482,10 @@
 
 !> @brief subroutine: primary production
 !> @details
-!> \n Light limitation, \f$ Llim = (-\alpha*par) / \sqrt{grow_max^2+\alpha^2} \f$
-!> \n N-limitation, \f$ Nlim=1-qmin_N/qnc \f$
-!> \n N-limitation, \f$ Plim=1-qmin_P/qpc \f$
-!> \n primary production, \f$ primprod=rmax*min(Nlim,Plim)*Llim*temp_fact \f$
-!> \n P=affin_par * X
+!> - Light limitation, @f$ Llim = (-\alpha*par) / \sqrt{grow_max^2+\alpha^2} @f$
+!> - N-limitation, @f$ Nlim=1-qmin_N/phy_{QN} @f$
+!> - N-limitation, @f$ Plim=1-qmin_P/phy_{QP} @f$
+!> - primary production, @f$ phy_{prod}=P_{max}*min(Nlim,Plim)*Llim*\mathrm{temp\_fact} @f$
    subroutine fprod(self,par,temp_fact,qnc,qpc,primprod,Nlim,Plim,Llim)
    
   !INPUT PARAMETERS:
@@ -495,9 +508,9 @@
 !-----------------------------------------------------------------------
 !BOP
 !> @brief nitrogen uptake function
-!> @details Process description:quota-dependent regulation of uptake rate 
-!! (forced to stay above 0) times the limitation dependent on external concentration
-!> \n \f$ fupN=max(0, upmax_N(1-(Q_N-Q_{min})/(Qmax_N-Qmin_N))*DIN/(DIN+K_N) \f$
+!> @details Process description: N-uptake (forced to stay above 0) 
+!>  - Q-dependent uptake regulation term, @f$ q_N= (1-(phy_{QN}-Q_{min,N})/(Q_{max,N}-Q_{min,N})) @f$
+!>  - @f$ V_N=max(0, V_{max,N}*q_N)*DIN/(DIN+K_N) @f$
    pure real(rk) function fupN(self,DIN,qnc)
 !
 ! !INPUT PARAMETERS:
@@ -512,8 +525,9 @@
 !-----------------------------------------------------------------------
 !BOP
 !> @brief phosphorus uptake function
-!> @details Calculated as:
-!> \f$ fupP=max(x,y) \f$
+!> @details Process description: P-uptake (forced to stay above 0) 
+!>  - Q-dependent uptake regulation term, @f$ q_P= (1-(phy_{QP}-Q_{min,P})/(Q_{max,P}-Q_{min,P})) @f$
+!>  - @f$ V_P=max(0, V_{max,P}*q_N)*DIP/(DIP+K_P) @f$
    pure real(rk) function fupP(self,DIP,qpc)
 !
 ! !DESCRIPTION:
