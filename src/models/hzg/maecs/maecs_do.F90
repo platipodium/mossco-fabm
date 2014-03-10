@@ -400,7 +400,7 @@ end if
 !________________________________________________________________________________
 ! set diag variables, mostly from PrimProd module ______________
 !#S_DIA
-  _SET_DIAGNOSTIC_(self%id_chl2, phy%theta*phy%rel_chloropl) !last bulk chlorophyll concentration
+  _SET_DIAGNOSTIC_(self%id_chl2, phy%theta*phy%rel_chloropl) !mgchl/mmolC, ! note that theta*rel_chloropl in units [mg Chla (mmol C)^{-1}] 
   _SET_DIAGNOSTIC_(self%id_fracR, phy%frac%Rub)             !last 
   _SET_DIAGNOSTIC_(self%id_QN, phy%Q%N)                     !last 
   _SET_DIAGNOSTIC_(self%id_QP, phy%Q%P)                     !last 

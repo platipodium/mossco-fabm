@@ -4,8 +4,7 @@
 
 !> @brief This is the module registered in FABM
 !> @details all the maecs_types are made available to this module
-!! @todo looking at the rhs calculations in maecs_do, id_Rub and id_chl are set (correctly) as bulk variables (X*phyC).
-!! however from the units, it looks as if they are registered (wrongly) as property variables (X)??
+!! @todo cross-check the new units and long names of id_Rub (bulk), id_chl (bulk), id_chl2 (diag, chl:c ratio) 
 module fabm_hzg_maecs
 use fabm_types
 use maecs_types
@@ -448,13 +447,13 @@ call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_do
 
 if (RubiscoOn) then
     Rub = frac_Rub_ini * phyC_initial  ! trait times biomass
-    call self%register_state_variable(self%id_Rub,   'Rub','-','fraction of Rubisco Rub', &
+    call self%register_state_variable(self%id_Rub,   'Rub','mmol-C/m**3','Rub-C concentration', &
        Rub, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution )
 end if
 
 if (PhotoacclimOn) then
     chl = frac_chl_ini * phyC_initial  ! trait times biomass
-    call self%register_state_variable(self%id_chl,   'chl','mg-Chla/mmol-C','Chl:C ratio chl', &
+    call self%register_state_variable(self%id_chl,   'chl','mg-Chla/m**3','chl-a concentration', &
        chl, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution )
 end if
 
@@ -492,7 +491,7 @@ if (GrazingOn) then
 end if
 
 !!------- Register diagnostic variables  ------- 
-call self%register_diagnostic_variable(self%id_chl2,    'chl2','gCHL/m**3', 'bulk chlorophyll concentration chl2', &
+call self%register_diagnostic_variable(self%id_chl2,    'chl2','mgCHL/mmolC', 'phyto chl:C ratio', &
   output=output_instantaneous)
 call self%register_diagnostic_variable(self%id_fracR,   'fracR','-', ' fracR', &
   output=output_instantaneous)
