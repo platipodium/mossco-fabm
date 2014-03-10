@@ -122,7 +122,6 @@ end if
 !>     - phy\%theta= self\%frac_chl_ini / (self\%frac_Rub_ini * phy\%relQ\%N**self\%sigma)
 !>   - call calc_sensitivities: retrieve potential rates: @f$f_T@f$, sens\%upt\_pot\%C (=LH), sens\%upt\_pot\%X (= @f$ V_X @f$), sens\%P\_max
 !> @todo: min_mass correction of phy%\C and phy\%N at this stage requires specification of threshold values. What about back-calculating phy\%reg\%N from the smooth_small corrected phy\%Q\%N?
-!> @todo: calc_internal_states: I don't understand how @f$ \theta \mathrm{ and } f_{\theta} @f$ are calculated
 
 ! --- checking and correcting extremely low state values  ------------  
 call min_mass(self,phy,method=2) !_KAI_ minimal reasonable Phy-C and -Nitrogen
