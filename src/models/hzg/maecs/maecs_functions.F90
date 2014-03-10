@@ -23,7 +23,6 @@
  !------------------------------------------------------
 !> @brief calculate the internal states 
 !> @details 
-!> @todo the theta-related calculations should obviously be related to \latexonly Eq. \ref{eq:ftheta} \endlatexonly but I get lost. See the Q's therein
 subroutine calc_internal_states(maecs,phy,det,dom,zoo)
 
 implicit none
@@ -84,8 +83,8 @@ end if
 
 !> @fn maecs_functions::calc_internal_states()
 !> 2. Calculate Rubisco fraction (convert from the bulk variable) 
-!>    - @f$ f_R = \mathrm{phy\%Rub} / phy_C @f$
-!>    - @todo phy\%frac\%Rub=1-phy\%frac\%Rub : ?? what is this? from now on @f$ f_R @f$ is not what we think it is!!
+!>    - unpack phy\%frac\%Rub (=@f$ f_R @f$)= phy\%Rub / phy\%reg\%C
+!>    - smooth 1-@f$ f_R @f$to (small\%finite + rel_chlropl_min) (both nml pars), such that @f$ f_R @f$ is always smaller than 1
 phy%frac%Rub=maecs%frac_Rub_ini
 
 if (maecs%PhotoacclimOn) then
@@ -96,21 +95,22 @@ if (maecs%PhotoacclimOn) then
    end if    
 end if
 
-!?  WHAT IS THIS !?
-phy%frac%Rub = _ONE_ - smooth_small(_ONE_- phy%frac%Rub ,maecs%small_finite + maecs%rel_chloropl_min)
+phy%frac%Rub = _ONE_ - smooth_small(_ONE_- phy%frac%Rub,maecs%small_finite + maecs%rel_chloropl_min)
 
 
 !> @fn maecs_functions::calc_internal_states()
-!> 3. Calculate @f$ \theta \mathrm{ and } f_{\theta} @f$ \latexonly  See also: \ref{sec:uptsys} \endlatexonly
-!>    - @f$ \mathrm{phy\%rel\_chloropl} =  f_R*q_N^{\sigma} @f$
-!>      - Q: phy\%rel\_chloropl = this is probably the 'relative chloroplast'. Is it unitless?
-!>    - @f$ \mathrm{phy\%theta} =  phy_{chl}/phy_C / \mathrm{phy\%rel\_chloropl} @f$
-!>      - Q: does not seem to be equal to \lref{eq.,eq:ftheta,.} unless @f$ phy_{chl}/phy_C = f_\theta / \theta_C @f$
-!>    - @f$ \mathrm{phy\%frac\%theta}= phy_{chl}/phy_C * \mathrm{maecs\%itheta_max} @f$
-!>      - Q: does not seem to be related to anything ?? 
-!>    - @f$ f_V = \mathrm{phy\%frac\%TotFree} - f_{\theta} - f_R  @f$, where phy\%frac\%TotFree=1.0
+!> 3. Calculate @f$ \theta , f_{\theta} \mathrm{ and } f_{V} @f$ \lref{(see sec. ,sec:uptsys,)}
+!>    - (a) @f$ \mathrm{phy\%rel\_chloropl} =  f_R*q_N^{\sigma} @f$, smoothened towards rel\_chloropl\_min (nml par)
+!>      - phy\%rel\_chloropl is just an intermediate quantity with 'units' chloroplast-C per phyto-C  
+!>    - (b) @f$ \mathrm{phy\%theta } (=\theta) =  phy_{chl}/phy_C / \mathrm{phy\%rel\_chloropl} @f$
+!>      - just a unit conversion: [chl-a/chl-C]= [chl-a/phy-C] / [chl-C/phy-C]
+!>    - (c) @f$ \mathrm{phy\%frac\%theta } (=f_{\theta}) = phy_{chl}/phy_C * \mathrm{maecs\%itheta\_max} @f$ 
+!>      - note that maecs\%itheta\_max= @f$ 1/\theta_C @f$ as derived in fabm_hzg_maecs::initialize
+!>      - from (b):  rewrite @f$ phy_{chl}/phy_C @f$ as @f$ \theta*\mathrm{phy\%rel\_chloropl}@f$
+!>      - from (a): expand phy\%rel\_chloropl as @f$  f_R*q_N^{\sigma} @f$
+!>      - substitute, and it becomes: @f$ f_{\theta} = f_R*q_N^{\sigma}*\theta / \theta_C @f$  \lref{ (= eq. ,eq:ftheta,)}
+!>    - (d) phy\%frac\%NutUpt @f$ (= f_{V}) = 1 - f_{\theta} - f_R  @f$ \lref{(= eq. ,eq:alloc,)}
 
-! calculate rel_chloropl
 phy%rel_chloropl = smooth_small(phy%frac%Rub * phy%relQ%N**maecs%sigma,maecs%rel_chloropl_min)
 
 if (maecs%PhotoacclimOn) then  
@@ -123,8 +123,8 @@ if (maecs%PhotoacclimOn) then
 endif
 ! --- total pool-size of available/free proteins/enzymes and RNA -------------------   
 phy%frac%TotFree= 1.0d0 
-! -- remaining nitrogen fraction for uptake and nutrient processing --------------
 
+! -- remaining nitrogen fraction for uptake and nutrient processing --------------
 phy%frac%NutUpt = smooth_small(phy%frac%TotFree - phy%frac%Rub - phy%frac%theta, maecs%small)
 
 
@@ -152,8 +152,7 @@ end subroutine
 !> - sens\%P\_max \latexonly see eq. \ref{eq:Pmax} \endlatexonly
 !> - sens\%upt\_pot\%C \latexonly (=LH) see eq. \ref{eq:LH} \endlatexonly
 !> - sens\%upt\_pot\%X, (@f$=V_X@f$), X=N,P,Si calculated by uptflex() \latexonly according to eq. \ref{eq:uptakecoeffcurr} \endlatexonly
-!> @todo: a more intuitive name like calc_potentials?
-!> @todo: Q: why maecs instead of self?
+!> @todo: maybe a more intuitive name like calc_potentials?
 subroutine calc_sensitivities(maecs,sens,phy,env,nut)
 
 implicit none
