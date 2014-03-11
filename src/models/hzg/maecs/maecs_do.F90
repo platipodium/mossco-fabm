@@ -1,4 +1,4 @@
-#include "fabm_driver.h"
+! #include "fabm_driver.h"
 
 !> @brief This is the main routine where right-hand-sides are calculated
 !> @details
@@ -128,7 +128,8 @@ call min_mass(self,phy,method=2) !_KAI_ minimal reasonable Phy-C and -Nitrogen
 
 ! --- stoichiometry of autotrophs (calculating QN_phy, frac_R, theta, and QP_phy)
 call calc_internal_states(self,phy,det,dom,zoo)
-!write (*,'(A,2(F10.3))') '2 P,chl=',phy%C,phy%chl
+
+!write (*,'(A,2(F10.3))') 'PAR, chl=',env%par, phy%chl
 
 if (.not. self%PhotoacclimOn) then  
    phy%chl         = phy%C * self%frac_chl_ini   ! total Chl mg-CHL/m3
@@ -406,7 +407,7 @@ end if
   _SET_DIAGNOSTIC_(self%id_aVN, acclim%aV%N)                !last 
   _SET_DIAGNOSTIC_(self%id_aVP, acclim%aV%P)                !last 
   _SET_DIAGNOSTIC_(self%id_aVSi, acclim%aV%Si)              !last 
-  _SET_DIAGNOSTIC_(self%id_rQSi, phy%relQ%Si)               !last 
+  _SET_DIAGNOSTIC_(self%id_rQSi, phy%frac%NutUpt )       !+0*phy%relQ%Silast 
   _SET_DIAGNOSTIC_(self%id_tmp, acclim%tmp)                 !last 
   _SET_DIAGNOSTIC_(self%id_fac1, acclim%fac1)               !last 
   _SET_DIAGNOSTIC_(self%id_fac2, acclim%fac2)               !last 

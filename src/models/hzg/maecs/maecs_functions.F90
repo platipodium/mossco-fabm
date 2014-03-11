@@ -23,6 +23,7 @@
  !------------------------------------------------------
 !> @brief calculate the internal states 
 !> @details 
+!> @todo the theta-related calculations should obviously be related to \latexonly Eq. \ref{eq:ftheta} \endlatexonly but I get lost. See the Q's therein
 subroutine calc_internal_states(maecs,phy,det,dom,zoo)
 
 implicit none
@@ -83,34 +84,46 @@ end if
 
 !> @fn maecs_functions::calc_internal_states()
 !> 2. Calculate Rubisco fraction (convert from the bulk variable) 
+<<<<<<< HEAD
 !>    - unpack phy\%frac\%Rub (=@f$ f_R @f$)= phy\%Rub / phy\%reg\%C
 !>    - smooth 1-@f$ f_R @f$to (small\%finite + rel_chlropl_min) (both nml pars), such that @f$ f_R @f$ is always smaller than 1
 phy%frac%Rub=maecs%frac_Rub_ini
+=======
+!>    - @f$ f_R = \mathrm{phy\%Rub} / phy_C @f$
+>>>>>>> f_V subpartitioning and synergy propto N&P pool size
 
-if (maecs%PhotoacclimOn) then
-   if (maecs%RubiscoOn) then 
+!if (maecs%PhotoacclimOn) then
+if (maecs%RubiscoOn) then 
 ! trait + transporter needs division to become a trait again
      phy%frac%Rub = phy%Rub / phy%reg%C
 !     phy%frac%Rub = phy%Rub / phy%reg%N
-   end if    
-end if
+else
+   phy%frac%Rub=maecs%frac_Rub_ini
+end if   
+ 
+!>    - note the  1-(1-x) structure
+!>       + which equals x for small x, and is slightly below x for x->1
+!>       + a counterpart of smooth-small, could be called smooth-at-one;
+!>       + ensures that f_R is always somewhat smaller than one, since it
+!>       + leaves a minimal fraction of resources to other compartments (f_V)
 
-phy%frac%Rub = _ONE_ - smooth_small(_ONE_- phy%frac%Rub,maecs%small_finite + maecs%rel_chloropl_min)
+!end if
+phy%frac%Rub = _ONE_ - smooth_small(_ONE_- phy%frac%Rub ,maecs%small_finite + maecs%rel_chloropl_min)
 
 
 !> @fn maecs_functions::calc_internal_states()
-!> 3. Calculate @f$ \theta , f_{\theta} \mathrm{ and } f_{V} @f$ \lref{(see sec. ,sec:uptsys,)}
-!>    - (a) @f$ \mathrm{phy\%rel\_chloropl} =  f_R*q_N^{\sigma} @f$, smoothened towards rel\_chloropl\_min (nml par)
-!>      - phy\%rel\_chloropl is just an intermediate quantity with 'units' chloroplast-C per phyto-C  
-!>    - (b) @f$ \mathrm{phy\%theta } (=\theta) =  phy_{chl}/phy_C / \mathrm{phy\%rel\_chloropl} @f$
-!>      - just a unit conversion: [chl-a/chl-C]= [chl-a/phy-C] / [chl-C/phy-C]
-!>    - (c) @f$ \mathrm{phy\%frac\%theta } (=f_{\theta}) = phy_{chl}/phy_C * \mathrm{maecs\%itheta\_max} @f$ 
-!>      - note that maecs\%itheta\_max= @f$ 1/\theta_C @f$ as derived in fabm_hzg_maecs::initialize
-!>      - from (b):  rewrite @f$ phy_{chl}/phy_C @f$ as @f$ \theta*\mathrm{phy\%rel\_chloropl}@f$
-!>      - from (a): expand phy\%rel\_chloropl as @f$  f_R*q_N^{\sigma} @f$
-!>      - substitute, and it becomes: @f$ f_{\theta} = f_R*q_N^{\sigma}*\theta / \theta_C @f$  \lref{ (= eq. ,eq:ftheta,)}
-!>    - (d) phy\%frac\%NutUpt @f$ (= f_{V}) = 1 - f_{\theta} - f_R  @f$ \lref{(= eq. ,eq:alloc,)}
+!> 3. Calculate @f$ \theta \mathrm{ and } f_{\theta} @f$ \latexonly  See also: \ref{sec:uptsys} \endlatexonly
+!>    - @f$ \mathrm{phy\%rel_chloropl} =  f_R*q_N^{\sigma} @f$
+!>      - phy\%rel\_chloropl = factor that relates "chl-a per chloroplast" to "chl-a per cell-C"
+!>        thus  chloroplast-C  over total intracellular C
+!>    - @f$ \mathrm{phy\%theta} =  phy_{chl}/phy_C / \mathrm{phy\%rel_chloropl} @f$
+!>      - \ref{eq:ftheta} says @f$ phy_{chl}/phy_C = f_\theta / \theta_C @f$
+!>      - phy\%chl: bulk variable. biomass (phyc) times trait (theta) times factor)
+!>      - this choice converts a "bulk trait (\%theta phy_C) to a observable, i.e. bulk CHL-a conc.
+!>    - @f$ \mathrm{phy\%frac\%theta}= phy_{chl}/phy_C * \mathrm{maecs\%itheta_max} @f$
+!>    - @f$ f_V = \mathrm{phy\%frac\%TotFree} - f_{\theta} - f_R  @f$, where phy\%frac\%TotFree=1.0
 
+! calculate rel_chloropl
 phy%rel_chloropl = smooth_small(phy%frac%Rub * phy%relQ%N**maecs%sigma,maecs%rel_chloropl_min)
 
 if (maecs%PhotoacclimOn) then  
@@ -119,7 +132,7 @@ if (maecs%PhotoacclimOn) then
   phy%theta     = phy%chl / (phy%rel_chloropl * phy%reg%C)   ! trait variable
 
 ! cell specific CHL:C ratio of chloroplasts / carbon bound to LHC per CHL-pigment
-  phy%frac%theta= phy%chl/phy%reg%C * maecs%itheta_max ! []     no smaller than o(1.d-5)!
+  phy%frac%theta= phy%theta * phy%rel_chloropl * maecs%itheta_max ! []     no smaller than o(1.d-5)!
 endif
 ! --- total pool-size of available/free proteins/enzymes and RNA -------------------   
 phy%frac%TotFree= 1.0d0 
@@ -130,8 +143,8 @@ phy%frac%NutUpt = smooth_small(phy%frac%TotFree - phy%frac%Rub - phy%frac%theta,
 
 !> @fn maecs_functions::calc_internal_states()
 !> 4. Calculate zooplankton states:
-!>    - @f$ zoo_{QX} = \mathrm{maecs\%const\_NC\_zoo} \mathrm{ , } zoo_{X} = zoo_C * zoo_{QN} \mathrm{ , } X=N,P @f$
-!>    - @f$ zoo\_{yield} = \mathrm{maecs\%yield\_zoo} \mathrm{ , } zoo_{flopp} = 1-\mathrm{maecs\%yield\_zoo} @f$
+!>    - @f$ zoo_{QX} = \mathrm{maecs\%const_NC_zoo} \mathrm{ , } zoo_{X} = zoo_C * zoo_{QN} \mathrm{ , } X=N,P @f$
+!>    - @f$ zoo_{yield} = \mathrm{maecs\%yield_zoo} \mathrm{ , } zoo_{flopp} = 1-\mathrm{maecs\%yield_zoo} @f$
 if (maecs%GrazingOn) then
   ! ---- herbivore stoichiometry ---------------------------
   zoo%Q%N    = maecs%const_NC_zoo
@@ -152,7 +165,8 @@ end subroutine
 !> - sens\%P\_max \latexonly see eq. \ref{eq:Pmax} \endlatexonly
 !> - sens\%upt\_pot\%C \latexonly (=LH) see eq. \ref{eq:LH} \endlatexonly
 !> - sens\%upt\_pot\%X, (@f$=V_X@f$), X=N,P,Si calculated by uptflex() \latexonly according to eq. \ref{eq:uptakecoeffcurr} \endlatexonly
-!> @todo: maybe a more intuitive name like calc_potentials?
+!> @todo: a more intuitive name like calc_potentials?
+!> @todo: Q: why maecs instead of self?
 subroutine calc_sensitivities(maecs,sens,phy,env,nut)
 
 implicit none

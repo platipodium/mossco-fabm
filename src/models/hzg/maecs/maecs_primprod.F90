@@ -27,7 +27,7 @@ type (type_maecs_om), intent(out), target  :: uptake
 type (type_maecs_om), intent(out)          :: exud
 type (type_maecs_traitdyn), intent(out), target    :: acc
 
-integer  :: num_nut, i
+integer  :: num_nut, i, j
 real(rk) :: eps
 ! --- UPTAKE KINETICS
 type (type_maecs_om), target :: upt_act ! free C-specific uptake rate [molX molC^{-1} d^{-1}]
@@ -39,7 +39,7 @@ real(rk) :: grad_theta , grad_fracR ! [...]
 real(rk) :: flex_theta , flex_fracR ! [...]
 real(rk) :: dfV_dfracR , dfV_dtheta
 real(rk) :: grossC, lossC, Pmaxc
-real(rk) :: dbal_dv
+real(rk) :: dbal_dv, dmu_daV_tot
 real(rk) :: e_N0, e_N
 real(rk) :: syn_act, hh
 real(rk) :: f_Lip, q_Lip, q_NoLip 
@@ -62,7 +62,7 @@ eps     =  self%small_finite ! just  a shorter namer for a small thing
 ! TODO: include proteins/mebranes (N:P >> 16:1) under low growth conditions 
 !  q_NoLip  = 3.8  ! P-stoichiometry of active compounds (DNA, RNA)  
 q_NoLip  = self%zstoich_PN !   16 : Redfield-stoichiometry 
-q_Lip    = 0.8  ! storage P-stoichiometry   
+q_Lip    = 1.  ! 0.8 storage P-stoichiometry   
 f_Lip    = 1./(1.+exp(10*(1.-phy%relQ%P)))
 
 !> @fn maecs_primprod::photosynthesis()
@@ -92,8 +92,11 @@ dbal_dv = 1.0d0 + phy%Q%N * self%zeta_CN  ! partial derivative of the balance eq
 
 ! --- synchrony in nutrient assimilation depends on growth cycle and N-quota
 !         
-if (self%syn_nut .le. _ZERO_ ) then  !
-   syn_act = -self%syn_nut * elem(self%nutind%nhi)%relQ
+if (self%syn_nut .le. _ZERO_ ) then  !self%nutind%iP
+!> synergy is assumed to increase with accumulated pool size of N & P as major biochemical species
+!>    and is proportional to f_V (\todo explain)
+   syn_act = -self%syn_nut *(phy%frac%NutUpt*(elem(self%nutind%iP)%relQ+elem(self%nutind%iN)%relQ) +eps)
+!   syn_act = -self%syn_nut * elem(self%nutind%nhi)%relQ
 else
    syn_act  = self%syn_nut
 endif 
@@ -104,7 +107,8 @@ acc%tmp   =   syn_act ! store
 hh      = 1.0d0 / (syn_act + eps)
 
 ! one plus correction coefficient $c_h$ to ensure convergence to Liebig and product rule
-c_h1 = 1.0d0  + log( 1.0d0/(4**hh) + 0.5*hh );
+
+ c_h1 = 1.0d0  + log( 1.0d0/(4**hh) + 0.5*hh );
 
 !  auxiliary variable expressing the ratio between gross and net production
 dbal_dv = 1.0d0 + phy%Q%N * self%zeta_CN
@@ -148,7 +152,6 @@ if (num_nut .gt. 1) then
  end do
 else
  qp_X = qp_Y   ! initial value for num_nut=1
-! write (*,'(A,3(F11.5))') 'qp1:',phy%Q%N,elem(num_nut)%relQ,phy%relQ%N
 
 end if
 
@@ -171,7 +174,7 @@ sigmv(1:num_nut)  = 0.0d0
 ! $\partial mu/\partial Q dQ/dV|_{tot}$ : initial zero berfore loop
 dmuQ_dfracR = 0.0d0
 dmuQ_dtheta = 0.0d0
-
+dmu_daV_tot = 0.0d0
 do i = 1, num_nut 
  ! ------------------ derivatives of co-limited growth function ---------------------
    d_X       = prod_dq * dqp_X_dq_X(i)
@@ -186,20 +189,44 @@ do i = 1, num_nut
 !   dmu_dV    = dmu_dV * e_N / (e_N + sigmv(i))
 
 !   steady-state down-regulation of uptake I: balance of respiration and indirect benefits  
-   dmu_daV   = (-zeta_X(i) + dmu_dV) * phy%frac%NutUpt * elem(i)%upt_pot  
-
+   dmu_daV   = (-zeta_X(i) + dmu_dV) * phy%frac%NutUpt * elem(i)%upt_pot   
+     
 !   smoothed version of step function, uses marginal gain to emulate a continuous response 
    act_V     = 1.0d0/(1.0d0 + exp( 3.1415d0 - self%tau_regV * dmu_daV));  ! 0.02
 
+   dmu_daV   = abs(dmu_daV)
+   dmu_daV_tot = dmu_daV_tot + act_V * dmu_daV
+
+if(i .eq. 2) then
+   acc%fac1 = act_V
+!   acc%fac1 = f_Lip
+!   acc%fac2 = dmu_dV
+endif
+
+   elem(i)%dmudV   = dmu_dV
+   elem(i)%dmudaV  = dmu_daV 
+   elem(i)%aV      = act_V 
+end do
+
+
+dmuQ_dfracR = 0.0d0
+dmuQ_dtheta = 0.0d0
+
+!if (self%SiliconOn) then
+
+
+do i = 1, num_nut 
+   act_V           = elem(i)%aV * elem(i)%dmudaV/ (dmu_daV_tot + eps)
+! emulates passive Si diffusion through membrane (\todo not to be assimilated)
+   if (i .eq. self%nutind%iSi .and. act_V .lt. 1.0d0) act_V = 1.0d0! /num_nut/num_nut 
    elem(i)%aV      = act_V 
    elem(i)%upt_act = act_V * elem(i)%upt_pot
    elem(i)%upt     = phy%frac%NutUpt * elem(i)%upt_act  ! [(molX) (molC)^{-1} d{-1}]
 
 ! +++ derivative of C-uptake rate with respect to quota ++++++++++++++++++++++++++++++
-   dmuQ_dfracR     = dmuQ_dfracR + dmu_dV * elem(i)%upt_act * dfV_dfracR
-   dmuQ_dtheta     = dmuQ_dtheta + dmu_dV * elem(i)%upt_act * dfV_dtheta
+   dmuQ_dfracR     = dmuQ_dfracR + elem(i)%dmudV * elem(i)%upt_act * dfV_dfracR
+   dmuQ_dtheta     = dmuQ_dtheta + elem(i)%dmudV * elem(i)%upt_act * dfV_dtheta
 
-!write (*,'(A,1(I2),5(F9.3))') 'df:',i,dmu_dV , phy%theta,phy%relQ%N**self%sigma, dfV_dfracR,dmuQ_dfracR
 end do
 
 ! --- gross carbon uptake by phytoplankton (gross-primary production) ---------------
@@ -225,8 +252,8 @@ if (self%RubiscoOn) then
    grad_fracR = dmu_dfracR      &   ! marginal C gain of light independent processes 
               + dmuQ_dfracR         ! marginal loss due to reduced uptake 
 
-   acc%fac1 = dmu_dfracR
-   acc%fac2 = dmuQ_dfracR
+!   acc%fac1 = dmu_dfracR
+!   acc%fac2 = dmuQ_dfracR
 
 ! --- regulation speed in Rubisco expression ------------------------------------ 
    flex_fracR = self%adap_Rub * (1.0d0 - phy%frac%Rub ) * phy%frac%Rub

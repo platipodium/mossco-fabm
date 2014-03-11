@@ -122,7 +122,7 @@ type stoich_pointer
    real(rk),pointer  :: upt, upt_act, upt_pot
    real(rk),pointer  :: aV
    real(rk)          :: relQ, Q
-   real(rk)          :: iKQ
+   real(rk)          :: iKQ, dmudaV, dmudV
 end type stoich_pointer
 
 end module

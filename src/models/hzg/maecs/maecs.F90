@@ -25,7 +25,7 @@ public type_maecs_env,type_maecs_rhs
 !> @details the parent type (type_maecs_base_model) was defined in maecs_types module
 type,extends(type_maecs_base_model),public :: type_hzg_maecs 
  contains
-  procedure :: initialize
+  procedure :: initialize 
   procedure :: do => maecs_do
   procedure :: get_light_extinction
   procedure :: get_vertical_movement=>maecs_get_vertical_movement
