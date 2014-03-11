@@ -84,13 +84,10 @@ end if
 
 !> @fn maecs_functions::calc_internal_states()
 !> 2. Calculate Rubisco fraction (convert from the bulk variable) 
-<<<<<<< HEAD
 !>    - unpack phy\%frac\%Rub (=@f$ f_R @f$)= phy\%Rub / phy\%reg\%C
 !>    - smooth 1-@f$ f_R @f$to (small\%finite + rel_chlropl_min) (both nml pars), such that @f$ f_R @f$ is always smaller than 1
 phy%frac%Rub=maecs%frac_Rub_ini
-=======
 !>    - @f$ f_R = \mathrm{phy\%Rub} / phy_C @f$
->>>>>>> f_V subpartitioning and synergy propto N&P pool size
 
 !if (maecs%PhotoacclimOn) then
 if (maecs%RubiscoOn) then 

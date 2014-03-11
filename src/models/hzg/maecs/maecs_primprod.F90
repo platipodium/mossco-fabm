@@ -95,7 +95,8 @@ dbal_dv = 1.0d0 + phy%Q%N * self%zeta_CN  ! partial derivative of the balance eq
 if (self%syn_nut .le. _ZERO_ ) then  !self%nutind%iP
 !> synergy is assumed to increase with accumulated pool size of N & P as major biochemical species
 !>    and is proportional to f_V (\todo explain)
-   syn_act = -self%syn_nut *(phy%frac%NutUpt*(elem(self%nutind%iP)%relQ+elem(self%nutind%iN)%relQ) +eps)
+!   syn_act = -self%syn_nut *(phy%frac%NutUpt*(elem(self%nutind%iP)%relQ+elem(self%nutind%iN)%relQ) +eps)
+   syn_act = -self%syn_nut *(phy%frac%NutUpt*(elem(self%nutind%iP)%relQ+elem(self%nutind%iN)%relQ+1*elem(self%nutind%iSi)%relQ) +eps)
 !   syn_act = -self%syn_nut * elem(self%nutind%nhi)%relQ
 else
    syn_act  = self%syn_nut
@@ -218,7 +219,7 @@ dmuQ_dtheta = 0.0d0
 do i = 1, num_nut 
    act_V           = elem(i)%aV * elem(i)%dmudaV/ (dmu_daV_tot + eps)
 ! emulates passive Si diffusion through membrane (\todo not to be assimilated)
-   if (i .eq. self%nutind%iSi .and. act_V .lt. 1.0d0) act_V = 1.0d0! /num_nut/num_nut 
+   if (i .eq. self%nutind%iSi .and. act_V .lt. 0.35d0) act_V = 0.35d0  !num_nut  
    elem(i)%aV      = act_V 
    elem(i)%upt_act = act_V * elem(i)%upt_pot
    elem(i)%upt     = phy%frac%NutUpt * elem(i)%upt_act  ! [(molX) (molC)^{-1} d{-1}]
@@ -228,6 +229,7 @@ do i = 1, num_nut
    dmuQ_dtheta     = dmuQ_dtheta + elem(i)%dmudV * elem(i)%upt_act * dfV_dtheta
 
 end do
+!if (self%SiliconOn) uptake%Si=uptake%Si + 0.5*sens%upt_pot%Si
 
 ! --- gross carbon uptake by phytoplankton (gross-primary production) ---------------
 !   phy%frac%Rub* sens%P_max_T* phy%rel_QN : carboxylation capacity = Rub * free proteins
