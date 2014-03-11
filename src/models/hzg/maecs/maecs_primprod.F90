@@ -43,6 +43,7 @@ real(rk) :: dbal_dv, dmu_daV_tot
 real(rk) :: e_N0, e_N
 real(rk) :: syn_act, hh
 real(rk) :: f_Lip, q_Lip, q_NoLip 
+real(rk) :: sumrelQ
 real(rk) :: c_h1, c_hq           ! correction terms of queuing function 
 real(rk) :: fac_colim            ! colimitation factor (dimensionless)
 real(rk) :: q_X, qp_Y, qp_X      ! placeholder for nutrient availability
@@ -96,7 +97,10 @@ if (self%syn_nut .le. _ZERO_ ) then  !self%nutind%iP
 !> synergy is assumed to increase with accumulated pool size of N & P as major biochemical species
 !>    and is proportional to f_V (\todo explain)
 !   syn_act = -self%syn_nut *(phy%frac%NutUpt*(elem(self%nutind%iP)%relQ+elem(self%nutind%iN)%relQ) +eps)
-   syn_act = -self%syn_nut *(phy%frac%NutUpt*(elem(self%nutind%iP)%relQ+elem(self%nutind%iN)%relQ+1*elem(self%nutind%iSi)%relQ) +eps)
+   sumrelQ = elem(self%nutind%iN)%relQ
+   if (self%PhosphorusOn) sumrelQ = sumrelQ + elem(self%nutind%iP)%relQ
+   if (self%SiliconOn)    sumrelQ = sumrelQ + elem(self%nutind%iSi)%relQ
+   syn_act = -self%syn_nut *(phy%frac%NutUpt*sumrelQ +eps)
 !   syn_act = -self%syn_nut * elem(self%nutind%nhi)%relQ
 else
    syn_act  = self%syn_nut
@@ -212,8 +216,6 @@ end do
 
 dmuQ_dfracR = 0.0d0
 dmuQ_dtheta = 0.0d0
-
-!if (self%SiliconOn) then
 
 
 do i = 1, num_nut 
