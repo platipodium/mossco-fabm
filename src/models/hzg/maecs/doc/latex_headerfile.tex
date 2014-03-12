@@ -15,7 +15,7 @@
 % Font selection
 \usepackage[T1]{fontenc}
 \usepackage{mathptmx}
-%%%\usepackage[scaled=.90]{helvet}
+\usepackage[scaled=.90]{helvet}
 \usepackage{courier}
 \usepackage{amssymb}
 \usepackage{sectsty}
@@ -24,7 +24,7 @@
   \fontseries{bc}\selectfont%
   \color{darkgray}%
 }
-\newcommand{\DoxyLabelFont}{%
+\renewcommand{\DoxyLabelFont}{%
   \fontseries{bc}\selectfont%
   \color{darkgray}%
 }
@@ -83,7 +83,7 @@
 
 % Indices & bibliography
 %\usepackage{natbib} ->already defined in textual/textual_defines
-%%%\usepackage[titles]{tocloft}
+\usepackage[titles]{tocloft}
 \setcounter{tocdepth}{3}
 \setcounter{secnumdepth}{5}
 \makeindex
@@ -106,8 +106,8 @@
 }
 
 % Custom commands
-%%%\newcommand{\clearemptydoublepage}{%
-%%%  \newpage{\pagestyle{empty}\cleardoublepage}% }
+\newcommand{\clearemptydoublepage}{%
+\newpage{\pagestyle{empty}\cleardoublepage}% }
 
 % ============ take nomenclature package into account
 \makenomenclature

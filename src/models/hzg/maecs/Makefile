@@ -8,7 +8,7 @@ DATE    =   `date +%d%m%y`
 
 LIB	= $(LIBDIR)/libfabm$(buildtype).a
 
-DOCSRC	=  maecs.F90
+DOCSRC	=  maecs.F90 maecs_do.F90 maecs_functions.F90 maecs_grazing.F90 maecs_primprod.F90 maecs_types.F90
 
 OBJS   = \
 ${LIB}(maecs_types.o) \
@@ -23,13 +23,14 @@ objs: ${OBJS}
 	$(MOVE_MODULES_COMMAND)
 
 doc:    $(DOCSRC)
-	$(PROTEX) $(DOCSRC) > ../../../../doc/fabm.tex 
-	touch doc
-
-clean:
+	$(MAKE) -C doc 
+	
+clean:  
 	$(RM) *.o *~
 
 backup:	clean
 	@echo -n "Creating Archiv of MAECS .. \n"; \
 	tar zcvf maecs_$(DATE).tgz *.*  Makefile ; \
 	echo "Done.";
+	
+.PHONY: doc
