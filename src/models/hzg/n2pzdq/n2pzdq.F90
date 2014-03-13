@@ -258,7 +258,7 @@
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_DIP)
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_phyP)
    call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_detP)
-   call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_zooC,scale_factor=self%qzn)
+   call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_zooC,scale_factor=self%qzp)
 
    ! Register environmental dependencies
    call self%register_dependency(self%id_temp,standard_variables%temperature)
