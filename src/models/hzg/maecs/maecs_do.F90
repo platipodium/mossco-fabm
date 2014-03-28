@@ -129,6 +129,8 @@ call min_mass(self,phy,method=2) !_KAI_ minimal reasonable Phy-C and -Nitrogen
 ! --- stoichiometry of autotrophs (calculating QN_phy, frac_R, theta, and QP_phy)
 call calc_internal_states(self,phy,det,dom,zoo)
 
+!write (*,'(A,5(F10.3))') 'phy%reg%C, phy%reg%N, phy%reg%P,phy%Q%N, phy%Q%P', phy%reg%C, phy%reg%N, phy%reg%P,phy%Q%N,phy%Q%P
+
 !write (*,'(A,2(F10.3))') 'PAR, chl=',env%par, phy%chl
 
 if (.not. self%PhotoacclimOn) then  
