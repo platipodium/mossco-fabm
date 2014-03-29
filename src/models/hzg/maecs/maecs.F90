@@ -413,6 +413,7 @@ call self%get_parameter(self%small        ,'small',         default=small)
 call self%get_parameter(self%dil          ,'dil',           default=dil)
 
 !!------- derived parameters  ------- 
+self%res0         = 0.025d0 * V_NC_max * zeta_CN
 self%K_QN_phy     = QN_phy_max-QN_phy_0
 self%iK_QN        = 1.0d0/self%K_QN_phy
 self%iK_QP        = 1.0d0/(QP_phy_max-QP_phy_0)
@@ -421,6 +422,8 @@ self%itheta_max   = 1.0d0/theta_LHC
 self%aver_QN_phy  = 5.0d-1*(QN_phy_max+QN_phy_0)
 self%aver_QP_phy  = 5.0d-1*(QP_phy_max+QP_phy_0)
 self%small_finite  = sqrt(small)
+
+ write (*,'(A,1(F10.3))') 'res0=',self%res0
 
 !!------- Register state variables  ------- 
 call self%register_state_variable(self%id_nutN,  'nutN','mmol-N/m**3','Dissolved Inorganic Nitrogen DIN nutN', &

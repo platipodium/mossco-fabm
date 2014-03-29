@@ -129,7 +129,6 @@ call min_mass(self,phy,method=2) !_KAI_ minimal reasonable Phy-C and -Nitrogen
 ! --- stoichiometry of autotrophs (calculating QN_phy, frac_R, theta, and QP_phy)
 call calc_internal_states(self,phy,det,dom,zoo)
 
-!write (*,'(A,2(F10.3))') 'PAR, chl=',env%par, phy%chl
 
 if (.not. self%PhotoacclimOn) then  
    phy%chl         = phy%C * self%frac_chl_ini   ! total Chl mg-CHL/m3
@@ -141,6 +140,8 @@ end if
 
 call calc_sensitivities(self,sens,phy,env,nut)
 
+!write (*,'(A,4(F10.3))') 'f=',phy%reg%C,phy%frac%Rub,self%small_finite + self%rel_chloropl_min,phy%frac%NutUpt
+!write (*,'(A,4(F10.3))') 'PAR, T, th, P =',env%par,env%temp,phy%theta, sens%upt_pot%C 
 
 !> @fn fabm_hzg_maecs::maecs_do ()
 !> 2. Calculation of fluxes, mass exchange rates &  rates of change of traits variables 
@@ -215,7 +216,6 @@ rhsv%phyC = uptake%C              * phy%C &
            - aggreg_rate          * phy%C &  !      trait dependencies
            - graz_rate                    
 
-! write (*,'(A,3(F9.4))') 'flxc=',uptake%C, phy%C,nut%P 
 ! write (*,'(A,3(F9.4))') 'c=',phy%chl,phy%Rub, phy%C
 
 !_____________________________________________________________________________
@@ -407,8 +407,8 @@ end if
   _SET_DIAGNOSTIC_(self%id_aVN, acclim%aV%N)                !last 
   _SET_DIAGNOSTIC_(self%id_aVP, acclim%aV%P)                !last 
   _SET_DIAGNOSTIC_(self%id_aVSi, acclim%aV%Si)              !last 
-  _SET_DIAGNOSTIC_(self%id_rQSi, phy%frac%NutUpt )       !+0*phy%relQ%Silast 
-  _SET_DIAGNOSTIC_(self%id_tmp, acclim%tmp)                 !last 
+  _SET_DIAGNOSTIC_(self%id_rQSi, phy%gpp )       !+0*phy%relQ%Silast 
+  _SET_DIAGNOSTIC_(self%id_tmp, uptake%C)                 !last acclim%tmp
   _SET_DIAGNOSTIC_(self%id_fac1, acclim%fac1)               !last 
   _SET_DIAGNOSTIC_(self%id_fac2, acclim%fac2)               !last 
 !#E_DIA
