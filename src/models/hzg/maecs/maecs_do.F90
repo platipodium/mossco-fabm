@@ -409,8 +409,10 @@ end if
   _SET_DIAGNOSTIC_(self%id_aVSi, acclim%aV%Si)              !last 
   _SET_DIAGNOSTIC_(self%id_rQSi, phy%gpp )       !+0*phy%relQ%Silast 
   _SET_DIAGNOSTIC_(self%id_tmp, uptake%C)                 !last acclim%tmp
-  _SET_DIAGNOSTIC_(self%id_fac1, acclim%fac1)               !last 
-  _SET_DIAGNOSTIC_(self%id_fac2, acclim%fac2)               !last 
+!  _SET_DIAGNOSTIC_(self%id_fac1, acclim%fac1)               !last 
+!  _SET_DIAGNOSTIC_(self%id_fac2, acclim%fac2)               !last 
+  _SET_DIAGNOSTIC_(self%id_fac1, log10(1E-7+uptake%N*phy%C))               !last 
+  _SET_DIAGNOSTIC_(self%id_fac2, log10(1E-7+sens%upt_pot%N))               !last 
 !#E_DIA
 
 if (self%DebugDiagOn) then

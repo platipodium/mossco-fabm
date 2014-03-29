@@ -423,7 +423,7 @@ self%aver_QN_phy  = 5.0d-1*(QN_phy_max+QN_phy_0)
 self%aver_QP_phy  = 5.0d-1*(QP_phy_max+QP_phy_0)
 self%small_finite  = sqrt(small)
 
- write (*,'(A,1(F10.3))') 'res0=',self%res0
+! write (*,'(A,1(F10.3))') 'res0=',self%res0 
 
 !!------- Register state variables  ------- 
 call self%register_state_variable(self%id_nutN,  'nutN','mmol-N/m**3','Dissolved Inorganic Nitrogen DIN nutN', &

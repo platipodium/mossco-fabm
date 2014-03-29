@@ -212,7 +212,7 @@ do i = 1, num_nut
 !   dmu_dV    = dmu_dV * e_N / (e_N + sigmv(i))
 
 !   steady-state down-regulation of uptake I: balance of respiration and indirect benefits  
-   dmu_daV   = (-zeta_X(i) + dmu_dV) * phy%frac%NutUpt * elem(i)%upt_pot   
+   dmu_daV   = (-zeta_X(i) + dmu_dV) * phy%frac%NutUpt * elem(i)%upt_pot  
      
 !   smoothed version of step function, uses marginal gain to emulate a continuous response 
    act_V     = 1.0d0/(1.0d0 + exp( 3.1415d0 - self%tau_regV * dmu_daV));  ! 0.02
@@ -227,8 +227,9 @@ end do
 
 !acc%fac1 = elem(1)%dmudV
 !acc%fac2 = elem(1)%dmudaV
-acc%fac1 = elem(self%nutind%iN)%relQ
-acc%fac2 = elem(self%nutind%iP)%relQ
+!acc%fac1 = elem(self%nutind%iN)%relQ
+!acc%fac2 = elem(self%nutind%iP)%relQ
+
 
 dmuQ_dfracR = 0.0d0
 dmuQ_dtheta = 0.0d0
