@@ -198,14 +198,14 @@ NutF    = smooth_small(nut%N,maecs%small)
 ! surface uptake sites and internal enzymes (for assimilation)
 fA%N    =  fOptUpt(maecs%AffN,maecs%V_NC_max * sens%f_T, NutF)
 
-sens%upt_pot%N   = uptflex(maecs%AffN,maecs%V_NC_max*sens%f_T,NutF, fA%N)
+sens%upt_pot%N   = uptflex(maecs%AffN,maecs%V_NC_max*sens%f_T,Nut%N, fA%N)
 
 !  P-uptake coefficients
 if (maecs%PhosphorusOn) then 
    NutF    = smooth_small(nut%P,maecs%small)
 ! optimal partitioning 
    fA%P    =  fOptUpt(maecs%AffP,maecs%V_PC_max * sens%f_T, NutF)
-   sens%upt_pot%P  = uptflex(maecs%AffP,maecs%V_PC_max*sens%f_T,NutF,fA%P)
+   sens%upt_pot%P  = uptflex(maecs%AffP,maecs%V_PC_max*sens%f_T,Nut%P,fA%P)
 end if
 !write (*,'(A,4(F10.3))') 'vP=',sens%upt_pot%P,maecs%V_PC_max * sens%f_T,nut%P,maecs%small*1E3
 

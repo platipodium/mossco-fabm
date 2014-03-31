@@ -49,6 +49,7 @@ real(rk) :: fac_colim            ! colimitation factor (dimensionless)
 real(rk) :: q_X, qp_Y, qp_X      ! placeholder for nutrient availability
 real(rk) :: qfunc, deriv_qfunc   ! queuing function and derivative
 real(rk) :: prod_dq, d_X, d_QX, dmu_daV, act_V
+real(rk) :: resC, darkf
 real(rk), dimension(5) :: sigmv ! relative quota-uptake feed-back 
 real(rk), dimension(5) :: dqp_X_dq_X, dqp_X_dqp_Y  ! derivatives
 real(rk), dimension(5) :: zeta_X  ! C-costs of assimilation of nutrient X
@@ -96,12 +97,11 @@ dbal_dv = 1.0d0 + phy%Q%N * self%zeta_CN  ! partial derivative of the balance eq
 if (self%syn_nut .le. _ZERO_ ) then  !self%nutind%iP
 !> synergy is assumed to increase with accumulated pool size of N & P as major biochemical species
 !>    and is proportional to f_V (\todo explain)
-!   syn_act = -self%syn_nut *(phy%frac%NutUpt*(elem(self%nutind%iP)%relQ+elem(self%nutind%iN)%relQ) +eps)
    sumrelQ = elem(self%nutind%iN)%relQ
    if (self%PhosphorusOn) sumrelQ = sumrelQ + elem(self%nutind%iP)%relQ
    if (self%SiliconOn)    sumrelQ = sumrelQ + elem(self%nutind%iSi)%relQ
-   syn_act = -self%syn_nut *(phy%frac%NutUpt*sumrelQ +eps)
-!   syn_act = -self%syn_nut * elem(self%nutind%nhi)%relQ
+   syn_act = -self%syn_nut *(phy%frac%NutUpt * sumrelQ +eps)
+!   syn_act = -self%syn_nut * elem(self%nutind%nhi)%relQRub
 else
    syn_act  = self%syn_nut
 endif 
@@ -176,10 +176,24 @@ dfV_dtheta  = - acc%dRchl_dtheta * self%itheta_max
 ! \todo stability   sigmv(1)    =   acc%dRchl_dQN  * self%itheta_max / phy%frac%NutUpt
 sigmv(1:num_nut)  = 0.0d0
 
+! --- gross carbon uptake by phytoplankton (gross-primary production) ---------------
+!   phy%frac%Rub* sens%P_max_T* phy%rel_QN : carboxylation capacity = Rub * free proteins
+!   fac_colim       : final synchrony in  protein/RNA dynamics (multi-nutrient processing)
+!   sens%upt_pot%C  : light harvesting (light limited growth)
+Pmaxc     = (fac_colim-eps) * sens%P_max_T
+grossC    = phy%frac%Rub * Pmaxc * sens%upt_pot%C  ! primary production
+
+!resC      = 0.5d0/(1.0d0 + exp( 3.1415d0)) *self%V_NC_max* sens%f_T * self%zeta_CN 
+
+! "darkness correction": marginal use should converge towards zero at very low light
+!  offset (background respiration) derived from a_V(dmu_daV=0)*1/4*Vmax*zeta (f_A=f_V=1/2)
+darkf     = 1.0d0 - exp(-grossC/self%res0)
+
 ! $\partial mu/\partial Q dQ/dV|_{tot}$ : initial zero berfore loop
 dmuQ_dfracR = 0.0d0
 dmuQ_dtheta = 0.0d0
 dmu_daV_tot = 0.0d0
+
 do i = 1, num_nut 
  ! ------------------ derivatives of co-limited growth function ---------------------
    d_X       = prod_dq * dqp_X_dq_X(i)
@@ -188,13 +202,17 @@ do i = 1, num_nut
 
    d_QX      = d_X* dbal_dv * elem(i)%iKQ + sigmv(i)* phy%Q%N * self%zeta_CN  ! 
 
+! marginal use should converge towards zero at bad productivity conditions
+!   (refine assumption Q\mu=V in derivation of d_QX)
+   d_QX      = d_QX * darkf  
+
 !   steady-state down-regulation of uptake I: balance of respiration and indirect benefits  
    dmu_dV    = (1.0d0 + zeta_X(i) * elem(i)%Q) * d_QX/(1.0d0 + elem(i)%Q * (d_QX + sigmv(i)))
 
 !   dmu_dV    = dmu_dV * e_N / (e_N + sigmv(i))
 
 !   steady-state down-regulation of uptake I: balance of respiration and indirect benefits  
-   dmu_daV   = (-zeta_X(i) + dmu_dV) * phy%frac%NutUpt * elem(i)%upt_pot   
+   dmu_daV   = (-zeta_X(i) + dmu_dV) * phy%frac%NutUpt * elem(i)%upt_pot  
      
 !   smoothed version of step function, uses marginal gain to emulate a continuous response 
    act_V     = 1.0d0/(1.0d0 + exp( 3.1415d0 - self%tau_regV * dmu_daV));  ! 0.02
@@ -202,16 +220,15 @@ do i = 1, num_nut
    dmu_daV   = abs(dmu_daV)
    dmu_daV_tot = dmu_daV_tot + act_V * dmu_daV
 
-if(i .eq. 2) then
-   acc%fac1 = act_V
-!   acc%fac1 = f_Lip
-!   acc%fac2 = dmu_dV
-endif
-
    elem(i)%dmudV   = dmu_dV
-   elem(i)%dmudaV  = dmu_daV 
+   elem(i)%dmudaV  = dmu_daV
    elem(i)%aV      = act_V 
 end do
+
+!acc%fac1 = elem(1)%dmudV
+!acc%fac2 = elem(1)%dmudaV
+!acc%fac1 = elem(self%nutind%iN)%relQ
+!acc%fac2 = elem(self%nutind%iP)%relQ
 
 
 dmuQ_dfracR = 0.0d0
@@ -221,30 +238,28 @@ dmuQ_dtheta = 0.0d0
 do i = 1, num_nut 
    act_V           = elem(i)%aV * elem(i)%dmudaV/ (dmu_daV_tot + eps)
 ! emulates passive Si diffusion through membrane (\todo not to be assimilated)
-   if (i .eq. self%nutind%iSi .and. act_V .lt. 0.35d0) act_V = 0.35d0  !num_nut  
+   if (i .eq. self%nutind%iSi .and. act_V .lt. 0.333d0) act_V = 0.333d0  !num_nut  
    elem(i)%aV      = act_V 
    elem(i)%upt_act = act_V * elem(i)%upt_pot
    elem(i)%upt     = phy%frac%NutUpt * elem(i)%upt_act  ! [(molX) (molC)^{-1} d{-1}]
 
 ! +++ derivative of C-uptake rate with respect to quota ++++++++++++++++++++++++++++++
-   dmuQ_dfracR     = dmuQ_dfracR + elem(i)%dmudV * elem(i)%upt_act * dfV_dfracR
-   dmuQ_dtheta     = dmuQ_dtheta + elem(i)%dmudV * elem(i)%upt_act * dfV_dtheta
+   dmuQ_dfracR     = dmuQ_dfracR + elem(i)%dmudV * (elem(i)%upt_act+eps) * dfV_dfracR
+   dmuQ_dtheta     = dmuQ_dtheta + elem(i)%dmudV * (elem(i)%upt_act+eps) * dfV_dtheta
+! small *eps* correction at vanishing productivity since now aV=0 would entirely decouple regulation
 
 end do
 !if (self%SiliconOn) uptake%Si=uptake%Si + 0.5*sens%upt_pot%Si
 
-! --- gross carbon uptake by phytoplankton (gross-primary production) ---------------
-!   phy%frac%Rub* sens%P_max_T* phy%rel_QN : carboxylation capacity = Rub * free proteins
-!   fac_colim       : final synchrony in  protein/RNA dynamics (multi-nutrient processing)
-!   sens%upt_pot%C  : light harvesting (light limited growth)
-Pmaxc     = fac_colim * sens%P_max_T
-grossC    = phy%frac%Rub * Pmaxc * sens%upt_pot%C  ! primary production
 
 ! ---  respiration due to N assimilation --------------------------------------
 lossC     = self%zeta_CN * uptake%N                           ! [d^{-1}]
 
 ! --- relative growth rate RGR: gross production - exudation - uptake respiration --  
+phy%gpp   = grossC
+!phy%gpp   = fac_colim
 uptake%C  = grossC - lossC     !* (1.0d0- self%exud_phy) ![d^{-1}]
+!write (*,'(A,6(F10.4))') 'upC ',phy%frac%Rub , Pmaxc, sens%upt_pot%C,grossC,lossC,  uptake%C
 
 ! --- photoacclimation and photosynthesis ------------------------------------            
 !     differential coupling between pigment synthesis and costs due to N-uptake     

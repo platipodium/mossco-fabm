@@ -129,8 +129,6 @@ call min_mass(self,phy,method=2) !_KAI_ minimal reasonable Phy-C and -Nitrogen
 ! --- stoichiometry of autotrophs (calculating QN_phy, frac_R, theta, and QP_phy)
 call calc_internal_states(self,phy,det,dom,zoo)
 
-!write (*,'(A,5(F10.3))') 'phy%reg%C, phy%reg%N, phy%reg%P,phy%Q%N, phy%Q%P', phy%reg%C, phy%reg%N, phy%reg%P,phy%Q%N,phy%Q%P
-
 !write (*,'(A,2(F10.3))') 'PAR, chl=',env%par, phy%chl
 
 if (.not. self%PhotoacclimOn) then  
@@ -143,6 +141,8 @@ end if
 
 call calc_sensitivities(self,sens,phy,env,nut)
 
+!write (*,'(A,4(F10.3))') 'f=',phy%reg%C,phy%frac%Rub,self%small_finite + self%rel_chloropl_min,phy%frac%NutUpt
+!write (*,'(A,4(F10.3))') 'PAR, T, th, P =',env%par,env%temp,phy%theta, sens%upt_pot%C 
 
 !> @fn fabm_hzg_maecs::maecs_do ()
 !> 2. Calculation of fluxes, mass exchange rates &  rates of change of traits variables 
