@@ -494,7 +494,7 @@ if (GrazingOn) then
 end if
 
 !!------- Register diagnostic variables  ------- 
-call self%register_diagnostic_variable(self%id_chl2,    'chl2','mgCHL/mmolC', 'phyto chl:C ratio', &
+call self%register_diagnostic_variable(self%id_chl2,    'chl2C','mgCHL/mmolC', 'phyto chl2C ratio', &
   output=output_instantaneous)
 call self%register_diagnostic_variable(self%id_fracR,   'fracR','-', ' fracR', &
   output=output_instantaneous)
