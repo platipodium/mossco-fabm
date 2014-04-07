@@ -413,6 +413,7 @@ end if
   _SET_DIAGNOSTIC_(self%id_tmp, acclim%tmp)                 !last 
   _SET_DIAGNOSTIC_(self%id_fac1, acclim%fac1)               !last 
   _SET_DIAGNOSTIC_(self%id_fac2, acclim%fac2)               !last 
+  _SET_DIAGNOSTIC_(self%id_dPAR, env%par)                   !somehow doesn't work?
 !#E_DIA
 
 if (self%DebugDiagOn) then

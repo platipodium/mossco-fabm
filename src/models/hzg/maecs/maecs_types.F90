@@ -34,7 +34,7 @@ type (type_maecs_nutindex) :: nutind
 type (type_state_variable_id)        :: id_nutN,id_nutP,id_nutS,id_phyC,id_phyN,id_phyP,id_phyS,id_zooC,id_detC,id_detN,id_detP,id_detS,id_domC,id_domN,id_domP,id_Rub,id_chl
 type (type_dependency_id)            :: id_temp
 type (type_dependency_id)            :: id_par
-type (type_diagnostic_variable_id)   :: id_chl2, id_fracR, id_QN, id_QP, id_aVN, id_aVP, id_aVSi, id_rQSi, id_tmp, id_fac1, id_fac2
+type (type_diagnostic_variable_id)   :: id_chl2, id_fracR, id_QN, id_QP, id_aVN, id_aVP, id_aVSi, id_rQSi, id_tmp, id_fac1, id_fac2, id_dPAR
 real(rk) ::  nutN_initial, nutP_initial, nutS_initial, phyC_initial, phyN_initial, phyP_initial, phyS_initial, zooC_initial, detC_initial, detN_initial, detP_initial, detS_initial, domC_initial, domN_initial, domP_initial, frac_Rub_ini, frac_chl_ini
 real(rk) ::  P_max, alpha, sigma, theta_LHC, rel_chloropl_min, QN_phy_0, QN_phy_max, V_NC_max, AffN, zeta_CN, zstoich_PN, exud_phy, QP_phy_0, QP_phy_max, V_PC_max, AffP, QSi_phy_0, QSi_phy_max, V_SiC_max, AffSi, syn_nut, adap_rub, adap_theta, tau_regV, phi_agg, vS_phy, vS_det, hydrol, remin, Ae_all, T_ref, NutOrder
 real(rk) ::  const_NC_zoo, const_PC_zoo, g_max, k_grazC, yield_zoo, basal_resp_zoo, mort_zoo
