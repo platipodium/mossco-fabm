@@ -516,7 +516,8 @@ call self%register_diagnostic_variable(self%id_fac1,    'fac1','-', ' fac1', &
   output=output_instantaneous)
 call self%register_diagnostic_variable(self%id_fac2,    'fac2','-', ' fac2', &
   output=output_instantaneous)
-call self%register_diagnostic_variable(self%id_dPAR,    'PAR','W/m**2', 'PAR')
+call self%register_diagnostic_variable(self%id_dPAR,    'PAR','W/m**2', 'PAR', &
+  time_treatment=time_treatment_averaged)
   
 !!------- Register environmental dependencies  ------- 
 call self%register_dependency(self%id_temp,standard_variables%temperature)
