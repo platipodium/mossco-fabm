@@ -301,11 +301,11 @@ end if
   call self%set_variable_property(self%id_sdet,'particulate',.true.)
   call self%register_state_variable(self%id_no3,   'no3','mmolN/m**3','dissolved nitrate', &
    no3_init, minimum=_ZERO_, no_river_dilution=.true., &
-   standard_variable=mole_concentration_of_nitrate )
+   standard_variable=standard_variables%mole_concentration_of_nitrate )
   call self%set_variable_property(self%id_no3,'particulate',.false.)
   call self%register_state_variable(self%id_nh3,   'nh3','mmolN/m**3','dissolved ammonium', &
    nh3_init, minimum=_ZERO_, no_river_dilution=.true., &
-   standard_variable=mole_concentration_of_ammonium )
+   standard_variable=standard_variables%mole_concentration_of_ammonium )
   call self%set_variable_property(self%id_nh3,'particulate',.false.)
   call self%register_state_variable(self%id_oxy,   'oxy','mmolO2/m**3','dissolved oxygen', &
    oxy_init, minimum=_ZERO_, no_river_dilution=.true. )
@@ -320,7 +320,7 @@ if (PhosphorusOn) then
   call self%set_variable_property(self%id_pdet,'particulate',.true.)
       call self%register_state_variable(self%id_po4,   'po4','mmolP/m**3','dissolved phosphate', &
        po4_init, minimum=_ZERO_, no_river_dilution=.true., &
-       standard_variable=mole_concentration_of_phosphate )
+       standard_variable=standard_variables%mole_concentration_of_phosphate )
   call self%set_variable_property(self%id_po4,'particulate',.false.)
 end if
 
@@ -354,8 +354,8 @@ end if
       output=output_instantaneous)
 
 !!------- Register environmental dependencies  ------- 
-  call self%register_dependency(self%id_temp,varname_temp)
-  call self%register_dependency(self%id_parz,varname_par)
+  call self%register_dependency(self%id_temp,standard_variables%temperature)
+  call self%register_dependency(self%id_parz,standard_variables%downwelling_photosynthetic_radiative_flux)
 !  call self%register_dependency(self%id_porosity,varname_porosity)
 
   return
