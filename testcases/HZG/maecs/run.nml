@@ -25,7 +25,8 @@ apply_self_shading=.false.
 /
 
 &output
-output_file='out.dat'
+output_file='out.nc' !'out.dat'
+output_format=2
 nsave=300
 add_environment=.true.
 add_conserved_quantities=.true.
