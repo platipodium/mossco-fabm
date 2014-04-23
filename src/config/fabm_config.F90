@@ -5,7 +5,7 @@ module fabm_config
    use fabm_types
    use fabm_properties,only:type_property_dictionary,type_property,type_set
    use fabm_driver
-   use fabm,only:type_model,fabm_initialize
+   use fabm,only:type_model,fabm_initialize_library,fabm_initialize
 
    use fabm_config_types
    use fabm_yaml,yaml_parse=>parse,yaml_error_length=>error_length
@@ -31,8 +31,8 @@ contains
       integer                          :: unit_eff
       character(len=*),parameter       :: path = 'fabm.yaml'
 
-      ! If the host has not provided an object for communication of log messages and fatal errors, create a default object now.
-      if (.not.associated(driver)) allocate(type_base_driver::driver)
+      ! Make sure the library is initialized.
+      call fabm_initialize_library()
 
       ! Determine the unit to use for YAML file.
       if (present(unit)) then
@@ -43,8 +43,8 @@ contains
 
       ! Parse YAML file.
       node => yaml_parse(path,unit_eff,yaml_error)
-      if (yaml_error/='') call driver%fatal_error('fabm_create_model_from_yaml_file',trim(yaml_error))
-      if (.not.associated(node)) call driver%fatal_error('fabm_create_model_from_yaml_file', &
+      if (yaml_error/='') call fatal_error('fabm_create_model_from_yaml_file',trim(yaml_error))
+      if (.not.associated(node)) call fatal_error('fabm_create_model_from_yaml_file', &
          'No configuration information found in '//trim(path)//'.')
       !call node%dump(output_unit,0)
 
@@ -53,8 +53,8 @@ contains
          class is (type_dictionary)
             ! Create F2003 model tree.
             call create_model_tree_from_dictionary(model,node,do_not_initialize,parameters)
-         class default
-            call driver%fatal_error('fabm_create_model_from_yaml_file', trim(path)//' must contain a dictionary &
+         class is (type_node)
+            call fatal_error('fabm_create_model_from_yaml_file', trim(path)//' must contain a dictionary &
                &at the root (non-indented) level, not a single value. Are you missing a trailing colon?')
       end select
 
@@ -81,13 +81,13 @@ contains
 
       node => mapping%get('instances')
       if (.not.associated(node)) &
-         call driver%fatal_error('create_model_tree_from_dictionary', 'No "instances" dictionary found at root level.')
+         call fatal_error('create_model_tree_from_dictionary', 'No "instances" dictionary found at root level.')
       select type (node)
          class is (type_dictionary)
             pair => node%first
-         class default
+         class is (type_node)
             nullify(pair)
-            call driver%fatal_error('create_model_tree_from_dictionary',trim(node%path)// &
+            call fatal_error('create_model_tree_from_dictionary',trim(node%path)// &
                ' must be a dictionary with (model name : information) pairs, not a single value.')
       end select
 
@@ -100,8 +100,8 @@ contains
                childmodel => create_model_from_dictionary(instancename,dict,model%root, &
                                                           require_initialization,require_all_parameters)
                childmodel%check_conservation = check_conservation
-            class default
-               call driver%fatal_error('create_model_tree_from_dictionary','Configuration information for model "'// &
+            class is (type_node)
+               call fatal_error('create_model_tree_from_dictionary','Configuration information for model "'// &
                   trim(instancename)//'" must be a dictionary, not a single value.')
          end select
          pair => pair%next
@@ -110,7 +110,7 @@ contains
       ! Check whether any keys at the root level remain unused.
       pair => mapping%first
       do while (associated(pair))
-         if (.not.pair%accessed) call driver%fatal_error('create_model_tree_from_dictionary','Unrecognized option "'// &
+         if (.not.pair%accessed) call fatal_error('create_model_tree_from_dictionary','Unrecognized option "'// &
             trim(pair%key)//'" found at root level.')
          pair => pair%next
       end do
@@ -144,12 +144,9 @@ contains
       ! Retrieve descriptive name for the model instance (default to instance name if not provided).
       long_name = trim(node%get_string('long_name',default=instancename))
 
-      ! If FABM does not have its model factory yet, create it.
-      call fabm_create_model_factory()
-
       ! Try to create the model based on name.
       call factory%create(trim(modelname),model)
-      if (.not.associated(model)) call driver%fatal_error('create_model_from_dictionary', &
+      if (.not.associated(model)) call fatal_error('create_model_from_dictionary', &
          trim(instancename)//': "'//trim(modelname)//'" is not a valid model name.')
 
       ! Transfer user-specified parameter values to the model.
@@ -163,32 +160,32 @@ contains
                   select type (value=>pair%value)
                      class is (type_scalar)
                         call model%parameters%set_string(trim(pair%key),trim(value%string))
-                     class default
-                        call driver%fatal_error('create_model_from_dictionary','BUG: "flatten" should &
+                     class is (type_node)
+                        call fatal_error('create_model_from_dictionary','BUG: "flatten" should &
                            &have ensured that the value of '//trim(value%path)//' is scalar, not a nested dictionary.')
                   end select
                   pair => pair%next   
                end do
-            class default
-               call driver%fatal_error('create_model_from_dictionary',trim(childnode%path)//' must be a dictionary, not a string.')
+            class is (type_node)
+               call fatal_error('create_model_from_dictionary',trim(childnode%path)//' must be a dictionary, not a string.')
          end select
       end if
 
       ! Add the model to its parent.
       call model%parameters%reset_accessed()
-      call driver%log_message('Initializing biogeochemical model "'//trim(instancename)//'" (type "'//trim(modelname)//'")...')
+      call log_message('Initializing biogeochemical model "'//trim(instancename)//'" (type "'//trim(modelname)//'")...')
       call parent%add_child(model,instancename,long_name,configunit=-1)
-      call driver%log_message('model "'//trim(instancename)//'" initialized successfully.')
+      call log_message('model "'//trim(instancename)//'" initialized successfully.')
 
       ! Check for parameters requested by the model, but not present in the configuration file.
       if (require_all_parameters.and.associated(model%missing_parameters%first)) &
-         call driver%fatal_error('create_model_from_dictionary','Value for parameter "'// &
+         call fatal_error('create_model_from_dictionary','Value for parameter "'// &
             trim(model%missing_parameters%first%string)//'" of model "'//trim(instancename)//'" is not provided.')
 
       ! Check for parameters present in configuration file, but not interpreted by the models.
       property => model%parameters%first
       do while (associated(property))
-         if (.not.property%accessed) call driver%fatal_error('create_model_from_dictionary', &
+         if (.not.property%accessed) call fatal_error('create_model_from_dictionary', &
             'Unrecognized parameter "'//trim(property%name)//'" found below '//trim(childnode%path)//'.')
          property => property%next
       end do
@@ -205,14 +202,14 @@ contains
                   select type (value=>pair%value)
                      class is (type_scalar)
                         call model%request_coupling(trim(get_safe_name(pair%key)),trim(get_safe_name(value%string)),required=.true.)
-                     class default
-                        call driver%fatal_error('create_model_from_dictionary','The value of '//trim(value%path)// &
+                     class is (type_node)
+                        call fatal_error('create_model_from_dictionary','The value of '//trim(value%path)// &
                            ' must be a string, not a nested dictionary.')
                   end select
                   pair => pair%next   
                end do
-            class default
-               call driver%fatal_error('create_model_from_dictionary',trim(childnode%path)// &
+            class is (type_node)
+               call fatal_error('create_model_from_dictionary',trim(childnode%path)// &
                   ' must be a dictionary, not a single value.')
          end select
       end if
@@ -223,8 +220,8 @@ contains
          select type (childnode)
             class is (type_dictionary)
                call parse_initialization(model,childnode,initialized_set,get_background=.false.)
-            class default
-               call driver%fatal_error('create_model_from_dictionary',trim(childnode%path)//' must be a dictionary, not a string.')
+            class is (type_node)
+               call fatal_error('create_model_from_dictionary',trim(childnode%path)//' must be a dictionary, not a string.')
          end select
       end if
 
@@ -234,15 +231,15 @@ contains
          select type (childnode)
             class is (type_dictionary)
                call parse_initialization(model,childnode,background_set,get_background=.true.)
-            class default
-               call driver%fatal_error('create_model_from_dictionary',trim(childnode%path)//' must be a dictionary, not a string.')
+            class is (type_node)
+               call fatal_error('create_model_from_dictionary',trim(childnode%path)//' must be a dictionary, not a string.')
          end select
       end if
 
       ! Verify whether all state variables have been provided with an initial value.
       link => model%first_link
       do while (associated(link))
-         if (link%owner.and.link%coupling%master=='') then
+         if (link%owner.and..not.associated(model%couplings%find(link%name))) then
             ! This link is our own: not coupled to another variable, not an alias, and no intention to couple was registered.
             select type (object=>link%target)
                class is (type_internal_variable)
@@ -250,15 +247,15 @@ contains
                      if (object%presence/=presence_external_optional .and. .not.initialized_set%contains(trim(link%name))) then
                         ! State variable is required, but initial value is not explicitly provided.
                         if (require_initialization) then
-                           call driver%fatal_error('parse_initialization','model '//trim(model%name) &
+                           call fatal_error('parse_initialization','model '//trim(model%name) &
                               //': no initial value provided for variable "'//trim(link%name)//'".')
                         else
-                           call driver%log_message('WARNING: no initial value provided for state variable "'//trim(link%name)// &
+                           call log_message('WARNING: no initial value provided for state variable "'//trim(link%name)// &
                               '" of model "'//trim(model%name)//'" - using default.')
                         end if
                      elseif (object%presence==presence_external_optional .and. initialized_set%contains(trim(link%name))) then
                         ! Optional state variable is not used, but an initial value is explicitly provided.
-                        call driver%fatal_error('parse_initialization','model '//trim(model%name) &
+                        call fatal_error('parse_initialization','model '//trim(model%name) &
                            //': initial value provided for variable "'//trim(link%name)//'", but this variable is not used.')
                      end if
                   end if
@@ -272,7 +269,7 @@ contains
       ! Check whether any keys at the model level remain unused.
       pair => node%first
       do while (associated(pair))
-         if (.not.pair%accessed) call driver%fatal_error('create_model_from_dictionary', &
+         if (.not.pair%accessed) call fatal_error('create_model_from_dictionary', &
             'Unrecognized option "'//trim(pair%key)//'" found below '//trim(node%path)//'.')
          pair => pair%next
       end do
@@ -296,7 +293,7 @@ contains
          select type (value=>pair%value)
             class is (type_scalar)
                object => model%find_object(trim(pair%key))
-               if (.not.associated(object)) call driver%fatal_error('parse_initialization', &
+               if (.not.associated(object)) call fatal_error('parse_initialization', &
                   trim(value%path)//': "'//trim(pair%key)//'" is not a member of model "'//trim(model%name)//'".')
                is_state_variable = .false.
                select type (object)
@@ -312,10 +309,10 @@ contains
                         is_state_variable = .true.
                      end if
                end select
-               if (.not.is_state_variable) call driver%fatal_error('parse_initialization', &
+               if (.not.is_state_variable) call fatal_error('parse_initialization', &
                   trim(value%path)//': "'//trim(pair%key)//'" is not a state variable of model "'//trim(model%name)//'".')
-            class default
-               call driver%fatal_error('parse_initialization',trim(value%path)// &
+            class is (type_node)
+               call fatal_error('parse_initialization',trim(value%path)// &
                   ' must be set to a scalar value, not to a nested dictionary.')
          end select
          pair => pair%next
@@ -323,9 +320,10 @@ contains
 
       return
 
-99    select type (value=>pair%value)
+99    continue
+      select type (value=>pair%value)
          class is (type_scalar)
-            call driver%fatal_error('parse_initialization',trim(value%path)//': "'//trim(value%string)//'" is not a real number.')
+            call fatal_error('parse_initialization',trim(value%path)//': "'//trim(value%string)//'" is not a real number.')
       end select
    end subroutine
 
@@ -344,10 +342,10 @@ contains
          select type (node)
             class is (type_scalar)
                value = node%to_logical(.false.,success)
-               if (.not.success) call driver%fatal_error('mapping_get_logical',trim(node%path)//' is set to "'// &
+               if (.not.success) call fatal_error('mapping_get_logical',trim(node%path)//' is set to "'// &
                   trim(node%string)//'", which cannot be interpreted as a Boolean value.')
-            class default
-               call driver%fatal_error('mapping_get_logical',trim(node%path)//' must be a key, not a dictionary.')
+            class is (type_node)
+               call fatal_error('mapping_get_logical',trim(node%path)//' must be a key, not a dictionary.')
          end select
       end if
    end function

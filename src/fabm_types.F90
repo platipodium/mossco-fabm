@@ -33,6 +33,7 @@
    public type_bulk_standard_variable
 
    ! Variable identifier types used by biogeochemical models
+   public type_variable_id
    public type_diagnostic_variable_id
    public type_horizontal_diagnostic_variable_id
    public type_state_variable_id
@@ -42,25 +43,13 @@
    public type_horizontal_dependency_id
    public type_global_dependency_id
    public type_conserved_quantity_id
-   public type_model_id
-
-   ! Variable identifier types by external physical drivers.
-   public type_bulk_variable_id
-   public type_horizontal_variable_id
-   public type_scalar_variable_id
-   public is_null_standard_variable
 
    ! Data types and procedures for variable management - used by FABM internally only.
    public type_link
    public type_internal_object,type_internal_variable,type_bulk_variable,type_horizontal_variable,type_scalar_variable
    public type_environment
-   public type_external_variable,type_horizontal_state_variable_info
-   public freeze_model_info
+   public freeze_model_info,after_assign_indices
    public find_dependencies
-   public create_external_variable_id
-
-   public type_bulk_data_pointer
-   public type_horizontal_data_pointer
 
    public type_model_list,type_model_list_node
 
@@ -70,6 +59,14 @@
    public type_expression, type_bulk_expression, type_horizontal_expression
 
    public type_weighted_sum
+   public type_coupling
+   public connect_bulk_state_variable_id
+
+   public type_bulk_data_pointer,type_horizontal_data_pointer,type_scalar_data_pointer
+   public type_bulk_data_pointer_pointer,type_horizontal_data_pointer_pointer,type_scalar_data_pointer_pointer
+   public type_aggregate_variable, type_contributing_variable
+   public time_treatment2output,output2time_treatment
+   public append_string,append_data_pointer
 
 ! !PUBLIC DATA MEMBERS:
 !
@@ -80,33 +77,6 @@
    integer, parameter, public :: domain_bulk = 0, domain_bottom = 1, domain_surface = 2
 
    integer, parameter, public :: presence_internal = 1, presence_external_required = 2, presence_external_optional = 6
-
-   ! Alternative names for standard variables (for backward compatibility)
-   type (type_bulk_standard_variable),parameter,public :: &
-     varname_temp     = standard_variables%temperature,                   & ! In-situ temperature (degree_Celsius)
-     varname_salt     = standard_variables%practical_salinity,                               & ! Salinity on Practical Salinity Scale (1e-3)
-     varname_swr      = standard_variables%downwelling_shortwave_flux,                       & ! Shortwave [200-4000 nm] radiation (W m-2)
-     varname_par      = standard_variables%downwelling_photosynthetic_radiative_flux,        & ! Photosynthetically Active [400-700 nm] Radiation (W m-2)
-     varname_pres     = standard_variables%pressure,                                         & ! Pressure (dbar = 10 kPa)
-     varname_dens     = standard_variables%density,                                          & ! In-situ density (kg m-3)
-     varname_layer_ht = standard_variables%cell_thickness,                                   & ! Layer thickness (m)
-     varname_extc     = standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, & ! Attenuation coefficient for Photosynthetically Active [400-700 nm] Radiation (m-1)
-     varname_tss      = standard_variables%mass_concentration_of_suspended_matter              ! Total suspended matter or suspended solids (g m-3)
-
-   ! Variables defined on a horizontal surface (e.g., water surface or bottom).
-   type (type_horizontal_standard_variable),parameter,public :: &
-     varname_lon     = standard_variables%longitude,                                         & ! Longitude (degree_East)
-     varname_lat     = standard_variables%latitude,                                          & ! Latitude (degree_North)
-     varname_wind_sf = standard_variables%wind_speed,                                        & ! Wind speed, defined at 10 m above water surface (m s-1)
-     varname_cloud   = standard_variables%cloud_area_fraction,                               & ! Cloud cover (1), i.e., a fraction between 0 and 1
-     varname_swr_sf  = standard_variables%surface_downwelling_shortwave_flux,                & ! Shortwave [200-4000 nm] radiation, defined at water surface (W m-2)
-     varname_par_sf  = standard_variables%surface_downwelling_photosynthetic_radiative_flux, & ! Photosynthetically Active [400-700 nm] Radiation, defined at water surface (W m-2)
-     varname_zbot    = standard_variables%bottom_depth_below_geoid,                          & ! Basin floor depth below geoid (approx. mean sea level) (m)
-     varname_taub    = standard_variables%bottom_stress                                        ! Bottom stress (Pa)
-
-   ! Non-spatial (scalar) variables.
-   type (type_global_standard_variable),parameter,public :: &
-     varname_yearday = standard_variables%number_of_days_since_start_of_the_year              ! Decimal day of the year (day), equal to 0.0 at 00:00 1 Jan UTC
 !
 ! !PUBLIC TYPES:
 !
@@ -183,52 +153,52 @@
    ! Variable identifiers used by biogeochemical models.
    ! ====================================================================================================
 
-   type,abstract :: type_id
+   type,abstract :: type_variable_id
       type (type_link), pointer :: link => null()
    end type
 
-   type,extends(type_id) :: type_state_variable_id
+   type,extends(type_variable_id) :: type_state_variable_id
       integer                       :: state_index = -1
       type (type_bulk_data_pointer) :: data
       real(rk)                      :: background = 0.0_rk
    end type
 
-   type,extends(type_id) :: type_bottom_state_variable_id
+   type,extends(type_variable_id) :: type_bottom_state_variable_id
       integer                             :: bottom_state_index = -1
       type (type_horizontal_data_pointer) :: horizontal_data
       real(rk)                            :: background = 0.0_rk
    end type
 
-   type,extends(type_id) :: type_surface_state_variable_id
+   type,extends(type_variable_id) :: type_surface_state_variable_id
       integer                             :: surface_state_index = -1
       type (type_horizontal_data_pointer) :: horizontal_data
       real(rk)                            :: background = 0.0_rk
    end type
 
-   type,extends(type_id) :: type_diagnostic_variable_id
+   type,extends(type_variable_id) :: type_diagnostic_variable_id
       integer :: diag_index = -1
    end type
 
-   type,extends(type_id) :: type_horizontal_diagnostic_variable_id
+   type,extends(type_variable_id) :: type_horizontal_diagnostic_variable_id
       integer :: horizontal_diag_index = -1
    end type
 
-   type,extends(type_id) :: type_dependency_id
+   type,extends(type_variable_id) :: type_dependency_id
       type (type_bulk_data_pointer) :: data
       real(rk)                      :: background = 0.0_rk
    end type
 
-   type,extends(type_id) :: type_horizontal_dependency_id
+   type,extends(type_variable_id) :: type_horizontal_dependency_id
       type (type_horizontal_data_pointer) :: horizontal_data
       real(rk)                            :: background = 0.0_rk
    end type
 
-   type,extends(type_id) :: type_global_dependency_id
+   type,extends(type_variable_id) :: type_global_dependency_id
       type (type_scalar_data_pointer) :: global_data
       real(rk)                        :: background = 0.0_rk
    end type
 
-   type,extends(type_id) :: type_conserved_quantity_id
+   type,extends(type_variable_id) :: type_conserved_quantity_id
       integer :: cons_index = -1
    end type
 
@@ -262,10 +232,13 @@
       class (type_weighted_sum),           pointer  :: sum => null()
       class (type_horizontal_weighted_sum),pointer  :: horizontal_sum => null()
       type (type_aggregate_variable),      pointer  :: next => null()
+
       type (type_diagnostic_variable_id)            :: id_rate
       type (type_horizontal_diagnostic_variable_id) :: id_horizontal_rate
       logical                                       :: has_bulk_state_component = .false.
       logical                                       :: has_horizontal_state_component = .false.
+      integer,allocatable                           :: state_indices(:)
+      real(rk),allocatable                          :: state_scale_factors(:)
    end type
 
    ! ====================================================================================================
@@ -277,7 +250,7 @@
       character(len=attribute_length) :: long_name = ''
       type (type_property_dictionary) :: properties
    end type
-   
+
    type,extends(type_internal_object),abstract :: type_internal_variable
       character(len=attribute_length) :: units          = ''
       real(rk)                        :: minimum        = -1.e20_rk
@@ -323,120 +296,25 @@
    end type type_scalar_variable
 
    type type_coupling
-      character(len=attribute_length)   :: master   = ''
-      type (type_model_pointer),pointer :: source   => null()
-      logical                           :: required = .false.
+      character(len=attribute_length) :: slave    = ''
+      character(len=attribute_length) :: master   = ''
+      logical                         :: required = .false.
+      class (type_coupling),pointer   :: next     => null()
+   end type
+
+   type type_coupling_list
+      class (type_coupling),pointer :: first => null()
+   contains
+      procedure :: add => coupling_list_add
+      procedure :: find => coupling_list_find
    end type
 
    type type_link
       character(len=attribute_length)       :: name    = ''
       class (type_internal_object), pointer :: target  => null()
-      type (type_coupling)                  :: coupling
       logical                               :: owner   = .true.
       type (type_link), pointer             :: next    => null()
    end type
-
-   type type_model_pointer
-      class (type_base_model),pointer :: p => null()
-      type (type_state_variable_id),allocatable :: state(:)
-   end type
-
-   type type_model_pointer_pointer
-      type (type_model_pointer),pointer :: p => null()
-   end type
-
-   type,extends(type_id) :: type_model_id
-      type (type_model_pointer) :: model
-   end type
-
-   type,extends(type_internal_object) :: type_model_reference
-      type (type_model_pointer_pointer),allocatable :: pointers(:)
-   end type
-
-   ! ====================================================================================================
-   ! Variable identifiers used by host models.
-   ! ====================================================================================================
-
-   type type_bulk_variable_id
-      class (type_bulk_variable),    pointer            :: variable => null()
-      type (type_bulk_data_pointer),pointer             :: p        => null()
-      type (type_bulk_data_pointer_pointer),allocatable :: alldata(:)
-      integer                                           :: state_index = -1
-      integer                                           :: write_index = -1
-   end type
-
-   type type_horizontal_variable_id
-      class (type_horizontal_variable),    pointer            :: variable => null()
-      type (type_horizontal_data_pointer),pointer             :: p        => null()
-      type (type_horizontal_data_pointer_pointer),allocatable :: alldata(:)
-      integer                                                 :: state_index = -1
-      integer                                                 :: write_index = -1
-   end type
-
-   type type_scalar_variable_id
-      class (type_scalar_variable),    pointer            :: variable => null()
-      type (type_scalar_data_pointer),pointer             :: p        => null()
-      type (type_scalar_data_pointer_pointer),allocatable :: alldata(:)
-      integer                                             :: state_index = -1
-      integer                                             :: write_index = -1
-   end type
-
-   ! ====================================================================================================
-   ! Derived types for variable metadata used by host models.
-   ! ====================================================================================================
-
-   type,abstract :: type_external_variable
-      character(len=attribute_length) :: name          = ''
-      character(len=attribute_length) :: long_name     = ''
-      character(len=attribute_length) :: units         = ''
-      real(rk)                        :: minimum       = -1.e20_rk
-      real(rk)                        :: maximum       =  1.e20_rk
-      real(rk)                        :: missing_value = -2.e20_rk
-      integer                         :: output        = output_instantaneous ! See output_* parameters above
-      type (type_property_dictionary) :: properties
-      integer                         :: externalid    = 0                    ! Identifier to be used freely by host
-   end type
-
-!  Derived type describing a state variable
-   type,extends(type_external_variable) :: type_state_variable_info
-      type (type_bulk_standard_variable) :: standard_variable
-      real(rk)                           :: initial_value             = 0.0_rk
-      real(rk)                           :: vertical_movement         = 0.0_rk  ! Vertical movement (m/s, <0: sinking, >0: floating)
-      real(rk)                           :: specific_light_extinction = 0.0_rk  ! Specific light extinction (/m/state variable unit)
-      logical                            :: no_precipitation_dilution = .false.
-      logical                            :: no_river_dilution         = .false.
-      type (type_bulk_variable_id)       :: globalid
-   end type type_state_variable_info
-
-   type,extends(type_external_variable) :: type_horizontal_state_variable_info
-      type (type_horizontal_standard_variable) :: standard_variable
-      real(rk)                                 :: initial_value = 0.0_rk
-      type (type_horizontal_variable_id)       :: globalid
-   end type type_horizontal_state_variable_info
-
-!  Derived type describing a diagnostic variable
-   type,extends(type_external_variable) :: type_diagnostic_variable_info
-      type (type_bulk_standard_variable) :: standard_variable
-      integer                            :: time_treatment = time_treatment_last ! See time_treatment_* parameters above
-      type (type_bulk_variable_id)       :: globalid
-   end type type_diagnostic_variable_info
-
-   type,extends(type_external_variable) :: type_horizontal_diagnostic_variable_info
-      type (type_horizontal_standard_variable) :: standard_variable
-      integer                                  :: time_treatment = time_treatment_last ! See time_treatment_* parameters above
-      type (type_horizontal_variable_id)       :: globalid
-   end type type_horizontal_diagnostic_variable_info
-
-!  Derived type describing a conserved quantity
-   type,extends(type_external_variable) :: type_conserved_quantity_info
-      type (type_bulk_standard_variable)            :: standard_variable
-      class (type_weighted_sum),pointer             :: model => null()
-      class (type_horizontal_weighted_sum),pointer  :: horizontal_model => null()
-      integer,allocatable                           :: state_indices(:)
-      real(rk),allocatable                          :: state_scale_factors(:)
-      integer                                       :: rate_diag_index = -1
-      integer                                       :: horizontal_rate_diag_index = -1
-   end type type_conserved_quantity_info
 
    ! ====================================================================================================
    ! Types that describe custom expressions (arbitrary functions of one or more variables).
@@ -479,25 +357,6 @@
       ! Flag determining whether the contents of the type are "frozen", i.e., they will not change anymore.
       logical :: frozen = .false.
 
-      ! Arrays with variable metadata [used by hosts only]
-      type (type_state_variable_info),                allocatable,dimension(:) :: state_variables
-      type (type_horizontal_state_variable_info),     allocatable,dimension(:) :: surface_state_variables
-      type (type_horizontal_state_variable_info),     allocatable,dimension(:) :: bottom_state_variables
-      type (type_diagnostic_variable_info),           allocatable,dimension(:) :: diagnostic_variables
-      type (type_horizontal_diagnostic_variable_info),allocatable,dimension(:) :: horizontal_diagnostic_variables
-      type (type_conserved_quantity_info),            allocatable,dimension(:) :: conserved_quantities
-
-      ! Pointers for backward compatibility (pre 2013-06-15) [used by hosts only]
-      type (type_horizontal_state_variable_info),     pointer,dimension(:) :: state_variables_ben     => null()
-      type (type_horizontal_diagnostic_variable_info),pointer,dimension(:) :: diagnostic_variables_hz => null()
-
-      ! Arrays with names of variables read by one or more biogeochemical models.
-      ! These are not used within FABM, but may be accessed by the host to determine the names of
-      ! potential forcing variables.
-      character(len=attribute_length),allocatable,dimension(:) :: dependencies        
-      character(len=attribute_length),allocatable,dimension(:) :: dependencies_hz     
-      character(len=attribute_length),allocatable,dimension(:) :: dependencies_scalar 
-
       ! Pointers to linked models in the model tree.
       class (type_base_model),pointer :: parent => null()
       type (type_model_list)          :: children
@@ -508,9 +367,10 @@
       character(len=64) :: long_name_prefix = ''
 
       ! Models constituents: links to variables, coupling requests, parameters, expressions
-      type (type_link),              pointer :: first_link => null()
+      type (type_link),              pointer :: first_link               => null()
       type (type_aggregate_variable),pointer :: first_aggregate_variable => null()
 
+      type (type_coupling_list)       :: couplings
       type (type_property_dictionary) :: parameters
       type (type_set)                 :: retrieved_parameters, missing_parameters
 
@@ -551,7 +411,6 @@
       procedure :: register_bulk_state_dependency_old
       procedure :: register_bottom_state_dependency_old
       procedure :: register_surface_state_dependency_old
-      procedure :: register_model_dependency
 
       procedure :: add_bulk_variable
       procedure :: add_horizontal_variable
@@ -609,6 +468,7 @@
 
       ! Providing process rates and diagnostics in pelagic, at surface, and at bottom.
       procedure :: do                       => base_do
+      procedure :: do_check_conservation    => base_do_check_conservation
       procedure :: do_bottom                => base_do_bottom
       procedure :: do_surface               => base_do_surface
       procedure :: do_ppdd                  => base_do_ppdd
@@ -637,6 +497,9 @@
       procedure :: do_benthos_ppdd          => base_do_benthos_ppdd      ! superceded by do_bottom_ppdd
       procedure :: get_surface_exchange     => base_get_surface_exchange ! superceded by do_surface
 
+      ! Hooks called by FABM - usable by inheriting models
+      procedure :: before_coupling => base_before_coupling
+      procedure :: after_coupling  => base_after_coupling
    end type type_base_model
 
    ! ====================================================================================================
@@ -645,8 +508,9 @@
 
    type type_environment
       ! Declare the arrays for diagnostic variable values.
-      real(rk),allocatable _DIMENSION_GLOBAL_PLUS_1_            :: diag    
-      real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: diag_hz 
+      real(rk),allocatable _DIMENSION_GLOBAL_PLUS_1_            :: diag
+      real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: diag_hz
+      integer                                                   :: nstate
 
 #ifdef _FABM_MASK_
       _FABM_MASK_TYPE_,pointer _DIMENSION_GLOBAL_ :: mask => null()
@@ -671,8 +535,6 @@
    end type
 
    class (type_base_model_factory),pointer,save,public :: factory => null()
-
-   class (type_base_driver),pointer,save,public :: driver => null()
 
    type type_component
       character(len=attribute_length) :: name   = ''
@@ -718,31 +580,10 @@
    ! Interfaces
    ! ====================================================================================================
 
-   interface create_external_variable_id
-      module procedure create_external_bulk_id
-      module procedure create_external_horizontal_id
-      module procedure create_external_scalar_id
-      module procedure create_external_bulk_id_for_standard_name
-      module procedure create_external_horizontal_id_for_standard_name
-      module procedure create_external_scalar_id_for_standard_name
-   end interface
-
    interface append_data_pointer
       module procedure append_bulk_data_pointer
       module procedure append_horizontal_data_pointer
       module procedure append_scalar_data_pointer
-   end interface
-
-   interface compare_standard_variables
-      module procedure compare_bulk_standard_variables
-      module procedure compare_horizontal_standard_variables
-      module procedure compare_global_standard_variables
-   end interface
-   
-   interface is_null_standard_variable
-      module procedure is_null_bulk_standard_variable
-      module procedure is_null_horizontal_standard_variable
-      module procedure is_null_global_standard_variable
    end interface
 
 !-----------------------------------------------------------------------
@@ -769,6 +610,52 @@
    subroutine base_do(self,_ARGUMENTS_DO_)
       class (type_base_model),intent(in) ::  self
       _DECLARE_ARGUMENTS_DO_
+   end subroutine
+
+   subroutine base_do_check_conservation(self,_ARGUMENTS_DO_)
+      class (type_base_model),intent(in) :: self
+      _DECLARE_ARGUMENTS_DO_
+
+      real(rk) _DIMENSION_SLICE_AUTOMATIC_ :: current_sum
+      real(rk) _DIMENSION_SLICE_PLUS_1_,allocatable :: dy
+      integer :: index,i
+      real(rk) :: scale_factor
+      type (type_aggregate_variable),pointer :: aggregate_variable
+
+      ! Fist compute sink and source terms and add them to target array (rhs).
+      ! NB it is relatively fast to allocate and zero the array every time, because
+      ! most compilers then create a zero-on-write array that is efficient for sparse access
+      ! (access here is sparse - individual models will tend to write to subsets of dy only).
+      ! This appears to be more efficient than prior allocation at startup, and explicitly
+      ! zeroing every time.
+      allocate(dy(_SIZE_SLICE_ environment%nstate))
+      dy = 0.0_rk
+      call self%do(_ARGUMENTS_ND_,dy)
+      rhs = rhs + dy
+
+      ! Now compute sink/source contributions for the different aggregate quantities.
+      aggregate_variable => self%first_aggregate_variable
+      do while (associated(aggregate_variable))
+         if (_VARIABLE_REGISTERED_(aggregate_variable%id_rate)) then
+            ! First set sum to zero across spatial domain
+            current_sum = 0.0_rk
+
+            ! Add contributions of all state variables
+            do i=1,size(aggregate_variable%state_indices)
+               index = aggregate_variable%state_indices(i)
+               scale_factor = aggregate_variable%state_scale_factors(i)
+               _LOOP_BEGIN_
+                  current_sum _INDEX_OUTPUT_ = current_sum _INDEX_OUTPUT_ + scale_factor*dy _INDEX_OUTPUT_1D_(index)
+               _LOOP_END_
+            end do
+
+            ! Store sum across spatial domain
+            _LOOP_BEGIN_
+               _SET_DIAG_(aggregate_variable%id_rate,current_sum _INDEX_OUTPUT_)
+            _LOOP_END_
+         end if
+         aggregate_variable => aggregate_variable%next
+      end do
    end subroutine
 
    subroutine base_do_ppdd(self,_ARGUMENTS_DO_PPDD_)
@@ -808,15 +695,15 @@
       real(rk) :: val,curext
 
       ! Use variable-specific light extinction coefficients.
-      do i=1,size(self%state_variables)
-         curext = self%state_variables(i)%specific_light_extinction
-         if (curext/=0.0_rk) then
-            _LOOP_BEGIN_
-               _GET_STATE_EX_(environment,self%state_variables(i)%globalid%p,val)
-               _SET_EXTINCTION_(val*curext)
-            _LOOP_END_
-         end if
-      end do
+      !do i=1,size(self%state_variables)
+      !   curext = self%state_variables(i)%specific_light_extinction
+      !   if (curext/=0.0_rk) then
+      !      _LOOP_BEGIN_
+      !         _GET_STATE_EX_(environment,self%state_variables(i)%globalid%p,val)
+      !         _SET_EXTINCTION_(val*curext)
+      !      _LOOP_END_
+      !   end if
+      !end do
    end subroutine
 
    subroutine base_get_drag(self,_ARGUMENTS_GET_DRAG_)
@@ -864,9 +751,9 @@
       class (type_base_model), intent(in) :: self
       character(len=*),        intent(in) :: location,message
       if (self%name/='') then
-         call driver%fatal_error('model "'//trim(self%name)//'", '//trim(location),message)
+         call fatal_error('model "'//trim(self%name)//'", '//trim(location),message)
       else
-         call driver%fatal_error(location,message)
+         call fatal_error(location,message)
       end if
    end subroutine
 
@@ -874,9 +761,9 @@
       class (type_base_model), intent(in) :: self
       character(len=*),        intent(in) :: message
       if (self%name/='') then
-         call driver%log_message('model "'//trim(self%name)//'": '//message)
+         call log_message('model "'//trim(self%name)//'": '//message)
       else
-         call driver%log_message(message)
+         call log_message(message)
       end if
    end subroutine
 
@@ -899,6 +786,14 @@
    subroutine base_get_surface_exchange(self,_ARGUMENTS_DO_SURFACE_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_SURFACE_
+   end subroutine
+
+   subroutine base_before_coupling(self)
+      class (type_base_model), intent(inout) :: self
+   end subroutine
+
+   subroutine base_after_coupling(self)
+      class (type_base_model), intent(inout) :: self
    end subroutine
 
 !-----------------------------------------------------------------------
@@ -942,28 +837,28 @@
 !EOC
 
    subroutine set_variable_property_real(self,variable,name,value)
-      class (type_base_model),intent(inout) :: self
-      class (type_id),        intent(inout) :: variable
-      character(len=*),       intent(in)    :: name
-      real(rk),               intent(in)    :: value
+      class (type_base_model), intent(inout) :: self
+      class (type_variable_id),intent(inout) :: variable
+      character(len=*),        intent(in)    :: name
+      real(rk),                intent(in)    :: value
       if (.not.associated(variable%link)) call self%fatal_error('set_variable_property_real','variable has not been registered')
       call variable%link%target%properties%set_real(name,value)
    end subroutine
 
    subroutine set_variable_property_integer(self,variable,name,value)
-      class (type_base_model),intent(inout) :: self
-      class (type_id),        intent(inout) :: variable
-      character(len=*),       intent(in)    :: name
-      integer,                intent(in)    :: value
+      class (type_base_model), intent(inout) :: self
+      class (type_variable_id),intent(inout) :: variable
+      character(len=*),        intent(in)    :: name
+      integer,                 intent(in)    :: value
       if (.not.associated(variable%link)) call self%fatal_error('set_variable_property_integer','variable has not been registered')
       call variable%link%target%properties%set_integer(name,value)
    end subroutine
 
    subroutine set_variable_property_logical(self,variable,name,value)
-      class (type_base_model),intent(inout) :: self
-      class (type_id),        intent(inout) :: variable
-      character(len=*),       intent(in)    :: name
-      logical,                intent(in)    :: value
+      class (type_base_model), intent(inout) :: self
+      class (type_variable_id),intent(inout) :: variable
+      character(len=*),        intent(in)    :: name
+      logical,                 intent(in)    :: value
       if (.not.associated(variable%link)) call self%fatal_error('set_variable_property_logical','variable has not been registered')
       call variable%link%target%properties%set_logical(name,value)
    end subroutine
@@ -971,7 +866,7 @@
    subroutine add_to_aggregate_variable(self,target,variable_id,scale_factor)
       class (type_base_model),           intent(inout) :: self
       type (type_bulk_standard_variable),intent(in)    :: target
-      class (type_id),                   intent(inout) :: variable_id
+      class (type_variable_id),          intent(inout) :: variable_id
       real(rk),optional,                 intent(in)    :: scale_factor
 
       if (.not.associated(variable_id%link)) &
@@ -994,19 +889,24 @@
       type (type_contribution),pointer :: contribution
 
       if (.not.associated(self%first)) then
+         ! Add first contribution
          allocate(self%first)
          contribution => self%first
       else
+         ! First determine whether a contribution of this target variable already exists.
          contribution => self%first
          do while (associated(contribution))
-            if (compare_standard_variables(target,contribution%target)) exit
+            if (target%compare(contribution%target)) exit
             contribution => contribution%next
          end do
          if (.not.associated(contribution)) then
+            ! First find tail of existing linked list.
             contribution => self%first
             do while (associated(contribution%next))
                contribution => contribution%next
             end do
+
+            ! Append contribution to end of list.
             allocate(contribution%next)
             contribution => contribution%next
          end if
@@ -1133,9 +1033,9 @@ function create_link(self,target,name,merge,owner) result(link)
 end function create_link
 
 recursive subroutine add_alias(self,target,name)
-   class (type_base_model),            intent(inout) :: self
-   class (type_id),                    intent(in)    :: target
-   character(len=*),                   intent(in)    :: name
+   class (type_base_model), intent(inout) :: self
+   class (type_variable_id),intent(in)    :: target
+   character(len=*),        intent(in)    :: name
 
    type (type_link),pointer :: link
 
@@ -1143,41 +1043,106 @@ recursive subroutine add_alias(self,target,name)
    if (associated(self%parent)) call self%parent%add_alias(target,trim(self%name_prefix)//trim(name))
 end subroutine
 
-subroutine request_coupling_for_link(self,link,master,required,source)
+subroutine coupling_list_add(self,coupling)
+   class (type_coupling_list),intent(inout) :: self
+   class (type_coupling),pointer            :: coupling
+
+   class (type_coupling),pointer :: current_coupling,previous_coupling
+
+   if (.not.associated(self%first)) then
+      ! No couplings yet - add the first.
+      self%first => coupling
+   else
+      ! Try to find existing coupling for this slave.
+      nullify(previous_coupling)
+      current_coupling => self%first
+      do while (associated(current_coupling))
+         if (current_coupling%slave==coupling%slave) exit
+         previous_coupling => current_coupling
+         current_coupling => current_coupling%next
+      end do
+
+      if (associated(current_coupling)) then
+         ! Coupling for this slave exists - replace it.
+         coupling%next => current_coupling%next
+         if (associated(previous_coupling)) then
+            previous_coupling%next => coupling
+         else
+            self%first => coupling
+         end if
+         deallocate(current_coupling)
+      else
+         ! Coupling for this slave does not exist yet - add it.
+         current_coupling => self%first
+         do while (associated(current_coupling%next))
+            current_coupling => current_coupling%next
+         end do
+         current_coupling%next => coupling
+      end if
+   end if
+
+end subroutine
+
+function coupling_list_find(self,slave,remove) result(coupling)
+   class (type_coupling_list),intent(inout) :: self
+   character(len=*),          intent(in)    :: slave
+   logical,optional,          intent(in)    :: remove
+   class (type_coupling),pointer            :: coupling
+
+   class (type_coupling),pointer            :: previous_coupling
+   logical                                  :: remove_eff
+
+   remove_eff = .false.
+   if (present(remove)) remove_eff = remove
+
+   nullify(previous_coupling)
+   coupling => self%first
+   do while (associated(coupling))
+      if (coupling%slave==slave) exit
+      previous_coupling => coupling
+      coupling => coupling%next
+   end do
+
+   if (associated(coupling).and.remove_eff) then
+      ! Remove the coupling command from the list, as requested.
+      if (.not.associated(previous_coupling)) then
+         self%first => coupling%next
+      else
+         previous_coupling%next => coupling%next
+      end if
+   end if
+end function
+
+subroutine request_coupling_for_link(self,link,master,required)
    class (type_base_model),intent(inout)              :: self
    type (type_link),       intent(inout)              :: link
    character(len=*),       intent(in)                 :: master
    logical,optional,       intent(in)                 :: required
-   type (type_model_id),   intent(in),target,optional :: source
 
-   link%coupling%master = master
-   link%coupling%required = .true.
-   nullify(link%coupling%source)
-   if (present(required)) link%coupling%required = required
-   if (present(source)) link%coupling%source => source%model
+   call self%request_coupling(link%name,master,required)
 end subroutine request_coupling_for_link
 
-subroutine request_coupling_for_name(self,slave,master,required,source)
+subroutine request_coupling_for_name(self,slave,master,required)
    class (type_base_model),intent(inout)              :: self
    character(len=*),       intent(in)                 :: slave,master
    logical,optional,       intent(in)                 :: required
-   type (type_model_id),   intent(in),target,optional :: source
 
-   type (type_link),pointer :: link
+   class (type_coupling),pointer :: coupling
 
-   link => self%find_link(slave)
-   if (.not.associated(link)) call self%fatal_error('request_coupling_for_name','Variable "'//trim(slave)//'" was not found.')
-   call self%request_coupling(link,master,required,source)
+   allocate(coupling)
+   coupling%slave = slave
+   coupling%master = master
+   if (present(required)) coupling%required = required
+   call self%couplings%add(coupling)
 end subroutine request_coupling_for_name
 
-subroutine request_coupling_for_id(self,id,master,required,source)
-   class (type_base_model),intent(inout)              :: self
-   class (type_id),        intent(inout)              :: id
-   character(len=*),       intent(in)                 :: master
-   logical,optional,       intent(in)                 :: required
-   type (type_model_id),   intent(in),target,optional :: source
+subroutine request_coupling_for_id(self,id,master,required)
+   class (type_base_model), intent(inout) :: self
+   class (type_variable_id),intent(inout) :: id
+   character(len=*),        intent(in)    :: master
+   logical,optional,        intent(in)    :: required
 
-   call self%request_coupling(id%link,master,required,source)
+   call self%request_coupling(id%link,master,required)
 end subroutine request_coupling_for_id
 
 subroutine integer_pointer_set_append(self,value)
@@ -1358,33 +1323,6 @@ subroutine append_scalar_data_pointer(array,data)
    array(size(array))%p = array(1)%p
 end subroutine append_scalar_data_pointer
 
-subroutine append_model_pointer(array,data)
-   type (type_model_pointer_pointer),allocatable :: array(:)
-   type (type_model_pointer),target :: data
-   type (type_model_pointer_pointer),allocatable :: oldarray(:)
-   integer :: i
-
-   ! Create a new list of data pointers, or extend it if already allocated.
-   if (.not.allocated(array)) then
-      allocate(array(1))
-   else
-      do i=1,size(array)
-         if (associated(array(i)%p,data)) return
-      end do
-
-      allocate(oldarray(size(array)))
-      oldarray = array
-      deallocate(array)
-      allocate(array(size(oldarray)+1))
-      array(1:size(oldarray)) = oldarray
-      deallocate(oldarray)
-   end if
-
-   ! Add pointer to provided data to the list.
-   array(size(array))%p => data
-   array(size(array))%p%p => array(1)%p%p
-end subroutine append_model_pointer
-
 subroutine append_string(array,string,exists)
    character(len=attribute_length),dimension(:),allocatable :: array
    character(len=*),intent(in) :: string
@@ -1414,6 +1352,45 @@ subroutine append_string(array,string,exists)
    if (present(exists)) exists = .false.
 end subroutine append_string
 
+recursive subroutine before_coupling(self)
+   class (type_base_model),intent(inout),target :: self
+
+   type (type_model_list_node), pointer :: node
+
+   call self%before_coupling()
+   node => self%children%first
+   do while (associated(node))
+      call before_coupling(node%model)
+      node => node%next
+   end do
+end subroutine
+
+recursive subroutine after_coupling(self)
+   class (type_base_model),intent(inout),target :: self
+
+   type (type_model_list_node), pointer :: node
+
+   call self%after_coupling()
+   node => self%children%first
+   do while (associated(node))
+      call after_coupling(node%model)
+      node => node%next
+   end do
+end subroutine
+
+recursive subroutine freeze(self)
+   class (type_base_model),intent(inout),target :: self
+
+   type (type_model_list_node), pointer :: node
+
+   self%frozen = .true.
+   node => self%children%first
+   do while (associated(node))
+      call freeze(node%model)
+      node => node%next
+   end do
+end subroutine
+
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -1435,39 +1412,19 @@ end subroutine append_string
 !  Original author(s): Jorn Bruggeman
 !
 !EOP
-   type (type_link),pointer :: link
    type (type_aggregate_variable),pointer :: aggregate_variable
 !-----------------------------------------------------------------------
 !BOC
       if (associated(self%parent)) call self%fatal_error('freeze_model_info', &
          'BUG: freeze_model_info can only operate on the root model.')
 
-      ! First resolve model references, needed during variable coupling.
-      ! Stage 1: resolve indirect references (references to other references)
-      ! Stage 2: resolve direct references to models
-      call process_coupling_tasks(self,process_model_references=.true.)
-      call resolve_model_references(self)
+      call before_coupling(self)
 
-      ! Determine whether all model references have been resolved.
-      ! (resolve_model_references only processes references with explicit coupling requests,
-      ! potentially leaving those without coupling request anywhere in the model tree uncoupled.)
-      link => self%first_link
-      do while (associated(link))
-         if (link%owner) then
-            select type (slave=>link%target)
-               class is (type_model_reference)
-                  if (.not.associated(slave%pointers(1)%p%p)) &
-                     call self%fatal_error('freeze_model_info','Model reference "'//trim(link%name)//'" was not coupled to an actual model.')
-            end select
-         end if
-         link => link%next
-      end do
-      
       ! Now couple model variables
       ! Stage 1: implicit - couple variables based on overlapping standard identities.
       ! Stage 2: explicit - resolve user- or model-specified links between variables.
       call couple_standard_variables(self)
-      call process_coupling_tasks(self,process_model_references=.false.)
+      call process_coupling_tasks(self)
 
       ! Create models for aggregate variables at root level, to be used to compute conserved quantities
       call build_aggregate_variables(self)
@@ -1476,14 +1433,14 @@ end subroutine append_string
          call create_aggregate_model(self,aggregate_variable)
          aggregate_variable => aggregate_variable%next
       end do
-      call process_coupling_tasks(self,process_model_references=.false.)
+
+      ! Try coupling again, because we now have additional aggregate variables available.
+      call process_coupling_tasks(self)
 
       ! Add arrays with state variable identifiers to model references (this requires variable coupling to be complete!)
-      call complete_model_references(self)
+      call after_coupling(self)
 
-      ! Build final authorative arrays with variable metadata .
-      call classify_variables(self)
-
+      call freeze(self)
    end subroutine freeze_model_info
 !EOC
 
@@ -1558,6 +1515,8 @@ end subroutine append_string
 
       id%link => self%add_bulk_variable(variable)
 
+      if (present(specific_light_extinction)) &
+         call self%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux,id,scale_factor=specific_light_extinction)
    end subroutine register_bulk_state_variable
 !EOC
 
@@ -2317,51 +2276,6 @@ end subroutine append_string
    end subroutine register_global_dependency
 !EOC
 
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Registers a dependency on another model.
-!
-! !INTERFACE:
-   subroutine register_model_dependency(self,id,name)
-!
-! !DESCRIPTION:
-!  This function searches for a biogeochemical state variable by the user-supplied name
-!  in the global model database. It returns the identifier of the variable (or -1 if
-!  the variable is not found), which may be used to retrieve the variable value at a later stage.
-!
-! !INPUT/OUTPUT PARAMETERS:
-      class (type_base_model), intent(inout)        :: self
-      type (type_model_id),    intent(inout),target :: id
-!
-! !INPUT PARAMETERS:
-      character(len=*),        intent(in)           :: name
-!
-!EOP
-!
-! !LOCAL VARIABLES:
-      type (type_model_reference), pointer :: reference
-      class (type_internal_object),pointer :: object
-!
-!-----------------------------------------------------------------------
-!BOC
-      ! Check whether the model information may be written to (only during initialization)
-      if (self%frozen) call self%fatal_error('register_model_dependency',&
-         'Dependencies may only be registered during initialization.')
-
-      allocate(reference)
-      reference%name = name
-
-      if (associated(id%link)) call self%fatal_error(':register_model_dependency', &
-         'Model identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
-      call append_model_pointer(reference%pointers,id%model)
-
-      object => reference
-      id%link => self%add_object(object)
-
-   end subroutine register_model_dependency
-!EOC
-
 subroutine register_bulk_expression_dependency(self,id,expression)
    class (type_base_model),       intent(inout)        :: self
    type (type_dependency_id),     intent(inout),target :: id
@@ -2723,7 +2637,7 @@ end subroutine add_parameter
       do while (associated(link))
          select type (object=>link%target)
             class is (type_bulk_variable)
-               if (.not.is_null_standard_variable(object%standard_variable)) then
+               if (.not.object%standard_variable%is_null()) then
                   call append_string(processed_bulk,object%standard_variable%name,exists=exists)
                   if (.not.exists) then
                      bulk_standard_variable = object%standard_variable  ! make a copy here, because object may be deallocated later from couple_variables
@@ -2731,8 +2645,7 @@ end subroutine add_parameter
                      do while (associated(link2))
                         select type (object2=>link2%target)
                            class is (type_bulk_variable)
-                              if (compare_standard_variables(bulk_standard_variable,object2%standard_variable) .and. .not. &
-                                  is_null_standard_variable(object2%standard_variable)) then
+                              if (bulk_standard_variable%compare(object2%standard_variable).and..not.object2%standard_variable%is_null()) then
                                  if (object2%write_indices%is_empty()) then
                                     call couple_variables(model,link%target,link2%target)
                                  else
@@ -2745,7 +2658,7 @@ end subroutine add_parameter
                   end if
                end if
             class is (type_horizontal_variable)
-               if (.not.is_null_standard_variable(object%standard_variable)) then
+               if (.not.object%standard_variable%is_null()) then
                   call append_string(processed_horizontal,object%standard_variable%name,exists=exists)
                   if (.not.exists) then
                      horizontal_standard_variable = object%standard_variable  ! make a copy here, because object may be deallocated later from couple_variables
@@ -2753,8 +2666,7 @@ end subroutine add_parameter
                      do while (associated(link2))
                         select type (object2=>link2%target)
                            class is (type_horizontal_variable)
-                              if (compare_standard_variables(horizontal_standard_variable,object2%standard_variable) .and. .not. &
-                                  is_null_standard_variable(object2%standard_variable)) then
+                              if (horizontal_standard_variable%compare(object2%standard_variable).and..not.object2%standard_variable%is_null()) then
                                  if (object2%write_indices%is_empty()) then
                                     call couple_variables(model,link%target,link2%target)
                                  else
@@ -2767,7 +2679,7 @@ end subroutine add_parameter
                   end if
                end if
             class is (type_scalar_variable)
-               if (.not.is_null_standard_variable(object%standard_variable)) then
+               if (.not.object%standard_variable%is_null()) then
                   call append_string(processed_scalar,object%standard_variable%name,exists=exists)
                   if (.not.exists) then
                      global_standard_variable = object%standard_variable  ! make a copy here, because object may be deallocated later from couple_variables
@@ -2775,8 +2687,7 @@ end subroutine add_parameter
                      do while (associated(link2))
                         select type (object2=>link2%target)
                            class is (type_scalar_variable)
-                              if (compare_standard_variables(global_standard_variable,object2%standard_variable) .and. .not. &
-                                  is_null_standard_variable(object2%standard_variable)) then
+                              if (global_standard_variable%compare(object2%standard_variable).and..not.object2%standard_variable%is_null()) then
                                  if (object2%write_indices%is_empty()) then
                                     call couple_variables(model,link%target,link2%target)
                                  else
@@ -2805,13 +2716,12 @@ end subroutine add_parameter
 ! !IROUTINE: Process all model-specific coupling tasks.
 !
 ! !INTERFACE:
-   recursive subroutine process_coupling_tasks(self,process_model_references)
+   recursive subroutine process_coupling_tasks(self)
 !
 ! !DESCRIPTION:
 !
 ! !INPUT PARAMETERS:
       class (type_base_model),intent(inout),target :: self
-      logical,                intent(in)           :: process_model_references
 !
 !EOP
 !
@@ -2819,7 +2729,7 @@ end subroutine add_parameter
       class (type_base_model),     pointer :: root
       type (type_model_list_node), pointer :: child
       type (type_link),            pointer :: link
-      logical                              :: attempt_coupling
+      class (type_coupling),       pointer :: coupling
       class (type_internal_object),pointer :: master
 !
 !-----------------------------------------------------------------------
@@ -2831,87 +2741,39 @@ end subroutine add_parameter
       end do
 
       ! Enumerate named couplings, locate slave and target variables, and couple them.
-      link => self%first_link
-      do while (associated(link))
-         if (link%coupling%master/='') then
-            select type (slave=>link%target)
-               class is (type_model_reference)
-                  attempt_coupling = process_model_references
-               class default
-                  attempt_coupling = .not.process_model_references
-            end select
-            if (attempt_coupling) then
-               ! Try to find master variable.
-               if (associated(link%coupling%source)) then
-                  ! Try to find the master variable among the links of the specified model.
-                  master => link%coupling%source%p%find_object(link%coupling%master)
-               else
-                  ! Try to find the master variable among the variables of the requesting model or its parents.
-                  if (link%name/=link%coupling%master) then
-                     ! Master and slave name differ: start master search in current model, then move up tree.
-                     master => self%find_object(link%coupling%master,recursive=.true.)
-                  elseif (associated(self%parent)) then
-                     ! Master and slave name are identical: start master search in parent model, then move up tree.
-                     master => self%parent%find_object(link%coupling%master,recursive=.true.)
-                  end if
-               end if
-               if (associated(master)) then
-                  ! Target variable found: perform the coupling.
-                  call couple_variables(root,master,link%target)
-               elseif (link%coupling%required.and..not.process_model_references) then
-                  call self%fatal_error('process_coupling_tasks','Coupling target "'//trim(link%coupling%master)//'" for "'//trim(link%name)//'" was not found.')
-               end if
-            end if
-         end if   ! if coupling
-         link => link%next
+      coupling => self%couplings%first
+      do while (associated(coupling))
+         ! First locate the slave variable
+         link => self%find_link(coupling%slave)
+         if (.not.associated(link)) &
+            call self%fatal_error('process_coupling_tasks','Slave variable "'//trim(coupling%slave)//'" was not found.')
+
+         ! Try to find the master variable among the variables of the requesting model or its parents.
+         if (coupling%slave/=coupling%master) then
+            ! Master and slave name differ: start master search in current model, then move up tree.
+            master => self%find_object(coupling%master,recursive=.true.)
+         elseif (associated(self%parent)) then
+            ! Master and slave name are identical: start master search in parent model, then move up tree.
+            master => self%parent%find_object(coupling%master,recursive=.true.)
+         end if
+         if (associated(master)) then
+            ! Target variable found: perform the coupling.
+            call couple_variables(root,master,link%target)
+         elseif (coupling%required) then
+            call self%fatal_error('process_coupling_tasks','Coupling target "'//trim(coupling%master)//'" for "'//trim(coupling%slave)//'" was not found.')
+         end if
+         coupling => coupling%next
       end do
 
       ! Process coupling tasks registered with child models.
       child => self%children%first
       do while (associated(child))
-         call process_coupling_tasks(child%model,process_model_references)
+         call process_coupling_tasks(child%model)
          child => child%next
       end do
 
    end subroutine process_coupling_tasks
 !EOC
-
-recursive subroutine resolve_model_references(self)
-   class (type_base_model),intent(inout),target :: self
-
-   type (type_link),            pointer :: link
-   class (type_base_model),     pointer :: model
-   type (type_model_list_node), pointer :: child
-   integer                              :: i
-
-   ! Note: this routine MUST be called recursively on each model,
-   ! because links can only be resolved locally (based on their local name).
-   ! The root-level link name is not the same as the name of the model that must be coupled to.
-
-   ! Check our own coupling commands.
-   link => self%first_link
-   do while (associated(link))
-      if (link%coupling%master/=''.and.link%owner) then
-         select type (slave=>link%target)
-            class is (type_model_reference)
-               model => self%find_model(link%coupling%master,recursive=.true.)
-               if (link%coupling%required.and..not.associated(model)) &
-                  call self%fatal_error('resolve_model_references','Target model "'//trim(link%coupling%master)//'" for "'//trim(link%name)//'" was not found.')
-               do i=1,size(slave%pointers)
-                  slave%pointers(i)%p%p => model
-               end do
-         end select
-      end if
-      link => link%next
-   end do
-
-   ! Now process child models
-   child => self%children%first
-   do while (associated(child))
-      call resolve_model_references(child%model)
-      child => child%next
-   end do
-end subroutine resolve_model_references
 
 recursive subroutine redirect_links(model,oldtarget,newtarget)
    class (type_base_model),     intent(inout),target :: model
@@ -2973,14 +2835,14 @@ subroutine merge_variables(master,slave)
    class (type_internal_object),intent(inout) :: master
    class (type_internal_object),intent(in)    :: slave
 
-   call driver%log_message(trim(slave%name)//' --> '//trim(master%name))
+   call log_message(trim(slave%name)//' --> '//trim(master%name))
    select type (master)
       class is (type_bulk_variable)
          select type (slave)
             class is (type_bulk_variable)
                call merge_bulk_variables(master,slave)
             class is (type_internal_object) ! class default would be preferable but breaks the next line with Cray 8.1
-               call driver%fatal_error('merge_variables', &
+               call fatal_error('merge_variables', &
                   'type mismatch: '//trim(master%name)//' is defined on the whole domain, '//trim(slave%name)//' is not.')
          end select      
       class is (type_horizontal_variable)
@@ -2988,7 +2850,7 @@ subroutine merge_variables(master,slave)
             class is (type_horizontal_variable)
                call merge_horizontal_variables(master,slave)
             class is (type_internal_object) ! class default would be preferable but breaks the next line with Cray 8.1
-               call driver%fatal_error('merge_variables', &
+               call fatal_error('merge_variables', &
                   'type mismatch: '//trim(master%name)//' is defined on the horizontal domain, '//trim(slave%name)//' is not.')
          end select      
       class is (type_scalar_variable)
@@ -2996,16 +2858,8 @@ subroutine merge_variables(master,slave)
             class is (type_scalar_variable)
                call merge_scalar_variables(master,slave)
             class is (type_internal_object) ! class default would be preferable but breaks the next line with Cray 8.1
-               call driver%fatal_error('merge_variables', &
+               call fatal_error('merge_variables', &
                   'type mismatch: '//trim(master%name)//' is defined as a scalar, '//trim(slave%name)//' is not.')
-         end select      
-      class is (type_model_reference)
-         select type (slave)
-            class is (type_model_reference)
-               call merge_model_references(master,slave)
-            class is (type_internal_object) ! class default would be preferable but breaks the next line with Cray 8.1
-               call driver%fatal_error('merge_variables', &
-                  'type mismatch: '//trim(master%name)//' is as model reference, '//trim(slave%name)//' is not.')
          end select      
    end select
 end subroutine
@@ -3017,13 +2871,13 @@ subroutine merge_internal_variables(master,slave)
    type (type_contribution), pointer :: contribution
 
    if (.not.slave%write_indices%is_empty()) &
-      call driver%fatal_error('merge_internal_variables','Attempt to couple write-only variable ' &
+      call fatal_error('merge_internal_variables','Attempt to couple write-only variable ' &
          //trim(slave%name)//' to '//trim(master%name)//'.')
    if (master%state_indices%is_empty().and..not.slave%state_indices%is_empty()) &
-      call driver%fatal_error('merge_internal_variables','Attempt to couple state variable ' &
+      call fatal_error('merge_internal_variables','Attempt to couple state variable ' &
          //trim(slave%name)//' to non-state variable '//trim(master%name)//'.')
    if (master%presence==presence_external_optional) &
-      call driver%fatal_error('merge_internal_variables','Attempt to couple to optional master variable "'//trim(master%name)//'".')
+      call fatal_error('merge_internal_variables','Attempt to couple to optional master variable "'//trim(master%name)//'".')
 
    call master%state_indices%extend(slave%state_indices)
    call master%background_values%extend(slave%background_values)
@@ -3054,7 +2908,7 @@ subroutine merge_horizontal_variables(master,slave)
    integer :: i
    
    if (slave%domain/=master%domain) then
-      call driver%fatal_error('merge_horizontal_variables','Domains of coupled variabled ' &
+      call fatal_error('merge_horizontal_variables','Domains of coupled variabled ' &
          //trim(slave%name)//' to '//trim(master%name)//' do not match.')
    end if
    call merge_internal_variables(master,slave)
@@ -3077,16 +2931,6 @@ subroutine merge_scalar_variables(master,slave)
       end do
    end if
 end subroutine merge_scalar_variables
-
-subroutine merge_model_references(master,slave)
-   type (type_model_reference),intent(inout) :: master
-   type (type_model_reference),intent(in)    :: slave
-   integer :: i
-
-   do i=1,size(slave%pointers)
-      call append_model_pointer(master%pointers,slave%pointers(i)%p)
-   end do
-end subroutine merge_model_references
 
    function find_object(self,name,recursive) result(object)
 
@@ -3167,189 +3011,6 @@ end subroutine merge_model_references
       if (recursive_eff.and.associated(self%parent)) found_model => self%parent%find_model(name,recursive)
    end function find_model
 !EOC
-
-function create_external_bulk_id(model,variable) result(id)
-   class (type_base_model),  intent(in)           :: model
-   type (type_bulk_variable),intent(inout),target :: variable
-   type (type_bulk_variable_id) :: id
-   id%variable => variable
-   if (allocated(variable%alldata)) then
-      allocate(id%alldata(size(variable%alldata)))
-      id%alldata = variable%alldata
-      id%p => id%alldata(1)%p
-   else
-      allocate(id%alldata(0))
-   end if
-   if (.not.variable%state_indices%is_empty()) id%state_index = variable%state_indices%pointers(1)%p
-   if (.not.variable%write_indices%is_empty()) id%write_index = variable%write_indices%pointers(1)%p
-end function create_external_bulk_id
-
-function create_external_horizontal_id(model,variable) result(id)
-   class (type_base_model),        intent(in)           :: model
-   type (type_horizontal_variable),intent(inout),target :: variable
-   type (type_horizontal_variable_id) :: id
-   id%variable => variable
-   if (allocated(variable%alldata)) then
-      allocate(id%alldata(size(variable%alldata)))
-      id%alldata = variable%alldata
-      id%p => id%alldata(1)%p
-   else
-      allocate(id%alldata(0))
-   end if
-   if (.not.variable%state_indices%is_empty()) id%state_index = variable%state_indices%pointers(1)%p
-   if (.not.variable%write_indices%is_empty()) id%write_index = variable%write_indices%pointers(1)%p
-end function create_external_horizontal_id
-
-function create_external_scalar_id(model,variable) result(id)
-   class (type_base_model),    intent(in)           :: model
-   type (type_scalar_variable),intent(inout),target :: variable
-   type (type_scalar_variable_id) :: id
-   id%variable => variable
-   if (allocated(variable%alldata)) then
-      allocate(id%alldata(size(variable%alldata)))
-      id%alldata = variable%alldata
-      id%p => id%alldata(1)%p
-   else
-      allocate(id%alldata(0))
-   end if
-   if (.not.variable%state_indices%is_empty()) id%state_index = variable%state_indices%pointers(1)%p
-   if (.not.variable%write_indices%is_empty()) id%write_index = variable%write_indices%pointers(1)%p
-end function create_external_scalar_id
-
-function compare_bulk_standard_variables(variable1,variable2) result(equal)
-   type (type_bulk_standard_variable),intent(in) :: variable1,variable2
-   logical :: equal
-
-   equal = .false.
-   if (variable1%name /='' .and. variable2%name /='' .and. variable1%name /=variable2%name ) return
-   if (variable1%units/='' .and. variable2%units/='' .and. variable1%units/=variable2%units) return
-   equal = .true.
-end function compare_bulk_standard_variables
-
-function compare_horizontal_standard_variables(variable1,variable2) result(equal)
-   type (type_horizontal_standard_variable),intent(in) :: variable1,variable2
-   logical :: equal
-
-   equal = .false.
-   if (variable1%name /='' .and. variable2%name /='' .and. variable1%name /=variable2%name ) return
-   if (variable1%units/='' .and. variable2%units/='' .and. variable1%units/=variable2%units) return
-   equal = .true.
-end function compare_horizontal_standard_variables
-
-function compare_global_standard_variables(variable1,variable2) result(equal)
-   type (type_global_standard_variable),intent(in) :: variable1,variable2
-   logical :: equal
-
-   equal = .false.
-   if (variable1%name /='' .and. variable2%name /='' .and. variable1%name /=variable2%name ) return
-   if (variable1%units/='' .and. variable2%units/='' .and. variable1%units/=variable2%units) return
-   equal = .true.
-end function compare_global_standard_variables
-
-function is_null_bulk_standard_variable(variable) result(isnull)
-   type (type_bulk_standard_variable),intent(in) :: variable
-   logical :: isnull
-
-   isnull = (variable%name==''.and. variable%units=='')
-end function
-
-function is_null_horizontal_standard_variable(variable) result(isnull)
-   type (type_horizontal_standard_variable),intent(in) :: variable
-   logical :: isnull
-
-   isnull = (variable%name==''.and. variable%units=='')
-end function
-
-function is_null_global_standard_variable(variable) result(isnull)
-   type (type_global_standard_variable),intent(in) :: variable
-   logical :: isnull
-
-   isnull = (variable%name==''.and. variable%units=='')
-end function
-
-function create_external_bulk_id_for_standard_name(model,standard_variable) result(id)
-   class (type_base_model),           intent(in) :: model
-   type (type_bulk_standard_variable),intent(in) :: standard_variable
-   type (type_bulk_variable_id)                  :: id
-
-   type (type_link), pointer :: link
-   integer                   :: i
-
-   allocate(id%alldata(0))
-   link => model%first_link
-   do while (associated(link))
-      select type (object=>link%target)
-         class is (type_bulk_variable)
-            if (compare_standard_variables(object%standard_variable,standard_variable).and. &
-                .not.is_null_standard_variable(object%standard_variable)) then
-               if (allocated(object%alldata)) then
-                  do i=1,size(object%alldata)
-                     call append_data_pointer(id%alldata,object%alldata(i)%p)
-                  end do
-               end if
-               id%variable => object
-            end if
-      end select    
-      link => link%next
-   end do
-   if (size(id%alldata)>0) id%p => id%alldata(1)%p
-end function create_external_bulk_id_for_standard_name
-
-function create_external_horizontal_id_for_standard_name(model,standard_variable) result(id)
-   class (type_base_model),                 intent(in) :: model
-   type (type_horizontal_standard_variable),intent(in) :: standard_variable
-   type (type_horizontal_variable_id)                  :: id
-
-   type (type_link), pointer :: link
-   integer                   :: i
-
-   allocate(id%alldata(0))
-   link => model%first_link
-   do while (associated(link))
-      select type (object=>link%target)
-         class is (type_horizontal_variable)
-            if (compare_standard_variables(object%standard_variable,standard_variable).and. &
-                .not.is_null_standard_variable(object%standard_variable)) then
-               if (allocated(object%alldata)) then
-                  do i=1,size(object%alldata)
-                     call append_data_pointer(id%alldata,object%alldata(i)%p)
-                  end do
-               end if
-               id%variable => object
-            end if
-      end select
-      link => link%next
-   end do
-   if (size(id%alldata)>0) id%p => id%alldata(1)%p
-end function create_external_horizontal_id_for_standard_name
-
-function create_external_scalar_id_for_standard_name(model,standard_variable) result(id)
-   class (type_base_model),             intent(in) :: model
-   type (type_global_standard_variable),intent(in) :: standard_variable
-   type (type_scalar_variable_id)                  :: id
-
-   type (type_link), pointer :: link
-   integer                   :: i
-
-   allocate(id%alldata(0))
-   link => model%first_link
-   do while (associated(link))
-      select type (object=>link%target)
-         class is (type_scalar_variable)
-            if (compare_standard_variables(object%standard_variable,standard_variable).and. &
-                .not.is_null_standard_variable(object%standard_variable)) then
-               if (allocated(object%alldata)) then
-                  do i=1,size(object%alldata)
-                     call append_data_pointer(id%alldata,object%alldata(i)%p)
-                  end do
-               end if
-               id%variable => object
-            end if
-      end select
-      link => link%next
-   end do
-   if (size(id%alldata)>0) id%p => id%alldata(1)%p
-end function create_external_scalar_id_for_standard_name
 
 recursive subroutine build_aggregate_variables(self)
    class (type_base_model),intent(inout),target :: self
@@ -3448,6 +3109,61 @@ contains
 
 end subroutine build_aggregate_variables
 
+recursive subroutine after_assign_indices(self)
+   class (type_base_model),intent(inout),target :: self
+
+   type (type_aggregate_variable),   pointer :: aggregate_variable
+   type (type_contributing_variable),pointer :: contributing_variable
+   type (type_model_list_node),      pointer :: child
+   integer                                   :: nstate
+
+   aggregate_variable => self%first_aggregate_variable
+   do while (associated(aggregate_variable))
+      ! Loop over all contributing quantities, and if they are bulk state variables,
+      ! store their state variable index and scale factor, so we can include them later
+      ! when computing the (change in) conserved quantities from the (change in) state alone.
+
+      ! Count the number of state variables [currently bulk only!] that contribute to the conserved quantity.
+      nstate = 0
+      contributing_variable => aggregate_variable%first_contributing_variable
+      do while (associated(contributing_variable))
+         if (contributing_variable%state_index/=-1) nstate = nstate+1
+         contributing_variable => contributing_variable%next
+      end do
+
+      ! Store the indices and scale factors of bulk state variables that contribute to the aggregate quantity.
+      ! These arrays serve two purposes: (1) they allow for quick lookup of all relevant indices and scale factors,
+      ! without necessitating iterating through a linked list, and (2) the arrays are filtered for duplicates, so that
+      ! each contributing variable appears only once. This is *not* the case for the linked list, as it based on
+      ! links that could point to the same variable (e.g., after coupling).
+      allocate(aggregate_variable%state_indices(nstate))
+      allocate(aggregate_variable%state_scale_factors(nstate))
+      nstate = 0
+      contributing_variable => aggregate_variable%first_contributing_variable
+      do while (associated(contributing_variable))
+         if (contributing_variable%state_index/=-1) then
+            nstate = nstate+1
+            aggregate_variable%state_indices(nstate) = contributing_variable%state_index
+            aggregate_variable%state_scale_factors(nstate) = contributing_variable%scale_factor
+         end if
+         contributing_variable => contributing_variable%next
+      end do
+
+      ! Coupled state variables may have been counted multiple times.
+      ! Remove the resulting duplicate indices, and the associated scale factors.
+      call remove_duplicates(aggregate_variable%state_indices,aggregate_variable%state_scale_factors)
+
+      aggregate_variable => aggregate_variable%next
+   end do
+
+   ! Process child models
+   child => self%children%first
+   do while (associated(child))
+      call after_assign_indices(child%model)
+      child => child%next
+   end do
+end subroutine after_assign_indices
+
 function get_aggregate_variable(self,standard_variable,create) result(aggregate_variable)
    class (type_base_model),           intent(inout) :: self
    type (type_bulk_standard_variable),intent(in)    :: standard_variable
@@ -3469,7 +3185,7 @@ function get_aggregate_variable(self,standard_variable,create) result(aggregate_
       ! First check whether we have already created the desired aggregate variable.
       aggregate_variable => self%first_aggregate_variable
       do while (associated(aggregate_variable))
-         if (compare_standard_variables(aggregate_variable%standard_variable,standard_variable)) return
+         if (aggregate_variable%standard_variable%compare(standard_variable)) return
          aggregate_variable => aggregate_variable%next
       end do
       if (.not.create_eff) return
@@ -3524,258 +3240,6 @@ subroutine create_aggregate_model(self,aggregate_variable)
    if (associated(aggregate_variable%horizontal_sum)) call self%add_child(aggregate_variable%horizontal_sum,trim(aggregate_variable%horizontal_sum%output_name)//'_calculator',configunit=-1)
 end subroutine create_aggregate_model
 
-recursive subroutine classify_variables(self)
-   class (type_base_model),intent(inout),target :: self
-
-   type (type_link),pointer :: link
-
-   type (type_state_variable_info),                pointer :: statevar
-   type (type_horizontal_state_variable_info),     pointer :: hz_statevar
-   type (type_diagnostic_variable_info),           pointer :: diagvar
-   type (type_horizontal_diagnostic_variable_info),pointer :: hz_diagvar
-   type (type_conserved_quantity_info),            pointer :: consvar
-   integer                                                 :: nstate,nstate_bot,nstate_surf,ndiag,ndiag_hz,ncons
-
-   logical :: set_indices
-
-   type (type_model_list_node),       pointer :: child
-   type (type_aggregate_variable),    pointer :: aggregate_variable
-   type (type_contributing_variable), pointer :: contributing_variable
-
-   if (self%frozen) call self%fatal_error('classify_variables', &
-      'classify_variables may only be called once (during initialization).')
-
-   ! Make sure that no one will register any new variables from this moment onward.
-   self%frozen = .true.
-
-   ! Count number of bulk variables in various categories.
-   set_indices = .not.associated(self%parent)
-   nstate = 0
-   ndiag  = 0
-   nstate_bot  = 0
-   nstate_surf = 0
-   ndiag_hz    = 0
-   link => self%first_link
-   do while (associated(link))
-      if (link%owner) then
-         select type (object => link%target)
-            class is (type_bulk_variable)
-               ! This is a variable owned by the model.
-               if (.not.object%write_indices%is_empty()) then
-                  ! This is a diagnostic variable.
-                  ndiag = ndiag+1
-                  if (set_indices) call object%write_indices%set_value(ndiag)
-               end if
-               if (.not.object%state_indices%is_empty()) then
-                  ! This is a state variable.
-                  select case (object%presence)
-                     case (presence_internal)
-                        nstate = nstate+1
-                        if (set_indices) call object%state_indices%set_value(nstate)
-                     case (presence_external_required)
-                        call self%fatal_error('classify_variables','Variable "'//trim(link%name)//'" must be coupled to an existing state variable.')
-                     case default
-                        continue
-                  end select
-               end if
-            class is (type_horizontal_variable)
-               if (.not.object%write_indices%is_empty()) then
-                  ! This is a diagnostic variable.
-                  ndiag_hz = ndiag_hz+1
-                  if (set_indices) call object%write_indices%set_value(ndiag_hz)
-               end if
-               if (.not.object%state_indices%is_empty()) then
-                  ! This is a state variable.
-                  select case (object%presence)
-                     case (presence_internal)
-                        select case (object%domain)
-                           case (domain_bottom)
-                              ! Bottom state variable
-                              nstate_bot = nstate_bot+1
-                              if (set_indices) call object%state_indices%set_value(nstate_bot)
-                           case (domain_surface)
-                              ! Surface state variable
-                              nstate_surf = nstate_surf+1
-                              if (set_indices) call object%state_indices%set_value(nstate_surf)
-                        end select
-                     case (presence_external_required)
-                        call self%fatal_error('classify_variables','Variable "'//trim(link%name)//'" must be coupled to an existing state variable.')
-                  end select
-               end if
-         end select
-      end if
-      link => link%next
-   end do
-
-   ncons = 0
-   aggregate_variable => self%first_aggregate_variable
-   do while (associated(aggregate_variable))
-      ncons = ncons + 1
-      aggregate_variable => aggregate_variable%next
-   end do
-
-   ! Allocate arrays with variable information that will be accessed by the host model.
-   allocate(self%state_variables                (nstate))
-   allocate(self%bottom_state_variables         (nstate_bot))
-   allocate(self%surface_state_variables        (nstate_surf))
-   allocate(self%diagnostic_variables           (ndiag))
-   allocate(self%horizontal_diagnostic_variables(ndiag_hz))
-   allocate(self%conserved_quantities           (ncons))
-
-   ! Create empty lists that will hold the names of all readable variables.
-   allocate(self%dependencies(0))
-   allocate(self%dependencies_hz(0))
-   allocate(self%dependencies_scalar(0))
-
-   ! Set pointers for backward compatibility (pre 2013-06-15)
-   ! Note: this MUST be doen after allocation of the target arrays, above!
-   self%state_variables_ben => self%bottom_state_variables
-   self%diagnostic_variables_hz => self%horizontal_diagnostic_variables
-
-   ! Copy metadata of bulk variables
-   nstate = 0
-   ndiag  = 0
-   ncons  = 0
-   nstate_bot  = 0
-   nstate_surf = 0
-   ndiag_hz    = 0
-   link => self%first_link
-   do while (associated(link))
-      select type (object=>link%target)
-         class is (type_bulk_variable)
-            if (link%owner) then
-               ! The model owns this variable (no external master variable has been assigned)
-               ! Transfer variable information to the array that will be accessed by the host model.
-               if (.not.object%write_indices%is_empty()) then
-                  ndiag = ndiag + 1
-                  diagvar => self%diagnostic_variables(ndiag)
-                  call copy_variable_metadata(object,diagvar)
-                  diagvar%globalid          = create_external_variable_id(self,object)
-                  diagvar%standard_variable = object%standard_variable
-                  diagvar%time_treatment    = output2time_treatment(diagvar%output)
-                  call diagvar%properties%update(object%properties)
-               end if
-
-               if (object%presence==presence_internal.and..not.object%state_indices%is_empty()) then
-                  nstate = nstate + 1
-                  statevar => self%state_variables(nstate)
-                  call copy_variable_metadata(object,statevar)
-                  statevar%globalid                  = create_external_variable_id(self,object)
-                  statevar%standard_variable         = object%standard_variable
-                  statevar%initial_value             = object%initial_value
-                  statevar%vertical_movement         = object%vertical_movement
-                  statevar%specific_light_extinction = object%specific_light_extinction
-                  statevar%no_precipitation_dilution = object%no_precipitation_dilution
-                  statevar%no_river_dilution         = object%no_river_dilution
-               end if
-            end if
-            if (allocated(object%alldata).and..not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
-               call append_string(self%dependencies,link%name)
-               if (object%standard_variable%name/='') call append_string(self%dependencies,object%standard_variable%name)
-            end if
-         class is (type_horizontal_variable)
-            if (link%owner) then
-               ! The model owns this variable (no external master variable has been assigned)
-               ! Transfer variable information to the array that will be accessed by the host model.
-               if (.not.object%write_indices%is_empty()) then
-                  ndiag_hz = ndiag_hz + 1
-                  hz_diagvar => self%horizontal_diagnostic_variables(ndiag_hz)
-                  call copy_variable_metadata(object,hz_diagvar)
-                  hz_diagvar%globalid          = create_external_variable_id(self,object)
-                  hz_diagvar%standard_variable = object%standard_variable
-                  hz_diagvar%time_treatment    = output2time_treatment(hz_diagvar%output)
-               end if
-               if (object%presence==presence_internal.and..not.object%state_indices%is_empty()) then
-                  select case (object%domain)
-                     case (domain_bottom)
-                        nstate_bot = nstate_bot + 1
-                        hz_statevar => self%bottom_state_variables(nstate_bot)
-                     case (domain_surface)
-                        nstate_surf = nstate_surf + 1
-                        hz_statevar => self%surface_state_variables(nstate_surf)
-                     case default
-                        nullify(hz_statevar)
-                  end select
-                  call copy_variable_metadata(object,hz_statevar)
-                  hz_statevar%globalid          = create_external_variable_id(self,object)
-                  hz_statevar%standard_variable = object%standard_variable
-                  hz_statevar%initial_value     = object%initial_value
-               end if
-            end if
-            if (allocated(object%alldata).and..not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
-               call append_string(self%dependencies_hz,link%name)
-               if (object%standard_variable%name/='') call append_string(self%dependencies_hz,object%standard_variable%name)
-            end if
-         class is (type_scalar_variable)
-            if (allocated(object%alldata)) then
-               call append_string(self%dependencies_scalar,link%name)
-               if (object%standard_variable%name/='') call append_string(self%dependencies_scalar,object%standard_variable%name)
-            end if
-      end select
-      link => link%next
-   end do
-
-   ncons = 0
-   aggregate_variable => self%first_aggregate_variable
-   do while (associated(aggregate_variable))
-      ncons = ncons + 1
-      consvar => self%conserved_quantities(ncons)
-      consvar%standard_variable = aggregate_variable%standard_variable
-      consvar%name = trim(consvar%standard_variable%name)
-      consvar%units = trim(consvar%standard_variable%units)
-      consvar%long_name = trim(consvar%standard_variable%name)
-      consvar%model => aggregate_variable%sum
-      consvar%horizontal_model => aggregate_variable%horizontal_sum
-
-      ! Loop over all contributing quantities, and if they are bulk state variables,
-      ! store their state variable index and scale factor, so we can include them later
-      ! when computing the (change in) conserved quantities from the (change in) state alone.
-
-      ! Count the number of state variables [currently bulk only!] that contribute to the conserved quantity.
-      nstate = 0
-      contributing_variable => aggregate_variable%first_contributing_variable
-      do while (associated(contributing_variable))
-         if (contributing_variable%state_index/=-1) nstate = nstate+1
-         contributing_variable => contributing_variable%next
-      end do
-
-      ! Store the indices and scale factors of bulk state variables that contribute to the aggregate quantity.
-      allocate(consvar%state_indices(nstate))
-      allocate(consvar%state_scale_factors(nstate))
-      nstate = 0
-      contributing_variable => aggregate_variable%first_contributing_variable
-      do while (associated(contributing_variable))
-         if (contributing_variable%state_index/=-1) then
-            nstate = nstate+1
-            consvar%state_indices(nstate) = contributing_variable%state_index
-            consvar%state_scale_factors(nstate) = contributing_variable%scale_factor
-         end if
-         contributing_variable => contributing_variable%next
-      end do
-
-      ! Coupled state variables may have been counted multiple times.
-      ! Remove the resulting duplicate indices, and the associated scale factors.
-      call remove_duplicates(consvar%state_indices,consvar%state_scale_factors)
-
-      ! If monitoring conservation for this model, store the indices of diagnostic variables that will
-      ! take the models-specific rate of change in conserved quantities.
-      if (self%check_conservation) then
-         consvar%rate_diag_index = aggregate_variable%id_rate%diag_index
-         consvar%horizontal_rate_diag_index = aggregate_variable%id_horizontal_rate%horizontal_diag_index
-      end if
-
-      aggregate_variable => aggregate_variable%next
-   end do
-
-   ! Process child models
-   child => self%children%first
-   do while (associated(child))
-      call classify_variables(child%model)
-      child => child%next
-   end do
-
-end subroutine classify_variables
-
 subroutine remove_duplicates(array1,array2)
    integer, allocatable,intent(inout) :: array1(:)
    real(rk),allocatable,intent(inout) :: array2(:)
@@ -3804,64 +3268,6 @@ subroutine remove_duplicates(array1,array2)
    array1 = array1_tmp(:inext)
    array2 = array2_tmp(:inext)
 end subroutine
-
-subroutine complete_model_references(model)
-   class (type_base_model),intent(inout),target :: model
-
-   type (type_link),pointer :: link
-   integer                  :: i
-
-   link => model%first_link
-   do while (associated(link))
-      if (link%owner) then
-         select type (object => link%target)
-            class is (type_model_reference)
-               do i=1,size(object%pointers)
-                  call process_model_pointer(object%pointers(i)%p)
-               end do
-         end select
-      end if
-      link => link%next
-   end do
-
-contains
-
-   subroutine process_model_pointer(p)
-      type (type_model_pointer),intent(inout) :: p
-
-      integer                  :: n
-      type (type_link),pointer :: link
-
-      ! Count number of state variables in target model.
-      n = 0
-      link => p%p%first_link
-      do while (associated(link))
-         select type (object=>link%target)
-            class is (type_bulk_variable)
-               if (object%presence==presence_internal.and.link%owner.and..not.object%state_indices%is_empty()) n = n + 1
-         end select
-         link => link%next
-      end do
-
-      ! Allocate array to hold state variable identifiers.
-      allocate(p%state(n))
-
-      ! Connect target state variables to identifiers in model reference.
-      n = 0
-      link => p%p%first_link
-      do while (associated(link))
-         select type (object=>link%target)
-            class is (type_bulk_variable)
-               if (object%presence==presence_internal.and.link%owner.and..not.object%state_indices%is_empty()) then
-                  n = n + 1
-                  call connect_bulk_state_variable_id(model,object,p%state(n))
-               end if
-         end select
-         link => link%next
-      end do
-   end subroutine process_model_pointer
-
-end subroutine complete_model_references
 
 function get_free_unit() result(unit)
    integer :: unit
@@ -3892,20 +3298,6 @@ function get_safe_name(name) result(safe_name)
    end do
 end function
 
-subroutine copy_variable_metadata(internal_variable,external_variable)
-   class (type_external_variable),intent(inout) :: external_variable
-   class (type_internal_variable),intent(in)    :: internal_variable
-
-   external_variable%name          = internal_variable%name
-   external_variable%long_name     = internal_variable%long_name
-   external_variable%units         = internal_variable%units
-   external_variable%minimum       = internal_variable%minimum
-   external_variable%maximum       = internal_variable%maximum
-   external_variable%missing_value = internal_variable%missing_value
-   external_variable%output        = internal_variable%output
-   call external_variable%properties%update(internal_variable%properties)
-end subroutine
-
 recursive subroutine find_dependencies(self,list,forbidden)
    class (type_base_model),intent(in),target   :: self
    type (type_model_list), intent(inout)       :: list
@@ -3929,7 +3321,7 @@ recursive subroutine find_dependencies(self,list,forbidden)
             chain = trim(chain)//trim(node%model%name)//' -> '
             node => node%next
          end do
-         call driver%fatal_error('find_dependencies','circular dependency found: '//trim(chain)//trim(self%name))
+         call fatal_error('find_dependencies','circular dependency found: '//trim(chain)//trim(self%name))
       end if
       call forbidden_with_self%extend(forbidden)
    end if
@@ -4147,15 +3539,15 @@ end subroutine
       real(rk) :: scale_factor
 
       sums = 0.0_rk
-      do i=1,size(self%conserved_quantities)
-         do j=1,size(self%conserved_quantities(i)%state_indices)
-            index = self%conserved_quantities(i)%state_indices(j)
-            scale_factor = self%conserved_quantities(i)%state_scale_factors(j)
-            _LOOP_BEGIN_
-               sums _INDEX_OUTPUT_1D_(i) = sums _INDEX_OUTPUT_1D_(i) + scale_factor*y _INDEX_OUTPUT_1D_(index)
-            _LOOP_END_
-         end do
-      end do
+      !do i=1,size(self%conserved_quantities)
+      !   do j=1,size(self%conserved_quantities(i)%state_indices)
+      !      index = self%conserved_quantities(i)%state_indices(j)
+      !      scale_factor = self%conserved_quantities(i)%state_scale_factors(j)
+      !      _LOOP_BEGIN_
+      !         sums _INDEX_OUTPUT_1D_(i) = sums _INDEX_OUTPUT_1D_(i) + scale_factor*y _INDEX_OUTPUT_1D_(index)
+      !      _LOOP_END_
+      !   end do
+      !end do
    end subroutine
 
    function time_treatment2output(time_treatment) result(output)

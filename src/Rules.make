@@ -19,7 +19,7 @@ INCDIRS		=
 LDFLAGS		=
 DEBUG_FLAGS     = 
 
-FABMBASE = ${LIBFABM}(fabm_driver.o) ${LIBFABM}(fabm_standard_variables.o) ${LIBFABM}(fabm_properties.o) ${LIBFABM}(fabm_types.o) ${LIBFABM}(fabm_expressions.o)
+FABMBASE = ${LIBFABM}(fabm_driver.o) ${LIBFABM}(fabm_standard_variables.o) ${LIBFABM}(fabm_properties.o) ${LIBFABM}(fabm_types.o) ${LIBFABM}(fabm_particle.o) ${LIBFABM}(fabm_expressions.o)
 
 #
 # phony targets

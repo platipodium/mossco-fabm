@@ -208,6 +208,9 @@
   Achla        = 0.02_rk            ! m2/mgChla
   bTemp        = 0.0633_rk          ! 1/oC
 
+   call self%register_state_variable(self%id_pdet,'pdet','mmolP/m**3','detritus-P',     &
+                                    pdet_init,minimum=0.0_rk)
+   call self%set_variable_property(self%id_pdet,'particulate',.true.)
 
 !--------- read namelists --------- 
 write(0,*) ' read namelists ....'
@@ -473,7 +476,17 @@ endif
 !  pDepo      = min(1.0_rk,0.233_rk*(wDepo)**0.336_rk )
    pDepo      = 0.0_rk
    OduDepo    = AnoxicMin*pDepo 
+
 #define _CONV_UNIT_ /secs_pr_day
+! reaction rates
+   _SET_ODE_(self%id_fdet, -f_T * CprodF _CONV_UNIT_)
+   _SET_ODE_(self%id_sdet, -f_T * CprodS _CONV_UNIT_)
+   _SET_ODE_(self%id_oxy , (-OxicMin - 2.0_rk* Nitri - OduOx) _CONV_UNIT_) !RH 1.0->150/106*OxicMin (if [oxy]=mmolO2/m**3)
+   _SET_ODE_(self%id_no3 , (-0.8_rk*Denitrific + Nitri) _CONV_UNIT_)     !RH 0.8-> ~104/106?
+   _SET_ODE_(self%id_nh3 , (f_T * Nprod - Nitri) / (1.0_rk + self%NH3Ads) _CONV_UNIT_)
+   _SET_ODE_(self%id_odu , (AnoxicMin - OduOx - OduDepo) _CONV_UNIT_)
+   _SET_ODE_(self%id_po4 , (f_T * Pprod - radsP) _CONV_UNIT_)
+   _SET_ODE_(self%id_pdet, (radsP - f_T * Pprod) _CONV_UNIT_)
 
 !#S__RHS
 !#E__RHS

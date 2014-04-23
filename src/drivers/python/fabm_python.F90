@@ -13,7 +13,8 @@
 ! !USES:
    use fabm
    use fabm_config
-   use fabm_types, only:rk,attribute_length,type_base_driver,driver
+   use fabm_types, only:rk,attribute_length
+   use fabm_driver, only: type_base_driver, driver
    use fabm_properties, only: type_property, type_property_dictionary
    use fabm_python_helper
 
@@ -108,11 +109,11 @@
       conserved_quantity_units = model%info%conserved_quantities(:)%units
 
       ! Create arrays for parameter names, units, data types.
-      call model%info%parameters%keys(parameter_names)
+      call model%root%parameters%keys(parameter_names)
       allocate(parameter_types(size(parameter_names)))
       allocate(parameter_units(size(parameter_names)))
       do i = 1,size(parameter_names)
-         property => model%info%parameters%get_property(parameter_names(i))
+         property => model%root%parameters%get_property(parameter_names(i))
          parameter_types(i) = property%typecode()
          parameter_units(i) = property%units
       end do
@@ -180,7 +181,7 @@
       real(8)                     :: value
       class (type_property),pointer :: property
       value = default
-      property => model%info%parameters%get_property(name)
+      property => model%root%parameters%get_property(name)
       value = property%to_real()
    end function
 
@@ -199,7 +200,7 @@
       integer                     :: value
       class (type_property),pointer :: property
       value = default
-      property => model%info%parameters%get_property(name)
+      property => model%root%parameters%get_property(name)
       value = property%to_integer()
    end function
 
@@ -218,7 +219,7 @@
       logical                     :: value
       class (type_property),pointer :: property
       value = default
-      property => model%info%parameters%get_property(name)
+      property => model%root%parameters%get_property(name)
       value = property%to_logical()
    end function
 
@@ -235,7 +236,7 @@
       character(len=1024)         :: value
       class (type_property),pointer :: property
       value = default
-      property => model%info%parameters%get_property(name)
+      property => model%root%parameters%get_property(name)
       value = property%to_string()
    end function
 
