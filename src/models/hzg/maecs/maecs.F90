@@ -519,8 +519,8 @@ call self%register_diagnostic_variable(self%id_fac2,    'fac2','-', ' fac2', &
 call self%register_diagnostic_variable(self%id_dPAR,    'PAR','W/m**2', 'PAR')
   
 !!------- Register environmental dependencies  ------- 
-call self%register_dependency(self%id_temp,varname_temp)
-call self%register_dependency(self%id_par,varname_par)
+call self%register_dependency(self%id_temp,standard_variables%temperature)
+call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
 
 ! extra line included from parser var init_incl 
 call maecs_init_stoichvars(self)
