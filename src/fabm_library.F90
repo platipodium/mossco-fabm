@@ -34,6 +34,7 @@
 !   use fabm_iow_age
 !   use fabm_msi_ergom1
    use fabm_hzg_maecs
+   use fabm_hzg_jelly
    use fabm_hzg_n2pzdq
    use fabm_hzg_benthic_pool
    ! Add additional external modules containing models or model factories here
@@ -104,6 +105,7 @@
 !         case ('iow_age');                   allocate(type_iow_age::model)
 !         case ('msi_ergom1');                allocate(type_msi_ergom1::model)
          case ('hzg_maecs');                 allocate(type_hzg_maecs::model)
+         case ('hzg_jelly');                 allocate(type_hzg_jelly::model)
          case ('hzg_n2pzdq');          allocate(type_hzg_n2pzdq::model)
          case ('hzg_benthic_pool');   allocate(type_hzg_benthic_pool::model)
          ! Add additional individual models here

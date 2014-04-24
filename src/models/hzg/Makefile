@@ -6,6 +6,7 @@ SUBDIRS += omexdia_p
 SUBDIRS += maecs
 SUBDIRS += benthic_pool
 SUBDIRS += n2pzdq
+SUBDIRS += jelly
 
 all: objs
 	$(MOVE_MODULES_COMMAND)

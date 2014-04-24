@@ -508,7 +508,7 @@ pure real(rk) function smooth_small(x, eps)
    real(rk)                      :: arg, larger
 !--------------------------------------------------------------
    
-   if (x .lt. 1.5d1*eps) then
+   if (x .lt. 15*eps) then
      arg     = x/eps
      larger  = exp(arg)
      smooth_small  = eps + (x - eps) * larger / (larger + 1.0d0) 
