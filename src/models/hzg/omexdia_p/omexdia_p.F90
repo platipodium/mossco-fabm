@@ -208,10 +208,6 @@
   Achla        = 0.02_rk            ! m2/mgChla
   bTemp        = 0.0633_rk          ! 1/oC
 
-   call self%register_state_variable(self%id_pdet,'pdet','mmolP/m**3','detritus-P',     &
-                                    pdet_init,minimum=0.0_rk)
-   call self%set_variable_property(self%id_pdet,'particulate',.true.)
-
 !--------- read namelists --------- 
 write(0,*) ' read namelists ....'
   open(namlst,file='./omexdia_p_switch.nml',status='old')
