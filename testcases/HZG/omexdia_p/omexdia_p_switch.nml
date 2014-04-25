@@ -10,8 +10,8 @@
 !-------------------------------------------------------------------------------
 
 &omexdia_p_switch
-   PhotoacclimOn = .true.,
+   PhotoacclimOn = .false.,
    PhosphorusOn = .true.,
-   MPhytoBenOn = .true.,
+   MPhytoBenOn = .false.,
 /
 
