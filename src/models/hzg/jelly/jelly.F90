@@ -42,10 +42,10 @@ type (type_state_variable_id), dimension(2) :: id_B_Pp,id_l_Pp,id_B_Be,id_l_Be
 type (type_dependency_id)            :: id_Cop
 type (type_dependency_id)            :: id_Temp
 type (type_dependency_id)            :: id_salt
-type (type_diagnostic_variable_id)   :: id_prod_Be, id_Mort_Be, id_fA_Be, id_Imax_Be, id_lopt_Be, id_prod_Pp, id_Mort_Pp, id_fA_Pp, id_Imax_Pp, id_mort_S, id_mort_R, id_mort_G, id_mort_J, id_mort_AJ, id_somgrowth, id_recruit, id_som_dl, id_init_dl, id_graz_dl, id_sen_dl, id_prod_dl, id_resp_dl, id_dl_prey, id_dl_pred, id_al_Im, id_mixBmass, id_mixlsize, id_Tdep
+type (type_diagnostic_variable_id)   :: id_prod_Be, id_Mort_Be, id_fA_Be, id_Imax_Be, id_lopt_Be, id_prod_Pp, id_Mort_Pp, id_fA_Pp, id_Imax_Pp, id_mort_P, id_mort_S, id_mort_R, id_mort_G, id_mort_J, id_mort_AJ, id_somgrowth, id_recruit, id_paras_dl, id_som_dl, id_init_dl, id_graz_dl, id_sen_dl, id_prod_dl, id_resp_dl, id_dl_prey, id_dl_pred, id_al_Im, id_mixBmass, id_mixlsize, id_Tdep
 real(rk) ::  B_Pp_initial, l_Pp_initial, B_Be_initial, l_Be_initial
-real(rk) ::  lA, l0, sigma, Imax_pot, yield, mR, mS, Q10, Tc, Bcrit, relCVDens, m_predBe, loptA_Pp, loptA_Be, rgelC, immigr, dil_CH, dil_HO, relV_O
-real(rk) ::  eps
+real(rk) ::  lA, l0, sigma, Imax_pot, yield, mR, mS, mP, mAJ, Q10, Tc, Bcrit, relCVDens, m_predBe, loptA_Pp, loptA_Be, sigmbc, immigr, dil_CH, dil_HO, relV_O
+real(rk) ::  eps, fCopGB, fTempGB
 logical  ::  TransectOn, SizeDynOn, LowPassOn, OptionOn
 
 contains
@@ -78,34 +78,38 @@ integer,                  intent(in)            :: configunit
 ! !LOCAL VARIABLES:
 integer    :: namlst=19
 !!------- Initial values of model jelly ------- 
-!> \describepar{B_Pp_initial , B_\mathrm{Pp} , P.Pileus biomass, 0.003 µg-C/L}
-!> \describepar{l_Pp_initial , \ell_\mathrm{Pp} , P.Pileus mean log size, 1.5 mm}
-!> \describepar{B_Be_initial , B_\mathrm{Be} , Beroe biomass, 0.01 µg-C/L}
-!> \describepar{l_Be_initial , \ell_\mathrm{Be} , Beroe mean log size, 1.5 mm}
+!> \describepar{B_Pp_initial , B_\mathrm{Pp} , P.Pileus biomass, 0.005 µg-C/L}
+!> \describepar{l_Pp_initial , \ell_\mathrm{Pp} , P.Pileus mean log size, 1.5 log(ESD/mm)}
+!> \describepar{B_Be_initial , B_\mathrm{Be} , Beroe biomass, 0.001 µg-C/L}
+!> \describepar{l_Be_initial , \ell_\mathrm{Be} , Beroe mean log size, 2. log(ESD/mm)}
 real(rk)  :: B_Pp_initial ! P.Pileus biomass
 real(rk)  :: l_Pp_initial ! P.Pileus mean log size
 real(rk)  :: B_Be_initial ! Beroe biomass
 real(rk)  :: l_Be_initial ! Beroe mean log size
 !> describepar{lA           , \ell_A           , adult ctenophore size        , 2. log(ESD/mm)}
 !> describepar{l0           , \ell_0           , offspring size, -1.5 log(ESD/mm)}
-!> describepar{sigma        , \sigma        , std deviation of juvenile size, 0.33 log(ESD/mm)^2}
+!> describepar{sigma        , \sigma        , std deviation of juvenile size, 0.3 log(ESD/mm)^2}
 !> describepar{Imax_pot     , I_\mathrm{max}^*     , maximum ingestion rate for ideal consumer, prey, T, and food , 173. 1/d}
-!> describepar{yield        , y        , feeding yield , 0.8 }
-!> describepar{mR           , m_R           , temperature dependent, natural mortality rate , 0.12 1/d}
-!> describepar{mS           , m_S           , physiological mortality under senescence , 0.1 1/d}
-!> describepar{Q10          , Q_{10}          , rate increase at 10C temperature rise, 2.5 }
-!> describepar{Tc           , T_c           , critical threshold temperature, -9. }
-!> describepar{Bcrit        , B^*        , minimal prey biomass (Holling-III) , 25. µg-C/L}
-!> describepar{relCVDens    , R_\rho    , C-biovolume density ratio non-gelatinous/gelatinous plankton, 90. µg-C/L}
-!> describepar{m_predBe     , B_\mathrm{TP}     , loss rate of Beroe due to top-predator , 0.1 1/d}
+!> describepar{yield        , y        , feeding yield , 0.645977 }
+!> describepar{mR           , m_R           , temperature dependent, natural mortality rate , 0.06 1/d}
+!> describepar{mS           , m_S           , physiological mortality under senescence , 0.03 1/d}
+!> describepar{mP           , m_P'           , density dependent mortality rate (parasites), 1E-3 1/d}
+!> describepar{mAJ          , m_{AJ}          , mortality due to recruitment failure , 0.06 1/d.µg-C/L}
+!> describepar{Q10          , Q_{10}          , rate increase at 10C temperature rise, 3. }
+!> describepar{Tc           , T_c           , critical threshold temperature, 3.0 }
+!> describepar{Bcrit        , B^*        , minimal prey biomass (Holling-III) , 10. µg-C/L}
+!> describepar{relCVDens    , R_\rho    , C-biovolume density ratio non-gelatinous/gelatinous plankton, 80. µg-C/L}
+!> describepar{m_predBe     , m_\mathrm{top}     , loss rate of Beroe due to top-predator , 0. 1/d}
 !> describepar{loptA_Pp     , \lcsize_\mathrm{opt,Pp}^A     , optimal prey size adult P.pileus , -0.5 }
-!> describepar{loptA_Be     , \lcsize_\mathrm{opt,Be}^A     , optimal prey size adult Beroe , 1.5 }
-!> describepar{rgelC        , R_{\rho C}        , C-density ratio in gelatinous plankton , 2.2 }
-!> describepar{immigr       , \epsilon_\mathrm{in}       , migration mass inflow rate , 4E-6 µg-C/L.d}
+!> describepar{loptA_Be     , \lcsize_\mathrm{opt,Be}^A     , optimal prey size adult Beroe , 1. }
+!> describepar{sigmbc       , R_{\rho C}       , C-density ratio in gelatinous plankton , 2E-4 µg-C/L}
+!> describepar{immigr       , \epsilon_\mathrm{in}       , migration mass inflow rate , 1E-7 µg-C/L.d}
 !> describepar{dil_CH       ,        , Exchange rate Coast-HR, 0.35 1/d}
 !> describepar{dil_HO       ,        , Exchange rate HR-Offshore, 0.1 1/d}
 !> describepar{relV_O       ,        , relative volume Offshore box, 10. 1/d}
-!> describepar{eps          ,           , minimal offset for juvenile p.pileus biomass, 1E-4 }
+!> describepar{eps          ,           , unused, 1E-4 }
+!> describepar{fCopGB       ,        , relative copepod abundance in offshore box, 0.5 }
+!> describepar{fTempGB      ,       , relative temperature amplitude in offshore box, 0.8 }
 !!------- Parameters from nml-list jelly_pars ------- 
 real(rk)  :: lA           ! adult ctenophore size        
 real(rk)  :: l0           ! offspring size
@@ -114,6 +118,8 @@ real(rk)  :: Imax_pot     ! maximum ingestion rate for ideal consumer, prey, T, 
 real(rk)  :: yield        ! feeding yield 
 real(rk)  :: mR           ! temperature dependent, natural mortality rate 
 real(rk)  :: mS           ! physiological mortality under senescence 
+real(rk)  :: mP           ! density dependent mortality rate (parasites)
+real(rk)  :: mAJ          ! mortality due to recruitment failure 
 real(rk)  :: Q10          ! rate increase at 10C temperature rise
 real(rk)  :: Tc           ! critical threshold temperature
 real(rk)  :: Bcrit        ! minimal prey biomass (Holling-III) 
@@ -121,13 +127,15 @@ real(rk)  :: relCVDens    ! C-biovolume density ratio non-gelatinous/gelatinous 
 real(rk)  :: m_predBe     ! loss rate of Beroe due to top-predator 
 real(rk)  :: loptA_Pp     ! optimal prey size adult P.pileus 
 real(rk)  :: loptA_Be     ! optimal prey size adult Beroe 
-real(rk)  :: rgelC        ! C-density ratio in gelatinous plankton 
+real(rk)  :: sigmbc       ! C-density ratio in gelatinous plankton 
 real(rk)  :: immigr       ! migration mass inflow rate 
 real(rk)  :: dil_CH       ! Exchange rate Coast-HR
 real(rk)  :: dil_HO       ! Exchange rate HR-Offshore
 real(rk)  :: relV_O       ! relative volume Offshore box
 !!------- Parameters from nml-list jelly_ctl ------- 
-real(rk)  :: eps          ! minimal offset for juvenile p.pileus biomass
+real(rk)  :: eps          ! unused
+real(rk)  :: fCopGB       ! relative copepod abundance in offshore box
+real(rk)  :: fTempGB      ! relative temperature amplitude in offshore box
 !!------- Switches for configuring model structure -------
 logical   :: TransectOn   ! mixing between coastal transect boxes
 logical   :: SizeDynOn    ! life stage cycling enabled
@@ -140,39 +148,43 @@ namelist /jelly_init/ &
   B_Pp_initial, l_Pp_initial, B_Be_initial, l_Be_initial
 
 namelist /jelly_pars/ &
-  lA, l0, sigma, Imax_pot, yield, mR, mS, Q10, Tc, Bcrit, relCVDens, m_predBe, loptA_Pp, &
-  loptA_Be, rgelC, immigr, dil_CH, dil_HO, relV_O
+  lA, l0, sigma, Imax_pot, yield, mR, mS, mP, mAJ, Q10, Tc, Bcrit, relCVDens, m_predBe, &
+  loptA_Pp, loptA_Be, sigmbc, immigr, dil_CH, dil_HO, relV_O
 
 namelist /jelly_ctl/ &
-  eps
+  eps, fCopGB, fTempGB
 
 namelist /jelly_switch/ &
   TransectOn, SizeDynOn, LowPassOn, OptionOn
 
-B_Pp_initial = 0.003_rk           ! µg-C/L
-l_Pp_initial = 1.5_rk             ! mm
-B_Be_initial = 0.01_rk            ! µg-C/L
-l_Be_initial = 1.5_rk             ! mm
+B_Pp_initial = 0.005_rk           ! µg-C/L
+l_Pp_initial = 1.5_rk             ! log(ESD/mm)
+B_Be_initial = 0.001_rk           ! µg-C/L
+l_Be_initial = 2._rk              ! log(ESD/mm)
 lA           = 2._rk              ! log(ESD/mm)
 l0           = -1.5_rk            ! log(ESD/mm)
-sigma        = 0.33_rk            ! log(ESD/mm)^2
+sigma        = 0.3_rk             ! log(ESD/mm)^2
 Imax_pot     = 173._rk            ! 1/d
-yield        = 0.8_rk             ! 
-mR           = 0.12_rk            ! 1/d
-mS           = 0.1_rk             ! 1/d
-Q10          = 2.5_rk             ! 
-Tc           = -9._rk             ! 
-Bcrit        = 25._rk             ! µg-C/L
-relCVDens    = 90._rk             ! µg-C/L
-m_predBe     = 0.1_rk             ! 1/d
+yield        = 0.645977_rk        ! 
+mR           = 0.06_rk            ! 1/d
+mS           = 0.03_rk            ! 1/d
+mP           = 1E-3_rk            ! 1/d
+mAJ          = 0.06_rk            ! 1/d.µg-C/L
+Q10          = 3._rk              ! 
+Tc           = 3.0_rk             ! 
+Bcrit        = 10._rk             ! µg-C/L
+relCVDens    = 80._rk             ! µg-C/L
+m_predBe     = 0._rk              ! 1/d
 loptA_Pp     = -0.5_rk            ! 
-loptA_Be     = 1.5_rk             ! 
-rgelC        = 2.2_rk             ! 
-immigr       = 4E-6_rk            ! µg-C/L.d
+loptA_Be     = 1._rk              ! 
+sigmbc       = 2E-4_rk            ! µg-C/L
+immigr       = 1E-7_rk            ! µg-C/L.d
 dil_CH       = 0.35_rk            ! 1/d
 dil_HO       = 0.1_rk             ! 1/d
 relV_O       = 10._rk             ! 1/d
 eps          = 1E-4_rk            ! 
+fCopGB       = 0.5_rk             ! 
+fTempGB      = 0.8_rk             ! 
 
 
 !--------- read namelists --------- 
@@ -209,6 +221,8 @@ call self%get_parameter(self%Imax_pot     ,'Imax_pot',      default=Imax_pot)
 call self%get_parameter(self%yield        ,'yield',         default=yield)
 call self%get_parameter(self%mR           ,'mR',            default=mR)
 call self%get_parameter(self%mS           ,'mS',            default=mS)
+call self%get_parameter(self%mP           ,'mP',            default=mP)
+call self%get_parameter(self%mAJ          ,'mAJ',           default=mAJ)
 call self%get_parameter(self%Q10          ,'Q10',           default=Q10)
 call self%get_parameter(self%Tc           ,'Tc',            default=Tc)
 call self%get_parameter(self%Bcrit        ,'Bcrit',         default=Bcrit)
@@ -216,7 +230,7 @@ call self%get_parameter(self%relCVDens    ,'relCVDens',     default=relCVDens)
 call self%get_parameter(self%m_predBe     ,'m_predBe',      default=m_predBe)
 call self%get_parameter(self%loptA_Pp     ,'loptA_Pp',      default=loptA_Pp)
 call self%get_parameter(self%loptA_Be     ,'loptA_Be',      default=loptA_Be)
-call self%get_parameter(self%rgelC        ,'rgelC',         default=rgelC)
+call self%get_parameter(self%sigmbc       ,'sigmbc',        default=sigmbc)
 call self%get_parameter(self%immigr       ,'immigr',        default=immigr)
 call self%get_parameter(self%dil_CH       ,'dil_CH',        default=dil_CH)
 call self%get_parameter(self%dil_HO       ,'dil_HO',        default=dil_HO)
@@ -224,6 +238,8 @@ call self%get_parameter(self%relV_O       ,'relV_O',        default=relV_O)
 
 !!------- model parameters from nml-list jelly_ctl ------- 
 call self%get_parameter(self%eps          ,'eps',           default=eps)
+call self%get_parameter(self%fCopGB       ,'fCopGB',        default=fCopGB)
+call self%get_parameter(self%fTempGB      ,'fTempGB',       default=fTempGB)
 
 !!------- Register state variables  ------- 
 do ib = 1, 2
@@ -233,7 +249,7 @@ call self%register_state_variable(self%id_B_Pp(ib),sbname,'µg-C/L',cbname, &
    B_Pp_initial, minimum=_ZERO_, no_river_dilution=.true. )
 write (sbname, "(A,I1)") 'l_Pp',ib 
 cbname = 'P.Pileus mean log size ' // sbname
-call self%register_state_variable(self%id_l_Pp(ib),sbname,'mm',cbname, &
+call self%register_state_variable(self%id_l_Pp(ib),sbname,'log(ESD/mm)',cbname, &
    l_Pp_initial, minimum=-2.0d0, no_river_dilution=.true. )
 write (sbname, "(A,I1)") 'B_Be',ib 
 cbname = 'Beroe biomass ' // sbname
@@ -241,7 +257,7 @@ call self%register_state_variable(self%id_B_Be(ib),sbname,'µg-C/L',cbname, &
    B_Be_initial, minimum=_ZERO_, no_river_dilution=.true. )
 write (sbname, "(A,I1)") 'l_Be',ib 
 cbname = 'Beroe mean log size ' // sbname
-call self%register_state_variable(self%id_l_Be(ib),sbname,'mm',cbname, &
+call self%register_state_variable(self%id_l_Be(ib),sbname,'log(ESD/mm)',cbname, &
    l_Be_initial, minimum=-2.0d0, no_river_dilution=.true. )
 end do
 
@@ -264,6 +280,8 @@ call self%register_diagnostic_variable(self%id_fA_Pp,   'fA_Pp','1/d', 'relative
   output=output_instantaneous)
 call self%register_diagnostic_variable(self%id_Imax_Pp, 'Imax_Pp','1/d', 'maximum ingestion rate adult Beroe Imax_Pp', &
   output=output_instantaneous)
+call self%register_diagnostic_variable(self%id_mort_P,  'mort_P','1/d', 'density dependent mortality - parasites mort_P', &
+  output=output_instantaneous)
 call self%register_diagnostic_variable(self%id_mort_S,  'mort_S','1/d', 'physiological adult mortality rate mort_S', &
   output=output_instantaneous)
 call self%register_diagnostic_variable(self%id_mort_R,  'mort_R','1/d', 'temperature dependent mortality mort_R', &
@@ -277,6 +295,8 @@ call self%register_diagnostic_variable(self%id_mort_AJ, 'mort_AJ','1/d', 'effect
 call self%register_diagnostic_variable(self%id_somgrowth, 'somgrowth','1/d', 'somatic growth rate  somgrowth', &
   output=output_instantaneous)
 call self%register_diagnostic_variable(self%id_recruit, 'recruit','1/d', 'egg production rate  recruit', &
+  output=output_instantaneous)
+call self%register_diagnostic_variable(self%id_paras_dl, 'paras_dl','1/d', 'marginal size shift parasites paras_dl', &
   output=output_instantaneous)
 call self%register_diagnostic_variable(self%id_som_dl,  'som_dl','1/d', 'marginal size shift due to promotion som_dl', &
   output=output_instantaneous)
@@ -346,26 +366,25 @@ end subroutine initialize
 !  type (type_environment),   intent(inout)  :: environment 
   real(rk) :: Temp_dep, Temp_dep0
   real(rk) :: mort_S, mort_S0,mort_SJ, mort_R, mort_RJ, mort_G
-  real(rk) ::  mort_J, mort_AJ, mort_sum
-  real(rk) :: errf, argA, eargA, aa, rS, eS, eS0, fS, fe, al0, yfac
+  real(rk) ::  mort_J, mort_AJ, mort_P, mort_sum
+  real(rk) :: errf, argA, eargA, aa, rS, pS, pS0, eS, eS0, fS, fe, al0, yfac
   real(rk) :: somgrwth, recruit,lco, mGBe
-  real(rk) :: prod_dl, sum_dl, resp_dl
+  real(rk) :: prod_dl, sum_dl, resp_dl,paras_dl
   real(rk) :: graz_dl, som_dl, init_dl, sen_dl
   real(rk), dimension(2,numb) :: dConc,dTrait
-  real(rk), dimension(2) :: lmsize, dlp, dlopt,lopt, mass
-  real(rk), dimension(2) :: mGPp, sig, sigma2, Imax, al1, f0
-  real(rk) :: dl0, dl, dl2, bcrit, prey, preyE, dg_dlY2
+  real(rk), dimension(3) :: Imax, al1, dlopt,lopt, graz
+  real(rk), dimension(3) :: mGrz, mGrz0, sig, sigma2, lmsize, dlp,dlpp, mass, relDens
+  real(rk) :: dl0, dl, dl2, bcrit, prey, preyE, mGP
   real(rk) :: fR, fA, fA0, fBe, dfA_dl, lm_adult, al, lprey, lcrit
-  real(rk) :: gross, Graz, dg_dB0, dg_dB, dg_dlY,fdejuv 
-  integer  :: ib, ic, i
-  real(rk) :: rg = 3.0
+  real(rk) :: gross, Prod, dg_dB0, dg_dB, dg_dlY,fdejuv, srS
+  integer  :: ib, ic, i, j
 !  real(rk) :: inflow=2E-1, Adorm=2E-3
 
 ! !REVISION HISTORY:
 !  Original author(s): Kai Wirtz, Nusret Sevinc
 
 ! !DESCRIPTION:
-! Stage-based Pleurobrachia & Beroe Model
+! Stage-based Pleurobrachia & Beroe   Model
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -384,9 +403,9 @@ _FABM_LOOP_BEGIN_
 !#S_GET
 !---------- GET for each state variable ----------
   _GET_(self%id_B_Pp(ib), var(ib)%B_Pp)  ! P.Pileus biomass in µg-C/L
-  _GET_(self%id_l_Pp(ib), var(ib)%l_Pp)  ! P.Pileus mean log size in mm
+  _GET_(self%id_l_Pp(ib), var(ib)%l_Pp)  ! P.Pileus mean log size in log(ESD/mm)
   _GET_(self%id_B_Be(ib), var(ib)%B_Be)  ! Beroe biomass in µg-C/L
-  _GET_(self%id_l_Be(ib), var(ib)%l_Be)  ! Beroe mean log size in mm
+  _GET_(self%id_l_Be(ib), var(ib)%l_Be)  ! Beroe mean log size in log(ESD/mm)
 !#E_GET
    ! Retrieve current environmental conditions.
 !#S_GED
@@ -396,16 +415,19 @@ _FABM_LOOP_BEGIN_
 !#E_GED
 
  end do
-
+!
+! ---------- set environmental conditions for each box  -------------------
+!
 !write (*,'(A,3(F10.3))') 'temp=',var(1)%Temp,var(2)%Temp,var(3)%Temp
 ! ib=1 HR   2: Coast  3:Offshore
 ! open water: less copepods, and reduced temperature fluctuation
 !  var(2)%Cop  = 1.5 * var(2)%Cop
 !  var(2)%Temp = -0.5 + 1.15*var(2)%Temp
- var(numb)%Cop  = 0.5 * var(numb)%Cop
- var(numb)%Temp = 2. + 0.8*var(numb)%Temp
+ var(numb)%Cop  = self%fCopGB * var(numb)%Cop
+! assuming a mean temperature of 10^oC
+ var(numb)%Temp = (1.0d0-self%fTempGB)*10.0d0 + self%fTempGB*var(numb)%Temp
 
- if(self%TransectOn) then
+ if(self%TransectOn) then  ! unsused; TODO: check for plausibility of equations 
 ! exchange rate of mass HR-Offshore 
   call self%mixing(self%dil_HO, var(1)%B_Pp, self%relV_O,var(2)%B_Pp, dConc(1,1), dConc(1,2))
   call self%mixing(self%dil_HO, var(1)%B_Be, self%relV_O,var(2)%B_Be, dConc(2,1), dConc(2,2))
@@ -425,172 +447,169 @@ _FABM_LOOP_BEGIN_
   Temp_dep = f_temp(self%Q10, var(ib)%Temp, self%Tc)
   Temp_dep0= f_temp(self%Q10, var(ib)%Temp, 0.0d0)
 
-! set coefficient vectors over ctenophore populations:  1: Beroe 2: Ppileus 
+!
+! ---------- set specific variables for each population  -------------------
+!
+! set coefficient vectors over prey populations:  1: Beroe 2: Ppileus  3: Cops
   lmsize(1) = var(ib)%l_Be  ! mean body size of population
   lmsize(2) = var(ib)%l_Pp  ! 
-  dlopt(1)  = (self%loptA_Be-self%l0)/(self%lA-self%l0) ! increase in l_opt; feeding mode development
-  dlopt(2)  = (self%loptA_Pp-self%l0)/(self%lA-self%l0)
+  lmsize(3) = -0.7d0        ! small copepods dominate. ! TODO: include as forcing 
+  sigma2(3) = 1.0d0         ! log-size variance of mesozooplakton
   mass(1)   = var(ib)%B_Be  ! biomass concentration
   mass(2)   = var(ib)%B_Pp
+  mass(3)   = var(ib)%Cop
+  relDens(3)= 1.0d0         ! rel. C-biovolume density ratio of non-gelatinous plankton
+  dlopt(1)  = (self%loptA_Be-self%l0)/(self%lA-self%l0) ! increase in l_opt; feeding mode development
+  dlopt(2)  = (self%loptA_Pp-self%l0)/(self%lA-self%l0)
 
-  lco   = log(1E3/self%relCVDens)
-  al0     = -9.95d0 
+! re-gauge coefficient to apply  Imax-scaling of Wirtz JPR,2012 
+!    log(1E3/80) converts from log(micro-m) to log(mm) but accounts for much lower C-density
+  lco     = log(1E3/self%relCVDens)
+! optimum size/stage with minimal life-stage dependent mortality 
+  lcrit   = 0.5*(2 + self%lA + self%l0) 
 
-! set coefficient vectors over ctenophore populations:  1: Beroe 2: Ppileus 
 !  loop over ctenophore populations:  1: Beroe 2: Ppileus 
   do i = 1, 2
+    relDens(i)= self%relCVDens
     lopt(i) = self%l0 + (lmsize(i)-self%l0)*dlopt(i) ! optimal prey size
 
 ! potential maximum ingestion rate depending on size, T, and feeding mode
    ! re-gauge log size to µm-scale used in Wirtz JPR,2012     log(1E3/80)=2.5
    !    converts from log(µm) to log(mm) but accounts for much lower C-density  
-   ! log(1E3/80) converts from log(micro-m) to log(mm) but accounts for much lower C-density
     al      = -0.4d0 * (lopt(i)-lmsize(i))
     Imax(i) = self%Imax_pot * exp( al + (2-al)*(lopt(i)+lco) +(al-3)*(lmsize(i)+lco) )
 !    al1(i)  = Temp_dep*(al-3) +Temp_dep*dlopt(i)*(2-al)
+! size derivative of Imax-scaling
     al1(i)  = (al-3) + dlopt(i)*(2-al)
 !    al1(i)  = (al-Temp_dep*3 + dlopt(i)*(Temp_dep*2-al))
 ! correction to prevent unrealistic Imax-size dependency (see Fig.4 Wirtz JPR 2013)
+    al0    = -1.d0
+    if (al1(i) .lt. al0) al1(i) = al0  
 
-! std of size distribution increases at large mean size
-    sig(i)  = self%sigma * ((self%lA-self%l0)*0.3333d0 + lmsize(i))
-! TODO: refine empirical relationship using Greve or Finenko2003 data 
+! std of size distribution increases at large mean size and drops at very low number concentration
+    rS      = sqrt(mass(i))/(sqrt(mass(i))+sqrt(self%sigmbc))
+    sig(i)  = self%sigma * (self%sigma + (lcrit+lmsize(i))*rS)
+! TODO: refine empirical relationship using Greve, Falkenhaug1996 or Finenko2003 data 
 ! sig(i) = self%sigma * (lmsize(i)*(2*self%lA-lmsize(i)))
     sigma2(i) = sig(i)*sig(i) ! variance from std
-!  preyE = prey_eff(dl2, var(ib)%B_Be)
+! set accumulating stores to zero
+    graz(i)   = 0.0d0
+    dlpp(i)   = 0.0d0
+  end do
+  do j = 1, 3
+    dlp(j)    = 0.0d0
+    mGrz(j)   = 0.0d0
+    mGrz0(j)  = 0.0d0
+  end do
+!
+! ---------- calculate RHS  -------------------
+!
+! ----------  loop over all trophic interactions  -------------------
+!
+!  loop over ctenophore predators
+  do i = 1, 2
+!  loop over prey populations:  1: Beroe 2: Ppileus 3: Cops
+   do j = 1, 3
+     i13sig  = 1.0d0 + 3*sigma2(j)     ! 
+     dl      = lmsize(j) - lopt(i)     ! size match to prey
+     dl2     = 1.5d0*dl**2             ! feeding kernel argument, assumes "neutral" selectivity s=3/2
+     preyE   = prey_eff(dl2,mass(j) )  ! effective prey mass after integration over selection kernel
+     bcrit   = self%Bcrit/relDens(j)   ! half-sturation constant TODDO: replace with mechanistic par
+     gross   = Temp_dep * grazrate(dl2, Imax(i), bcrit, preyE) ! grazing rate
+  ! update all flux stores
+     graz(i) = graz(i) + gross
+     mGP     = gross* mass(i)/(mass(j)+self%sigmbc) ! grazing mortality of prey
+     mGrz(j) = mGrz(j) + mGP
+     mGrz0(j)= mGrz0(j)+ mGP*exp(-((self%l0-lopt(i))**2-dl**2)/(2*sigma2(i))) ! offspring mortality
+
+  ! update size gradient stores
+     dlp(j)  = dlp(j)  - 3*dl/i13sig * mGP          ! size match to prey
+     dg_dB   = gross/(1.0d0 + preyE/bcrit) / preyE  ! derivative with respect to prey biomass
+!if (i .eq. 1) then
+     dlpp(i) = dlpp(i) + dlopt(i)* 3*dl/i13sig * dg_dB
+!else
+!  if (j .eq. 2)  dlpp(i) = dlopt(i)* 3*dl/i13sig * dg_dB
+!endif
+   end do
   end do
 
-! feeding of Ppileus on eggs/offspring
-  bcrit = self%Bcrit/self%relCVDens *10 ! critical feeding effort depends on prey C-biovolume-density
-!  bcrit = self%Bcrit/self%relCVDens*10
-  i13sig    = 1.0d0 + 3. * sigma2(2)   ! 
-!  loop over ctenophore populations:  1: Beroe 2: Ppileus 
-  do i = 1, 2
-!    dlp(i)  = lmsize(i) -  lopt(2)                  ! size match to prey
-!    dlp(i)  = self%l0 -  lopt(2)                    ! size match to prey
-!    dl2     = 1.5d0*dlp(i)**2
-    dl2     = 0.0d0
-    f0(i)   = 0.5*exp(-(lopt(2) -lmsize(i))**2/(2*sigma2(2)))
-    preyE   = prey_eff(dl2,f0(i)*mass(i))
-    mGPp(i) = Temp_dep*grazrate(dl2,Imax(2), bcrit, preyE)* mass(2)/(mass(i)+1E-3)
-    dlp(i)  = (lmsize(i)- lopt(2))/i13sig * f0(i)*mGPp(i)           ! size match to prey
-!   dg_dB = 1.0d0/(1.0d0/(bcrit*bcrit) + 1.0d0/(preyE*preyE)) 
-  end do
-
-! intraguild predation of Beroe 
-  bcrit  = self%Bcrit/self%relCVDens
-  i13sig = 1.0d0 + 3. * sigma2(1)   ! 
-!  loop over ctenophore populations:  1: Beroe 2: Ppileus 
-  dl2    = 0.0d0
-  fBe    = 0.5*exp(-(lopt(1) -lmsize(1))**2/(2*sigma2(2)))
-  preyE  = prey_eff(dl2,fBe*mass(1))
-  mGBe   = Temp_dep*grazrate(dl2,Imax(1), bcrit, preyE)
-  dlp(1) = dlp(1) + (lmsize(1)- lopt(1))/i13sig * fBe*mGBe           ! size match to prey
-!   dg_dB = 1.0d0/(1.0d0/(bcrit*bcrit) + 1.0d0/(preyE*preyE)) 
-
-  dg_dB = 0
-  dl    = 0
-! prep loop over ctenophore populations:  1: Beroe 2: Ppileus 
+!  loop over dynamic ctenophore populations 
   do i = 1, 2
 
-   dg_dB0 = dg_dB
-   dl0    = dl  !var(ib)%l_Be  ! top-predator of Beroe on 1mm juvenile
+! physiological/starvation status affects yield (Reeve1986)
+   mort_S0 = exp(-graz(i)/self%mR)!
+   yfac    = 1.0d0/(1.0d0+mort_S0)
 
-   if (i .eq. 1) then
-     lprey  = var(ib)%l_Pp ! Beroe only feeds on Pp 
-     prey   = var(ib)%B_Pp
-     mort_G = self%m_predBe * Temp_dep0 + 1*fBe*mGBe! Beroe top-predator, if any
-     al0    = -9.9d0
-   else
-     lprey  = -0.7d0      ! small copepods dominate. ! TODO: include as forcing
-     prey   = var(ib)%Cop
-     bcrit  = self%Bcrit
-     mort_G = gross* var(ib)%B_Be / var(ib)%B_Pp ! mortality due to grazing
-     al0    = -9.9d0
-   endif
-! correction to prevent unrealistic Imax-size dependency (see Fig.4 Wirtz JPR 2013)
-   al0    = -0.99d0
-   if (al1(i) .lt. al0) al1(i) = al0  
-   i13sig  = 1.0d0 + 3. * sigma2(i)   ! 
+! secondary production  
+   Prod    = self%yield * yfac * graz(i)
 
-! how far way are juveniles from maturity? 
+!
+! --------  energy/carbon partitioning to egg production/somatic growth  ------------
+!
+!  how far way are juveniles from maturity ? 
    argA    = (self%lA-lmsize(i))/(sqrt(2.d0)*sig(i))
-!   if (argA .lt. -1.0) argA=-1.0d0 
-   call self%errfunc(argA, errf, eargA)
-
-! relative fraction of adhults 
+   call self%errfunc(argA, errf, eargA) ! TODO: replace by more accurate err-function
+! relative fraction of adults 
    fA      = 0.5d0*(1.0d0 - errf) 
-
 ! size derivative of adult fraction
 !   dfA_dl= sqrt(2.d0*3.1415)/sig(i) * eargA
 ! mean adult size
 !   lm_adult = lmsize(i) + sigma2(i) * dfA_dl / fA
-!   write (*,'(2(I3),2(F11.5))') ib,ic,lmsize(i)+lco,Imax
 
-! secondary production by feeding on copepods/Ppileus 
-   dl      = lprey -  lopt (i)                   ! size match to prey
-   dl2     = 1.5d0*dl**2
-   preyE   = prey_eff(dl2, prey)  ! effective prey after integration over selection kernel
-   gross   = Temp_dep * grazrate(dl2, Imax(i), bcrit, preyE)
-   if(i .eq. 2) gross = gross+ (f0(1)*mGPp(1)*mass(1)/mass(2) + f0(2)*mGPp(2))
-
-! physiological/starvation status affects yield (Reeve1986)
-   mort_S0 = exp(-gross/self%mR)!
-   yfac    = 1.0d0/(1.0d0+mort_S0)
-   Graz    = self%yield * yfac * gross
-
-   dg_dB   = 1.0d0/(1.0d0 + preyE/bcrit) / preyE
 ! fraction of adult secondary production allocated to recruitment
-
 !   fR    = fS * yfac
-   fR      = 0.5*(0.5+Temp_dep) 
-
-!   fR    = 1.0d0/(1.0d0 + exp(2.+4*(self%lA-lm_adult)/sig(i)))
-!   fR    = 0.5
+   fR      = Temp_dep
 ! rate at which adults spawn new eggs
-   recruit = fA * fR * Graz
+   recruit = fA * fR * Prod
 
+!
+! ----------  mortalities  -------------------
+!
+!  how far way are juveniles from maturity? 
 ! physiological/starvation mortality 
-!   mort_S  = self%mS * fA * exp(-1*Graz/Imax)
 !   mort_S0  = self%mS * exp(-rS*gross/Imax)!
    mort_S0 = self%mS * mort_S0 *(1.0d0-Temp_dep)!
 
-!    rS    = self%rgelC
    rS      = 1.0d0 + 2. * sigma2(i)  ! "life-span"=1 : width of life-stage dependent mortality
-!    rS    = i13sig
-!   rS    = 5.0-4.2*dlopt(i)
-!  lcrit = self%lA + 0.5*Temp_dep/(Temp_dep+0.333) + dlopt(i)
-! optimum size/stage with minimal life-stage dependent mortality 
-   lcrit   = 0.5*(2*self%lA + self%l0) + 0.*(Temp_dep + dlopt(i))
-!   lcrit = self%lA +  dlopt(i)
+   srS     = 1.0d0/sqrt(rS)
 ! integration result with Gaussian size distribution (cf. effective prey biomass)
-   eS      = exp(-(lcrit-lmsize(i))**2/rS) /sqrt(rS) 
-   eS0     = exp(-(lcrit-self%l0)**2) 
+   eS      = exp(-(lcrit-lmsize(i))**2/rS)*srS 
+   eS0     = exp(-(lcrit-self%l0)**2)*srS  
  !  eS    = 0
 ! life-stage dependent mortality 
    mort_S  = mort_S0 * (1.0d0-eS)
-  
+
+! mortality due to parasites maximal at newly hetched larvae (Hirota ,Greve)
+   pS      = exp(-(self%l0+1.0d0-lmsize(i))**2/rS)*srS
+   pS0     = exp(-1.0d0)*srS
+ !  eS    = 0
+! life-stage dependent mortality due to parasites
+   mort_P  = self%mP * ps * mass(i)
+ 
 ! temperature dependent losses, with surface-to-volume scaling
-   mort_R  = self%mR * Temp_dep * exp(1.*(lcrit-lmsize(i)))! *(1.0 + fS)
+   mort_R  = self%mR * Temp_dep * exp(lcrit-lmsize(i))! *(1.0 + fS)
 !   mort_RJ = self%mR * Temp_dep * exp(self%lA-self%l0)! *(1.0 + fS)
-   resp_dl = sigma2(i) * mort_R
+   resp_dl = sigma2(i)* mort_R
 
 ! somatic growth : TODO: temperature dependency
-   somgrwth    = Graz - recruit - mort_R
-   if(somgrwth .lt. 0.0d0) somgrwth = 0.0d0
+   somgrwth    = Prod - recruit - mort_R  ! can become negative which is OK
+!   if(somgrwth .lt. 0.0d0) somgrwth = 0.0d0
 
 ! offspring mortality and long-term consequences; TODO: include realisic lag
-   fe      = exp(-1.5d0*(lopt(2) - self%l0)**2)
-   mort_J  = fe*mGPp(i) + mort_S0*(1.0d0-eS0) !+ 0*mort_RJ
+   mort_J  = mGrz0(i) + mort_S0*(1.0d0-eS0) + self%mP *mass(i)*pS0 !+ 0*mort_RJ
 
 ! vulnerability proportional to stage duration (~ inverse temperature; food already in mort_S0 )
-   fdejuv  = exp((0.5*mort_J-recruit)/self%mS-1)
-   fe      = self%mS  *  fdejuv/((fdejuv+1.0d0)*(Temp_dep+0.5d0))
-   mort_AJ = mGPp(i)*f0(i) + fe
+   fdejuv  = exp((mort_J-2*recruit)/self%mS-1)
+   fe      = self%mAJ*  fdejuv/((fdejuv+1.0d0)*(Temp_dep+0.2d0))
+!   mort_AJ = mGrz(i)*f0(i) + fe
+   mort_AJ =  fe
 
 !  sum of all mortality rates
-   mort_sum= mort_R + mort_S + mort_G + 1.*mort_AJ
+   mort_sum= mort_R + mort_S + mGrz(i) + mort_AJ + mort_P
 
+!
+! ----------  stage and size dynamics  -------------------
+!
    if (self%SizeDynOn) then
 ! egg production related part of size dynamics 
 !   init_dl = (self%l0 - lm_adult) * recruit
@@ -601,24 +620,29 @@ _FABM_LOOP_BEGIN_
 
 ! marginal size shift due to selective grazing at neutral kernel width
 !   shifts prey distribution away from l_opt_pred, thus to lower mortality
-     dg_dlY  = -3*dl0/i13sig  * mort_G ! * dg_dB0
-     dg_dlY2 = -3*dlp(i)    ! grazing pressure from offspring feeding of Pp
-     graz_dl = -sigma2(i) * (dg_dlY + 1*dg_dlY2) 
+     graz_dl = -sigma2(i) * dlp(i)
 
 !  marginal size shift due to senescence
 !    sen_dl  = sigma2(i) * (0*mort_R + mort_Sself%mS * exp(-2*gross/Imax)* dfA_dl )
      if (self%OptionOn) then
 !     sen_dl  = sigma2(i) * rg*(rS-1.0d0)*fS*fS*eS*mort_S0
-       sen_dl  = sigma2(i) * mort_S0 * eS * 2* (lcrit-lmsize(i))/rS + 0.*fe*(2*self%lA-lmsize(i))
+       sen_dl  = sigma2(i) * mort_S0 * eS * 2* (lcrit-lmsize(i))/rS 
+!       sen_dl  = sen_dl + sigma2(i)*mort_AJ*(self%lA+2-lmsize(i))
      else
        sen_dl  = 0.0d0
      endif
+
+!  marginal size shift due to density dependent mortality (parasites)
+    paras_dl  = -sigma2(i) * mort_P * pS * 2* (self%l0+1.0d0-lmsize(i))/rS 
+
   ! resp_dl   = - self%mR * Temp_dep0  *fS*fS*eS*rg
-!  prod_dl = 0.*sigma2(i) * Graz * (al-3 + dlopt(i)*(2-al + 3*dl/i13sig * dg_dB ))
-     prod_dl = sigma2(i) * Graz * (al1(i) + dlopt(i)* 3*dl/i13sig * dg_dB )
+!  prod_dl = 0.*sigma2(i) * Prod * (al-3 + dlopt(i)*(2-al + 3*dl/i13sig * dg_dB ))
+    prod_dl = sigma2(i) * (Prod * al1(i) + self%yield*yfac*dlpp(i))
 
 !  sum of all size selctive forces
      sum_dl  = init_dl + som_dl + prod_dl + graz_dl + sen_dl + resp_dl
+!  immigration  of mature individuals only
+!     sum_dl  = sum_dl + self%immigr*(self%lA+2-lmsize(i))/var(ib)%B_Be
    else
      sum_dl  = 0.0d0
    endif
@@ -628,36 +652,37 @@ _FABM_LOOP_BEGIN_
 !---------- RHS for each state variable ----------
    if (i .eq. 1) then ! Beroe
 ! --- dynamics of Beroe biomass
-    rhsv%B_Be = (Graz - mort_sum) * var(ib)%B_Be + self%immigr
+    rhsv%B_Be = (Prod - mort_sum) * var(ib)%B_Be + self%immigr
 ! --- dynamics of Beroe mean log size
-    rhsv%l_Be = sum_dl
+!    rhsv%l_Be = sum_dl+ self%immigr*(self%l0-lmsize(1))lcrit
+    rhsv%l_Be = sum_dl 
 
    ! Export diagnostic variables
     if (ib.eq.1) then
 
-  _SET_DIAGNOSTIC_(self%id_prod_Be, Graz)                   !step_integrated secondary production rate Beroe
+  _SET_DIAGNOSTIC_(self%id_prod_Be, Prod)                   !step_integrated secondary production rate Beroe
   _SET_DIAGNOSTIC_(self%id_Mort_Be, mort_sum)               !step_integrated mortality rate of Beroe
   _SET_DIAGNOSTIC_(self%id_fA_Be, fA)                       !step_integrated relative propotion adults Beroe
   _SET_DIAGNOSTIC_(self%id_Imax_Be, Imax(1))                !step_integrated maximum ingestion rate adult Beroe
   _SET_DIAGNOSTIC_(self%id_lopt_Be, lopt(1))                !step_integrated optimum prey size Beroe
- 
     endif
 
    else  !  P.Pileus
 ! --- dynamics of P.Pileus biomass
-    rhsv%B_Pp = (Graz - mort_sum) * var(ib)%B_Pp + self%immigr
+    rhsv%B_Pp = (Prod - mort_sum) * var(ib)%B_Pp + self%immigr
 ! --- dynamics of P.Pileus mean log size
-    rhsv%l_Pp = sum_dl
-
+!    rhsv%l_Pp = sum_dl + self%immigr*(lcrit-lmsize(i))
+    rhsv%l_Pp = sum_dl 
    ! Export diagnostic variables
     if (ib.eq.1) then
-  _SET_DIAGNOSTIC_(self%id_prod_Pp, Graz)                   !step_integrated secondary production rate P pileus
+  _SET_DIAGNOSTIC_(self%id_prod_Pp, Prod)                   !step_integrated secondary production rate P pileus
   _SET_DIAGNOSTIC_(self%id_Mort_Pp, mort_sum)               !step_integrated mortality rate of P pileus
   _SET_DIAGNOSTIC_(self%id_fA_Pp, fA)                       !step_integrated relative propotion adults P pileus
   _SET_DIAGNOSTIC_(self%id_Imax_Pp, Imax(2))                !step_integrated maximum ingestion rate adult Beroe
+  _SET_DIAGNOSTIC_(self%id_mort_P, mort_P)                  !step_integrated density dependent mortality - parasites
   _SET_DIAGNOSTIC_(self%id_mort_S, mort_S)                  !step_integrated physiological adult mortality rate
   _SET_DIAGNOSTIC_(self%id_mort_R, mort_R)                  !step_integrated temperature dependent mortality
-  _SET_DIAGNOSTIC_(self%id_mort_G, mort_G)                  !step_integrated top-predation
+  _SET_DIAGNOSTIC_(self%id_mort_G, mGrz(i))                  !step_integrated top-predation
   _SET_DIAGNOSTIC_(self%id_mort_J, mort_J)                  !step_integrated juvenile mortality
   _SET_DIAGNOSTIC_(self%id_mort_AJ, mort_AJ)                !step_integrated effect of net juvenile mortality
   _SET_DIAGNOSTIC_(self%id_somgrowth, somgrwth)             !step_integrated somatic growth rate 
@@ -668,11 +693,11 @@ _FABM_LOOP_BEGIN_
   _SET_DIAGNOSTIC_(self%id_sen_dl, sen_dl)                  !step_integrated marginal size shift due to starvation 
   _SET_DIAGNOSTIC_(self%id_prod_dl, prod_dl)                !step_integrated marginal size shift due to production 
   _SET_DIAGNOSTIC_(self%id_resp_dl, resp_dl)                !step_integrated marginal size shift due to respiration 
-  _SET_DIAGNOSTIC_(self%id_dl_prey, dl)                     !step_integrated size difference to prey 
-  _SET_DIAGNOSTIC_(self%id_dl_pred, dl0)                    !step_integrated size difference to pred 
-  _SET_DIAGNOSTIC_(self%id_al_Im, al1(2))                   !step_integrated size scaling expoentent Imax 
-  _SET_DIAGNOSTIC_(self%id_mixBmass, dConc(2,1))            !step_integrated mass exchange rate Coast-HR-Offshore
-  _SET_DIAGNOSTIC_(self%id_mixlsize, dTrait(2,1))           !step_integrated trait exchange rate Coast-HR-Offshore
+  _SET_DIAGNOSTIC_(self%id_dl_prey, dlpp(i))                !step_integrated size difference to prey 
+  _SET_DIAGNOSTIC_(self%id_dl_pred, dlp(i))                 !step_integrated size difference to pred 
+  _SET_DIAGNOSTIC_(self%id_al_Im, rhsv%l_Pp)                   !step_integrated size scaling expoentent Imax 
+  _SET_DIAGNOSTIC_(self%id_mixBmass, rhsv%B_Be)            !step_integrated mass exchange rate Coast-HR-Offshore
+  _SET_DIAGNOSTIC_(self%id_mixlsize, sigma2(i))           !dTrait(2,1)step_integrated trait exchange rate Coast-HR-Offshore
   _SET_DIAGNOSTIC_(self%id_Tdep, Temp_dep)                  !step_integrated Temperature dependence
     endif
   endif
@@ -702,8 +727,11 @@ _FABM_LOOP_BEGIN_
    real(rk), intent(in)      :: bcrit, preye
    real(rk)   :: hk
    hk  = 1.0d0
-!   prey_eff     = prey/sqrt(i13sig) * exp(-dl2/i13sig)
-   grazkinetics = preye**hk/(bcrit**hk + preye**hk)
+   if (preye .gt. bcrit*2E-1) then
+     grazkinetics = preye**hk/(bcrit**hk + preye**hk)
+   else
+     grazkinetics = 0.0d0
+   endif
 
    end function grazkinetics
 
@@ -756,10 +784,22 @@ implicit none
  real(rk), intent(in)      :: arg
  real(rk), intent(inout)   :: errf, ea2
  real(rk)   :: art
-  ea2 = exp(-arg*arg)
+
+ if(arg > 2.0d0) then 
+   errf  = 1.0d0
+ else
+   if(arg < -2.0d0) then 
+     errf  = -1.0d0
+   else
+     ea2 = exp(-arg*arg)
 ! error function approximation 
-  art   = 1.0d0/(1.0d0+0.47047*arg)
-  errf  = 1.0d0 - (0.3480242*art -0.0958798*art*art +0.7478556*art*art*art) * ea2
+     art   = 1.0d0/(1.0d0+0.47047d0*arg)
+     errf  = 1.0d0 - (0.3480242d0*art -0.0958798d0*art*art +0.7478556d0*art*art*art) * ea2
+!   if (errf .lt. -0.99) write (*,'(A,3(F12.5))') 'err=',arg,art,errf
+!       if (errf .lt. -0.99999) errf  = -0.99999d0
+!       if (errf .gt.  0.99999) errf  =  0.99999d0
+   endif
+ endif
 end subroutine errfunc
 
 !EOC
