@@ -19,7 +19,7 @@
    use fabm_examples_npzd_zoo
    use fabm_examples_npzd_det
 !   use fabm_examples_duplicator
-!   use fabm_examples_npzd_f2003
+   use fabm_examples_npzd_f2003
 !   use fabm_examples_benthic_predator
 !   use fabm_examples_mean
    use fabm_gotm_npzd
@@ -90,7 +90,7 @@
          case ('examples_npzd_zoo');         allocate(type_examples_npzd_zoo::model)
          case ('examples_npzd_det');         allocate(type_examples_npzd_det::model)
 !         case ('examples_duplicator');       allocate(type_examples_duplicator::model)
-!         case ('examples_npzd_f2003');       allocate(type_examples_npzd_f2003::model)
+         case ('examples_npzd_f2003');       allocate(type_examples_npzd_f2003::model)
 !         case ('examples_benthic_predator'); allocate(type_examples_benthic_predator::model)
 !         case ('examples_mean');             allocate(type_examples_mean::model)
          case ('gotm_npzd');                 allocate(type_gotm_npzd::model)

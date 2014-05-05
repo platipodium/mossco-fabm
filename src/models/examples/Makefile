@@ -4,7 +4,7 @@
 
 #SUBDIRS += benthic_predator
 SUBDIRS += npzd
-#SUBDIRS += npzd_f2003
+SUBDIRS += npzd_f2003
 #SUBDIRS += duplicator
 #SUBDIRS += mean
 
