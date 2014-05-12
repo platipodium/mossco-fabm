@@ -481,8 +481,8 @@ _FABM_LOOP_BEGIN_
 ! set coefficient vectors over prey populations:  1: Beroe 2: Ppileus  3: Cops
   lmsize(1) = var(ib)%l_Be  ! mean body size of population
   lmsize(2) = var(ib)%l_Pp  ! 
-  lmsize(3) = -0.8d0        ! small copepods dominate. ! TODO: include as forcing 
-  sigma2(3) = 1.d0         ! log-size variance of mesozooplakton
+  lmsize(3) = -0.7d0        ! small copepods dominate. ! TODO: include as forcing 
+  sigma2(3) = 0.8d0         ! log-size variance of mesozooplakton
   mass(1)   = var(ib)%B_Be  ! biomass concentration
   mass(2)   = var(ib)%B_Pp
   mass(3)   = var(ib)%Cop
@@ -492,7 +492,7 @@ _FABM_LOOP_BEGIN_
 !  lopt(3)  = (-2.0-self%l0)/(self%lA-self%l0)
   lopt(3)   = self%l0
   Imax(3)   = 1.0d0
-  Temp_dep(3) = f_temp(2.4d0, var(ib)%Temp, 0.0d0)
+  Temp_dep(3) = f_temp(2.5d0, var(ib)%Temp, 0.0d0)
 ! re-gauge coefficient to apply  Imax-scaling of Wirtz JPR,2012 
 !    log(1E3/80) converts from log(micro-m) to log(mm) but accounts for much lower C-density
   lco     = log(1E3/self%relCVDens)
@@ -594,10 +594,9 @@ _FABM_LOOP_BEGIN_
 !   if (i .eq. 1 .and. mort_P .gt. 0.05d0) mort_P = 0.05d0
 
 ! temperature dependent losses, with surface-to-volume scaling
-   mort_R  = self%mR * Temp_dep(i) * exp(lcrit-lmsize(i))! lcrit*(1.0 + fS)
-   mort_R0 = self%mR * Temp_dep(i) * exp(lcrit-self%l0)! *(1.0 + fS)
+   mort_R  = self%mR * Temp_dep(i) * exp(0.5*(lcrit-lmsize(i)))! lcrit*(1.0 + fS)
+   mort_R0 = self%mR * Temp_dep(i) * exp(0.5*(lcrit-self%l0))! *(1.0 + fS)
 !   mort_R0 = self%mR * Temp_dep(i) * exp(self%lA-self%l0)! *(1.0 + fS)
-   resp_dl = sigma2(i)* mort_R
 
 !
 ! ----------  mortalities  -------------------
@@ -625,7 +624,7 @@ _FABM_LOOP_BEGIN_
 
 !   if (var(ib)%l_Pp .lt. -0.7 .and. i .eq. 2) write (*,'(A,3(F12.5))') 'l1=',var(ib)%l_Pp,yfac,dlpp(i)
 ! physical damage (turbulence); can be avoided by active swimming
-   mort_T  = mT0 *starv/(1.0d0+starv)* exp(-var(ib)%Temp/8) /(Temp_dep(i) +f_tc) * exp((self%lA-lmsize(i))*0.5)
+   mort_T  = mT0 *starv/(1.0d0+starv)* exp(-(var(ib)%Temp-0.0)/7) /(Temp_dep(i) +f_tc) * exp((self%lA-lmsize(i))*0.5)
 
 !   f_tc  = 1.0d0/(exp(-(self%Tc-20.0d0)*0.1*log(self%Q10 + lopt(i)))+ 1.0d0 )
 !
@@ -684,13 +683,17 @@ _FABM_LOOP_BEGIN_
 
 !  marginal size shift due to senescence
 !    sen_dl  = sigma2(i) * (0*mort_R + mort_Sself%mS * exp(-2*gross/Imax)* dfA_dl )
-     if (self%OptionOn) then
-       sen_dl  = sigma2(i) * mort_S0 * eS * 2* (self%lA-lmsize(i))/rS 
-     else
-       sen_dl  = 0.0d0
-     endif
+!     if (self%OptionOn) then
+     sen_dl  = sigma2(i) * mort_S0 * eS * 2* (self%lA-lmsize(i))/rS 
+!     else       sen_dl  = 0.0d0     endif
 
-    turb_dl = sigma2(i)*mort_T*0.5
+!  marginal size shift due to respiration and turbulence (same scaling exponent)
+    if (self%OptionOn) then
+      turb_dl  = sigma2(i) * mort_T * 0.5
+    else
+      turb_dl   = 0.0d0
+    endif
+    resp_dl  = sigma2(i) * mort_R * 0.5
 
 !  marginal size shift due to density dependent mortality (parasites)
     paras_dl = -sigma2(i) * mort_P * pS * 2* (lcrit-lmsize(i))/rS 
@@ -699,7 +702,7 @@ _FABM_LOOP_BEGIN_
 !   if (abs(prod_dl) .gt. 1.) write (*,'(A,4(F12.5))') 'pdl=', prod_dl,sigma2(i),Prod * al1(i),self%yield*yfac*dlpp(i)
 
 !  sum of all size selctive forces
-     sum_dl  = init_dl + som_dl + prod_dl + graz_dl + sen_dl + resp_dl + turb_dl 
+     sum_dl  = init_dl + som_dl + prod_dl + graz_dl + sen_dl + resp_dl + turb_dl + paras_dl
 
 !  immigration  of mature individuals only
 !     sum_dl  = sum_dl + self%immigr*(self%lA+2-lmsize(i))/var(ib)%B_Be
@@ -778,7 +781,7 @@ _FABM_LOOP_BEGIN_
 ! most simple detritus pool turnover dynamics 
 !  rhsv%B_Det=  self%mS * mass_sum - self%rDet * Temp_dep(3) * var(ib)%B_Det
 !  if (mass_sum .gt. 200.0d0) mass_sum = 200.0d0
-  rhsv%B_Det=   self%rDet * (mass_sum - 2*Temp_dep(3) * var(ib)%B_Det)
+  rhsv%B_Det=   self%rDet * (mass_sum - 1.9*Temp_dep(3) * var(ib)%B_Det)
 ! ------------------------------------------------------------------------------
 !#S_ODE
 !---------- ODE for each state variable ----------
