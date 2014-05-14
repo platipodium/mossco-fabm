@@ -495,41 +495,41 @@ end if
 
 !!------- Register diagnostic variables  ------- 
 call self%register_diagnostic_variable(self%id_chl2,    'chl2C','mgCHL/mmolC', 'phyto chl2C ratio', &
-  output=output_instantaneous)
+  output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_fracR,   'fracR','-', ' fracR', &
-  output=output_instantaneous)
+  output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_QN,      'QN','-', ' QN', &
-  output=output_instantaneous)
+  output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_QP,      'QP','-', ' QP', &
-  output=output_instantaneous)
+  output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_aVN,     'aVN','-', ' aVN', &
-  output=output_instantaneous)
+  output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_aVP,     'aVP','-', ' aVP', &
-  output=output_instantaneous)
+  output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_aVSi,    'aVSi','-', ' aVSi', &
-  output=output_instantaneous)
+  output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_rQSi,    'rQSi','-', ' rQSi', &
-  output=output_instantaneous)
+  output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_tmp,     'tmp','-', ' tmp', &
-  output=output_instantaneous)
+  output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_fac1,    'fac1','-', ' fac1', &
-  output=output_instantaneous)
+  output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_fac2,    'fac2','-', ' fac2', &
-  output=output_instantaneous)
+  output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_dPAR,    'PAR','W/m**2', 'PAR', &
-  output=time_treatment_averaged)
+  output=output_time_step_averaged)
 
 call self%register_diagnostic_variable(self%id_phyUR, 'phyUR','mmolC/m3/d', 'phyC_uptake_rate', &
-  output=time_treatment_averaged)
+  output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_phyDLR,   'phyDLR','mmolC/m3/d', 'phyC_dilution_loss_rate', &
-  output=time_treatment_averaged)
+  output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_phyELR,    'phyELR','mmolC/m3/d', 'phyC_exudation_loss_rate', &
-  output=time_treatment_averaged)
+  output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_phyALR,    'phyALR','mmolC/m3/d', 'phyC_aggregation_loss_rate', &
-  output=time_treatment_averaged) 
+  output=output_time_step_averaged) 
 if (GrazingOn) then
-  call self%register_diagnostic_variable(self%id_phyGLR,    'phyGLR','W/m**2', 'phyC_grazing_loss_rate', &
-  output=time_treatment_averaged)
+  call self%register_diagnostic_variable(self%id_phyGLR,    'phyGLR','mmolC/m3/d', 'phyC_grazing_loss_rate', &
+  output=output_time_step_averaged)
 end if
 
 !!------- Register environmental dependencies  ------- 

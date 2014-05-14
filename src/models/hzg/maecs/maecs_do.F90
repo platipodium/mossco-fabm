@@ -402,25 +402,25 @@ end if
 !________________________________________________________________________________
 ! set diag variables, mostly from PrimProd module
 !#S_DIA
-  _SET_DIAGNOSTIC_(self%id_chl2, phy%theta*phy%rel_chloropl) !mgchl/mmolC, ! note that theta*rel_chloropl in units [mg Chla (mmol C)^{-1}] 
-  _SET_DIAGNOSTIC_(self%id_fracR, phy%frac%Rub)             !last 
-  _SET_DIAGNOSTIC_(self%id_QN, phy%Q%N)                     !last 
-  _SET_DIAGNOSTIC_(self%id_QP, phy%Q%P)                     !last 
-  _SET_DIAGNOSTIC_(self%id_aVN, acclim%aV%N)                !last 
-  _SET_DIAGNOSTIC_(self%id_aVP, acclim%aV%P)                !last 
-  _SET_DIAGNOSTIC_(self%id_aVSi, acclim%aV%Si)              !last 
-  _SET_DIAGNOSTIC_(self%id_rQSi, phy%frac%NutUpt )       !+0*phy%relQ%Silast 
-  _SET_DIAGNOSTIC_(self%id_tmp, acclim%tmp)                 !last 
-  _SET_DIAGNOSTIC_(self%id_fac1, acclim%fac1)               !last 
-  _SET_DIAGNOSTIC_(self%id_fac2, acclim%fac2)               !last 
+  _SET_DIAGNOSTIC_(self%id_chl2, phy%theta*phy%rel_chloropl) !average,mgchl/mmolC, ! note that theta*rel_chloropl in units [mg Chla (mmol C)^{-1}] 
+  _SET_DIAGNOSTIC_(self%id_fracR, phy%frac%Rub)             !average 
+  _SET_DIAGNOSTIC_(self%id_QN, phy%Q%N)                     !average
+  _SET_DIAGNOSTIC_(self%id_QP, phy%Q%P)                     !average
+  _SET_DIAGNOSTIC_(self%id_aVN, acclim%aV%N)                !average
+  _SET_DIAGNOSTIC_(self%id_aVP, acclim%aV%P)                !average
+  _SET_DIAGNOSTIC_(self%id_aVSi, acclim%aV%Si)              !average
+  _SET_DIAGNOSTIC_(self%id_rQSi, phy%frac%NutUpt )          !average, 0*phy%relQ%Si 
+  _SET_DIAGNOSTIC_(self%id_tmp, acclim%tmp)                 !average 
+  _SET_DIAGNOSTIC_(self%id_fac1, acclim%fac1)               !average
+  _SET_DIAGNOSTIC_(self%id_fac2, acclim%fac2)               !average
   _SET_DIAGNOSTIC_(self%id_dPAR, env%par)                   !average
   !diagnostics for the net phyto growth
-  _SET_DIAGNOSTIC_(self%id_phyUR,     uptake%C*phy%C*secs_pr_day)           ! average
-  _SET_DIAGNOSTIC_(self%id_phyDLR, -self%dil*phy%C*secs_pr_day)             ! average
-  _SET_DIAGNOSTIC_(self%id_phyELR,  -exud%C*phy%C*secs_pr_day)              ! average
-  _SET_DIAGNOSTIC_(self%id_phyALR,  -aggreg_rate*phy%C*secs_pr_day)         ! average
+  _SET_DIAGNOSTIC_(self%id_phyUR,     uptake%C*phy%C)           ! average ?*secs_pr_day?
+  _SET_DIAGNOSTIC_(self%id_phyDLR, -self%dil*phy%C)             ! average
+  _SET_DIAGNOSTIC_(self%id_phyELR,  -exud%C*phy%C)              ! average
+  _SET_DIAGNOSTIC_(self%id_phyALR,  -aggreg_rate*phy%C)         ! average
 if (self%GrazingOn) then    
-  _SET_DIAGNOSTIC_(self%id_phyGLR, -graz_rate*secs_pr_day)                  ! average
+  _SET_DIAGNOSTIC_(self%id_phyGLR, -graz_rate)                  ! average
 end if
 !#E_DIA
 
