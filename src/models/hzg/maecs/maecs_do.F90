@@ -400,7 +400,7 @@ end if
 
 
 !________________________________________________________________________________
-! set diag variables, mostly from PrimProd module ______________
+! set diag variables, mostly from PrimProd module
 !#S_DIA
   _SET_DIAGNOSTIC_(self%id_chl2, phy%theta*phy%rel_chloropl) !mgchl/mmolC, ! note that theta*rel_chloropl in units [mg Chla (mmol C)^{-1}] 
   _SET_DIAGNOSTIC_(self%id_fracR, phy%frac%Rub)             !last 
@@ -413,7 +413,15 @@ end if
   _SET_DIAGNOSTIC_(self%id_tmp, acclim%tmp)                 !last 
   _SET_DIAGNOSTIC_(self%id_fac1, acclim%fac1)               !last 
   _SET_DIAGNOSTIC_(self%id_fac2, acclim%fac2)               !last 
-  _SET_DIAGNOSTIC_(self%id_dPAR, env%par)                   !somehow doesn't work?
+  _SET_DIAGNOSTIC_(self%id_dPAR, env%par)                   !average
+  !diagnostics for the net phyto growth
+  _SET_DIAGNOSTIC_(self%id_phyUR,     uptake%C*phy%C*secs_pr_day)           ! average
+  _SET_DIAGNOSTIC_(self%id_phyDLR, -self%dil*phy%C*secs_pr_day)             ! average
+  _SET_DIAGNOSTIC_(self%id_phyELR,  -exud%C*phy%C*secs_pr_day)              ! average
+  _SET_DIAGNOSTIC_(self%id_phyALR,  -aggreg_rate*phy%C*secs_pr_day)         ! average
+if (self%GrazingOn) then    
+  _SET_DIAGNOSTIC_(self%id_phyGLR, -graz_rate*secs_pr_day)                  ! average
+end if
 !#E_DIA
 
 if (self%DebugDiagOn) then

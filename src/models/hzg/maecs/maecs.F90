@@ -517,8 +517,21 @@ call self%register_diagnostic_variable(self%id_fac1,    'fac1','-', ' fac1', &
 call self%register_diagnostic_variable(self%id_fac2,    'fac2','-', ' fac2', &
   output=output_instantaneous)
 call self%register_diagnostic_variable(self%id_dPAR,    'PAR','W/m**2', 'PAR', &
-  time_treatment=time_treatment_averaged)
-  
+  output=time_treatment_averaged)
+
+call self%register_diagnostic_variable(self%id_phyUR, 'phyUR','mmolC/m3/d', 'phyC_uptake_rate', &
+  output=time_treatment_averaged)
+call self%register_diagnostic_variable(self%id_phyDLR,   'phyDLR','mmolC/m3/d', 'phyC_dilution_loss_rate', &
+  output=time_treatment_averaged)
+call self%register_diagnostic_variable(self%id_phyELR,    'phyELR','mmolC/m3/d', 'phyC_exudation_loss_rate', &
+  output=time_treatment_averaged)
+call self%register_diagnostic_variable(self%id_phyALR,    'phyALR','mmolC/m3/d', 'phyC_aggregation_loss_rate', &
+  output=time_treatment_averaged) 
+if (GrazingOn) then
+  call self%register_diagnostic_variable(self%id_phyGLR,    'phyGLR','W/m**2', 'phyC_grazing_loss_rate', &
+  output=time_treatment_averaged)
+end if
+
 !!------- Register environmental dependencies  ------- 
 call self%register_dependency(self%id_temp,standard_variables%temperature)
 call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
