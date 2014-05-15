@@ -519,16 +519,16 @@ call self%register_diagnostic_variable(self%id_fac2,    'fac2','-', ' fac2', &
 call self%register_diagnostic_variable(self%id_dPAR,    'PAR','W/m**2', 'PAR', &
   output=output_time_step_averaged)
 
-call self%register_diagnostic_variable(self%id_phyUR, 'phyUR','mmolC/m3/d', 'phyC_uptake_rate', &
+call self%register_diagnostic_variable(self%id_phyUR, 'phyUR','/d', 'phyC_uptake_rate', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_phyDLR,   'phyDLR','mmolC/m3/d', 'phyC_dilution_loss_rate', &
+call self%register_diagnostic_variable(self%id_phyDLR,   'phyDLR','/d', 'phyC_dilution_loss_rate', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_phyELR,    'phyELR','mmolC/m3/d', 'phyC_exudation_loss_rate', &
+call self%register_diagnostic_variable(self%id_phyELR,    'phyELR','/d', 'phyC_exudation_loss_rate', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_phyALR,    'phyALR','mmolC/m3/d', 'phyC_aggregation_loss_rate', &
+call self%register_diagnostic_variable(self%id_phyALR,    'phyALR','/d', 'phyC_aggregation_loss_rate', &
   output=output_time_step_averaged) 
 if (GrazingOn) then
-  call self%register_diagnostic_variable(self%id_phyGLR,    'phyGLR','mmolC/m3/d', 'phyC_grazing_loss_rate', &
+  call self%register_diagnostic_variable(self%id_phyGLR,    'phyGLR','/d', 'phyC_grazing_loss_rate', &
   output=output_time_step_averaged)
 end if
 

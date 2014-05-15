@@ -415,12 +415,12 @@ end if
   _SET_DIAGNOSTIC_(self%id_fac2, acclim%fac2)               !average
   _SET_DIAGNOSTIC_(self%id_dPAR, env%par)                   !average
   !diagnostics for the net phyto growth
-  _SET_DIAGNOSTIC_(self%id_phyUR,     uptake%C*phy%C)           ! average ?*secs_pr_day?
-  _SET_DIAGNOSTIC_(self%id_phyDLR, -self%dil*phy%C)             ! average
-  _SET_DIAGNOSTIC_(self%id_phyELR,  -exud%C*phy%C)              ! average
-  _SET_DIAGNOSTIC_(self%id_phyALR,  -aggreg_rate*phy%C)         ! average
+  _SET_DIAGNOSTIC_(self%id_phyUR,  uptake%C)             ! average ?*phy%C *secs_pr_day?
+  _SET_DIAGNOSTIC_(self%id_phyDLR, -self%dil)            ! average
+  _SET_DIAGNOSTIC_(self%id_phyELR, -exud%C)              ! average
+  _SET_DIAGNOSTIC_(self%id_phyALR, -aggreg_rate)         ! average
 if (self%GrazingOn) then    
-  _SET_DIAGNOSTIC_(self%id_phyGLR, -graz_rate)                  ! average
+  _SET_DIAGNOSTIC_(self%id_phyGLR, -graz_rate/zoo%C)     ! average
 end if
 !#E_DIA
 
