@@ -15,8 +15,8 @@ DEFINES=-D$(FORTRAN_COMPILER) -D_FABM_F2003_
 FEATURES	= 
 FEATURE_LIBS	=
 EXTRA_LIBS	=
-INCDIRS		=
-LDFLAGS		=
+INCDIRS		= -I /opt/gcc4.8/include
+LDFLAGS		= -L /opt/gcc4.8/lib
 DEBUG_FLAGS     = 
 
 FABMBASE = ${LIBFABM}(fabm_driver.o) ${LIBFABM}(fabm_standard_variables.o) ${LIBFABM}(fabm_properties.o) ${LIBFABM}(fabm_types.o) ${LIBFABM}(fabm_particle.o) ${LIBFABM}(fabm_expressions.o)

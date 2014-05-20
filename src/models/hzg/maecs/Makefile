@@ -19,6 +19,8 @@ ${LIB}(maecs.o)
 
 all: objs
 
+maecs.o: maecs.F90 maecs_do.F90
+
 objs: ${OBJS}
 	$(MOVE_MODULES_COMMAND)
 

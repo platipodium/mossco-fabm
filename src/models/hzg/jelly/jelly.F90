@@ -21,7 +21,7 @@ module fabm_hzg_jelly
   !type type_diff
   ! real(rk) :: mu, dmudl, d2mudl2, dmudV, dsinkdl, dsinkdp, d2mudl2_d, dmu_d
   !end type
-  integer   :: numb=2
+  integer   :: numb=1
   real(rk)  :: i13sig
 
 !#SP0
@@ -38,13 +38,13 @@ type type_jelly_rhs
 end type
 ! standard fabm model types
 type,extends(type_base_model),public :: type_hzg_jelly
-type (type_state_variable_id), dimension(2) :: id_B_Pp,id_l_Pp,id_B_Be,id_l_Be,id_B_Det
+type (type_state_variable_id)        :: id_B_Pp,id_l_Pp,id_B_Be,id_l_Be,id_B_Det
 type (type_dependency_id)            :: id_Cop
 type (type_dependency_id)            :: id_Temp
 type (type_dependency_id)            :: id_salt
 type (type_diagnostic_variable_id)   :: id_prod_Be, id_Mort_Be, id_fA_Be, id_Imax_Be, id_lopt_Be, id_prod_Pp, id_Mort_Pp, id_fA_Pp, id_Imax_Pp, id_mort_P, id_mort_S, id_mort_R, id_mort_G, id_mort_J, id_mort_T, id_somgrowth, id_recruit, id_paras_dl, id_som_dl, id_turb_dl, id_init_dl, id_graz_dl, id_sen_dl, id_prod_dl, id_resp_dl, id_dl_prey, id_dl_pred, id_al_Im, id_mixBmass, id_mixlsize, id_Tdep
 real(rk) ::  B_Pp_initial, l_Pp_initial, B_Be_initial, l_Be_initial, B_Det_initial
-real(rk) ::  lA, l0, sigma, Imax_pot, yield, mR, mS, mP, mT, Q10, Tc, Bcrit, relCVDens, m_predBe, loptA_Pp, loptA_Be, sigmbc, immigr, rDet, dil_CH, dil_HO, relV_O
+real(rk) ::  lA, l0, sigma, Imax_pot, yield, mR, mS, mP, mT, Q10, Tc, Bcrit, relCVDens, m_predBe, loptA_Pp, loptA_Be, sigmbc, immigr, rDet, T_turb, dil_CH, dil_HO, relV_O
 real(rk) ::  eps, fCopGB, fTempGB
 logical  ::  TransectOn, SizeDynOn, LowPassOn, OptionOn, MortSizeOn
 
@@ -52,8 +52,6 @@ contains
 !   Model procedures
 procedure :: initialize
 procedure :: do
-procedure :: mixing
-procedure :: errfunc
 end type type_hzg_jelly
 
 !
@@ -78,8 +76,8 @@ integer,                  intent(in)            :: configunit
 ! !LOCAL VARIABLES:
 integer    :: namlst=19
 !!------- Initial values of model jelly ------- 
-!> \describepar{B_Pp_initial , B_\mathrm{Pp} , P.Pileus biomass, 9E-3 µg-C/L}
-!> \describepar{l_Pp_initial , \ell_\mathrm{Pp} , P.Pileus mean log size, 1.6 log(ESD/mm)}
+!> \describepar{B_Pp_initial , B_\mathrm{Pp} , P.Pileus biomass, 5E-2 µg-C/L}
+!> \describepar{l_Pp_initial , \ell_\mathrm{Pp} , P.Pileus mean log size, 1.2 log(ESD/mm)}
 !> \describepar{B_Be_initial , B_\mathrm{Be} , Beroe biomass, 1E-4 µg-C/L}
 !> \describepar{l_Be_initial , \ell_\mathrm{Be} , Beroe mean log size, 1.6 log(ESD/mm)}
 !> \describepar{B_Det_initial , \ell_\mathrm{Be} , detritus, 10. µg-C/L}
@@ -92,21 +90,22 @@ real(rk)  :: B_Det_initial ! detritus
 !> describepar{l0           , \ell_0           , offspring size, -1.2 log(ESD/mm)}
 !> describepar{sigma        , \sigma'        , log-size specific std deviation , 0.28 log(ESD/mm)^2}
 !> describepar{Imax_pot     , I_\mathrm{max}^*     , maximum ingestion rate for ideal consumer, prey, T, and food , 173. 1/d}
-!> describepar{yield        , y_0        , assimilation efficiency, 0.68 }
-!> describepar{mR           , m_R^0           , temperature dependent, natural mortality rate , 0.09 1/d}
-!> describepar{mS           , m_S^0           , physiological mortality under senescence , -0.09 1/d}
-!> describepar{mP           , m_P^0           , density dependent mortality rate (parasites), 2E-4 1/d.µg-C/L}
-!> describepar{mT           , m_{T}^0           , mortality due to physical damage (turbulence), 0.09 1/d}
-!> describepar{Q10          , Q_{10}          , rate increase at 10C temperature rise, 3.0 }
-!> describepar{Tc           , T_c           , critical threshold temperature, 4. }
-!> describepar{Bcrit        , B^*        , minimal prey biomass (Holling-III) , 10. µg-C/L}
-!> describepar{relCVDens    , R_\rho    , C-biovolume density ratio non-gelatinous/gelatinous plankton, 70. µg-C/L}
+!> describepar{yield        , y_0        , assimilation efficiency, 0.7 }
+!> describepar{mR           , m_R^0           , temperature dependent, natural mortality rate , 0.8 1/d}
+!> describepar{mS           , m_S^0           , physiological mortality under senescence , -0.1 1/d}
+!> describepar{mP           , m_P^0           , density dependent mortality rate (parasites), 2.5E-4 1/d.µg-C/L}
+!> describepar{mT           , m_{T}^0           , mortality due to physical damage (turbulence), -0.1 1/d}
+!> describepar{Q10          , Q_{10}          , rate increase at 10C temperature rise, 3.2 }
+!> describepar{Tc           , ^o$C] $T_c           , critical threshold temperature, 4.3 $^o$C}
+!> describepar{Bcrit        , B^*        , minimal prey biomass (Holling-III) , 7. µg-C/L}
+!> describepar{relCVDens    , R_\rho    , C-biovolume density ratio non-gelatinous/gelatinous plankton, 78. µg-C/L}
 !> describepar{m_predBe     , m_\mathrm{top}     , loss rate of Beroe due to top-predator , 0. 1/d}
-!> describepar{loptA_Pp     , \lcsize_\mathrm{opt,Pp}^A     , optimal prey size adult P.pileus , -0.2 }
-!> describepar{loptA_Be     , \lcsize_\mathrm{opt,Be}^A     , optimal prey size adult Beroe , 2.0 }
+!> describepar{loptA_Pp     , \lcsize_\mathrm{opt,Pp}^A     , optimal prey size adult P.pileus , -0.4 }
+!> describepar{loptA_Be     , \lcsize_\mathrm{opt,Be}^A     , optimal prey size adult Beroe , 1.8 }
 !> describepar{sigmbc       , B_{\sigma}       , biomass below var size drop, 1E-3 µg-C/L}
-!> describepar{immigr       , \epsilon_\mathrm{in}       , migration mass inflow rate , 2E-8 µg-C/L.d}
+!> describepar{immigr       , \epsilon_\mathrm{in}       , migration mass inflow rate , 1E-7 µg-C/L.d}
 !> describepar{rDet         , r_\mathrm{Det}         , detritus turnover rate , 0.02 1/d}
+!> describepar{T_turb       , ^o$C] $T_\mathrm{turb}       , correlation temperature-turbulence , 7.0 $^o$C}
 !> describepar{dil_CH       ,        , Exchange rate Coast-HR, 0.35 1/d}
 !> describepar{dil_HO       ,        , Exchange rate HR-Offshore, 0.1 1/d}
 !> describepar{relV_O       ,        , relative volume Offshore box, 10. 1/d}
@@ -133,6 +132,7 @@ real(rk)  :: loptA_Be     ! optimal prey size adult Beroe
 real(rk)  :: sigmbc       ! biomass below var size drop
 real(rk)  :: immigr       ! migration mass inflow rate 
 real(rk)  :: rDet         ! detritus turnover rate 
+real(rk)  :: T_turb       ! correlation temperature-turbulence 
 real(rk)  :: dil_CH       ! Exchange rate Coast-HR
 real(rk)  :: dil_HO       ! Exchange rate HR-Offshore
 real(rk)  :: relV_O       ! relative volume Offshore box
@@ -146,15 +146,13 @@ logical   :: SizeDynOn    ! life stage cycling enabled
 logical   :: LowPassOn    ! filter high frequency in forcing
 logical   :: OptionOn     ! generic
 logical   :: MortSizeOn   ! size dependency in mortality
-character(len=64)   :: sbname,cbname
-integer   :: ib
 
 namelist /jelly_init/ &
   B_Pp_initial, l_Pp_initial, B_Be_initial, l_Be_initial, B_Det_initial
 
 namelist /jelly_pars/ &
   lA, l0, sigma, Imax_pot, yield, mR, mS, mP, mT, Q10, Tc, Bcrit, relCVDens, m_predBe, &
-  loptA_Pp, loptA_Be, sigmbc, immigr, rDet, dil_CH, dil_HO, relV_O
+  loptA_Pp, loptA_Be, sigmbc, immigr, rDet, T_turb, dil_CH, dil_HO, relV_O
 
 namelist /jelly_ctl/ &
   eps, fCopGB, fTempGB
@@ -162,8 +160,8 @@ namelist /jelly_ctl/ &
 namelist /jelly_switch/ &
   TransectOn, SizeDynOn, LowPassOn, OptionOn, MortSizeOn
 
-B_Pp_initial = 9E-3_rk            ! µg-C/L
-l_Pp_initial = 1.6_rk             ! log(ESD/mm)
+B_Pp_initial = 5E-2_rk            ! µg-C/L
+l_Pp_initial = 1.2_rk             ! log(ESD/mm)
 B_Be_initial = 1E-4_rk            ! µg-C/L
 l_Be_initial = 1.6_rk             ! log(ESD/mm)
 B_Det_initial = 10._rk             ! µg-C/L
@@ -171,21 +169,22 @@ lA           = 2._rk              ! log(ESD/mm)
 l0           = -1.2_rk            ! log(ESD/mm)
 sigma        = 0.28_rk            ! log(ESD/mm)^2
 Imax_pot     = 173._rk            ! 1/d
-yield        = 0.68_rk            ! 
-mR           = 0.09_rk            ! 1/d
-mS           = -0.09_rk           ! 1/d
-mP           = 2E-4_rk            ! 1/d.µg-C/L
-mT           = 0.09_rk            ! 1/d
-Q10          = 3.0_rk             ! 
-Tc           = 4._rk              ! 
-Bcrit        = 10._rk             ! µg-C/L
-relCVDens    = 70._rk             ! µg-C/L
+yield        = 0.7_rk             ! 
+mR           = 0.8_rk             ! 1/d
+mS           = -0.1_rk            ! 1/d
+mP           = 2.5E-4_rk          ! 1/d.µg-C/L
+mT           = -0.1_rk            ! 1/d
+Q10          = 3.2_rk             ! 
+Tc           = 4.3_rk             ! $^o$C
+Bcrit        = 7._rk              ! µg-C/L
+relCVDens    = 78._rk             ! µg-C/L
 m_predBe     = 0._rk              ! 1/d
-loptA_Pp     = -0.2_rk            ! 
-loptA_Be     = 2.0_rk             ! 
+loptA_Pp     = -0.4_rk            ! 
+loptA_Be     = 1.8_rk             ! 
 sigmbc       = 1E-3_rk            ! µg-C/L
-immigr       = 2E-8_rk            ! µg-C/L.d
+immigr       = 1E-7_rk            ! µg-C/L.d
 rDet         = 0.02_rk            ! 1/d
+T_turb       = 7.0_rk             ! $^o$C
 dil_CH       = 0.35_rk            ! 1/d
 dil_HO       = 0.1_rk             ! 1/d
 relV_O       = 10._rk             ! 1/d
@@ -242,6 +241,7 @@ call self%get_parameter(self%loptA_Be     ,'loptA_Be',      default=loptA_Be)
 call self%get_parameter(self%sigmbc       ,'sigmbc',        default=sigmbc)
 call self%get_parameter(self%immigr       ,'immigr',        default=immigr)
 call self%get_parameter(self%rDet         ,'rDet',          default=rDet)
+call self%get_parameter(self%T_turb       ,'T_turb',        default=T_turb)
 call self%get_parameter(self%dil_CH       ,'dil_CH',        default=dil_CH)
 call self%get_parameter(self%dil_HO       ,'dil_HO',        default=dil_HO)
 call self%get_parameter(self%relV_O       ,'relV_O',        default=relV_O)
@@ -252,28 +252,16 @@ call self%get_parameter(self%fCopGB       ,'fCopGB',        default=fCopGB)
 call self%get_parameter(self%fTempGB      ,'fTempGB',       default=fTempGB)
 
 !!------- Register state variables  ------- 
-do ib = 1, 2
-write (sbname, "(A,I1)") 'B_Pp',ib 
-cbname = 'P.Pileus biomass ' // sbname
-call self%register_state_variable(self%id_B_Pp(ib),sbname,'µg-C/L',cbname, &
+call self%register_state_variable(self%id_B_Pp,  'B_Pp','µg-C/L','P.Pileus biomass B_Pp', &
    B_Pp_initial, minimum=_ZERO_, no_river_dilution=.true. )
-write (sbname, "(A,I1)") 'l_Pp',ib 
-cbname = 'P.Pileus mean log size ' // sbname
-call self%register_state_variable(self%id_l_Pp(ib),sbname,'log(ESD/mm)',cbname, &
+call self%register_state_variable(self%id_l_Pp,  'l_Pp','log(ESD/mm)','P.Pileus mean log size l_Pp', &
    l_Pp_initial, minimum=-2.0d0, no_river_dilution=.true. )
-write (sbname, "(A,I1)") 'B_Be',ib 
-cbname = 'Beroe biomass ' // sbname
-call self%register_state_variable(self%id_B_Be(ib),sbname,'µg-C/L',cbname, &
+call self%register_state_variable(self%id_B_Be,  'B_Be','µg-C/L','Beroe biomass B_Be', &
    B_Be_initial, minimum=_ZERO_, no_river_dilution=.true. )
-write (sbname, "(A,I1)") 'l_Be',ib 
-cbname = 'Beroe mean log size ' // sbname
-call self%register_state_variable(self%id_l_Be(ib),sbname,'log(ESD/mm)',cbname, &
+call self%register_state_variable(self%id_l_Be,  'l_Be','log(ESD/mm)','Beroe mean log size l_Be', &
    l_Be_initial, minimum=-2.0d0, no_river_dilution=.true. )
-write (sbname, "(A,I1)") 'B_Det',ib 
-cbname = 'detritus ' // sbname
-call self%register_state_variable(self%id_B_Det(ib),sbname,'µg-C/L',cbname, &
+call self%register_state_variable(self%id_B_Det, 'B_Det','µg-C/L','detritus B_Det', &
    B_Det_initial, minimum=_ZERO_, no_river_dilution=.true. )
-end do
 
 !!------- Register diagnostic variables  ------- 
 call self%register_diagnostic_variable(self%id_prod_Be, 'prod_Be','1/d', 'secondary production rate Beroe prod_Be', &
@@ -340,9 +328,9 @@ call self%register_diagnostic_variable(self%id_Tdep,    'Tdep','1/d', 'Temperatu
   output=output_instantaneous)
 
 !!------- Register environmental dependencies  ------- 
-call self%register_dependency(self%id_Cop,varname_par)
-call self%register_dependency(self%id_Temp,varname_temp)
-call self%register_dependency(self%id_salt,varname_salt)
+call self%register_dependency(self%id_Cop,standard_variables%downwelling_photosynthetic_radiative_flux)
+call self%register_dependency(self%id_Temp,standard_variables%temperature)
+call self%register_dependency(self%id_salt,standard_variables%practical_salinity)
 
 ! extra line included from parser var init_incl 
 #define UNIT *1.1574074074E-5_rk
@@ -381,8 +369,8 @@ end subroutine initialize
   !real(rk)              :: d2mudl2_d, dmu2=0.0_rk, mfac
 !  type (type_environment),   intent(inout)  :: environment 
   real(rk) :: mort_S, mort_S0,mort_SJ, mort_R, mort_R0, mort_G
-  real(rk) ::  mort_J, mort_AJ, mort_P, mort_T, mort_sum, mass_sum
-  real(rk) :: errf, argA, eargA, aa, rS, pS, pS0, eS, eS0, fS, fe, al0, yfac
+  real(rk) :: mort_J, mort_AJ, mort_P, mort_T, mort_sum, mass_sum
+  real(rk) :: errf, argA, aa, rS, pS, pS0, eS, eS0, al0, yfac
   real(rk) :: somgrwth, recruit,lco, mGBe, f_tc, starv, dal_dl
   real(rk) :: prod_dl, sum_dl, resp_dl,paras_dl, turb_dl
   real(rk) :: graz_dl, som_dl, init_dl, sen_dl
@@ -390,13 +378,13 @@ end subroutine initialize
   real(rk), dimension(3) :: Imax, al1, dlopt,lopt, graz,Temp_dep, Temp_dep0
   real(rk), dimension(3) :: mGrz, mGrz0, sig, sigma2, lmsize, dlp,dlpp, mass, relDens
   real(rk) :: dl0, dl, dl2, bcrit, prey, preyE, mGP, aS=2.0
-  real(rk) :: fR, fA, fA0, fBe, dfA_dl, lm_adult, al, lprey, lcrit
-  real(rk) :: gross, Prod, dg_dB, dB_dl, dg_dlY,fdejuv, srS, mS0, mT0
+  real(rk) :: fR, fA, dfA_dl, lm_adult, al, lprey, lcrit
+  real(rk) :: gross, Prod, dg_dB, dB_dl, dg_dlY, srS, mS0, mT0
   integer  :: ib, ic, i, j
 !  real(rk) :: inflow=2E-1, Adorm=2E-3
 
 ! !REVISION HISTORY:
-!  Original author(s): Kai Wirtz, Nusret Sevinc
+!  Original author(s): Kai Wirtz
 
 ! !DESCRIPTION:
 ! Stage-based Pleurobrachia & Beroe   Model
@@ -405,7 +393,6 @@ end subroutine initialize
 !-----------------------------------------------------------------------
 !BOC
 ! argA  = 0.5*(self%lA+self%l0)/(sqrt(2.d0)*self%sigma)
-! call self%errfunc(argA, errf, eargA)
 ! relative fraction of adhults 
 ! fA0    = 0.5d0*(1.0d0 - errf) 
 ! unify all mortalities
@@ -430,11 +417,11 @@ _FABM_LOOP_BEGIN_
 
 !#S_GET
 !---------- GET for each state variable ----------
-  _GET_(self%id_B_Pp(ib), var(ib)%B_Pp)  ! P.Pileus biomass in µg-C/L
-  _GET_(self%id_l_Pp(ib), var(ib)%l_Pp)  ! P.Pileus mean log size in log(ESD/mm)
-  _GET_(self%id_B_Be(ib), var(ib)%B_Be)  ! Beroe biomass in µg-C/L
-  _GET_(self%id_l_Be(ib), var(ib)%l_Be)  ! Beroe mean log size in log(ESD/mm)
-  _GET_(self%id_B_Det(ib), var(ib)%B_Det)  ! detritus in µg-C/L
+  _GET_(self%id_B_Pp, var(ib)%B_Pp)  ! P.Pileus biomass in µg-C/L
+  _GET_(self%id_l_Pp, var(ib)%l_Pp)  ! P.Pileus mean log size in log(ESD/mm)
+  _GET_(self%id_B_Be, var(ib)%B_Be)  ! Beroe biomass in µg-C/L
+  _GET_(self%id_l_Be, var(ib)%l_Be)  ! Beroe mean log size in log(ESD/mm)
+  _GET_(self%id_B_Det, var(ib)%B_Det)  ! detritus in µg-C/L
 !#E_GET
    ! Retrieve current environmental conditions.
 !#S_GED
@@ -452,26 +439,14 @@ _FABM_LOOP_BEGIN_
 ! open water: less copepods, and reduced temperature fluctuation
 !  var(2)%Cop  = 1.5 * var(2)%Cop
 !  var(2)%Temp = -0.5 + 1.15*var(2)%Temp
- var(numb)%Cop  = self%fCopGB * var(numb)%Cop
+! var(numb)%Cop  = self%fCopGB * var(numb)%Cop
 ! assuming a mean temperature of 10^oC
- var(numb)%Temp = (1.0d0-self%fTempGB)*10.0d0 + self%fTempGB*var(numb)%Temp
-
- if(self%TransectOn) then  ! unsused; TODO: check for plausibility of equations 
-! exchange rate of mass HR-Offshore 
-  call self%mixing(self%dil_HO, var(1)%B_Pp, self%relV_O,var(2)%B_Pp, dConc(1,1), dConc(1,2))
-  call self%mixing(self%dil_HO, var(1)%B_Be, self%relV_O,var(2)%B_Be, dConc(2,1), dConc(2,2))
-
-! exchange rate of trait  HR-Offshore 
-  call self%mixing(self%dil_HO, var(1)%B_Pp*var(1)%l_Pp, self%relV_O,var(2)%B_Pp*var(2)%l_Pp, dTrait(1,1), dTrait(1,2))
-!  dTrait(1,1) = dConci / var(1)%B_Pp
-!  dTrait(1,2) = dConco / var(2)%B_Pp
-  call self%mixing(self%dil_HO, var(1)%B_Be*var(1)%l_Be, self%relV_O,var(2)%B_Be*var(2)%l_Be, dTrait(2,1), dTrait(2,2))
-
- endif
+! var(numb)%Temp = (1.0d0-self%fTempGB)*10.0d0 + self%fTempGB*var(numb)%Temp
 
 ! f_tc  = 1.0d0/(exp(-(self%Tc-20.0d0)*0.1*log(self%Q10))+ 1.0d0 )
   f_tc  = 1.0d0/(exp(-(0-20.0d0)*0.1*log(self%Q10)) + 1.0d0)
-  
+
+
 ! loop over boxes   1: HR  2: Offshore
  do ib = 1, numb
 
@@ -493,6 +468,7 @@ _FABM_LOOP_BEGIN_
   lopt(3)   = self%l0
   Imax(3)   = 1.0d0
   Temp_dep(3) = f_temp(2.5d0, var(ib)%Temp, 0.0d0)
+
 ! re-gauge coefficient to apply  Imax-scaling of Wirtz JPR,2012 
 !    log(1E3/80) converts from log(micro-m) to log(mm) but accounts for much lower C-density
   lco     = log(1E3/self%relCVDens)
@@ -624,7 +600,7 @@ _FABM_LOOP_BEGIN_
 
 !   if (var(ib)%l_Pp .lt. -0.7 .and. i .eq. 2) write (*,'(A,3(F12.5))') 'l1=',var(ib)%l_Pp,yfac,dlpp(i)
 ! physical damage (turbulence); can be avoided by active swimming
-   mort_T  = mT0 *starv/(1.0d0+starv)* exp(-(var(ib)%Temp-0.0)/7) /(Temp_dep(i) +f_tc) * exp((self%lA-lmsize(i))*0.5)
+   mort_T  = mT0 *starv/(1.0d0+starv)* exp(-(var(ib)%Temp-0.0)/self%T_turb) /(Temp_dep(i) +f_tc) * exp((self%lA-lmsize(i))*0.5)
 
 !   f_tc  = 1.0d0/(exp(-(self%Tc-20.0d0)*0.1*log(self%Q10 + lopt(i)))+ 1.0d0 )
 !
@@ -632,7 +608,10 @@ _FABM_LOOP_BEGIN_
 !
 !  how far way are juveniles from maturity ? 
    argA    = (self%lA-lmsize(i))/(sqrt(2.d0)*sig(i))
-   call self%errfunc(argA, errf, eargA) ! TODO: replace by more accurate err-function
+
+   errf  = (1-exp(-argA*2.45d0))/(1+exp(-argA*2.45d0))
+
+!   call self%errfunc(argA, errf) ! TODO: replace by more accurate err-function
 ! relative fraction of adults 
    fA      = 0.5d0*(1.0d0 - errf) 
 !   if (abs(fA) .gt. 1.) write (*,'(A,1(I2),5(F12.5))') 'fA=',i,lmsize(i),sig(i) ,argA,errf, fA 
@@ -769,11 +748,11 @@ _FABM_LOOP_BEGIN_
   _SET_DIAGNOSTIC_(self%id_al_Im, rhsv%l_Pp)                   !step_integrated size scaling expoentent Imax 
   _SET_DIAGNOSTIC_(self%id_mixBmass, rhsv%B_Be)            !step_integrated mass exchange rate Coast-HR-Offshore
   _SET_DIAGNOSTIC_(self%id_mixlsize, sigma2(i))           !dTrait(2,1)step_integrated trait exchange rate Coast-HR-Offshore
-  _SET_DIAGNOSTIC_(self%id_Tdep, Temp_dep(i))                  !step_integrated Temperature dependence
+  _SET_DIAGNOSTIC_(self%id_Tdep, Temp_dep(3))                  !step_integrated Temperature dependence
     endif
   endif
 
-!write (*,'(I3,2(F10.6))') ib,rhsv%AdPP,var(ib)%AdPP 
+!write (*,'(1(F10.6))')   ftd/ntd 
 !#S__DIA
 !#E__DIA
   end do
@@ -781,15 +760,15 @@ _FABM_LOOP_BEGIN_
 ! most simple detritus pool turnover dynamics 
 !  rhsv%B_Det=  self%mS * mass_sum - self%rDet * Temp_dep(3) * var(ib)%B_Det
 !  if (mass_sum .gt. 200.0d0) mass_sum = 200.0d0
-  rhsv%B_Det=   self%rDet * (mass_sum - 1.9*Temp_dep(3) * var(ib)%B_Det)
+  rhsv%B_Det=   self%rDet * (mass_sum - Temp_dep(3)/0.444 * var(ib)%B_Det)  ! 0.4444 mean of f_T 1962-2002 for Q10=2.5
 ! ------------------------------------------------------------------------------
 !#S_ODE
 !---------- ODE for each state variable ----------
-  _SET_ODE_(self%id_B_Pp(ib), rhsv%B_Pp UNIT)
-  _SET_ODE_(self%id_l_Pp(ib), rhsv%l_Pp UNIT)
-  _SET_ODE_(self%id_B_Be(ib), rhsv%B_Be UNIT)
-  _SET_ODE_(self%id_l_Be(ib), rhsv%l_Be UNIT)
-  _SET_ODE_(self%id_B_Det(ib), rhsv%B_Det UNIT)
+  _SET_ODE_(self%id_B_Pp, rhsv%B_Pp UNIT)
+  _SET_ODE_(self%id_l_Pp, rhsv%l_Pp UNIT)
+  _SET_ODE_(self%id_B_Be, rhsv%B_Be UNIT)
+  _SET_ODE_(self%id_l_Be, rhsv%l_Be UNIT)
+  _SET_ODE_(self%id_B_Det, rhsv%B_Det UNIT)
 !#E_ODE
   end do
 
@@ -850,29 +829,16 @@ implicit none
  dConco = Dil* ( Conci - Conc_mix ) 
 end subroutine mixing
 
-subroutine errfunc(self,arg,errf,ea2)
+subroutine errfunc(self,arg,errf)
 implicit none
 ! !INPUT PARAMETERS:
  class (type_hzg_jelly),intent(in) :: self
  real(rk), intent(in)      :: arg
- real(rk), intent(inout)   :: errf, ea2
+ real(rk), intent(inout)   :: errf
  real(rk)   :: art
 
  errf  = (1-exp(-arg*2.45d0))/(1+exp(-arg*2.45d0))
 
-! if(arg > 2.0d0) then    errf  = 1.0d0
-! else
-!   if(arg < -2.0d0) then 
-!     errf  = -1.0d0
-!   else     ea2 = exp(-arg*arg)
-! error function approximation 
-!     art   = 1.0d0/(1.0d0+0.47047d0*arg)
-!     errf  = 1.0d0 - (0.3480242d0*art -0.0958798d0*art*art +0.7478556d0*art*art*art) * ea2
-!   if (errf .lt. -0.99) write (*,'(A,3(F12.5))') 'err=',arg,art,errf
-!       if (errf .lt. -0.99999) errf  = -0.99999d0
-!       if (errf .gt.  0.99999) errf  =  0.99999d0
-!   endif
-! endif
 end subroutine errfunc
 
 !EOC

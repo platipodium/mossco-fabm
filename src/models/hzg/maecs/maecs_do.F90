@@ -43,7 +43,7 @@ type (type_maecs_zoo)    :: zoo   ! zooplankton type
 type (type_maecs_om)     :: dom, det, nut, uptake, exud, lossZ, floppZ, nquot 
 type (type_maecs_env)    :: env
 type (type_maecs_switch) :: mswitch    
-type (type_maecs_traitdyn)::acclim
+type (type_maecs_traitdyn)::acclim 
 type (type_maecs_sensitivities) :: sens
 
 ! --- LOCAL MODEL VARIABLES:
