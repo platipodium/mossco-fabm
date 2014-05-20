@@ -5,7 +5,7 @@
 !> NOTE: Although this subroutine looks as if it's not a part of any module,
 !! it is temporarily included in the fabm_hzg_maecs module (inside maecs.F90)
 !! when compiling the documentation, such that the subroutine is documented 
-!! under the 'Data Type Documentation' chapter, where the in-body docs are listed
+!! under the 'Data Type Documentation' chapter, where the in-body docs are also listed
 !>
 !> **Phytoplankton Equations** 
 !> \n We distinguish between mass state variables 
@@ -155,6 +155,7 @@ call calc_sensitivities(self,sens,phy,env,nut)
 !>   - calc. aggreg_rate @f$ = \mathrm{phi\_agg}*(1-e^{-0.02*\mathrm{dom\%C}}) * phy\%N *det\%N @f$
 !>     - future work: aggreg_rate=f(size), \latexonly (see section \ref{sec:partagg}) \endlatexonly \n
 !>   - calc. degradT=self\%hydrol * @f$ f_T @f$ and reminT=self\%remin * @f$ f_T @f$
+!> @todo: aggregation equation: where does 0.02 come from? are the results sensitive to this par? 
 !> @todo: specific graz_rate becomes pop. grazing rate. Do this at the rhs calculations
 !> @todo: graz_rate: no temperature modification: forgotten?
 
@@ -190,7 +191,7 @@ end if
 !_GET_(self%id_fracR,phys_status )  
 !write (*,'(A,1(F10.3))') 'phys=',phys_status
 
-aggreg_rate = self%phi_agg * (1.0_rk - exp(-0.02*dom%C)) * (phy%N + det%N) 
+aggreg_rate = self%phi_agg * (1.0_rk - exp(-self%agg_doc_coef*dom%C)) * (phy%N + det%N) 
 !         vS * exp(-4*phys_status )                ! [d^{-1}] 
 !aggreg_rate = aggreg_rate * exp(-4*phy%rel_phys ) 
 
@@ -420,7 +421,7 @@ end if
   _SET_DIAGNOSTIC_(self%id_phyELR, -exud%C)              ! average
   _SET_DIAGNOSTIC_(self%id_phyALR, -aggreg_rate)         ! average
 if (self%GrazingOn) then    
-  _SET_DIAGNOSTIC_(self%id_phyGLR, -graz_rate/zoo%C)     ! average
+  _SET_DIAGNOSTIC_(self%id_phyGLR, -graz_rate/phy%C)     ! average
 end if
 !#E_DIA
 

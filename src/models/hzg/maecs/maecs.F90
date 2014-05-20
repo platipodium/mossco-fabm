@@ -176,6 +176,7 @@ real(rk)  :: adap_rub     ! adap_rub
 real(rk)  :: adap_theta   ! adap_theta
 real(rk)  :: tau_regV     ! tau_regV
 real(rk)  :: phi_agg      ! quadratic aggregation rate
+real(rk)  :: agg_doc_coef ! DOC coefficient for calculating the aggregation rate
 real(rk)  :: vS_phy       ! sinking velocity for phytoplankton
 real(rk)  :: vS_det       ! sinking velocity for detritus
 real(rk)  :: hydrol       ! hydrolysis rate
@@ -227,7 +228,7 @@ namelist /maecs_pars/ &
   P_max, alpha, sigma, theta_LHC, rel_chloropl_min, QN_phy_0, QN_phy_max, &
   V_NC_max, AffN, zeta_CN, zstoich_PN, exud_phy, QP_phy_0, QP_phy_max, V_PC_max, &
   AffP, QSi_phy_0, QSi_phy_max, V_SiC_max, AffSi, syn_nut, adap_rub, adap_theta, &
-  tau_regV, phi_agg, vS_phy, vS_det, hydrol, remin, Ae_all, T_ref, NutOrder
+  tau_regV, phi_agg, agg_doc_coef, vS_phy, vS_det, hydrol, remin, Ae_all, T_ref, NutOrder
 
 namelist /maecs_graz/ &
   const_NC_zoo, const_PC_zoo, g_max, k_grazC, yield_zoo, basal_resp_zoo, &
@@ -278,6 +279,7 @@ adap_rub     = 1.0_rk             !
 adap_theta   = 1.0_rk             ! 
 tau_regV     = 99.0_rk            ! 
 phi_agg      = 5E-4_rk            ! m^6 mmolN^{-2} d^{-1}
+agg_doc_coef = 0.02_rk
 vS_phy       = 5E-2_rk            ! m d^{-1}
 vS_det       = 2._rk              ! m d^{-1}
 hydrol       = 0.03_rk            ! d^{-1}
@@ -365,6 +367,7 @@ call self%get_parameter(self%exud_phy     ,'exud_phy',      default=exud_phy)
 call self%get_parameter(self%syn_nut      ,'syn_nut',       default=syn_nut)
 call self%get_parameter(self%tau_regV     ,'tau_regV',      default=tau_regV)
 call self%get_parameter(self%phi_agg      ,'phi_agg',       default=phi_agg)
+call self%get_parameter(self%agg_doc_coef , 'agg_doc_coef', default=agg_doc_coef)
 call self%get_parameter(self%vS_phy       ,'vS_phy',        default=vS_phy)
 call self%get_parameter(self%vS_det       ,'vS_det',        default=vS_det)
 call self%get_parameter(self%hydrol       ,'hydrol',        default=hydrol)
