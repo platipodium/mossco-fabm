@@ -97,6 +97,9 @@ end if
 if (self%GrazingOn) then
       _GET_(self%id_zooC, zoo%C)  ! Zooplankton Carbon in mmol-C/m**3
 end if
+if (self%NResOn) then
+      _GET_(self%id_RNit, env%RNit)  ! N-reservoir in mmol-N/m**3
+end if
 !#E_GET
 if (.not. self%GrazingOn) then
       zoo%C = self%zooC_initial
@@ -397,11 +400,14 @@ end if
 if (self%GrazingOn) then
       _SET_ODE_(self%id_zooC, rhsv%zooC UNIT)
 end if
+if (self%NResOn) then
+      _SET_ODE_(self%id_RNit, rhsv%RNit UNIT)
+end if
 !#E_ODE
-
 
 !________________________________________________________________________________
 ! set diag variables, mostly from PrimProd module
+!if (self%DebugDiagOn) then
 !#S_DIA
   _SET_DIAGNOSTIC_(self%id_chl2C, phy%theta*phy%rel_chloropl) !average bulk chlorophyll concentration 
   _SET_DIAGNOSTIC_(self%id_fracR, phy%frac%Rub)             !average 
@@ -417,36 +423,11 @@ end if
   _SET_DIAGNOSTIC_(self%id_dPAR, env%par)                   !average 
   _SET_DIAGNOSTIC_(self%id_phyUR, uptake%C)                 !average net phyto growth
   _SET_DIAGNOSTIC_(self%id_phyELR, -exud%C)                 !average phyC exudation loss rate
-  _SET_DIAGNOSTIC_(self%id_phyALR, -aggreg)                 !average rate phyC aggregation loss rate 
+  _SET_DIAGNOSTIC_(self%id_phyALR, -aggreg_rate)            !average phyC aggregation loss rate 
   _SET_DIAGNOSTIC_(self%id_phyGLR, -graz_rate/phy%C)        !average phyC grazing loss rate
   _SET_DIAGNOSTIC_(self%id_vsinkr, exp(-self%sink_phys*phy%relQ%N*phy%relQ%P)) !average relative sinking velocity
 !#E_DIA
-
-if (self%DebugDiagOn) then
-!   _SET_DIAG_(self%id_chl_diag, phy%theta * phy%rel_chloropl ) !* phy%C
-!   _SET_DIAG_(self%id_fracR, phy%frac%Rub) 
-!   _SET_DIAG_(self%id_fracTheta, phy%frac%theta)
-!   _SET_DIAG_(self%id_fracQN, phy%Q%N)
-!   _SET_DIAG_(self%id_fracQP, phy%Q%P*1.0d3)
-!   _SET_DIAG_(self%id_reg_VNC, uptake%N)
-!   _SET_DIAG_(self%id_fac1,uptake%P  ) acclim%fac1
-!   _SET_DIAG_(self%id_fac2,exud%P )
-!   _SET_DIAG_(self%id_tmp,lossZ%P ) 
-
-!   _SET_DIAG_(self%id_flxC, uptake%C*phy%C - reminT*dom%C- self%dil*totalC - lossZ%C*zoo%C) 
-!   _SET_DIAG_(self%id_flxC,rhsv%phyP ) 
-
-!   _SET_DIAG_(self%id_totC,totalC) 
-!   _SET_DIAG_(self%id_totN, totalN) 
-!   _SET_DIAG_(self%id_fac1, totalN - self%budget_N) 
-!   if (self%PhosphorusOn) then
-!     _SET_CONSERVED_QUANTITY_(self%id_totP,dip+phy%P+det%P+dom%P+zoo%P) 
-!     _SET_DIAG_(self%id_totP,totalP) 
-!     _SET_DIAG_(self%id_fac2, totalP - self%budget_P) 
-!     _SET_DIAG_(self%id_fac1,floppZ%P*zoo%C) 
-!     _SET_DIAG_(self%id_fac2,lossZ%P*zoo%C)   end if
-
-end if
+!end if
 
   _LOOP_END_
 

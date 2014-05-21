@@ -58,6 +58,7 @@ contains
 !>
 !> **Model parameters, descriptions and corresponding symbols used in formulas:**
 ! initial values
+!> \describepar{RNit\_initial , \mathrm{N}_\mathrm{air} , N-reservoir, 0.0 mmol-N/m**3}
 !> \describepar{nutN\_initial , \mathrm{DIN} , Dissolved Inorganic Nitrogen DIN, 30.0 mmol-N/m**3}
 !> \describepar{nutP\_initial , \mathrm{Phy}_\mathrm{P} , Dissolved Inorganic Phosphorus DIP, 1.2 mmol-P/m**3}
 !> \describepar{nutS\_initial , \mathrm{Phy}_\mathrm{Si} , Dissolved Inorganic Silicon Si, 20. mmol-Si/m**3}
@@ -136,6 +137,7 @@ integer,                  intent(in)            :: configunit
 ! !LOCAL VARIABLES:
 integer    :: namlst=19
 !!------- Initial values of model maecs ------- 
+real(rk)  :: RNit_initial ! N-reservoir
 real(rk)  :: nutN_initial ! Dissolved Inorganic Nitrogen DIN
 real(rk)  :: nutP_initial ! Dissolved Inorganic Phosphorus DIP
 real(rk)  :: nutS_initial ! Dissolved Inorganic Silicon Si
@@ -214,24 +216,22 @@ logical   :: PhotoacclimOn ! use Photoacclimation
 logical   :: PhosphorusOn ! resolve Phosphorus cycle
 logical   :: SiliconOn    ! resolve Silicon cycle
 logical   :: GrazingOn    ! use Zooplankton grazing
-logical   :: BioCarbochemOn ! use geochemistry module
 logical   :: BioOxyOn     ! use oxygen from other FABM model
 logical   :: DebugDiagOn  ! output of all diagnostics
 logical   :: ChemostatOn  ! use Chemostat mode 
-logical   :: UptakeLock   ! use same allocation for all uptake systems (Smith2008)
+logical   :: NResOn       ! use long-term N-reservoir
 logical   :: detritus_no_river_dilution ! use riverine det import
 logical   :: plankton_no_river_dilution ! use riverine det import
 
 namelist /maecs_switch/ &
-  RubiscoOn, PhotoacclimOn, PhosphorusOn, SiliconOn, GrazingOn, BioCarbochemOn, &
-  BioOxyOn, DebugDiagOn, ChemostatOn, UptakeLock, detritus_no_river_dilution, &
-  plankton_no_river_dilution
+  RubiscoOn, PhotoacclimOn, PhosphorusOn, SiliconOn, GrazingOn, BioOxyOn, &
+  DebugDiagOn, ChemostatOn, NResOn, detritus_no_river_dilution, plankton_no_river_dilution
 
 namelist /maecs_init/ &
-  nutN_initial, nutP_initial, nutS_initial, phyC_initial, phyN_initial, &
-  phyP_initial, phyS_initial, zooC_initial, detC_initial, detN_initial, &
-  detP_initial, detS_initial, domC_initial, domN_initial, domP_initial, &
-  frac_Rub_ini, frac_chl_ini
+  RNit_initial, nutN_initial, nutP_initial, nutS_initial, phyC_initial, &
+  phyN_initial, phyP_initial, phyS_initial, zooC_initial, detC_initial, &
+  detN_initial, detP_initial, detS_initial, domC_initial, domN_initial, &
+  domP_initial, frac_Rub_ini, frac_chl_ini
 
 namelist /maecs_pars/ &
   P_max, alpha, sigma, theta_LHC, rel_chloropl_min, QN_phy_0, QN_phy_max, &
@@ -247,6 +247,7 @@ namelist /maecs_graz/ &
 namelist /maecs_env/ &
   a_water, a_spm, a_chl, frac_PAR, small, dil
 
+RNit_initial = 0.0_rk             ! mmol-N/m**3
 nutN_initial = 30.0_rk            ! mmol-N/m**3
 nutP_initial = 1.2_rk             ! mmol-P/m**3
 nutS_initial = 20._rk             ! mmol-Si/m**3
@@ -338,11 +339,10 @@ call self%get_parameter(self%PhotoacclimOn,  'PhotoacclimOn',  default=Photoaccl
 call self%get_parameter(self%PhosphorusOn,  'PhosphorusOn',  default=PhosphorusOn)
 call self%get_parameter(self%SiliconOn,     'SiliconOn',     default=SiliconOn)
 call self%get_parameter(self%GrazingOn,     'GrazingOn',     default=GrazingOn)
-call self%get_parameter(self%BioCarbochemOn,  'BioCarbochemOn',  default=BioCarbochemOn)
 call self%get_parameter(self%BioOxyOn,      'BioOxyOn',      default=BioOxyOn)
 call self%get_parameter(self%DebugDiagOn,   'DebugDiagOn',   default=DebugDiagOn)
 call self%get_parameter(self%ChemostatOn,   'ChemostatOn',   default=ChemostatOn)
-call self%get_parameter(self%UptakeLock,    'UptakeLock',    default=UptakeLock)
+call self%get_parameter(self%NResOn,        'NResOn',        default=NResOn)
 call self%get_parameter(self%detritus_no_river_dilution,  'detritus_no_river_dilution',  default=detritus_no_river_dilution)
 call self%get_parameter(self%plankton_no_river_dilution,  'plankton_no_river_dilution',  default=plankton_no_river_dilution)
 
@@ -364,6 +364,7 @@ call self%get_parameter(self%domN_initial ,'domN_initial',  default=domN_initial
     call self%get_parameter(self%phyS_initial ,'phyS_initial',  default=phyS_initial)
     call self%get_parameter(self%detS_initial ,'detS_initial',  default=detS_initial)
     call self%get_parameter(self%zooC_initial ,'zooC_initial',  default=zooC_initial)
+    call self%get_parameter(self%RNit_initial ,'RNit_initial',  default=RNit_initial)
 
 !!------- model parameters from nml-list maecs_pars ------- 
 call self%get_parameter(self%P_max        ,'P_max',         default=P_max)
@@ -513,6 +514,11 @@ if (GrazingOn) then
     call self%add_to_aggregate_variable(standard_variables%total_carbon,self%id_zooC)
 end if
 
+if (NResOn) then
+    call self%register_state_variable(self%id_RNit,  'RNit','mmol-N/m**3','N-reservoir RNit', &
+       RNit_initial, minimum=_ZERO_, no_river_dilution=.true. )
+end if
+
 !!------- Register diagnostic variables  ------- 
 call self%register_diagnostic_variable(self%id_chl2C,   'chl2C','mgCHL/m**3', 'bulk chlorophyll concentration  chl2C', &
   output=output_time_step_averaged)
@@ -542,7 +548,7 @@ call self%register_diagnostic_variable(self%id_phyUR,   'phyUR','1/d', 'net phyt
   output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_phyELR,  'phyELR','1/d', 'phyC exudation loss rate phyELR', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_phyALR,  'phyALR','1/d', 'rate phyC aggregation loss rate  phyALR', &
+call self%register_diagnostic_variable(self%id_phyALR,  'phyALR','1/d', 'phyC aggregation loss rate  phyALR', &
   output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_phyGLR,  'phyGLR','1/d', 'phyC grazing loss rate phyGLR', &
   output=output_time_step_averaged)
