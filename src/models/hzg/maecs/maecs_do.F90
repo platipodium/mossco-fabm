@@ -78,10 +78,10 @@ logical  :: out = .true.
   _GET_(self%id_domC, dom%C)  ! Dissolved Organic Carbon in mmol-C/m**3
   _GET_(self%id_domN, dom%N)  ! Dissolved Organic Nitrogen in mmol-N/m**3
 if (self%RubiscoOn) then
-      _GET_(self%id_Rub, phy%Rub)  ! fraction of Rubisco in -
+      _GET_(self%id_Rub, phy%Rub)  ! Rub-C_concentration in -
 end if
 if (self%PhotoacclimOn) then
-      _GET_(self%id_chl, phy%chl)  ! Chl:C ratio in mg-Chla/mmol-C
+      _GET_(self%id_chl, phy%chl)  ! chl-a_concentration in mg-Chla/mmol-C
 end if
 if (self%PhosphorusOn) then
       _GET_(self%id_nutP, nut%P)  ! Dissolved Inorganic Phosphorus DIP in mmol-P/m**3
@@ -191,7 +191,7 @@ end if
 !_GET_(self%id_fracR,phys_status )  
 !write (*,'(A,1(F10.3))') 'phys=',phys_status
 
-aggreg_rate = self%phi_agg * (1.0_rk - exp(-self%agg_doc_coef*dom%C)) * (phy%N + det%N) 
+aggreg_rate = self%phi_agg * (1.0_rk - exp(-self%agg_doc*dom%C)) * (phy%N + det%N) 
 !         vS * exp(-4*phys_status )                ! [d^{-1}] 
 !aggreg_rate = aggreg_rate * exp(-4*phy%rel_phys ) 
 
@@ -403,26 +403,23 @@ end if
 !________________________________________________________________________________
 ! set diag variables, mostly from PrimProd module
 !#S_DIA
-  _SET_DIAGNOSTIC_(self%id_chl2, phy%theta*phy%rel_chloropl) !average,mgchl/mmolC, ! note that theta*rel_chloropl in units [mg Chla (mmol C)^{-1}] 
+  _SET_DIAGNOSTIC_(self%id_chl2C, phy%theta*phy%rel_chloropl) !average bulk chlorophyll concentration 
   _SET_DIAGNOSTIC_(self%id_fracR, phy%frac%Rub)             !average 
-  _SET_DIAGNOSTIC_(self%id_QN, phy%Q%N)                     !average
-  _SET_DIAGNOSTIC_(self%id_QP, phy%Q%P)                     !average
-  _SET_DIAGNOSTIC_(self%id_aVN, acclim%aV%N)                !average
-  _SET_DIAGNOSTIC_(self%id_aVP, acclim%aV%P)                !average
-  _SET_DIAGNOSTIC_(self%id_aVSi, acclim%aV%Si)              !average
-  _SET_DIAGNOSTIC_(self%id_rQSi, phy%frac%NutUpt )          !average, 0*phy%relQ%Si 
+  _SET_DIAGNOSTIC_(self%id_QN, phy%Q%N)                     !average 
+  _SET_DIAGNOSTIC_(self%id_QP, phy%Q%P)                     !average 
+  _SET_DIAGNOSTIC_(self%id_aVN, acclim%aV%N)                !average 
+  _SET_DIAGNOSTIC_(self%id_aVP, acclim%aV%P)                !average 
+  _SET_DIAGNOSTIC_(self%id_aVSi, acclim%aV%Si)              !average 
+  _SET_DIAGNOSTIC_(self%id_rQSi, phy%relQ%Si)               !average 
   _SET_DIAGNOSTIC_(self%id_tmp, acclim%tmp)                 !average 
-  _SET_DIAGNOSTIC_(self%id_fac1, acclim%fac1)               !average
-  _SET_DIAGNOSTIC_(self%id_fac2, acclim%fac2)               !average
-  _SET_DIAGNOSTIC_(self%id_dPAR, env%par)                   !average
-  !diagnostics for the net phyto growth
-  _SET_DIAGNOSTIC_(self%id_phyUR,  uptake%C)             ! average ?*phy%C *secs_pr_day?
-  _SET_DIAGNOSTIC_(self%id_phyDLR, -self%dil)            ! average
-  _SET_DIAGNOSTIC_(self%id_phyELR, -exud%C)              ! average
-  _SET_DIAGNOSTIC_(self%id_phyALR, -aggreg_rate)         ! average
-if (self%GrazingOn) then    
-  _SET_DIAGNOSTIC_(self%id_phyGLR, -graz_rate/phy%C)     ! average
-end if
+  _SET_DIAGNOSTIC_(self%id_fac1, acclim%fac1)               !average 
+  _SET_DIAGNOSTIC_(self%id_fac2, acclim%fac2)               !average 
+  _SET_DIAGNOSTIC_(self%id_dPAR, env%par)                   !average 
+  _SET_DIAGNOSTIC_(self%id_phyUR, uptake%C)                 !average net phyto growth
+  _SET_DIAGNOSTIC_(self%id_phyELR, -exud%C)                 !average phyC exudation loss rate
+  _SET_DIAGNOSTIC_(self%id_phyALR, -aggreg)                 !average rate phyC aggregation loss rate 
+  _SET_DIAGNOSTIC_(self%id_phyGLR, -graz_rate/phy%C)        !average phyC grazing loss rate
+  _SET_DIAGNOSTIC_(self%id_vsinkr, exp(-self%sink_phys*phy%relQ%N*phy%relQ%P)) !average relative sinking velocity
 !#E_DIA
 
 if (self%DebugDiagOn) then
@@ -511,10 +508,9 @@ _FABM_LOOP_BEGIN_
    !calculate Q state
    phyQstat = phy%relQ%N * phy%relQ%P 
 
-  
    ! Calculate sinking
-
-   call sinking(self%vS_phy, phyQstat, vsink)
+!  call sinking(self%vS_phy, phyQstat, vsink)
+   vsink = self%vS_phy * exp( -self%sink_phys * phyQstat)
    vsink = vsink / secs_pr_day
    !write (*,'(A,2(F10.3))') 'phyQstat, vsink=', phyQstat, vsink
    

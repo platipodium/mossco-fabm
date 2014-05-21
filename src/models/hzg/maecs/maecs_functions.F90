@@ -181,7 +181,8 @@ T_Kelv       = env%Temp + 273.d0 ! temperature in Kelvin
 ! ----------------------------------------------------------------------------
 ! +++ determine rates for photoautotophic growth ++++++++++++++++++++++++++++++++++++++++++++++++++
 ! --- temperature dependence of metabolic rates (with T_ref given in units [Kelvin]) --------------
-sens%f_T  = exp(-maecs%Ae_all *(1.0d0/T_Kelv - 1.0d0/maecs%T_ref ))
+!sens%f_T  = exp(-maecs%Ae_all *(1.0d0/T_Kelv - 1.0d0/maecs%T_ref ))
+sens%f_T  = exp( maecs%rq10*(T_Kelv-maecs%T_ref))
 
 ! --- (potential) maximum photosynthetic rate -----------------------------------------------------
 sens%P_max_T = maecs%P_max * sens%f_T
