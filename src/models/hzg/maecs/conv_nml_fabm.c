@@ -60,6 +60,7 @@ char init_varincl[3*NAML] = "call maecs_init_stoichvars(self)"; /* line included
 char vstructn[NAML]= "env";	/* name of the major variable structure */ 
 char vstructc[4]   = "E";	/* elements major variable structure
           A: all state variables T: traits  E: environmental forcing N: nutrients */ 
+char env_add[NAML] = "RNit";	/* additional variable as memeber of the env structure (e.g., non-mass,non-trait MAECS variables*/        
 
 /* ------------------------------------------------------------------- */
 /*            do not edit below ...                                    */
@@ -84,7 +85,7 @@ char parname[MI][MAXP][NAML],snameshort[MAXP][NAML],snameshort2[MAXP][NAML],
   strvari[MAXP],partypen[MI][MAXP][NAML],pmapstring[MI][MAXP][NAML],*ptr,velem;
 //char extvar[5][2][6]={{"I_0","par"},{"par","par"},{"",""}};
 char sc[99], tmpstr[NAML];
-int nmltype[MI],partype[MI][MAXP],nump[MI],ni0,nis,nelements;
+int nmltype[MI],partype[MI][MAXP],nump[MI],ChemSpec[MAXP], ni0,nis,nelements;
   
 /* printf("argn=%d\t",argn);printf("argv=%s\t",argv[1]);
 if (argn>=2)   strcpy(simfile,argv[1]); else  exit(0);
@@ -464,7 +465,7 @@ if(strlen(vstructn) < 0) // TODO: unused? delete!
     }
   if (strchr(vstructc,'E')!=NULL || strchr(vstructc,'A')!=NULL) 
     {
-    fprintf(spt,"%s real(rk) :: ",indent0);
+    fprintf(spt,"%s real(rk) :: %s,",indent0,env_add); 
     for(ni=nir,pj=0;pj<nump[ni];pj++)
       fprintf(spt,"%s%c",parname[ni][pj],tcb[pj==nump[ni]-1]);
     }
@@ -554,13 +555,14 @@ if(strlen(vstructn) > 0)
   fprintf(spt,"%stype type_%s_%s\n",indent0,modname,vstructn);
   if (strchr(vstructc,'A')!=NULL)
     {
-    fprintf(spt,"%s real(rk) :: ",indent0);
+//    fprintf(spt,"%s real(rk) :: ",indent0);
+    fprintf(spt,"%s real(rk) :: %s,",indent0,env_add); 
     for(ni=ni0,pj=0;pj<nump[ni];pj++)
       fprintf(spt,"%s%c",snameshort2[pj],tcb[pj==nump[ni]-1]);
     }
   if (strchr(vstructc,'E')!=NULL) 
     {
-    fprintf(spt,"%s real(rk) :: ",indent0);
+    fprintf(spt,"%s real(rk) :: %s,",indent0,env_add); 
     for(ni=nir,pj=0;pj<nump[ni];pj++)
       fprintf(spt,"%s%c",parname[ni][pj],tcb[pj==nump[ni]-1]);
     }
@@ -834,10 +836,7 @@ for(pjs=-1;pjs<nump[nis];pjs++)
       velem= snameshort2[pj][strlen(snameshort2[pj])-1];
       for(pi=0;pi<nelements &&ss<0;pi++)
         if(elements[pi]==velem) ss=pi;
-
-	for(pi=0;pi<nelements &&ss<0;pi++)
-printf("%c-%c->%d\t",elements[pi],velem,elements[pi]==velem);
-
+      ChemSpec[pj]=ss;
       if(out)printf(" reg_state(self%cid_%s,%s'%s',... %c %d\n",'%',snameshort2[pj],tabs[(pjs<0)],snameshort2[pj],velem,ss);
       if(ss>=0)
        fprintf(sp,"%s%scall self%cadd_to_aggregate_variable(standard_variables%ctotal_%s,self%cid_%s)\n",indent0,tabs[(pjs<0)],'%','%',longelemnam[ss],'%',snameshort2[pj]);
@@ -1026,7 +1025,7 @@ for(d=0;d<1+0*NewModF90;d++)
 
 //printf("%s \t%d %d\n",snameshort2[pj],trait[pj],strcmp(modname,"maecs"));
 
-              if(trait[pj]==0 && (strchr(vstructc,"A")==NULL || strchr(vstructc,"E")==NULL) && strcmp(modname,"maecs")==0)/*strlen(vstructn)<1*/
+              if(trait[pj]==0 && (strchr(vstructc,"A")==NULL || strchr(vstructc,"E")==NULL) && strcmp(modname,"maecs")==0 && ChemSpec[pj]>=0)/*strlen(vstructn)<1*/
 	        {
 		line2[0]='\0'; 
 		strncat(line2,snameshort2[pj],strlen(snameshort2[pj])-1);
