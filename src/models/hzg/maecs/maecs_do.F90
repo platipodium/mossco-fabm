@@ -56,6 +56,8 @@ real(rk) :: phys_status, dQN_dt, dRchl_phyC_dt=0.0_rk ! []
 real(rk) :: graz_rate   ! carbon-specific grazing rate                          [d^{-1}]
 real(rk) :: zoo_respC   ! temperature dependent carbon respiration rate  [mmolC m^{-3} d^{-1}]
 real(rk) :: zoo_mort
+real(rk) :: denitrate   ! pelagic N-loss by denitrification, emulating benthic pool and suboxic micro-environments
+real(rk) :: deporate    ! pelagic, "volumetric" deposition, slowly refueling N-losses 
 real(rk) :: secs_pr_day = 86400.0_rk
 ! --- AGGREGATION 
 real(rk) :: aggreg_rate ! aggregation among phytoplankton and between phytoplankton & detritus [d^{-1}]    
@@ -203,6 +205,23 @@ aggreg_rate = self%phi_agg * (1.0_rk - exp(-self%agg_doc*dom%C)) * (phy%N + det%
 degradT     = self%hydrol * sens%f_T
 reminT      = self%remin  * sens%f_T
 
+!_____________________________________________________________________________
+!
+!      turnover of long-term N-reservoir (denitrification + wet N-deposition)
+if (self%NResOn) then
+
+! pelagic N-loss by denitrification, emulating benthic pool and suboxic micro-environments
+  denitrate = self%denit * 4 * sens%f_T * (1.0d0 - exp(-det%N/self%PON_denit)) * det%N
+
+! pelagic, "volumetric" deposition, slowly refueling N-losses 
+  deporate  = self%denit * exp(-4*sens%f_T) * env%RNit
+
+  rhsv%RNit = denitrate - deporate 
+else
+  deporate  = 0.0d0
+  denitrate = 0.0d0
+endif    
+
 
 !> @fn fabm_hzg_maecs::maecs_do ()
 !> 3. Assign mass exchange rates ('rhs(j,i)')
@@ -291,7 +310,9 @@ rhsv%detN   = floppZ%N              * zoo%C   &
              + aggreg_rate          * phy%N   &
              - self%dil             * det%N   &
              + zoo_mort             * zoo%N   & 
-             - degradT              * det%N 
+             - degradT              * det%N   &
+             - denitrate
+  
 !________________________________________________________________________________
 !
 !  --- DOC
@@ -323,7 +344,8 @@ rhsv%domN   = exud%N                * phy%C   &
 rhsv%nutN   = -uptake%N            * phy%C    &
              + reminT              * dom%N    &
              + lossZ%N             * zoo%C    &
-             + self%dil * (self%nutN_initial - nut%N)
+             + self%dil * (self%nutN_initial - nut%N) &
+             + deporate
 !________________________________________________________________________________
 !
 if (self%PhosphorusOn) then 
@@ -418,16 +440,17 @@ end if
   _SET_DIAGNOSTIC_(self%id_aVSi, acclim%aV%Si)              !average 
   _SET_DIAGNOSTIC_(self%id_rQSi, phy%relQ%Si)               !average 
   _SET_DIAGNOSTIC_(self%id_tmp, acclim%tmp)                 !average 
-  _SET_DIAGNOSTIC_(self%id_fac1, acclim%fac1)               !average 
-  _SET_DIAGNOSTIC_(self%id_fac2, acclim%fac2)               !average 
+  _SET_DIAGNOSTIC_(self%id_fac1, 0.0d0+denitrate )               !average acclim%fac1
+  _SET_DIAGNOSTIC_(self%id_fac2, 0.0d0+deporate )               !average acclim%fac2
   _SET_DIAGNOSTIC_(self%id_dPAR, env%par)                   !average 
   _SET_DIAGNOSTIC_(self%id_phyUR, uptake%C)                 !average net phyto growth
   _SET_DIAGNOSTIC_(self%id_phyELR, -exud%C)                 !average phyC exudation loss rate
-  _SET_DIAGNOSTIC_(self%id_phyALR, -aggreg_rate)            !average phyC aggregation loss rate 
+  _SET_DIAGNOSTIC_(self%id_phyALR, -aggreg_rate )            !average phyC aggregation loss rate 
   _SET_DIAGNOSTIC_(self%id_phyGLR, -graz_rate/phy%C)        !average phyC grazing loss rate
   _SET_DIAGNOSTIC_(self%id_vsinkr, exp(-self%sink_phys*phy%relQ%N*phy%relQ%P)) !average relative sinking velocity
 !#E_DIA
 !end if
+!write (*,'(A,3(F11.5))') 'RN,depo,denit=',env%RNit,deporate,denitrate
 
   _LOOP_END_
 

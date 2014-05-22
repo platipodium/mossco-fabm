@@ -627,7 +627,7 @@ subroutine maecs_init_stoichvars(self)
    class(type_hzg_maecs),intent(inout)          :: self 
 
 !use maecs_types
-!implicit none
+!implicit none 
 
 !type (type_maecs_nutindex) :: ni
 real(rk)    :: norder, pb
@@ -639,7 +639,7 @@ if (norder .gt. 1.) then
   ! --------- nitrogen -------------
   pb     = 10**floor(log10(norder))
   self%nutind%iN  = nint(norder/pb)
-  norder = norder - self%nutind%iN * pb
+  norder = norder -  self%nutind%iN * pb
   nm     = nm + 1
   if (norder .gt. 0.99999) then
     !  --------- phosphorus --------- 
