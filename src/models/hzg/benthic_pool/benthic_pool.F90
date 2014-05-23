@@ -120,8 +120,8 @@ g_max,K,h_const,remin_max,diff,v_d,d_ben,const_nut,const_det,k_remin,nut_loss_ma
    ! Register link to external pelagic detritus and mineral pools, if coupling to pelagic model
    self%use_nut = pelagic_nutrient_variable/=''
    self%use_det = pelagic_detritus_variable/=''
-   if (self%use_nut) call self%register_state_dependency(self%id_det_pel,pelagic_detritus_variable)    
-   if (self%use_det) call self%register_state_dependency(self%id_nut_pel,pelagic_nutrient_variable)
+   if (self%use_det) call self%register_state_dependency(self%id_det_pel,pelagic_detritus_variable)    
+   if (self%use_nut) call self%register_state_dependency(self%id_nut_pel,pelagic_nutrient_variable)
    call self%register_dependency(self%id_depth,standard_variables%bottom_depth) !for implementing the nut_influx
    
    ! Register diagnostic variables
