@@ -3,6 +3,7 @@
 #
 
 SUBDIRS += omexdia_p_mpb
+SUBDIRS += omexdia_p
 SUBDIRS += maecs
 SUBDIRS += benthic_pool
 SUBDIRS += Ndepoden
