@@ -3,10 +3,10 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: fabm_hzg_omexdia_p --- Fortran 2003 version of OMEXDIA+P biogeochemical model
+! !MODULE: fabm_hzg_omexdia_p_mpb --- Fortran 2003 version of OMEXDIA+P biogeochemical model
 !
 ! !INTERFACE:
-   module fabm_hzg_omexdia_p
+   module fabm_hzg_omexdia_p_mpb
 !
 ! !DESCRIPTION:
 !
@@ -48,7 +48,7 @@
    real(rk) :: fdet,sdet,pdet,po4,no3,nh3,oxy,odu,mpbCHL,mpbC,mpbN,eps
   end type
 ! standard fabm model types
-  type,extends(type_base_model),public :: type_hzg_omexdia_p
+  type,extends(type_base_model),public :: type_hzg_omexdia_p_mpb
   type (type_state_variable_id)        :: id_fdet,id_sdet,id_pdet,id_po4,id_no3,id_nh3,id_oxy,id_odu,id_mpbCHL,id_mpbC,id_mpbN,id_eps
   type (type_dependency_id)            :: id_temp
   type (type_dependency_id)            :: id_parz
@@ -64,7 +64,7 @@
 !   Model procedures
   procedure :: initialize
   procedure :: do
- end type type_hzg_omexdia_p
+ end type type_hzg_omexdia_p_mpb
 !
 ! !PRIVATE DATA MEMBERS:
  real(rk), parameter :: secs_pr_day = 86400.0_rk
@@ -72,7 +72,7 @@
 !!--------------------------------------------------------------------
 
  contains
-! !IROUTINE: Initialise the omexdia_p model
+! !IROUTINE: Initialise the omexdia_p_mpb model
 !
 ! !INTERFACE:
   subroutine initialize(self, configunit)
@@ -81,12 +81,12 @@
 !  by the model are registered with FABM.
 !
 ! !INPUT PARAMETERS:
-  class (type_hzg_omexdia_p), intent(inout), target :: self
+  class (type_hzg_omexdia_p_mpb), intent(inout), target :: self
   integer,                  intent(in)            :: configunit
 !
 ! !LOCAL VARIABLES:
   integer    :: namlst=19
-!!------- Initial values of model omexdia_p ------- 
+!!------- Initial values of model omexdia_p_mpb ------- 
   real(rk)  :: fdet_init    ! fast detritus C
   real(rk)  :: sdet_init    ! slow detritus C
   real(rk)  :: pdet_init    ! detritus-P
@@ -99,7 +99,7 @@
   real(rk)  :: mpbC_init    ! MicroPhytoBenthos carbon
   real(rk)  :: mpbN_init    ! MicroPhytoBenthos nitrogen
   real(rk)  :: eps_init     ! Extracellular Polymeric Substances 
-!!------- Parameters from nml-list omexdia_p_par ------- 
+!!------- Parameters from nml-list omexdia_p_mpb_par ------- 
   real(rk)  :: rFast        ! decay rate fast decay det.
   real(rk)  :: rSlow        ! decay rate slow decay det.
   real(rk)  :: NCrFdet      ! NC ratio fast decay det.
@@ -116,7 +116,7 @@
   real(rk)  :: kinO2denit   ! half-sat O2 inhib denitrif
   real(rk)  :: kinNO3anox   ! half-sat NO3 inhib anoxic min
   real(rk)  :: kinO2anox    ! half-sat O2 inhib anoxic min
-!!------- Parameters from nml-list omexdia_p_mpb ------- 
+!!------- Parameters from nml-list omexdia_p_mpb_mpb ------- 
   real(rk)  :: mumax        ! Maximum growth rate 
   real(rk)  :: alpha        ! ific initial slope of the PI-curve 
   real(rk)  :: gamma        ! Mol O2 produced per mol C fixed by photosynthesis 
@@ -143,18 +143,18 @@
   logical   :: PhosphorusOn  ! resolve Phosphorus cycle
   logical   :: MPhytoBenOn  ! use MicroPhytoBenthos (MPB)
 
-  namelist /omexdia_p_switch/ &
+  namelist /omexdia_p_mpb_switch/ &
      PhotoacclimOn, PhosphorusOn, MPhytoBenOn
 
-  namelist /omexdia_p_init/ &
+  namelist /omexdia_p_mpb_init/ &
      fdet_init, sdet_init, pdet_init, po4_init, no3_init, nh3_init, oxy_init, &
      odu_init, mpbCHL_init, mpbC_init, mpbN_init, eps_init
 
-  namelist /omexdia_p_par/ &
+  namelist /omexdia_p_mpb_par/ &
      rFast, rSlow, NCrFdet, NCrSdet, PAds, PAdsODU, NH3Ads, rnit, ksO2nitri, rODUox, &
      ksO2oduox, ksO2oxic, ksNO3denit, kinO2denit, kinNO3anox, kinO2anox
 
-  namelist /omexdia_p_mpb/ &
+  namelist /omexdia_p_mpb_mpb/ &
      mumax, alpha, gamma, Qmin, Qmax, thetamax, uptmax, KNH4, KNO3, KinNH4, keps, resp, &
      Kresp, graz, kout, kexu, rzoo, PAR0max, k0, Achla, bTemp
 
@@ -210,14 +210,14 @@
 
 !--------- read namelists --------- 
 write(0,*) ' read namelists ....'
-  open(namlst,file='./omexdia_p_switch.nml',status='old')
-  read(namlst,nml=omexdia_p_switch,err=90,end=99)
-  open(namlst,file='./omexdia_p_init.nml',status='old')
-  read(namlst,nml=omexdia_p_init,err=91,end=100)
-  open(namlst,file='./omexdia_p_par.nml',status='old')
-  read(namlst,nml=omexdia_p_par,err=92,end=101)
-  open(namlst,file='./omexdia_p_mpb.nml',status='old')
-  read(namlst,nml=omexdia_p_mpb,err=93,end=102)
+  open(namlst,file='./omexdia_p_mpb_switch.nml',status='old')
+  read(namlst,nml=omexdia_p_mpb_switch,err=90,end=99)
+  open(namlst,file='./omexdia_p_mpb_init.nml',status='old')
+  read(namlst,nml=omexdia_p_mpb_init,err=91,end=100)
+  open(namlst,file='./omexdia_p_mpb_par.nml',status='old')
+  read(namlst,nml=omexdia_p_mpb_par,err=92,end=101)
+  open(namlst,file='./omexdia_p_mpb_mpb.nml',status='old')
+  read(namlst,nml=omexdia_p_mpb_mpb,err=93,end=102)
   ! Store parameter values in our own derived type
   ! NB: all rates must be provided in values per day,
   ! and are converted here to values per second.
@@ -227,7 +227,7 @@ write(0,*) ' read namelists ....'
   call self%get_parameter(self%PhosphorusOn,  'PhosphorusOn',  default=PhosphorusOn)
   call self%get_parameter(self%MPhytoBenOn,  'MPhytoBenOn',  default=MPhytoBenOn)
 
-!!------- model parameters from nml-list omexdia_p_init ------- 
+!!------- model parameters from nml-list omexdia_p_mpb_init ------- 
   call self%get_parameter(self%fdet_init    ,'fdet_init',     default=fdet_init)
   call self%get_parameter(self%sdet_init    ,'sdet_init',     default=sdet_init)
   call self%get_parameter(self%no3_init     ,'no3_init',      default=no3_init)
@@ -245,7 +245,7 @@ if (MPhytoBenOn) then
       call self%get_parameter(self%eps_init     ,'eps_init',      default=eps_init)
 end if
 
-!!------- model parameters from nml-list omexdia_p_par ------- 
+!!------- model parameters from nml-list omexdia_p_mpb_par ------- 
   call self%get_parameter(self%rFast        ,'rFast',         default=rFast)
   call self%get_parameter(self%rSlow        ,'rSlow',         default=rSlow)
   call self%get_parameter(self%NCrFdet      ,'NCrFdet',       default=NCrFdet)
@@ -263,7 +263,7 @@ end if
   call self%get_parameter(self%kinNO3anox   ,'kinNO3anox',    default=kinNO3anox)
   call self%get_parameter(self%kinO2anox    ,'kinO2anox',     default=kinO2anox)
 
-!!------- model parameters from nml-list omexdia_p_mpb ------- 
+!!------- model parameters from nml-list omexdia_p_mpb_mpb ------- 
   call self%get_parameter(self%mumax        ,'mumax',         default=mumax)
   call self%get_parameter(self%alpha        ,'alpha',         default=alpha)
   call self%get_parameter(self%gamma        ,'gamma',         default=gamma)
@@ -357,14 +357,14 @@ end if
   return
 
 !!-------  if files are not found ...  
-90 call self%fatal_error('omexdia_p_init','Error reading namelist omexdia_p_switch.')
-91 call self%fatal_error('omexdia_p_init','Error reading namelist omexdia_p_init.')
-92 call self%fatal_error('omexdia_p_init','Error reading namelist omexdia_p_par.')
-93 call self%fatal_error('omexdia_p_init','Error reading namelist omexdia_p_mpb.')
-99 call self%fatal_error('omexdia_p_init','Namelist omexdia_p_switch was not found in file.')
-100 call self%fatal_error('omexdia_p_init','Namelist omexdia_p_init was not found in file.')
-101 call self%fatal_error('omexdia_p_init','Namelist omexdia_p_par was not found in file.')
-102 call self%fatal_error('omexdia_p_init','Namelist omexdia_p_mpb was not found in file.')
+90 call self%fatal_error('omexdia_p_mpb_init','Error reading namelist omexdia_p_mpb_switch.')
+91 call self%fatal_error('omexdia_p_mpb_init','Error reading namelist omexdia_p_mpb_init.')
+92 call self%fatal_error('omexdia_p_mpb_init','Error reading namelist omexdia_p_mpb_par.')
+93 call self%fatal_error('omexdia_p_mpb_init','Error reading namelist omexdia_p_mpb_mpb.')
+99 call self%fatal_error('omexdia_p_mpb_init','Namelist omexdia_p_mpb_switch was not found in file.')
+100 call self%fatal_error('omexdia_p_mpb_init','Namelist omexdia_p_mpb_init was not found in file.')
+101 call self%fatal_error('omexdia_p_mpb_init','Namelist omexdia_p_mpb_par was not found in file.')
+102 call self%fatal_error('omexdia_p_mpb_init','Namelist omexdia_p_mpb_mpb was not found in file.')
 
 end subroutine initialize
 
@@ -383,7 +383,7 @@ end subroutine initialize
 ! !DESCRIPTION:
 !
 ! !INPUT PARAMETERS:
-   class (type_hzg_omexdia_p),intent(in) :: self
+   class (type_hzg_omexdia_p_mpb),intent(in) :: self
    _DECLARE_ARGUMENTS_DO_
 !
 ! !REVISION HISTORY:
@@ -623,7 +623,7 @@ end if
 ! !INTERFACE:
    subroutine get_conserved_quantities(self,_ARGUMENTS_GET_CONSERVED_QUANTITIES_)
 ! !INPUT PARAMETERS:
-   class (type_hzg_omexdia_p), intent(in) :: self
+   class (type_hzg_omexdia_p_mpb), intent(in) :: self
    _DECLARE_ARGUMENTS_GET_CONSERVED_QUANTITIES_
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -661,5 +661,5 @@ end if
    end subroutine get_conserved_quantities
 !EOC
 
-   end module fabm_hzg_omexdia_p
+   end module fabm_hzg_omexdia_p_mpb
 

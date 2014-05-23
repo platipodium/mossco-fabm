@@ -2,9 +2,10 @@
 # Makefile to build the FABM models from HZG
 #
 
-SUBDIRS += omexdia_p
+SUBDIRS += omexdia_p_mpb
 SUBDIRS += maecs
 SUBDIRS += benthic_pool
+SUBDIRS += Ndepoden
 SUBDIRS += n2pzdq
 SUBDIRS += jelly
 
