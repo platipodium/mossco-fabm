@@ -1,5 +1,5 @@
 #include "fabm_driver.h"
-
+#define DEBUG 0
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -13,6 +13,7 @@
 !
 ! !USES:
    use fabm_types
+   use fabm_expressions
 !   use fabm_driver
 
    implicit none
@@ -28,10 +29,10 @@
 !     Variable identifiers
       type (type_bottom_state_variable_id) :: id_Ndef
       type (type_state_variable_id)        :: id_det_pel, id_nut_pel      
-      type (type_diagnostic_variable_id)   :: id_peldenit
-      type (type_horizontal_diagnostic_variable_id)   :: id_dNdef, id_deporate
-      type (type_dependency_id)            :: id_temp !id_totNpel
-      type (type_horizontal_dependency_id) :: id_depth, id_intpeldenit_dep, id_deporate_dep !id_totNpel
+!      type (type_diagnostic_variable_id)   :: id_peldenit
+      type (type_horizontal_diagnostic_variable_id)   :: id_dNdef, id_deporate,id_denitrate
+      type (type_dependency_id)            :: id_depth, id_temp!,id_peldenit_dep !id_totNpel
+      type (type_horizontal_dependency_id) :: id_deporate_dep!, id_denitrate_dep ! id_intpeldenit_dep, id_totNpel
 !     Model parameters:
       real(rk) :: Ntot0,Ndef0,const_det,rq10,T_ref,PON_denit,denit
       logical  :: use_det,NdepodenitON,Ndef_dyn
@@ -39,15 +40,13 @@
       !     Model procedures
       contains
       procedure :: initialize
-      procedure :: do
+      !procedure :: do
       procedure :: do_bottom
       procedure :: do_surface
    end type type_hzg_Ndepoden
 !
 ! !REVISION HISTORY:!
 !  Original author(s): Onur Kerimoglu
-!
-!EOP
 !-----------------------------------------------------------------------
 
    contains
@@ -110,50 +109,38 @@
    
    !Register diagnostic variables:
    
-   call self%register_horizontal_diagnostic_variable (self%id_dNdef, 'change in N deficit','mmol/m**3/d', 'change in N deficit', &
+   call self%register_horizontal_diagnostic_variable (self%id_dNdef, 'dNdef','mmol/m**3/d', 'change in N deficit', &
                                           output=output_time_step_averaged) 
    
    call self%register_horizontal_diagnostic_variable (self%id_deporate, 'deporate','mmol/m**3/d', 'surface deposition rate', &
                                           output=output_time_step_averaged) 
-                                          
-   call self%register_diagnostic_variable(self%id_peldenit,   'denitratepel','mmol/m**3/d', 'bulk pelagic denitrification rate', &
+   
+   call self%register_horizontal_diagnostic_variable(self%id_denitrate,   'denitrate','mmol/m**2/d', 'bottom denitrification rate', &
                                           output=output_time_step_averaged) 
+                                          
+   !call self%register_diagnostic_variable(self%id_peldenit,   'denitrate','mmol/m**3/d', 'bulk pelagic denitrification rate', &
+   !                                       output=output_time_step_averaged) 
    
                                           
    !dependencies
    ! call self%register_dependency(self%id_totNpel,standard_variables%total_nitrogen)
    call self%register_dependency(self%id_temp,standard_variables%temperature)
-   call self%register_dependency(self%id_depth,standard_variables%bottom_depth) !for implementing the nut_influx
-   
+   call self%register_dependency(self%id_depth,standard_variables%depth) !for implementing the nut_influx
+
    ! in order to be able to calculate the dNdef=total(denitrate)-deporate, we need to 
    call self%register_horizontal_dependency(self%id_deporate_dep,'hzg_Ndepoden_deporate') !,required=.false.
-   !register the bulk pelagic denitrification as an integrated dependency
-   !retreiving the integrated values of dependencies is not supported yet
-   !call self%register_horizontal_dependency(self%id_intpeldenit_dep,vertical_integral(self%id_peldenit)) !,required=.false.vertical_integral(self%id_peldenit)
+   !call self%register_horizontal_dependency(self%id_denitrate_dep,'hzg_Ndepoden_denitrate') !,required=.false.
+   
+   !register the bulk pelagic denitrification as a bulk dependency
+   !call self%register_dependency(self%id_peldenit_dep,'hzg_Ndepoden_denitrate') !for implementing the nut_influx
+   
+   !register the integrated bulk pelagic denitrification as a horizontal dependency: @TODO: doesn't work for some reason?
+   !This is as instructed in the fabmlist:
+   !call self%register_horizontal_dependency(self%id_intpeldenit_dep,vertical_integral(self%id_peldenit_dep)) !
+   
+   !This is how it feels right:
+   !call !self%register_dependency(self%id_peldenit_dep,vertical_integral(self%id_peldenit_dep)) !,required=.false.  
      
-     
-     !idNdef: horizontal state variable
-     !_GET_HORIZONTAL_(self%id_Ndef,Ndef) 
-     ! difference give the rate of change in Ndef
-     !_SET_ODE_BEN_(self%id_Ndef, intdenitrate - deporate)
-     
-     !id_dNdef: horizontal diag
-     !_SET_HORIZONTAL_DIAGNOSTIC_(self%id_dNdef,(intdenitrate - deporate)*secs_pr_day)
-     
-     !id_det_pel: pelagic bulk state dependency
-     !_GET_(self%id_det_pel,det_pel) 
-     !_SET_ODE_(self%id_det_pel,-rhs_detpel)
-     !_SET_SURFACE_EXCHANGE_(self%id_nut_pel,rhs_nutpel)
-     
-     !id_deporate: horizontal diag (+dependency?)
-     !_SET_HORIZONTAL_DIAGNOSTIC_(self%id_deporate,rhs_nutpel)
-     !_GET_HORIZONTAL_(self%id_deporate, deporate)
-     
-     !id_peldenit: bulk diag 
-     !_SET_DIAGNOSTIC_(self%id_peldenit,-rhs_detpel)
-     ! id_intpeldenit: hor dependency (as water column integrated denitrification rate)
-     !_GET_HORIZONTAL_(self%id_intpeldenit,intdenitrate)
-
    return
 
 99 call self%fatal_error('hzg_Ndepoden_init','Error reading namelist hzg_Ndepoden')
@@ -175,7 +162,8 @@
    _DECLARE_ARGUMENTS_DO_BOTTOM_
 !
 ! !LOCAL VARIABLES:
-   real(rk)                   :: deporate, intdenitrate
+   real(rk)                   :: deporate, denitrate !_vertint
+   real(rk)                   :: temp, f_T, det_pel
    real(rk), parameter        :: secs_pr_day = 86400.
 !EOP
 !-----------------------------------------------------------------------
@@ -184,25 +172,51 @@
    _HORIZONTAL_LOOP_BEGIN_
     
 
-   ! turnover of long-term N-reservoir (denitrification - N-deposition)
    if (self%NdepodenitON) then
-   
-     ! deposition rate
-     _GET_HORIZONTAL_(self%id_deporate_dep, deporate)
+          
+     !Denitrification at the bottom
+     if (self%use_det) then
+       _GET_(self%id_det_pel,det_pel)      ! detritus concentration at the bottom (?)
+     else
+       det_pel = self%const_det            ! no coupling - constant pelagic detritus concentration
+     end if
+      
+     _GET_(self%id_temp, temp)
+     f_T=f_temp(self,temp + 273.d0)
+      
+     denitrate=denitrify(self,det_pel,f_T) !mmol/m2/s
+     
+     ! Set the surface flux of the pelagic nutrient variable, if coupled
+     if (self%use_det) then
+        _SET_BOTTOM_EXCHANGE_(self%id_nut_pel,-denitrate)
+     end if 
+     
+     ! Calculate N-defficiency as a dynamic state variable, where Ndef/dt= denitrate-deporate
+     !we know the denitrate, we need to retrieve the deporate:
+     _GET_HORIZONTAL_(self%id_deporate_dep, deporate) !mmol/m2/d
      
      ! water column integrated denitrification rate
      !retreiving the integrated values of dependencies is not supported yet
-     !_GET_HORIZONTAL_(self%id_intpeldenit_dep,intdenitrate)
-     intdenitrate=0.0_rk
+     !_GET_HORIZONTAL_(self%id_intpeldenit_dep,peldenit_vertint) !mmol/m2/d
+     !denitrate_verint=0.0_rk !mmol/m2/d
+     
+     !this should work too, but somehow it doesn't:
+     !denitrate_vertint= vertical_dependency_integral(self%id_peldenit_dep)
      
      ! difference give the rate of change in Ndef
-     _SET_ODE_BEN_(self%id_Ndef, intdenitrate - deporate)
+     _SET_ODE_BEN_(self%id_Ndef, denitrate - deporate/secs_pr_day)!mmol/m2/s
 
    end if 
 
-
+#if DEBUG   
+   write (*,'(A,4(F10.5))') '(@do_bottom), det_pel,denitrate,deporate:', det_pel, denitrate*secs_pr_day, deporate 
+#endif
+   
    ! Export diagnostic variables
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_dNdef,(intdenitrate - deporate)*secs_pr_day)
+   
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_denitrate,denitrate*secs_pr_day) !mmol/m2/d
+  
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_dNdef,denitrate*secs_pr_day - deporate) !mmol/m2/d
 
    ! Leave spatial loops over the horizontal domain (if any).
    _HORIZONTAL_LOOP_END_
@@ -244,31 +258,28 @@
        !Ndef=self%totNini-totN
      end if
      
-     !use the dynamic pelagic detritus concentrations or some constant
-     if (self%use_det) then
-       _GET_(self%id_det_pel,det_pel)      ! detritus concentration - pelagic
-     else
-       det_pel = self%const_det            ! no coupling - constant pelagic detritus concentration
-     end if
-     
      _GET_(self%id_temp, temp) !is this surface temperature? do we really need the surface temperature?
      !temp=15.0d0
      f_T=f_temp(self,temp + 273.d0)
-     
-     rhs_nutpel=deposit(self,det_pel,f_T,Ndef)     
-     
+
+     rhs_nutpel=deposit(self,f_T,Ndef)  
+
+#if DEBUG     
+     write (*,'(A,4(F10.5))') '(@do_surface) temp,f_T,Ndef,depo.rate: ', temp,f_T,Ndef,rhs_nutpel*secs_pr_day
+#endif
+
    else
       rhs_nutpel = 0.0_rk
    endif 
 
-
+    
    ! Set the surface flux of the pelagic nutrient variable
    if (self%use_det) then
      _SET_SURFACE_EXCHANGE_(self%id_nut_pel,rhs_nutpel)
    end if 
 
    ! save deposition rate as a diagnostic
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_deporate,rhs_nutpel)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_deporate,rhs_nutpel*secs_pr_day) !mmol/m2/d
 
 
    ! Leave spatial loops over the horizontal domain (if any).
@@ -289,7 +300,8 @@
    _DECLARE_ARGUMENTS_DO_
 !
 ! !LOCAL VARIABLES:
-   real(rk)                   :: depth_of_pelagic
+   real(rk), parameter        :: secs_pr_day = 86400.
+   real(rk)                   :: depth
    real(rk)                   :: det_pel,rhs_detpel,f_T, temp
 !EOP
 !-----------------------------------------------------------------------
@@ -297,9 +309,8 @@
    ! Enter spatial loops (if any)
    _LOOP_BEGIN_
 
-    !to check whether it loops over the spatial domain
-    !_GET_HORIZONTAL_(self%id_depth,depth_of_pelagic)  
-    !print *, "depth = ", depth_of_pelagic         
+    !to check whether it really loops over the spatial domain
+    _GET_(self%id_depth,depth)  !CHECK THIS        
     
     if (self%NdepodenitON) then
       
@@ -314,15 +325,20 @@
       f_T=f_temp(self,temp + 273.d0)
       
       rhs_detpel=denitrify(self,det_pel,f_T)
+
+!#if DEBUG       
+      write (*,'(A,5(F10.5))') '(@do) z,temp,f_T, det_pel,denit.rate:',depth, temp,f_T, det_pel, rhs_detpel*secs_pr_day
+!#endif
+
     else
       rhs_detpel = 0.0_rk
     endif 
     
     !set the exchange rate 
-    _SET_ODE_(self%id_det_pel,-rhs_detpel)
+    !_SET_ODE_(self%id_det_pel,-rhs_detpel)
     
     !save denitrification as a pelagic variable
-    _SET_DIAGNOSTIC_(self%id_peldenit,-rhs_detpel)
+    !_SET_DIAGNOSTIC_(self%id_denitrate,rhs_detpel*secs_pr_day) !mmol/m3/d
 
    ! Leave spatial loops (if any)
    _LOOP_END_
@@ -347,12 +363,12 @@ pure real(rk) function denitrify(self,det_pel,f_T)
  
  
  !-----------------------------------------------------------------------
- pure real(rk) function deposit(self,det_pel,f_T,Ndef)
+ pure real(rk) function deposit(self,f_T,Ndef)
  ! pelagic deposition at the surface, slowly refueling N-losses 
 
 ! !INPUT PARAMETERS:
    class (type_hzg_Ndepoden), intent(in) :: self
-   real(rk),intent(in) :: det_pel, f_T, Ndef
+   real(rk),intent(in) :: f_T, Ndef
    
    !original code from Kai:
    !deporate  = self%denit * exp(-4*sens%f_T) * env%RNit
@@ -374,8 +390,9 @@ pure real(rk) function denitrify(self,det_pel,f_T)
       
    !original code from calc_sensitivities in maecs_functions.f90:
    !sens%f_T  = exp( maecs%rq10*(T_Kelv-maecs%T_ref))
-   f_T= exp( self%rq10*(T_Kelv-self%T_ref))
-
+   !f_temp= exp( self%rq10*(T_Kelv-self%T_ref))
+   f_temp  = self%rq10**((T_Kelv-self%T_ref)/10.0)
+   
  end function f_temp
 !-----------------------------------------------------------------------
 
