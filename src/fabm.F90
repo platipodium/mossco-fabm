@@ -130,7 +130,6 @@
       type (type_bulk_standard_variable) :: standard_variable
       real(rk)                           :: initial_value             = 0.0_rk
       real(rk)                           :: vertical_movement         = 0.0_rk  ! Vertical movement (m/s, <0: sinking, >0: floating)
-      real(rk)                           :: specific_light_extinction = 0.0_rk  ! Specific light extinction (/m/state variable unit)
       logical                            :: no_precipitation_dilution = .false.
       logical                            :: no_river_dilution         = .false.
       type (type_bulk_variable_id)       :: globalid
@@ -159,6 +158,8 @@
    type,extends(type_external_variable) :: type_conserved_quantity_info
       type (type_bulk_standard_variable)            :: standard_variable
       type (type_aggregate_variable),pointer        :: aggregate_variable
+      type (type_bulk_data_pointer)                 :: data
+      type (type_horizontal_data_pointer)           :: horizontal_data
    end type type_conserved_quantity_info
 
    ! Derived type for a single generic biogeochemical model
@@ -189,6 +190,8 @@
       character(len=attribute_length),allocatable,dimension(:) :: dependencies        
       character(len=attribute_length),allocatable,dimension(:) :: dependencies_hz     
       character(len=attribute_length),allocatable,dimension(:) :: dependencies_scalar 
+
+      type (type_bulk_data_pointer) :: extinction_data
 
       ! Derived types that belong to specific biogeochemical models.
       ! ADD_NEW_MODEL_HERE - required if the model groups its data in a custom derived type
@@ -470,18 +473,22 @@
 !  Original author(s): Jorn Bruggeman
 !
       type (type_model_list_node),pointer :: node
+      type (type_aggregate_variable),pointer :: aggregate_variable
 !EOP
 !-----------------------------------------------------------------------
 !BOC
       self%info => self ! For backward compatibility (pre 11/2013 hosts only)
+
+      ! Make sure a variable for light extinction is created at the root level.
+      ! This is used from fabm_get_light_extinction.
+      aggregate_variable => get_aggregate_variable(self%root,standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
+      aggregate_variable%bulk_required = .true.
 
       ! This will resolve all FABM dependencies and generate final authorative lists of variables of different types.
       call freeze_model_info(self%root)
 
       ! Build final authorative arrays with variable metadata .
       call classify_variables(self)
-
-      call after_assign_indices(self%root)
 
       ! Determine the order in which individual biogeochemical models should be called.
       node => self%root%children%first
@@ -591,6 +598,17 @@
    allocate(self%environment%diag   (_PREARG_LOCATION_ size(self%diagnostic_variables)))
    allocate(self%environment%diag_hz(_PREARG_LOCATION_HZ_ size(self%horizontal_diagnostic_variables)))
    self%environment%nstate = size(self%state_variables)
+
+   if (_VARIABLE_REGISTERED_(self%root%id_zero)) then
+      allocate(self%environment%zero _INDEX_LOCATION_)
+      self%environment%zero = 0.0_rk
+      call fabm_link_bulk_data(self,self%root%id_zero%link%name,self%environment%zero)
+   end if
+   if (_VARIABLE_REGISTERED_(self%root%id_zero_hz)) then
+      allocate(self%environment%zero_hz _INDEX_HORIZONTAL_LOCATION_)
+      self%environment%zero_hz = 0.0_rk
+      call fabm_link_horizontal_data(self,self%root%id_zero_hz%link%name,self%environment%zero_hz)
+   end if
 
    ! Initialize diagnostic variables to missing value.
    do ivar=1,size(self%diagnostic_variables)
@@ -1697,6 +1715,10 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#if defined(DEBUG)&&defined(_FABM_USE_1D_LOOP_)
+   if (size(dy,1)/=fabm_loop_stop-fabm_loop_start+1) &
+      call fatal_error('fabm_do_rhs','Size of first dimension of dy should match loop length.')
+#endif
    node => self%models%first
    do while (associated(node))
       if (node%model%check_conservation) then
@@ -1735,6 +1757,13 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#if defined(DEBUG)&&defined(_FABM_USE_1D_LOOP_)
+   if (size(pp,1)/=fabm_loop_stop-fabm_loop_start+1) &
+      call fatal_error('fabm_do_ppdd','Size of first dimension of pp should match loop length.')
+   if (size(dd,1)/=fabm_loop_stop-fabm_loop_start+1) &
+      call fatal_error('fabm_do_ppdd','Size of first dimension of dd should match loop length.')
+#endif
+
    node => self%models%first
    do while (associated(node))
       call node%model%do_ppdd(_ARGUMENTS_ND_IN_,pp,dd)
@@ -1961,11 +1990,11 @@ end subroutine
    subroutine fabm_do_surface(self _ARG_LOCATION_VARS_HZ_,flux)
 !
 ! !INPUT PARAMETERS:
-      class (type_model),             intent(inout) :: self
+      class (type_model),                          intent(inout) :: self
       _DECLARE_LOCATION_ARG_HZ_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-      real(rk) _DIMENSION_SLICE_HORIZONTAL_PLUS_1_,intent(out)   :: flux
+      real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(out)   :: flux
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -1997,11 +2026,11 @@ end subroutine
    subroutine fabm_do_bottom_rhs(self _ARG_LOCATION_VARS_HZ_,flux_pel,flux_ben)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),             intent(inout) :: self
+   class (type_model),                          intent(inout) :: self
    _DECLARE_LOCATION_ARG_HZ_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   real(rk) _DIMENSION_SLICE_HORIZONTAL_PLUS_1_,intent(inout) :: flux_pel,flux_ben
+   real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(inout) :: flux_pel,flux_ben
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -2036,7 +2065,7 @@ end subroutine
    integer,                   intent(in)    :: benthos_offset
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   real(rk) _DIMENSION_SLICE_HORIZONTAL_PLUS_2_,intent(inout) :: pp,dd
+   real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_2_,intent(inout) :: pp,dd
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -2065,7 +2094,7 @@ end subroutine
    subroutine fabm_get_vertical_movement(self _ARG_LOCATION_ND_,velocity)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),          intent(inout) :: self
+   class (type_model),               intent(inout) :: self
    _DECLARE_LOCATION_ARG_ND_
 !
 ! !INPUT/OUTPUT PARAMETERS:
@@ -2079,12 +2108,17 @@ end subroutine
    integer                              :: i
 !-----------------------------------------------------------------------
 !BOC
+#if defined(DEBUG)&&defined(_FABM_USE_1D_LOOP_)
+   if (size(velocity,1)/=fabm_loop_stop-fabm_loop_start+1) &
+      call fatal_error('fabm_get_vertical_movement','Size of first dimension of velocity should match loop length.')
+#endif
+
    ! First set constant sinking rates.
    do i=1,size(self%state_variables)
       ! Use variable-specific constant vertical velocities.
       ! Automatic vectorization by compiler is possible without further modification (ifort 14.0, 2013-12-06)
       _LOOP_BEGIN_EX_(self%environment)
-         velocity _INDEX_VERTICAL_MOVEMENT_(i) = self%state_variables(i)%vertical_movement
+         velocity _INDEX_SLICE_PLUS_1_(i) = self%state_variables(i)%vertical_movement
       _LOOP_END_
    end do
 
@@ -2108,7 +2142,7 @@ end subroutine
    subroutine fabm_get_light_extinction(self _ARG_LOCATION_ND_,extinction)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),          intent(inout) :: self
+   class (type_model),        intent(inout) :: self
    _DECLARE_LOCATION_ARG_ND_
    real(rk) _DIMENSION_SLICE_,intent(out)   :: extinction
 !
@@ -2120,7 +2154,14 @@ end subroutine
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   extinction = 0.0_rk
+#if defined(DEBUG)&&defined(_FABM_USE_1D_LOOP_)
+   if (size(extinction,1)/=fabm_loop_stop-fabm_loop_start+1) &
+      call fatal_error('fabm_get_light_extinction','Size of first dimension of extinction should match loop length.')
+#endif
+
+   _LOOP_BEGIN_EX_(self%environment)
+      _GET_EX_(self%extinction_data,extinction _INDEX_SLICE_)
+   _LOOP_END_
    node => self%models%first
    do while (associated(node))
       call node%model%get_light_extinction(_ARGUMENTS_ND_IN_,extinction)
@@ -2170,9 +2211,9 @@ end subroutine
    subroutine fabm_get_drag(self _ARG_LOCATION_VARS_HZ_,drag)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),             intent(inout) :: self
+   class (type_model),                   intent(inout) :: self
    _DECLARE_LOCATION_ARG_HZ_
-   real(rk) _DIMENSION_SLICE_HORIZONTAL_,intent(out)   :: drag
+   real(rk) _DIMENSION_HORIZONTAL_SLICE_,intent(out)   :: drag
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -2202,9 +2243,9 @@ end subroutine
    subroutine fabm_get_albedo(self _ARG_LOCATION_VARS_HZ_,albedo)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),             intent(inout) :: self
+   class (type_model),                   intent(inout) :: self
    _DECLARE_LOCATION_ARG_HZ_
-   real(rk) _DIMENSION_SLICE_HORIZONTAL_,intent(out)   :: albedo
+   real(rk) _DIMENSION_HORIZONTAL_SLICE_,intent(out)   :: albedo
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -2233,29 +2274,23 @@ end subroutine
    subroutine fabm_get_conserved_quantities(self _ARG_LOCATION_ND_,sums)
 !
 ! !INPUT PARAMETERS:
-   class (type_model), intent(inout)         :: self
+   class (type_model),               intent(inout) :: self
    _DECLARE_LOCATION_ARG_ND_
-   real(rk) _DIMENSION_SLICE_PLUS_1_,intent(out) :: sums
+   real(rk) _DIMENSION_SLICE_PLUS_1_,intent(out)   :: sums
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !EOP
 !
-   integer :: i,index
+   integer :: i
 !-----------------------------------------------------------------------
 !BOC
    do i=1,size(self%conserved_quantities)
-      if (associated(self%conserved_quantities(i)%aggregate_variable%sum)) then
+      if (associated(self%conserved_quantities(i)%aggregate_variable%sum)) &
          call self%conserved_quantities(i)%aggregate_variable%sum%evaluate(_ARGUMENTS_ND_IN_)
-         index = self%conserved_quantities(i)%aggregate_variable%sum%id_output%diag_index
-         _LOOP_BEGIN_EX_(self%environment)
-            sums _INDEX_OUTPUT_1D_(i) = self%environment%diag(_PREARG_LOCATION_ index)
-         _LOOP_END_
-      else
-         _LOOP_BEGIN_EX_(self%environment)
-            sums _INDEX_OUTPUT_1D_(i) = 0.0_rk
-         _LOOP_END_
-      end if
+      _LOOP_BEGIN_EX_(self%environment)
+         _GET_EX_(self%conserved_quantities(i)%data,sums _INDEX_SLICE_PLUS_1_(i))
+      _LOOP_END_
    end do
 
    end subroutine fabm_get_conserved_quantities
@@ -2270,30 +2305,24 @@ end subroutine
    subroutine fabm_get_horizontal_conserved_quantities(self _ARG_LOCATION_VARS_HZ_,sums)
 !
 ! !INPUT PARAMETERS:
-   class (type_model), intent(inout)            :: self
+   class (type_model),                          intent(inout) :: self
    _DECLARE_LOCATION_ARG_HZ_
-   real(rk) _DIMENSION_SLICE_HORIZONTAL_PLUS_1_,intent(out) :: sums
+   real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(out)   :: sums
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !EOP
 !
-   integer :: i,index
+   integer :: i
 
 !-----------------------------------------------------------------------
 !BOC
    do i=1,size(self%conserved_quantities)
-      if (associated(self%conserved_quantities(i)%aggregate_variable%horizontal_sum)) then
+      if (associated(self%conserved_quantities(i)%aggregate_variable%horizontal_sum)) &
          call self%conserved_quantities(i)%aggregate_variable%horizontal_sum%evaluate_horizontal(_ARGUMENTS_IN_HZ_)
-         index = self%conserved_quantities(i)%aggregate_variable%horizontal_sum%id_output%horizontal_diag_index
-         _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-            sums _INDEX_HZ_OUTPUT_1D_(i) = self%environment%diag_hz(_PREARG_LOCATION_HZ_ index)
-         _HORIZONTAL_LOOP_END_
-      else
-         _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-            sums _INDEX_HZ_OUTPUT_1D_(i) = 0.0_rk
-         _HORIZONTAL_LOOP_END_
-      end if
+      _HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+         _GET_HORIZONTAL_EX_(self%conserved_quantities(i)%horizontal_data,sums _INDEX_HORIZONTAL_SLICE_PLUS_1_(i))
+      _HORIZONTAL_LOOP_END_
    end do
 
    end subroutine fabm_get_horizontal_conserved_quantities
@@ -2562,9 +2591,54 @@ subroutine classify_variables(self)
    type (type_diagnostic_variable_info),           pointer :: diagvar
    type (type_horizontal_diagnostic_variable_info),pointer :: hz_diagvar
    type (type_conserved_quantity_info),            pointer :: consvar
+   class (type_internal_object),                   pointer :: object
    integer                                                 :: nstate,nstate_bot,nstate_surf,ndiag,ndiag_hz,ncons
 
    type (type_aggregate_variable),    pointer :: aggregate_variable
+   type (type_set) :: dependencies,dependencies_hz,dependencies_scalar
+
+   ! Count number of conserved quantities and allocate associated array.
+   ncons = 0
+   aggregate_variable => self%root%first_aggregate_variable
+   do while (associated(aggregate_variable))
+      ncons = ncons + 1
+      aggregate_variable => aggregate_variable%next
+   end do
+   allocate(self%conserved_quantities(ncons))
+
+   ! Fill list of conserved quantities.
+   ! This must be done before building the final authoratitive list of diagnostic variables,
+   ! as the calls to append_data_pointer affect the global identifier of diagnostic variables
+   ! by adding another pointer that must be set.
+   ncons = 0
+   aggregate_variable => self%root%first_aggregate_variable
+   do while (associated(aggregate_variable))
+      ncons = ncons + 1
+      consvar => self%conserved_quantities(ncons)
+      consvar%standard_variable = aggregate_variable%standard_variable
+      consvar%name = trim(consvar%standard_variable%name)
+      consvar%units = trim(consvar%standard_variable%units)
+      consvar%long_name = trim(consvar%standard_variable%name)
+      consvar%aggregate_variable => aggregate_variable
+      object => self%root%find_object(trim(aggregate_variable%standard_variable%name))
+      select type (object)
+         class is (type_bulk_variable)
+            call append_data_pointer(object%alldata,consvar%data)
+      end select
+      object => self%root%find_object(trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
+      select type (object)
+         class is (type_horizontal_variable)
+            call append_data_pointer(object%alldata,consvar%horizontal_data)
+      end select
+      aggregate_variable => aggregate_variable%next
+   end do
+
+   ! Get link to extinction variable.
+   object => self%root%find_object(trim(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux%name))
+   select type (object)
+      class is (type_bulk_variable)
+         call append_data_pointer(object%alldata,self%extinction_data)
+   end select
 
    ! Count number of bulk variables in various categories.
    nstate = 0
@@ -2626,35 +2700,21 @@ subroutine classify_variables(self)
       link => link%next
    end do
 
-   ncons = 0
-   aggregate_variable => self%root%first_aggregate_variable
-   do while (associated(aggregate_variable))
-      ncons = ncons + 1
-      aggregate_variable => aggregate_variable%next
-   end do
-
    ! Allocate arrays with variable information that will be accessed by the host model.
    allocate(self%state_variables                (nstate))
    allocate(self%bottom_state_variables         (nstate_bot))
    allocate(self%surface_state_variables        (nstate_surf))
    allocate(self%diagnostic_variables           (ndiag))
    allocate(self%horizontal_diagnostic_variables(ndiag_hz))
-   allocate(self%conserved_quantities           (ncons))
-
-   ! Create empty lists that will hold the names of all readable variables.
-   allocate(self%dependencies(0))
-   allocate(self%dependencies_hz(0))
-   allocate(self%dependencies_scalar(0))
 
    ! Set pointers for backward compatibility (pre 2013-06-15)
    ! Note: this must be done AFTER allocation of the target arrays, above!
    self%state_variables_ben => self%bottom_state_variables
    self%diagnostic_variables_hz => self%horizontal_diagnostic_variables
 
-   ! Copy metadata of bulk variables
+   ! Build lists of state variable and diagnostic variables.
    nstate = 0
    ndiag  = 0
-   ncons  = 0
    nstate_bot  = 0
    nstate_surf = 0
    ndiag_hz    = 0
@@ -2683,15 +2743,9 @@ subroutine classify_variables(self)
                   statevar%standard_variable         = object%standard_variable
                   statevar%initial_value             = object%initial_value
                   statevar%vertical_movement         = object%vertical_movement
-                  statevar%specific_light_extinction = object%specific_light_extinction
                   statevar%no_precipitation_dilution = object%no_precipitation_dilution
                   statevar%no_river_dilution         = object%no_river_dilution
                end if
-            end if
-            if (allocated(object%alldata).and. &
-                .not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
-               call append_string(self%dependencies,link%name)
-               if (object%standard_variable%name/='') call append_string(self%dependencies,object%standard_variable%name)
             end if
          class is (type_horizontal_variable)
             if (link%owner) then
@@ -2722,33 +2776,39 @@ subroutine classify_variables(self)
                   hz_statevar%initial_value     = object%initial_value
                end if
             end if
-            if (allocated(object%alldata).and. &
-                .not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
-               call append_string(self%dependencies_hz,link%name)
-               if (object%standard_variable%name/='') call append_string(self%dependencies_hz,object%standard_variable%name)
-            end if
-         class is (type_scalar_variable)
-            if (allocated(object%alldata)) then
-               call append_string(self%dependencies_scalar,link%name)
-               if (object%standard_variable%name/='') call append_string(self%dependencies_scalar,object%standard_variable%name)
-            end if
       end select
       link => link%next
    end do
 
-   ncons = 0
-   aggregate_variable => self%root%first_aggregate_variable
-   do while (associated(aggregate_variable))
-      ncons = ncons + 1
-      consvar => self%conserved_quantities(ncons)
-      consvar%standard_variable = aggregate_variable%standard_variable
-      consvar%name = trim(consvar%standard_variable%name)
-      consvar%units = trim(consvar%standard_variable%units)
-      consvar%long_name = trim(consvar%standard_variable%name)
-      consvar%aggregate_variable => aggregate_variable
-      aggregate_variable => aggregate_variable%next
+   ! Create lists of variables that may be provided by the host model.
+   ! These lists include external dependencies, as well as the model's own state variables,
+   ! which may be overridden by the host.
+   link => self%root%first_link
+   do while (associated(link))
+      select type (object=>link%target)
+         class is (type_bulk_variable)
+            if (allocated(object%alldata).and. &
+                .not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
+               call dependencies%add(link%name)
+               if (object%standard_variable%name/='') call dependencies%add(object%standard_variable%name)
+            end if
+         class is (type_horizontal_variable)
+            if (allocated(object%alldata).and. &
+                .not.(object%presence==presence_external_optional.and..not.object%state_indices%is_empty())) then
+               call dependencies_hz%add(link%name)
+               if (object%standard_variable%name/='') call dependencies_hz%add(object%standard_variable%name)
+            end if
+         class is (type_scalar_variable)
+            if (allocated(object%alldata)) then
+               call dependencies_scalar%add(link%name)
+               if (object%standard_variable%name/='') call dependencies_scalar%add(object%standard_variable%name)
+            end if
+      end select
+      link => link%next
    end do
-
+   call dependencies%to_array(self%dependencies)
+   call dependencies_hz%to_array(self%dependencies_hz)
+   call dependencies_scalar%to_array(self%dependencies_scalar)
 end subroutine classify_variables
 
 subroutine copy_variable_metadata(internal_variable,external_variable)

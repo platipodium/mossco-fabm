@@ -30,7 +30,7 @@
 
    ! Collection with standard variables (e.g., temperature, practical_salinity)
    public standard_variables
-   public type_bulk_standard_variable
+   public type_standard_variable, type_bulk_standard_variable
 
    ! Variable identifier types used by biogeochemical models
    public type_variable_id
@@ -48,7 +48,7 @@
    public type_link
    public type_internal_object,type_internal_variable,type_bulk_variable,type_horizontal_variable,type_scalar_variable
    public type_environment
-   public freeze_model_info,after_assign_indices
+   public freeze_model_info
    public find_dependencies
 
    public type_model_list,type_model_list_node
@@ -64,9 +64,9 @@
 
    public type_bulk_data_pointer,type_horizontal_data_pointer,type_scalar_data_pointer
    public type_bulk_data_pointer_pointer,type_horizontal_data_pointer_pointer,type_scalar_data_pointer_pointer
-   public type_aggregate_variable, type_contributing_variable
+   public type_aggregate_variable, type_contributing_variable, get_aggregate_variable
    public time_treatment2output,output2time_treatment
-   public append_string,append_data_pointer
+   public append_data_pointer
 
 ! !PUBLIC DATA MEMBERS:
 !
@@ -209,6 +209,7 @@
    type type_contribution
       type (type_bulk_standard_variable)  :: target
       real(rk)                            :: scale_factor = 1.0_rk
+      logical                             :: include_background = .false.
       type (type_contribution),pointer    :: next => null()
    end type
 
@@ -221,8 +222,7 @@
    type type_contributing_variable
       type (type_link),                 pointer :: link => null()
       real(rk)                                  :: scale_factor = 1.0_rk
-      integer                                   :: state_index = -1
-      integer                                   :: horizontal_state_index = -1
+      logical                                   :: include_background = .false.
       type (type_contributing_variable),pointer :: next => null()
    end type
 
@@ -232,11 +232,11 @@
       class (type_weighted_sum),           pointer  :: sum => null()
       class (type_horizontal_weighted_sum),pointer  :: horizontal_sum => null()
       type (type_aggregate_variable),      pointer  :: next => null()
+      logical                                       :: bulk_required = .false.
+      logical                                       :: horizontal_required = .false.
 
       type (type_diagnostic_variable_id)            :: id_rate
       type (type_horizontal_diagnostic_variable_id) :: id_horizontal_rate
-      logical                                       :: has_bulk_state_component = .false.
-      logical                                       :: has_horizontal_state_component = .false.
       integer,allocatable                           :: state_indices(:)
       real(rk),allocatable                          :: state_scale_factors(:)
    end type
@@ -269,7 +269,6 @@
    type,extends(type_internal_variable) :: type_bulk_variable
       ! Metadata
       real(rk)                                      :: vertical_movement         = 0.0_rk
-      real(rk)                                      :: specific_light_extinction = 0.0_rk
       logical                                       :: no_precipitation_dilution = .false.
       logical                                       :: no_river_dilution         = .false.
       type (type_bulk_standard_variable)            :: standard_variable
@@ -381,6 +380,9 @@
       logical :: check_conservation = .false.
       logical :: check_missing_parameters = .true.
 
+      ! Identifiers for variables that contain zero at all time.
+      type (type_dependency_id)            :: id_zero
+      type (type_horizontal_dependency_id) :: id_zero_hz
    contains
 
       ! Procedures that can be used to add child models during initialization.
@@ -395,14 +397,21 @@
       procedure :: register_bulk_state_variable
       procedure :: register_bottom_state_variable
       procedure :: register_surface_state_variable
+
       procedure :: register_bulk_diagnostic_variable
       procedure :: register_horizontal_diagnostic_variable
-      procedure :: register_bulk_dependency
-      procedure :: register_bulk_dependency_sn
-      procedure :: register_horizontal_dependency
-      procedure :: register_horizontal_dependency_sn
-      procedure :: register_global_dependency
-      procedure :: register_global_dependency_sn
+
+      procedure :: register_named_bulk_dependency
+      procedure :: register_standard_bulk_dependency
+      procedure :: register_named_horizontal_dependency
+      procedure :: register_standard_horizontal_dependency
+      procedure :: register_named_global_dependency
+      procedure :: register_standard_global_dependency
+
+      generic :: register_bulk_dependency       => register_named_bulk_dependency, register_standard_bulk_dependency
+      generic :: register_horizontal_dependency => register_named_horizontal_dependency, register_standard_horizontal_dependency
+      generic :: register_global_dependency     => register_named_global_dependency, register_standard_global_dependency
+
       procedure :: register_standard_conserved_quantity
       procedure :: register_custom_conserved_quantity
       procedure :: register_bulk_state_dependency_ex
@@ -440,9 +449,9 @@
       generic :: register_state_variable      => register_bulk_state_variable,register_bottom_state_variable, &
                                                  register_surface_state_variable
       generic :: register_diagnostic_variable => register_bulk_diagnostic_variable,register_horizontal_diagnostic_variable
-      generic :: register_dependency          => register_bulk_dependency, register_bulk_dependency_sn, &
-                                                 register_horizontal_dependency, register_horizontal_dependency_sn, &
-                                                 register_global_dependency, register_global_dependency_sn, &
+      generic :: register_dependency          => register_named_bulk_dependency, register_standard_bulk_dependency, &
+                                                 register_named_horizontal_dependency, register_standard_horizontal_dependency, &
+                                                 register_named_global_dependency, register_standard_global_dependency, &
                                                  register_bulk_expression_dependency, register_horizontal_expression_dependency
       generic :: register_state_dependency    => register_bulk_state_dependency_ex,register_bottom_state_dependency_ex, &
                                                  register_surface_state_dependency_ex,register_bulk_state_dependency_old, &
@@ -512,6 +521,11 @@
       real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: diag_hz
       integer                                                   :: nstate
 
+      real(rk),allocatable _DIMENSION_GLOBAL_PLUS_1_            :: rhs
+
+      real(rk),allocatable _DIMENSION_GLOBAL_                   :: zero
+      real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_        :: zero_hz
+
 #ifdef _FABM_MASK_
       _FABM_MASK_TYPE_,pointer _DIMENSION_GLOBAL_ :: mask => null()
 #endif
@@ -539,6 +553,7 @@
    type type_component
       character(len=attribute_length) :: name   = ''
       real(rk)                        :: weight = 1._rk
+      logical                         :: include_background = .false.
       type (type_dependency_id)       :: id
       type (type_component),pointer   :: next   => null()
    end type
@@ -546,6 +561,7 @@
    type type_horizontal_component
       character(len=attribute_length)          :: name   = ''
       real(rk)                                 :: weight = 1._rk
+      logical                                  :: include_background = .false.
       type (type_horizontal_dependency_id)     :: id
       type (type_horizontal_component),pointer :: next   => null()
    end type
@@ -554,19 +570,22 @@
       character(len=attribute_length) :: output_name      = ''
       character(len=attribute_length) :: output_long_name = ''
       character(len=attribute_length) :: output_units     = ''
+      real(rk)                        :: offset           = 0.0_rk
       type (type_diagnostic_variable_id) :: id_output
       type (type_component),pointer   :: first => null()
    contains
-      procedure :: initialize    => weighted_sum_initialize
-      procedure :: add_component => weighted_sum_add_component
-      procedure :: evaluate      => weighted_sum_evaluate
-      procedure :: do            => weighted_sum_do
+      procedure :: initialize     => weighted_sum_initialize
+      procedure :: add_component  => weighted_sum_add_component
+      procedure :: evaluate       => weighted_sum_evaluate
+      procedure :: do             => weighted_sum_do
+      procedure :: after_coupling => weighted_sum_after_coupling
    end type
 
    type,extends(type_base_model) :: type_horizontal_weighted_sum
       character(len=attribute_length) :: output_name      = ''
       character(len=attribute_length) :: output_long_name = ''
       character(len=attribute_length) :: output_units     = ''
+      real(rk)                        :: offset           = 0.0_rk
       type (type_horizontal_diagnostic_variable_id) :: id_output
       type (type_horizontal_component),pointer   :: first => null()
    contains
@@ -574,6 +593,7 @@
       procedure :: initialize          => horizontal_weighted_sum_initialize
       procedure :: evaluate_horizontal => horizontal_weighted_sum_evaluate_horizontal
       procedure :: do_bottom           => horizontal_weighted_sum_do_bottom
+      procedure :: after_coupling      => horizontal_weighted_sum_after_coupling
    end type
 
    ! ====================================================================================================
@@ -608,7 +628,7 @@
 
    ! Providing process rates and diagnostics
    subroutine base_do(self,_ARGUMENTS_DO_)
-      class (type_base_model),intent(in) ::  self
+      class (type_base_model),intent(in) :: self
       _DECLARE_ARGUMENTS_DO_
    end subroutine
 
@@ -617,7 +637,7 @@
       _DECLARE_ARGUMENTS_DO_
 
       real(rk) _DIMENSION_SLICE_AUTOMATIC_ :: current_sum
-      real(rk) _DIMENSION_SLICE_PLUS_1_,allocatable :: dy
+      real(rk) _DIMENSION_SLICE_PLUS_1_ALLOCATABLE_,allocatable :: dy
       integer :: index,i
       real(rk) :: scale_factor
       type (type_aggregate_variable),pointer :: aggregate_variable
@@ -628,7 +648,7 @@
       ! (access here is sparse - individual models will tend to write to subsets of dy only).
       ! This appears to be more efficient than prior allocation at startup, and explicitly
       ! zeroing every time.
-      allocate(dy(_SIZE_SLICE_ environment%nstate))
+      allocate(dy(_SLICE_SHAPE_ environment%nstate))
       dy = 0.0_rk
       call self%do(_ARGUMENTS_ND_,dy)
       rhs = rhs + dy
@@ -645,13 +665,13 @@
                index = aggregate_variable%state_indices(i)
                scale_factor = aggregate_variable%state_scale_factors(i)
                _LOOP_BEGIN_
-                  current_sum _INDEX_OUTPUT_ = current_sum _INDEX_OUTPUT_ + scale_factor*dy _INDEX_OUTPUT_1D_(index)
+                  current_sum _INDEX_SLICE_ = current_sum _INDEX_SLICE_ + scale_factor*dy _INDEX_SLICE_PLUS_1_(index)
                _LOOP_END_
             end do
 
             ! Store sum across spatial domain
             _LOOP_BEGIN_
-               _SET_DIAG_(aggregate_variable%id_rate,current_sum _INDEX_OUTPUT_)
+               _SET_DIAGNOSTIC_(aggregate_variable%id_rate,current_sum _INDEX_SLICE_)
             _LOOP_END_
          end if
          aggregate_variable => aggregate_variable%next
@@ -690,20 +710,6 @@
    subroutine base_get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_GET_EXTINCTION_
-
-      integer  :: i
-      real(rk) :: val,curext
-
-      ! Use variable-specific light extinction coefficients.
-      !do i=1,size(self%state_variables)
-      !   curext = self%state_variables(i)%specific_light_extinction
-      !   if (curext/=0.0_rk) then
-      !      _LOOP_BEGIN_
-      !         _GET_STATE_EX_(environment,self%state_variables(i)%globalid%p,val)
-      !         _SET_EXTINCTION_(val*curext)
-      !      _LOOP_END_
-      !   end if
-      !end do
    end subroutine
 
    subroutine base_get_drag(self,_ARGUMENTS_GET_DRAG_)
@@ -802,7 +808,7 @@
 ! !IROUTINE: Initializes model information.
 !
 ! !INTERFACE:
-   subroutine add_child(self,model,name,long_name,configunit)
+   recursive subroutine add_child(self,model,name,long_name,configunit)
 !
 ! !DESCRIPTION:
 !  This function initializes the members of a model information derived type,
@@ -863,28 +869,30 @@
       call variable%link%target%properties%set_logical(name,value)
    end subroutine
 
-   subroutine add_to_aggregate_variable(self,target,variable_id,scale_factor)
+   subroutine add_to_aggregate_variable(self,target,variable_id,scale_factor,include_background)
       class (type_base_model),           intent(inout) :: self
       type (type_bulk_standard_variable),intent(in)    :: target
       class (type_variable_id),          intent(inout) :: variable_id
       real(rk),optional,                 intent(in)    :: scale_factor
+      logical,optional,                  intent(in)    :: include_background
 
       if (.not.associated(variable_id%link)) &
          call self%fatal_error('add_to_aggregate_variable','variable has not been registered')
 
       select type (variable=>variable_id%link%target)
          class is (type_internal_variable)
-            call variable%contributions%add(target,scale_factor)
+            call variable%contributions%add(target,scale_factor,include_background)
          class default
             call self%fatal_error('add_to_aggregate_variable','Only variables can contribute to conserved quantities at present.')
       end select
 
    end subroutine
 
-   subroutine contribution_list_add(self,target,scale_factor)
+   subroutine contribution_list_add(self,target,scale_factor,include_background)
       class (type_contribution_list),    intent(inout) :: self
       type (type_bulk_standard_variable),intent(in)    :: target
       real(rk),optional,                 intent(in)    :: scale_factor
+      logical,optional,                  intent(in)    :: include_background
 
       type (type_contribution),pointer :: contribution
 
@@ -914,6 +922,7 @@
 
       contribution%target = target
       if (present(scale_factor)) contribution%scale_factor = scale_factor
+      if (present(include_background)) contribution%include_background = include_background
    end subroutine
 
    subroutine model_list_append(self,model)
@@ -1034,12 +1043,12 @@ end function create_link
 
 recursive subroutine add_alias(self,target,name)
    class (type_base_model), intent(inout) :: self
-   class (type_variable_id),intent(in)    :: target
+   class (type_internal_object),pointer   :: target
    character(len=*),        intent(in)    :: name
 
    type (type_link),pointer :: link
 
-   link => create_link(self,target%link%target,name,owner=.false.)
+   link => create_link(self,target,name,owner=.false.)
    if (associated(self%parent)) call self%parent%add_alias(target,trim(self%name_prefix)//trim(name))
 end subroutine
 
@@ -1323,35 +1332,6 @@ subroutine append_scalar_data_pointer(array,data)
    array(size(array))%p = array(1)%p
 end subroutine append_scalar_data_pointer
 
-subroutine append_string(array,string,exists)
-   character(len=attribute_length),dimension(:),allocatable :: array
-   character(len=*),intent(in) :: string
-   logical,intent(out),optional :: exists
-   integer :: i
-   character(len=attribute_length),allocatable :: oldarray(:)
-
-   if (.not.allocated(array)) then
-      allocate(array(1))
-   else
-      do i=1,size(array)
-         if (array(i)==string) then
-            if (present(exists)) exists = .true.
-            return
-         end if
-      end do
-
-      allocate(oldarray(size(array)))
-      oldarray = array
-      deallocate(array)
-      allocate(array(size(oldarray)+1))
-      array(1:size(oldarray)) = oldarray
-      deallocate(oldarray)
-   end if
-
-   array(size(array)) = string
-   if (present(exists)) exists = .false.
-end subroutine append_string
-
 recursive subroutine before_coupling(self)
    class (type_base_model),intent(inout),target :: self
 
@@ -1412,7 +1392,6 @@ end subroutine
 !  Original author(s): Jorn Bruggeman
 !
 !EOP
-   type (type_aggregate_variable),pointer :: aggregate_variable
 !-----------------------------------------------------------------------
 !BOC
       if (associated(self%parent)) call self%fatal_error('freeze_model_info', &
@@ -1426,18 +1405,16 @@ end subroutine
       call couple_standard_variables(self)
       call process_coupling_tasks(self)
 
-      ! Create models for aggregate variables at root level, to be used to compute conserved quantities
+      ! Create models for aggregate variables at root level, to be used to compute conserved quantities.
+      ! After this step, the set of variables that contribute to aggregate quatities may not be modified.
+      ! That is, no new such variables may be added, and no such variables may be coupled.
       call build_aggregate_variables(self)
-      aggregate_variable => self%first_aggregate_variable
-      do while (associated(aggregate_variable))
-         call create_aggregate_model(self,aggregate_variable)
-         aggregate_variable => aggregate_variable%next
-      end do
+      call create_aggregate_models(self)
 
-      ! Try coupling again, because we now have additional aggregate variables available.
+      ! Repeat coupling because new aggregate variables are now available.
       call process_coupling_tasks(self)
 
-      ! Add arrays with state variable identifiers to model references (this requires variable coupling to be complete!)
+      ! Allow inheriting models to perform additional tasks after coupling.
       call after_coupling(self)
 
       call freeze(self)
@@ -1497,7 +1474,6 @@ end subroutine
       if (present(maximum))                   variable%maximum                   = maximum
       if (present(missing_value))             variable%missing_value             = missing_value
       if (present(vertical_movement))         variable%vertical_movement         = vertical_movement
-      if (present(specific_light_extinction)) variable%specific_light_extinction = specific_light_extinction
       if (present(no_precipitation_dilution)) variable%no_precipitation_dilution = no_precipitation_dilution
       if (present(no_river_dilution))         variable%no_river_dilution         = no_river_dilution
       if (present(standard_variable))         variable%standard_variable         = standard_variable
@@ -2069,35 +2045,35 @@ end subroutine
       call self%request_coupling(id,name)
    end subroutine
    
-   subroutine register_bulk_dependency_sn(model,id,standard_variable,required)
+   subroutine register_standard_bulk_dependency(model,id,standard_variable,required)
       class (type_base_model),           intent(inout)        :: model
       type (type_dependency_id),         intent(inout),target :: id
       type (type_bulk_standard_variable),intent(in)           :: standard_variable
       logical,optional,                  intent(in)           :: required
 
-      call register_bulk_dependency(model,id,standard_variable%name,standard_variable%units, &
-                                    standard_variable=standard_variable,required=required)
-   end subroutine register_bulk_dependency_sn
+      call register_named_bulk_dependency(model,id,standard_variable%name,standard_variable%units, &
+                                          standard_variable=standard_variable,required=required)
+   end subroutine
 
-   subroutine register_horizontal_dependency_sn(model,id,standard_variable,required)
+   subroutine register_standard_horizontal_dependency(model,id,standard_variable,required)
       class (type_base_model),                 intent(inout)        :: model
       type (type_horizontal_dependency_id),    intent(inout),target :: id
       type (type_horizontal_standard_variable),intent(in)           :: standard_variable
       logical,optional,                        intent(in)           :: required
 
-      call register_horizontal_dependency(model,id,standard_variable%name,standard_variable%units, &
-                                          standard_variable=standard_variable,required=required)
-   end subroutine register_horizontal_dependency_sn
+      call register_named_horizontal_dependency(model,id,standard_variable%name,standard_variable%units, &
+                                                standard_variable=standard_variable,required=required)
+   end subroutine
 
-   subroutine register_global_dependency_sn(model,id,standard_variable,required)
+   subroutine register_standard_global_dependency(model,id,standard_variable,required)
       class (type_base_model),             intent(inout)        :: model
       type (type_global_dependency_id),    intent(inout),target :: id
       type (type_global_standard_variable),intent(in)           :: standard_variable
       logical,optional,                    intent(in)           :: required
 
-      call register_global_dependency(model,id,standard_variable%name,standard_variable%units, &
-                                      standard_variable=standard_variable,required=required)
-   end subroutine register_global_dependency_sn
+      call register_named_global_dependency(model,id,standard_variable%name,standard_variable%units, &
+                                            standard_variable=standard_variable,required=required)
+   end subroutine
 
 !-----------------------------------------------------------------------
 !BOP
@@ -2106,7 +2082,7 @@ end subroutine
 ! the full model domain.
 !
 ! !INTERFACE:
-   subroutine register_bulk_dependency(self,id,name,units,long_name,standard_variable,required)
+   subroutine register_named_bulk_dependency(self,id,name,units,long_name,standard_variable,required)
 !
 ! !DESCRIPTION:
 !  This function searches for a biogeochemical state variable by the user-supplied name
@@ -2155,7 +2131,7 @@ end subroutine
 
       if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
 
-   end subroutine register_bulk_dependency
+   end subroutine register_named_bulk_dependency
 !EOC
 
 !-----------------------------------------------------------------------
@@ -2165,7 +2141,7 @@ end subroutine
 ! a horizontal slice of the model domain.
 !
 ! !INTERFACE:
-   subroutine register_horizontal_dependency(self,id,name,units,long_name,standard_variable,required)
+   subroutine register_named_horizontal_dependency(self,id,name,units,long_name,standard_variable,required)
 !
 ! !DESCRIPTION:
 !  This function searches for a biogeochemical state variable by the user-supplied name
@@ -2214,7 +2190,7 @@ end subroutine
 
       if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
 
-   end subroutine register_horizontal_dependency
+   end subroutine register_named_horizontal_dependency
 !EOC
 
 !-----------------------------------------------------------------------
@@ -2224,7 +2200,7 @@ end subroutine
 ! independent) variable.
 !
 ! !INTERFACE:
-   subroutine register_global_dependency(self,id,name,units,long_name,standard_variable,required)
+   subroutine register_named_global_dependency(self,id,name,units,long_name,standard_variable,required)
 !
 ! !DESCRIPTION:
 !  This function searches for a biogeochemical state variable by the user-supplied name
@@ -2273,7 +2249,7 @@ end subroutine
 
       if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
 
-   end subroutine register_global_dependency
+   end subroutine register_named_global_dependency
 !EOC
 
 subroutine register_bulk_expression_dependency(self,id,expression)
@@ -2624,12 +2600,11 @@ end subroutine add_parameter
 !EOP
 !
 ! !LOCAL VARIABLES:
-      type (type_link),pointer                    :: link,link2
-      type (type_bulk_standard_variable)          :: bulk_standard_variable
-      type (type_horizontal_standard_variable)    :: horizontal_standard_variable
-      type (type_global_standard_variable)        :: global_standard_variable
-      character(len=attribute_length),allocatable :: processed_bulk(:),processed_horizontal(:),processed_scalar(:)
-      logical                                     :: exists
+      type (type_link),pointer                 :: link,link2
+      type (type_bulk_standard_variable)       :: bulk_standard_variable
+      type (type_horizontal_standard_variable) :: horizontal_standard_variable
+      type (type_global_standard_variable)     :: global_standard_variable
+      type (type_set)                          :: processed_bulk,processed_horizontal,processed_scalar
 !
 !-----------------------------------------------------------------------
 !BOC
@@ -2638,8 +2613,8 @@ end subroutine add_parameter
          select type (object=>link%target)
             class is (type_bulk_variable)
                if (.not.object%standard_variable%is_null()) then
-                  call append_string(processed_bulk,object%standard_variable%name,exists=exists)
-                  if (.not.exists) then
+                  if (.not.processed_bulk%contains(object%standard_variable%name)) then
+                     call processed_bulk%add(object%standard_variable%name)
                      bulk_standard_variable = object%standard_variable  ! make a copy here, because object may be deallocated later from couple_variables
                      link2 => link%next
                      do while (associated(link2))
@@ -2659,8 +2634,8 @@ end subroutine add_parameter
                end if
             class is (type_horizontal_variable)
                if (.not.object%standard_variable%is_null()) then
-                  call append_string(processed_horizontal,object%standard_variable%name,exists=exists)
-                  if (.not.exists) then
+                  if (.not.processed_horizontal%contains(object%standard_variable%name)) then
+                     call processed_horizontal%add(object%standard_variable%name)
                      horizontal_standard_variable = object%standard_variable  ! make a copy here, because object may be deallocated later from couple_variables
                      link2 => link%next
                      do while (associated(link2))
@@ -2680,8 +2655,8 @@ end subroutine add_parameter
                end if
             class is (type_scalar_variable)
                if (.not.object%standard_variable%is_null()) then
-                  call append_string(processed_scalar,object%standard_variable%name,exists=exists)
-                  if (.not.exists) then
+                  if (.not.processed_scalar%contains(object%standard_variable%name)) then
+                     call processed_scalar%add(object%standard_variable%name)
                      global_standard_variable = object%standard_variable  ! make a copy here, because object may be deallocated later from couple_variables
                      link2 => link%next
                      do while (associated(link2))
@@ -2703,9 +2678,9 @@ end subroutine add_parameter
          link => link%next
       end do
 
-      if (allocated(processed_bulk))       deallocate(processed_bulk)
-      if (allocated(processed_horizontal)) deallocate(processed_horizontal)
-      if (allocated(processed_scalar))     deallocate(processed_scalar)
+      call processed_bulk%finalize()
+      call processed_horizontal%finalize()
+      call processed_scalar%finalize()
 
    end subroutine couple_standard_variables
 !EOC
@@ -3012,6 +2987,28 @@ end subroutine merge_scalar_variables
    end function find_model
 !EOC
 
+subroutine print_aggregate_variable_contributions(self)
+   class (type_base_model),intent(inout),target :: self
+
+   type (type_aggregate_variable),   pointer :: aggregate_variable
+   type (type_contributing_variable),pointer :: contributing_variable
+
+   aggregate_variable => self%first_aggregate_variable
+   do while (associated(aggregate_variable))
+      call log_message('Model '//trim(self%name)//' contributions to '//trim(aggregate_variable%standard_variable%name))
+      contributing_variable => aggregate_variable%first_contributing_variable
+      do while (associated(contributing_variable))
+         if (contributing_variable%link%owner) then
+            call log_message('   '//trim(contributing_variable%link%name)//' (internal)')
+         else
+            call log_message('   '//trim(contributing_variable%link%name)//' (external)')
+         end if
+         contributing_variable => contributing_variable%next
+      end do
+      aggregate_variable => aggregate_variable%next
+   end do
+end subroutine
+
 recursive subroutine build_aggregate_variables(self)
    class (type_base_model),intent(inout),target :: self
 
@@ -3019,6 +3016,9 @@ recursive subroutine build_aggregate_variables(self)
    type (type_model_list_node),   pointer :: child
    type (type_link),              pointer :: link
    type (type_contribution),      pointer :: contribution
+   type (type_contributing_variable),pointer :: contributing_variable
+
+   integer :: nbulk,nhz
 
    ! This routine takes the variable->aggregate variable mappings, and creates corresponding
    ! aggregate variable->variable mappings.
@@ -3034,7 +3034,7 @@ recursive subroutine build_aggregate_variables(self)
             contribution => variable%contributions%first
             do while (associated(contribution))
                aggregate_variable => get_aggregate_variable(self,contribution%target)
-               call add_contribution(aggregate_variable,link,contribution%scale_factor)
+               call add_contribution(aggregate_variable,link,contribution%scale_factor,contribution%include_background)
                contribution => contribution%next
             end do
       end select
@@ -3044,20 +3044,57 @@ recursive subroutine build_aggregate_variables(self)
    if (self%check_conservation) then
       aggregate_variable => self%first_aggregate_variable
       do while (associated(aggregate_variable))
-         if (aggregate_variable%has_bulk_state_component) &
-            call self%register_diagnostic_variable(aggregate_variable%id_rate, &
-                'change_in_'//trim(aggregate_variable%standard_variable%name), &
-                trim(aggregate_variable%standard_variable%units), &
-                'change in '//trim(aggregate_variable%standard_variable%name))
-         if (aggregate_variable%has_horizontal_state_component) &
-            call self%register_diagnostic_variable(aggregate_variable%id_horizontal_rate, &
-                'change_in_'//trim(aggregate_variable%standard_variable%name)//'_at_interfaces', &
-                trim(aggregate_variable%standard_variable%units), &
-                'change in '//trim(aggregate_variable%standard_variable%name)//' at interfaces')
+         ! First count number of contributing state variables (separate different physical domains).
+         nbulk = 0
+         nhz = 0
+         contributing_variable => aggregate_variable%first_contributing_variable
+         do while (associated(contributing_variable))
+            select type (variable=>contributing_variable%link%target)
+               class is (type_bulk_variable)
+                  if (.not.variable%state_indices%is_empty()) nbulk = nbulk + 1
+               class is (type_horizontal_variable)
+                  if (.not.variable%state_indices%is_empty()) nhz = nhz + 1
+            end select
+            contributing_variable => contributing_variable%next
+         end do
+
+         ! Create diagnostic variables that hold the change in aggregate variables (specific to each physical domain).
+         if (nbulk>0) call self%register_diagnostic_variable(aggregate_variable%id_rate, &
+                        'change_in_'//trim(aggregate_variable%standard_variable%name), &
+                        trim(aggregate_variable%standard_variable%units), &
+                        'change in '//trim(aggregate_variable%standard_variable%name))
+         if (nhz>0) call self%register_diagnostic_variable(aggregate_variable%id_horizontal_rate, &
+                      'change_in_'//trim(aggregate_variable%standard_variable%name)//'_at_interfaces', &
+                      trim(aggregate_variable%standard_variable%units)//'*m', &
+                      'change in '//trim(aggregate_variable%standard_variable%name)//' at interfaces')
+
+         ! Create arrays of indices and scale factors for all contributing state variables (specific to each physical domain).
+         allocate(aggregate_variable%state_indices(nbulk))
+         allocate(aggregate_variable%state_scale_factors(nbulk))
+
+         nbulk = 0
+         nhz = 0
+         contributing_variable => aggregate_variable%first_contributing_variable
+         do while (associated(contributing_variable))
+            select type (variable=>contributing_variable%link%target)
+               class is (type_bulk_variable)
+                  if (.not.variable%state_indices%is_empty()) then
+                     nbulk = nbulk + 1
+                     call variable%state_indices%append(aggregate_variable%state_indices(nbulk))
+                     aggregate_variable%state_scale_factors(nbulk) = contributing_variable%scale_factor
+                  end if
+               class is (type_horizontal_variable)
+                  if (.not.variable%state_indices%is_empty()) then
+                     nhz = nhz + 1
+                  end if
+            end select
+            contributing_variable => contributing_variable%next
+         end do
+
          aggregate_variable => aggregate_variable%next
       end do
    end if
-   
+
    ! Process child models
    child => self%children%first
    do while (associated(child))
@@ -3065,12 +3102,15 @@ recursive subroutine build_aggregate_variables(self)
       child => child%next
    end do
 
+   ! call print_aggregate_variable_contributions(self)
+
 contains
 
-   subroutine add_contribution(aggregate_variable,link,scale_factor)
+   subroutine add_contribution(aggregate_variable,link,scale_factor,include_background)
       type (type_aggregate_variable),intent(inout) :: aggregate_variable
       type (type_link),target,       intent(inout) :: link
       real(rk),                      intent(in)    :: scale_factor
+      logical,                       intent(in)    :: include_background
 
       type (type_contributing_variable),pointer :: contributing_variable
 
@@ -3079,6 +3119,20 @@ contains
          allocate(aggregate_variable%first_contributing_variable)
          contributing_variable => aggregate_variable%first_contributing_variable
       else
+         ! First determine whether the contribution of this variable has already been registered.
+         ! This can be the case if multiple links point to the same actual variable (i.e., if they are coupled)
+         contributing_variable => aggregate_variable%first_contributing_variable
+         do while (associated(contributing_variable))
+            if (associated(contributing_variable%link%target,link%target)) then
+               ! We already have registered a contribution from this variable.
+               ! The newly provided link replaces the previous if it owns the variable (i.e., it is not coupled),
+               ! so we can later check the link to determine ownership. Then we are done - return.
+               if (link%owner) contributing_variable%link => link
+               return
+            end if
+            contributing_variable => contributing_variable%next
+         end do
+
          ! This aggregate variable has one or more contributions already. Find the last, so we can append another.
          contributing_variable => aggregate_variable%first_contributing_variable
          do while (associated(contributing_variable%next))
@@ -3091,78 +3145,10 @@ contains
       ! Store contribution properties.
       contributing_variable%link => link
       contributing_variable%scale_factor = scale_factor
-
-      ! If the contributing variable is a state variable, keep a reference to its state variable index.
-      select type (variable=>link%target)
-         class is (type_bulk_variable)
-            if (.not.variable%state_indices%is_empty()) then
-               call variable%state_indices%append(contributing_variable%state_index)
-               aggregate_variable%has_bulk_state_component = .true.
-            end if
-         class is (type_horizontal_variable)
-            if (.not.variable%state_indices%is_empty()) then
-               call variable%state_indices%append(contributing_variable%horizontal_state_index)
-               aggregate_variable%has_horizontal_state_component = .true.
-            end if
-      end select
+      contributing_variable%include_background = include_background
    end subroutine
 
 end subroutine build_aggregate_variables
-
-recursive subroutine after_assign_indices(self)
-   class (type_base_model),intent(inout),target :: self
-
-   type (type_aggregate_variable),   pointer :: aggregate_variable
-   type (type_contributing_variable),pointer :: contributing_variable
-   type (type_model_list_node),      pointer :: child
-   integer                                   :: nstate
-
-   aggregate_variable => self%first_aggregate_variable
-   do while (associated(aggregate_variable))
-      ! Loop over all contributing quantities, and if they are bulk state variables,
-      ! store their state variable index and scale factor, so we can include them later
-      ! when computing the (change in) conserved quantities from the (change in) state alone.
-
-      ! Count the number of state variables [currently bulk only!] that contribute to the conserved quantity.
-      nstate = 0
-      contributing_variable => aggregate_variable%first_contributing_variable
-      do while (associated(contributing_variable))
-         if (contributing_variable%state_index/=-1) nstate = nstate+1
-         contributing_variable => contributing_variable%next
-      end do
-
-      ! Store the indices and scale factors of bulk state variables that contribute to the aggregate quantity.
-      ! These arrays serve two purposes: (1) they allow for quick lookup of all relevant indices and scale factors,
-      ! without necessitating iterating through a linked list, and (2) the arrays are filtered for duplicates, so that
-      ! each contributing variable appears only once. This is *not* the case for the linked list, as it based on
-      ! links that could point to the same variable (e.g., after coupling).
-      allocate(aggregate_variable%state_indices(nstate))
-      allocate(aggregate_variable%state_scale_factors(nstate))
-      nstate = 0
-      contributing_variable => aggregate_variable%first_contributing_variable
-      do while (associated(contributing_variable))
-         if (contributing_variable%state_index/=-1) then
-            nstate = nstate+1
-            aggregate_variable%state_indices(nstate) = contributing_variable%state_index
-            aggregate_variable%state_scale_factors(nstate) = contributing_variable%scale_factor
-         end if
-         contributing_variable => contributing_variable%next
-      end do
-
-      ! Coupled state variables may have been counted multiple times.
-      ! Remove the resulting duplicate indices, and the associated scale factors.
-      call remove_duplicates(aggregate_variable%state_indices,aggregate_variable%state_scale_factors)
-
-      aggregate_variable => aggregate_variable%next
-   end do
-
-   ! Process child models
-   child => self%children%first
-   do while (associated(child))
-      call after_assign_indices(child%model)
-      child => child%next
-   end do
-end subroutine after_assign_indices
 
 function get_aggregate_variable(self,standard_variable,create) result(aggregate_variable)
    class (type_base_model),           intent(inout) :: self
@@ -3201,73 +3187,141 @@ function get_aggregate_variable(self,standard_variable,create) result(aggregate_
 
    ! Associate the newly created aggregate variable with the requested standard variable.
    aggregate_variable%standard_variable = standard_variable
+
+   ! Make sure that aggregate variables at the root level are computed.
+   ! These are typically used by the host to check conservation.
+   if (.not.associated(self%parent)) then
+      aggregate_variable%bulk_required = .true.
+      aggregate_variable%horizontal_required = .true.
+   end if
+
 end function
 
-subroutine create_aggregate_model(self,aggregate_variable)
+recursive subroutine create_aggregate_models(self)
+   class (type_base_model),       intent(inout),target :: self
+
+   type (type_aggregate_variable),pointer :: aggregate_variable
+   type (type_model_list_node),   pointer :: child
+
+   aggregate_variable => self%first_aggregate_variable
+   do while (associated(aggregate_variable))
+      if (aggregate_variable%bulk_required)       call create_aggregate_model(self,aggregate_variable,domain_bulk)
+      if (aggregate_variable%horizontal_required) call create_aggregate_model(self,aggregate_variable,domain_surface)
+      aggregate_variable => aggregate_variable%next
+   end do
+
+   ! Process child models
+   child => self%children%first
+   do while (associated(child))
+      call create_aggregate_models(child%model)
+      child => child%next
+   end do
+end subroutine
+
+subroutine create_aggregate_model(self,aggregate_variable,domain)
    class (type_base_model),       intent(inout),target :: self
    type (type_aggregate_variable),intent(inout)        :: aggregate_variable
+   integer,                       intent(in)           :: domain
 
    type (type_contributing_variable),pointer :: contributing_variable
+   integer                                   :: n
+   logical                                   :: sumrequired
+   character(len=attribute_length )          :: name
+   class (type_internal_object),pointer      :: target_variable
+   class (type_base_model),pointer           :: root
 
    ! This procedure takes an aggregate variable, and creates models that compute diagnostics
    ! for the total of these aggregate quantities on bulk and horizontal domains.
-   
+
+   select case (domain)
+      case (domain_bulk)
+         name = trim(aggregate_variable%standard_variable%name)
+      case default
+         name = trim(aggregate_variable%standard_variable%name)//'_at_interfaces'
+   end select
+
+   n = 0
+   sumrequired = .false.
    contributing_variable => aggregate_variable%first_contributing_variable
    do while (associated(contributing_variable))
       if (contributing_variable%link%owner) then
          select type (variable=>contributing_variable%link%target)
             class is (type_bulk_variable)
-               ! This contribution comes from a bulk variable.
-               if (.not.associated(aggregate_variable%sum)) then
-                  allocate(aggregate_variable%sum)
-                  aggregate_variable%sum%output_name = trim(aggregate_variable%standard_variable%name)
-                  aggregate_variable%sum%output_units = trim(aggregate_variable%standard_variable%units)
+               if (domain==domain_bulk) then
+                  n = n + 1
+                  if (contributing_variable%scale_factor/=1.0_rk.or.contributing_variable%include_background) sumrequired = .true.
+                  target_variable => contributing_variable%link%target
                end if
-               call aggregate_variable%sum%add_component(trim(contributing_variable%link%name),weight=contributing_variable%scale_factor)
             class is (type_horizontal_variable)
-               ! This contribution comes from a variable defined on a horizontal interface (top or bottom).
-               if (.not.associated(aggregate_variable%horizontal_sum)) then
-                  allocate(aggregate_variable%horizontal_sum)
-                  aggregate_variable%horizontal_sum%output_name = trim(aggregate_variable%standard_variable%name)//'_at_interfaces'
-                  aggregate_variable%horizontal_sum%output_units = trim(aggregate_variable%standard_variable%units)
+               if (domain/=domain_bulk) then
+                  n = n + 1
+                  if (contributing_variable%scale_factor/=1.0_rk.or.contributing_variable%include_background) sumrequired = .true.
+                  target_variable => contributing_variable%link%target
                end if
-               call aggregate_variable%horizontal_sum%add_component(trim(contributing_variable%link%name),weight=contributing_variable%scale_factor)
          end select
       end if
       contributing_variable => contributing_variable%next
    end do
-   if (associated(aggregate_variable%sum))            call self%add_child(aggregate_variable%sum,trim(aggregate_variable%sum%output_name)//'_calculator',configunit=-1)
-   if (associated(aggregate_variable%horizontal_sum)) call self%add_child(aggregate_variable%horizontal_sum,trim(aggregate_variable%horizontal_sum%output_name)//'_calculator',configunit=-1)
-end subroutine create_aggregate_model
 
-subroutine remove_duplicates(array1,array2)
-   integer, allocatable,intent(inout) :: array1(:)
-   real(rk),allocatable,intent(inout) :: array2(:)
-
-   integer  :: i,j,inext
-   logical  :: add
-   integer  :: array1_tmp(size(array1))
-   real(rk) :: array2_tmp(size(array2))
-
-   inext = 0
-   do i=1,size(array1)
-      add = array1(i)/=-1
-      do j=1,i-1
-         if (array1(j)==array1(i)) add = .false.
+   if (n==0) then
+      ! Always zero - create alias to zero field at root level
+      root => self
+      do while (associated(root%parent))
+         root => root%parent
       end do
-      if (add) then
-         inext = inext + 1
-         array1_tmp(inext) = array1(i)
-         array2_tmp(inext) = array2(i)
-      end if
-   end do
-   deallocate(array1)
-   deallocate(array2)
-   allocate(array1(inext))
-   allocate(array2(inext))
-   array1 = array1_tmp(:inext)
-   array2 = array2_tmp(:inext)
-end subroutine
+      select case (domain)
+         case (domain_bulk)
+            if (.not._VARIABLE_REGISTERED_(root%id_zero)) &
+               call root%register_dependency(root%id_zero,'zero','-','zero')
+            call self%add_alias(root%id_zero%link%target,name)
+         case default
+            if (.not._VARIABLE_REGISTERED_(root%id_zero_hz)) &
+               call root%register_horizontal_dependency(root%id_zero_hz,'zero_hz','-','zero')
+            call self%add_alias(root%id_zero_hz%link%target,name)
+      end select            
+   elseif (n==1.and..not.sumrequired) then
+      ! Always equal to another - create alias to this other
+      call self%add_alias(target_variable,name)
+   else
+      ! Weighted sum of variables
+      select case (domain)
+         case (domain_bulk)
+            allocate(aggregate_variable%sum)
+            aggregate_variable%sum%output_name = name
+            aggregate_variable%sum%output_units = trim(aggregate_variable%standard_variable%units)
+         case default
+            allocate(aggregate_variable%horizontal_sum)
+            aggregate_variable%horizontal_sum%output_name = name
+            aggregate_variable%horizontal_sum%output_units = trim(aggregate_variable%standard_variable%units)//'*m'
+      end select
+
+      contributing_variable => aggregate_variable%first_contributing_variable
+      do while (associated(contributing_variable))
+         if (contributing_variable%link%owner) then
+            select type (variable=>contributing_variable%link%target)
+               class is (type_bulk_variable)
+                  ! This contribution comes from a bulk variable.
+                  if (domain==domain_bulk) &
+                     call aggregate_variable%sum%add_component(trim(contributing_variable%link%name), &
+                        weight=contributing_variable%scale_factor, include_background=contributing_variable%include_background)
+               class is (type_horizontal_variable)
+                  ! This contribution comes from a variable defined on a horizontal interface (top or bottom).
+                  if (domain/=domain_bulk) &
+                     call aggregate_variable%horizontal_sum%add_component(trim(contributing_variable%link%name), &
+                        weight=contributing_variable%scale_factor,include_background=contributing_variable%include_background)
+            end select
+         end if
+         contributing_variable => contributing_variable%next
+      end do
+
+      select case (domain)
+         case (domain_bulk)
+            call self%add_child(aggregate_variable%sum,trim(aggregate_variable%sum%output_name)//'_calculator',configunit=-1)
+         case default
+            call self%add_child(aggregate_variable%horizontal_sum,trim(aggregate_variable%horizontal_sum%output_name)//'_calculator',configunit=-1)
+      end select
+   end if
+end subroutine create_aggregate_model
 
 function get_free_unit() result(unit)
    integer :: unit
@@ -3401,14 +3455,15 @@ end subroutine
          component => component%next
       end do
       if (self%output_long_name=='') self%output_long_name = self%output_name
-      call self%register_diagnostic_variable(self%id_output,self%output_name,self%output_units,self%output_long_name)
-      call self%parent%add_alias(self%id_output,trim(self%output_name))
+      call self%register_diagnostic_variable(self%id_output,'result',self%output_units,'result')
+      call self%parent%add_alias(self%id_output%link%target,trim(self%output_name))
    end subroutine
 
-   subroutine weighted_sum_add_component(self,name,weight)
+   subroutine weighted_sum_add_component(self,name,weight,include_background)
       class (type_weighted_sum),intent(inout) :: self
       character(len=*),         intent(in)    :: name
       real(rk),optional,        intent(in)    :: weight
+      logical,optional,         intent(in)    :: include_background
 
       type (type_component),pointer :: component
 
@@ -3425,6 +3480,21 @@ end subroutine
       end if
       component%name = name
       if (present(weight)) component%weight = weight
+      if (present(include_background)) component%include_background = include_background
+   end subroutine
+
+   subroutine weighted_sum_after_coupling(self)
+      class (type_weighted_sum),intent(inout) :: self
+
+      type (type_component),pointer :: component
+
+      ! At this stage, the background values for all variables (if any) are fixed. We can therefore
+      ! compute background contributions already, and add those to the space- and time-invariant offset.
+      component => self%first
+      do while (associated(component))
+         if (component%include_background) self%offset = self%offset + component%weight*component%id%background
+         component => component%next
+      end do
    end subroutine
 
    subroutine weighted_sum_evaluate(self,_ARGUMENTS_ND_)
@@ -3435,22 +3505,22 @@ end subroutine
       real(rk)                             :: value
       real(rk) _DIMENSION_SLICE_AUTOMATIC_ :: sum
 
-      ! Initialize sum to zero.
-      sum = 0.0_rk
+      ! Initialize sum to starting value (typically zero).
+      sum = self%offset
 
       ! Enumerate components included in the sum, and add their contributions.
       component => self%first
       do while (associated(component))
          _LOOP_BEGIN_
             _GET_(component%id,value)
-            sum _INDEX_OUTPUT_ = sum _INDEX_OUTPUT_ + component%weight*value
+            sum _INDEX_SLICE_ = sum _INDEX_SLICE_ + component%weight*value
          _LOOP_END_
          component => component%next
       end do
 
       ! Transfer summed values to diagnostic.
       _LOOP_BEGIN_
-         _SET_DIAGNOSTIC_(self%id_output,sum _INDEX_OUTPUT_)
+         _SET_DIAGNOSTIC_(self%id_output,sum _INDEX_SLICE_)
       _LOOP_END_
    end subroutine
 
@@ -3478,14 +3548,29 @@ end subroutine
          component => component%next
       end do
       if (self%output_long_name=='') self%output_long_name = self%output_name
-      call self%register_diagnostic_variable(self%id_output,self%output_name,self%output_units,self%output_long_name)
-      call self%parent%add_alias(self%id_output,trim(self%output_name))
+      call self%register_diagnostic_variable(self%id_output,'result',self%output_units,'result')
+      call self%parent%add_alias(self%id_output%link%target,trim(self%output_name))
    end subroutine
 
-   subroutine horizontal_weighted_sum_add_component(self,name,weight)
+   subroutine horizontal_weighted_sum_after_coupling(self)
+      class (type_horizontal_weighted_sum),intent(inout) :: self
+
+      type (type_horizontal_component),pointer :: component
+
+      ! At this stage, the background values for all variables (if any) are fixed. We can therefore
+      ! compute background contributions already, and add those to the space- and time-invariant offset.
+      component => self%first
+      do while (associated(component))
+         if (component%include_background) self%offset = self%offset + component%weight*component%id%background
+         component => component%next
+      end do
+   end subroutine
+
+   subroutine horizontal_weighted_sum_add_component(self,name,weight,include_background)
       class (type_horizontal_weighted_sum),intent(inout) :: self
       character(len=*),                    intent(in)    :: name
       real(rk),optional,                   intent(in)    :: weight
+      logical,optional,                    intent(in)    :: include_background
 
       type (type_horizontal_component),pointer :: component
 
@@ -3502,24 +3587,30 @@ end subroutine
       end if
       component%name = name
       if (present(weight)) component%weight = weight
+      if (present(include_background)) component%include_background = include_background
    end subroutine
 
    subroutine horizontal_weighted_sum_evaluate_horizontal(self,_ARGUMENTS_HZ_)
       class (type_horizontal_weighted_sum),intent(in) :: self
       _DECLARE_ARGUMENTS_HZ_
       
-      type (type_horizontal_component),pointer :: component
-      real(rk)                      :: sum,value
+      type (type_horizontal_component),pointer        :: component
+      real(rk)                                        :: value
+      real(rk) _DIMENSION_HORIZONTAL_SLICE_AUTOMATIC_ :: sum
+
+      sum = self%offset
+
+      component => self%first
+      do while (associated(component))
+         _HORIZONTAL_LOOP_BEGIN_
+            _GET_HORIZONTAL_(component%id,value)
+            sum _INDEX_HORIZONTAL_SLICE_ = sum _INDEX_HORIZONTAL_SLICE_ + component%weight*value
+         _HORIZONTAL_LOOP_END_
+         component => component%next
+      end do
 
       _HORIZONTAL_LOOP_BEGIN_
-         sum = 0._rk
-         component => self%first
-         do while (associated(component))
-            _GET_HORIZONTAL_(component%id,value)
-            sum = sum + component%weight*value
-            component => component%next
-         end do
-         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_output,sum)
+         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_output,sum _INDEX_HORIZONTAL_SLICE_)
       _HORIZONTAL_LOOP_END_
    end subroutine
 
@@ -3544,7 +3635,7 @@ end subroutine
       !      index = self%conserved_quantities(i)%state_indices(j)
       !      scale_factor = self%conserved_quantities(i)%state_scale_factors(j)
       !      _LOOP_BEGIN_
-      !         sums _INDEX_OUTPUT_1D_(i) = sums _INDEX_OUTPUT_1D_(i) + scale_factor*y _INDEX_OUTPUT_1D_(index)
+      !         sums _INDEX_SLICE_PLUS_1_(i) = sums _INDEX_SLICE_PLUS_1_(i) + scale_factor*y _INDEX_SLICE_PLUS_1_(index)
       !      _LOOP_END_
       !   end do
       !end do
