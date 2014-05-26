@@ -446,7 +446,6 @@ _FABM_LOOP_BEGIN_
 ! f_tc  = 1.0d0/(exp(-(self%Tc-20.0d0)*0.1*log(self%Q10))+ 1.0d0 )
   f_tc  = 1.0d0/(exp(-(0-20.0d0)*0.1*log(self%Q10)) + 1.0d0)
 
-
 ! loop over boxes   1: HR  2: Offshore
  do ib = 1, numb
 
@@ -460,7 +459,8 @@ _FABM_LOOP_BEGIN_
   sigma2(3) = 0.8d0         ! log-size variance of mesozooplakton
   mass(1)   = var(ib)%B_Be  ! biomass concentration
   mass(2)   = var(ib)%B_Pp
-  mass(3)   = var(ib)%Cop
+  mass(3)   = var(ib)%Cop * 2.0d0/(1.0d0+exp(1.0d0-var(ib)%salt))
+
   relDens(3)= 1.0d0         ! rel. C-biovolume density ratio of non-gelatinous plankton
   dlopt(1)  = (self%loptA_Be-self%l0)/(self%lA-self%l0) ! increase in l_opt; feeding mode development
   dlopt(2)  = (self%loptA_Pp-self%l0)/(self%lA-self%l0)
@@ -474,6 +474,7 @@ _FABM_LOOP_BEGIN_
   lco     = log(1E3/self%relCVDens)
 ! optimum size/stage with minimal life-stage dependent mortality 
   lcrit   = 0.5*(0 + self%lA + self%l0) 
+!  lcrit   = self%lA  
 
 !  loop over ctenophore populations:  1: Beroe 2: Ppileus 
   do i = 1, 2
@@ -500,8 +501,8 @@ _FABM_LOOP_BEGIN_
 !  Temp_dep0= f_temp(self%Q10, var(ib)%Temp, 0.0d0)
 
 ! std of size distribution increases at large mean size and drops at very low number concentration
-    rS        = sqrt(mass(i))/(sqrt(mass(i))+sqrt(self%sigmbc))
-    sig(i)    = self%sigma * (1.*self%sigma + (lcrit*2+lmsize(i))*rS)
+    rS        = sqrt(mass(i))/(sqrt(mass(i))+sqrt(0.5d0*self%sigmbc))
+    sig(i)    = self%sigma * (0.*self%sigma + (lcrit*2+lmsize(i))*rS)
 ! TODO: refine empirical relationship using Greve, Falkenhaug1996 or Finenko2003 data 
 ! sig(i) = self%sigma * (lmsize(i)*(2*self%lA-lmsize(i)))
     sigma2(i) = sig(i)*sig(i) ! variance from std
@@ -578,8 +579,8 @@ _FABM_LOOP_BEGIN_
 ! ----------  mortalities  -------------------
 !
 ! integration result with Gaussian size distribution (cf. effective prey biomass)
-   eS      = exp(-(self%lA-lmsize(i))**2/rS)*srS !lcrit
-   eS0     = exp(-(self%lA-self%l0)**2/rS)*srS  
+   eS      = exp(-(lcrit-lmsize(i))**2/rS)*srS !lcrit
+   eS0     = exp(-(lcrit-self%l0)**2/rS)*srS  
  !  eS    = 0
 
 !  how far way are juveniles from maturity? 
@@ -600,7 +601,8 @@ _FABM_LOOP_BEGIN_
 
 !   if (var(ib)%l_Pp .lt. -0.7 .and. i .eq. 2) write (*,'(A,3(F12.5))') 'l1=',var(ib)%l_Pp,yfac,dlpp(i)
 ! physical damage (turbulence); can be avoided by active swimming
-   mort_T  = mT0 *starv/(1.0d0+starv)* exp(-(var(ib)%Temp-0.0)/self%T_turb) /(Temp_dep(i) +f_tc) * exp((self%lA-lmsize(i))*0.5)
+   mort_T  = mT0 *starv/(1.0d0+starv)* exp(-(var(ib)%Temp-0.0)/self%T_turb) /(Temp_dep(i) +f_tc) * exp((lcrit-lmsize(i))*0.5)
+! Dissipation ~/data/DeutscheBucht/getm/Diss_temp.eps : GETM, no winter/sturm 10^o factor ~2
 
 !   f_tc  = 1.0d0/(exp(-(self%Tc-20.0d0)*0.1*log(self%Q10 + lopt(i)))+ 1.0d0 )
 !
@@ -663,7 +665,7 @@ _FABM_LOOP_BEGIN_
 !  marginal size shift due to senescence
 !    sen_dl  = sigma2(i) * (0*mort_R + mort_Sself%mS * exp(-2*gross/Imax)* dfA_dl )
 !     if (self%OptionOn) then
-     sen_dl  = sigma2(i) * mort_S0 * eS * 2* (self%lA-lmsize(i))/rS 
+     sen_dl  = sigma2(i) * mort_S0 * eS * 2* (lcrit-lmsize(i))/rS 
 !     else       sen_dl  = 0.0d0     endif
 
 !  marginal size shift due to respiration and turbulence (same scaling exponent)
@@ -745,7 +747,7 @@ _FABM_LOOP_BEGIN_
   _SET_DIAGNOSTIC_(self%id_mort_T, mort_T)                !step_integrated damaging effect of turbulence 
   _SET_DIAGNOSTIC_(self%id_somgrowth, somgrwth)             !step_integrated somatic growth rate 
   _SET_DIAGNOSTIC_(self%id_recruit, recruit)                !step_integrated egg production rate 
-  _SET_DIAGNOSTIC_(self%id_al_Im, rhsv%l_Pp)                   !step_integrated size scaling expoentent Imax 
+  _SET_DIAGNOSTIC_(self%id_al_Im, 1.0d0/(1.0d0+exp(1.0d0-var(ib)%salt)))                   !step_integrated size scaling expoentent Imax 
   _SET_DIAGNOSTIC_(self%id_mixBmass, rhsv%B_Be)            !step_integrated mass exchange rate Coast-HR-Offshore
   _SET_DIAGNOSTIC_(self%id_mixlsize, sigma2(i))           !dTrait(2,1)step_integrated trait exchange rate Coast-HR-Offshore
   _SET_DIAGNOSTIC_(self%id_Tdep, Temp_dep(3))                  !step_integrated Temperature dependence
