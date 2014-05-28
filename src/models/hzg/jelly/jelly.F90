@@ -501,11 +501,16 @@ _FABM_LOOP_BEGIN_
 !  Temp_dep0= f_temp(self%Q10, var(ib)%Temp, 0.0d0)
 
 ! std of size distribution increases at large mean size and drops at very low number concentration
-    rS        = sqrt(mass(i))/(sqrt(mass(i))+0.5d0*sqrt(self%sigmbc))
-    sig(i)    = self%sigma * (0.*self%sigma + (lcrit*4+lmsize(i)))
+!    rS        = sqrt(mass(i))/(sqrt(mass(i))+0.5d0*sqrt(self%sigmbc))
+!    sig(i)    = self%sigma * (0.*self%sigma + (lcrit*4+lmsize(i)))
 ! TODO: refine empirical relationship using Greve, Falkenhaug1996 or Finenko2003 data 
 ! sig(i) = self%sigma * (lmsize(i)*(2*self%lA-lmsize(i)))
-    sigma2(i) = sig(i)*sig(i)*rS ! variance from std
+!    sigma2(i) = sig(i)*sig(i)*rS ! variance from std
+
+!    sigma2(i) = self%sigma *(1 - 1./(1+exp(2*(1.5d0-lmsize(i)))));
+    sigma2(i) = self%sigma * exp(-0.75d0*(0.75d0-lmsize(i))**2)
+    sig(i)    = sqrt(sigma2(i))
+
 ! set accumulating stores to zero
     graz(i)   = 0.0d0
     dlpp(i)   = 0.0d0
@@ -601,7 +606,7 @@ _FABM_LOOP_BEGIN_
    end do
    mort_S0 = mS0 *starv 
    mort_S  = mort_S0 * (1.0d0-eS)
-    if (abs(mort_S) .gt. 13.5) write (*,'(A,1(I2),4(F12.4))') 'mS=',i,mort_S,mort_S0,eS,starv
+!    if (abs(mort_S) .gt. 13.5) write (*,'(A,1(I2),4(F12.4))') 'mS=',i,mort_S,mort_S0,eS,starv
 
 
 !   if (var(ib)%l_Pp .lt. -0.7 .and. i .eq. 2) write (*,'(A,3(F12.5))') 'l1=',var(ib)%l_Pp,yfac,dlpp(i)
