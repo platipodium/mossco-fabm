@@ -368,7 +368,7 @@ end subroutine initialize
   !type (type_diff)      :: diff,diff2
   !real(rk)              :: d2mudl2_d, dmu2=0.0_rk, mfac
 !  type (type_environment),   intent(inout)  :: environment 
-  real(rk) :: mort_S, mort_S0,mort_SJ, mort_R, mort_R0, mort_G
+  real(rk) :: mort_S, mort_S0,mort_SJ, mort_R, mort_R0, mort_T0, mort_G
   real(rk) :: mort_J, mort_AJ, mort_P, mort_T, mort_sum, mass_sum
   real(rk) :: errf, argA, aa, rS, pS, pS0, eS, eS0, al0, yfac
   real(rk) :: somgrwth, recruit,lco, mGBe, f_tc, starv, dal_dl
@@ -378,7 +378,7 @@ end subroutine initialize
   real(rk), dimension(3) :: Imax, al1, dlopt,lopt, graz,Temp_dep, Temp_dep0
   real(rk), dimension(3) :: mGrz, mGrz0, sig, sigma2, lmsize, dlp,dlpp, mass, relDens
   real(rk) :: dl0, dl, dl2, bcrit, prey, preyE, mGP, aS=2.0
-  real(rk) :: fR, fA, dfA_dl, lm_adult, al, lprey, lcrit
+  real(rk) :: fR, fA, dfA_dl, lm_adult, al, lprey, lcrit, lavg
   real(rk) :: gross, Prod, dg_dB, dB_dl, dg_dlY, srS, mS0, mT0
   integer  :: ib, ic, i, j
 !  real(rk) :: inflow=2E-1, Adorm=2E-3
@@ -459,7 +459,7 @@ _FABM_LOOP_BEGIN_
   sigma2(3) = 0.8d0         ! log-size variance of mesozooplakton
   mass(1)   = var(ib)%B_Be  ! biomass concentration
   mass(2)   = var(ib)%B_Pp
-  mass(3)   = var(ib)%Cop * 2.0d0/(1.0d0+exp(1.0d0-var(ib)%salt))
+  mass(3)   = var(ib)%Cop * 1.0d0/(1.0d0+exp(1.0d0-var(ib)%salt))
 
   relDens(3)= 1.0d0         ! rel. C-biovolume density ratio of non-gelatinous plankton
   dlopt(1)  = (self%loptA_Be-self%l0)/(self%lA-self%l0) ! increase in l_opt; feeding mode development
@@ -467,15 +467,15 @@ _FABM_LOOP_BEGIN_
 !  lopt(3)  = (-2.0-self%l0)/(self%lA-self%l0)
   lopt(3)   = self%l0
   Imax(3)   = 1.0d0
-  Temp_dep(3) = f_temp(2.5d0, var(ib)%Temp, 0.0d0)
+  Temp_dep(3) = f_temp(1.5d0, var(ib)%Temp, 0.0d0)
 
 ! re-gauge coefficient to apply  Imax-scaling of Wirtz JPR,2012 
 !    log(1E3/80) converts from log(micro-m) to log(mm) but accounts for much lower C-density
   lco     = log(1E3/self%relCVDens)
 ! optimum size/stage with minimal life-stage dependent mortality 
-  lcrit   = 0.5*(0 + self%lA + self%l0) 
+  lcrit   = 0.5*(0.0d0 + self%lA + self%l0) 
 !  lcrit   = self%lA  
-
+  lavg    = 0.5*(2*self%lA + self%l0) 
 !  loop over ctenophore populations:  1: Beroe 2: Ppileus 
   do i = 1, 2
     relDens(i)= self%relCVDens
@@ -501,11 +501,11 @@ _FABM_LOOP_BEGIN_
 !  Temp_dep0= f_temp(self%Q10, var(ib)%Temp, 0.0d0)
 
 ! std of size distribution increases at large mean size and drops at very low number concentration
-    rS        = sqrt(mass(i))/(sqrt(mass(i))+sqrt(0.5d0*self%sigmbc))
-    sig(i)    = self%sigma * (0.*self%sigma + (lcrit*2+lmsize(i))*rS)
+    rS        = sqrt(mass(i))/(sqrt(mass(i))+0.5d0*sqrt(self%sigmbc))
+    sig(i)    = self%sigma * (0.*self%sigma + (lcrit*4+lmsize(i)))
 ! TODO: refine empirical relationship using Greve, Falkenhaug1996 or Finenko2003 data 
 ! sig(i) = self%sigma * (lmsize(i)*(2*self%lA-lmsize(i)))
-    sigma2(i) = sig(i)*sig(i) ! variance from std
+    sigma2(i) = sig(i)*sig(i)*rS ! variance from std
 ! set accumulating stores to zero
     graz(i)   = 0.0d0
     dlpp(i)   = 0.0d0
@@ -560,14 +560,14 @@ _FABM_LOOP_BEGIN_
 
 ! mortality due to parasites maximal at newly hetched larvae (Hirota1974 ,Greve)
 !   pS      = exp(-(self%l0+1.0d0-lmsize(i))**2/rS)*srS
-   rS      = 1.0d0 + 2. * sigma2(i)  ! "life-span"=1 : width of life-stage dependent mortality
+   rS      = 1.0d0 + 3. * sigma2(i)  ! "life-span"=1 : width of life-stage dependent mortality
    srS     = 1.0d0/sqrt(rS)
-   pS      = exp(-(lcrit-lmsize(i))**2/rS)*srS
+   pS      = exp(-(0*lcrit-lmsize(i))**2/rS)*srS
    pS0     = exp(-self%l0**2/rS)*srS
  !  eS    = 0
 ! life-stage dependent mortality due to parasites
 !   mort_P  = self%mP * pS * (mass(i) + 0.004*var(ib)%B_Det) * var(ib)%B_Det !* Temp_dep(3)
-   mort_P  = self%mP * pS * sqrt(mass(i)*var(ib)%B_Det) * var(ib)%B_Det !* Temp_dep(3)
+   mort_P  = self%mP * pS * sqrt(mass(i)*var(ib)%B_Det) * var(ib)%B_Det* Temp_dep(i) 
 !   if (i .eq. 1 .and. mort_P .gt. 0.05d0) mort_P = 0.05d0
 
 ! temperature dependent losses, with surface-to-volume scaling
@@ -579,8 +579,8 @@ _FABM_LOOP_BEGIN_
 ! ----------  mortalities  -------------------
 !
 ! integration result with Gaussian size distribution (cf. effective prey biomass)
-   eS      = exp(-(lcrit-lmsize(i))**2/rS)*srS !lcrit
-   eS0     = exp(-(lcrit-self%l0)**2/rS)*srS  
+   eS      = exp(-(lavg-lmsize(i))**2/rS)*srS !lcrit self%lA
+   eS0     = exp(-(lavg-self%l0)**2/rS)*srS  
  !  eS    = 0
 
 !  how far way are juveniles from maturity? 
@@ -594,15 +594,23 @@ _FABM_LOOP_BEGIN_
      yfac    = 1.0d0/(1.0d0+starv)
      Prod    = self%yield * yfac * graz(i)
 ! life-stage dependent mortality 
-     starv = exp(-(Prod-mort_R-mort_P)/(1E-2+mort_R))!self%yield *self%mR
+     argA   = (Prod-mort_R-mort_P)/(self%mR+self%mP)
+     if (-argA .gt. 3) argA=-3.0d0 
+     starv = exp(-argA)!self%yield *self%mR
+!    if (abs(starv) .gt. 24.) write (*,'(A,1(I2),5(F12.3))') 'starv=',j,starv,Prod,yfac,mort_R,mort_P
    end do
    mort_S0 = mS0 *starv 
    mort_S  = mort_S0 * (1.0d0-eS)
+    if (abs(mort_S) .gt. 13.5) write (*,'(A,1(I2),4(F12.4))') 'mS=',i,mort_S,mort_S0,eS,starv
+
 
 !   if (var(ib)%l_Pp .lt. -0.7 .and. i .eq. 2) write (*,'(A,3(F12.5))') 'l1=',var(ib)%l_Pp,yfac,dlpp(i)
 ! physical damage (turbulence); can be avoided by active swimming
-   mort_T  = mT0 *starv/(1.0d0+starv)* exp(-(var(ib)%Temp-0.0)/self%T_turb) /(Temp_dep(i) +f_tc) * exp((lcrit-lmsize(i))*0.5)
+   mort_T0 = mT0 * exp(-var(ib)%Temp/self%T_turb) /(Temp_dep(i) +f_tc) 
+!   mort_T0 = mT0 *starv/(1.0d0+starv)* exp(-(var(ib)%Temp-0.0)/self%T_turb) /(Temp_dep(i) +f_tc) 
+   mort_T  = mort_T0 * (exp((lcrit-lmsize(i))*0.5) + exp(-self%lA*1+0.5*0.5*lmsize(i)))
 ! Dissipation ~/data/DeutscheBucht/getm/Diss_temp.eps : GETM, no winter/sturm 10^o factor ~2
+! plot [-1:5][0.05:5] exp(-0.5*(x-0.5)),exp(-0.5*(x-0.5))+exp(-2+0.25*x)
 
 !   f_tc  = 1.0d0/(exp(-(self%Tc-20.0d0)*0.1*log(self%Q10 + lopt(i)))+ 1.0d0 )
 !
@@ -645,7 +653,7 @@ _FABM_LOOP_BEGIN_
 
 !  sum of all mortality rates
    mort_sum= mort_R + mort_S + mGrz(i) + mort_P + mort_T
-
+!    if (abs(mort_sum) .gt. 2.5) write (*,'(A,1(I2),4(F12.5))') 'mort=',i, mort_sum ,lmsize(i), mort_R ,mort_S
 !
 ! ----------  stage and size dynamics  -------------------
 !
@@ -665,19 +673,20 @@ _FABM_LOOP_BEGIN_
 !  marginal size shift due to senescence
 !    sen_dl  = sigma2(i) * (0*mort_R + mort_Sself%mS * exp(-2*gross/Imax)* dfA_dl )
 !     if (self%OptionOn) then
-     sen_dl  = sigma2(i) * mort_S0 * eS * 2* (lcrit-lmsize(i))/rS 
-!     else       sen_dl  = 0.0d0     endif
+     sen_dl  = sigma2(i) * mort_S0 * eS * 2* (lavg-lmsize(i))/rS 
+!     else       sen_dl  = 0.0d0     endifself%lAlcrit
 
 !  marginal size shift due to respiration and turbulence (same scaling exponent)
     if (self%OptionOn) then
-      turb_dl  = sigma2(i) * mort_T * 0.5
+!      turb_dl  = sigma2(i) * mort_T * 0.5
+      turb_dl  = sigma2(i) * mort_T0 * 0.5* (exp((lcrit-lmsize(i))*0.5)- 0.5*exp(-self%lA*1+0.5*0.5*lmsize(i)))
     else
       turb_dl   = 0.0d0
     endif
     resp_dl  = sigma2(i) * mort_R * 0.5
 
 !  marginal size shift due to density dependent mortality (parasites)
-    paras_dl = -sigma2(i) * mort_P * pS * 2* (lcrit-lmsize(i))/rS 
+    paras_dl = -sigma2(i) * mort_P * 2* (0*lcrit-lmsize(i))/rS 
 
     prod_dl  = sigma2(i) * (Prod * al1(i) + self%yield*yfac*dlpp(i))
 !   if (abs(prod_dl) .gt. 1.) write (*,'(A,4(F12.5))') 'pdl=', prod_dl,sigma2(i),Prod * al1(i),self%yield*yfac*dlpp(i)
@@ -711,7 +720,6 @@ _FABM_LOOP_BEGIN_
   _SET_DIAGNOSTIC_(self%id_Mort_Be, mort_sum)               !step_integrated mortality rate of Beroe
   _SET_DIAGNOSTIC_(self%id_fA_Be, fA)                       !step_integrated relative propotion adults Beroe
   _SET_DIAGNOSTIC_(self%id_Imax_Be, Imax(1))                !step_integrated maximum ingestion rate adult Beroe
-
     endif
 
    else  !  P.Pileus
@@ -747,10 +755,12 @@ _FABM_LOOP_BEGIN_
   _SET_DIAGNOSTIC_(self%id_mort_T, mort_T)                !step_integrated damaging effect of turbulence 
   _SET_DIAGNOSTIC_(self%id_somgrowth, somgrwth)             !step_integrated somatic growth rate 
   _SET_DIAGNOSTIC_(self%id_recruit, recruit)                !step_integrated egg production rate 
+! 
+
   _SET_DIAGNOSTIC_(self%id_al_Im, 1.0d0/(1.0d0+exp(1.0d0-var(ib)%salt)))                   !step_integrated size scaling expoentent Imax 
   _SET_DIAGNOSTIC_(self%id_mixBmass, rhsv%B_Be)            !step_integrated mass exchange rate Coast-HR-Offshore
   _SET_DIAGNOSTIC_(self%id_mixlsize, sigma2(i))           !dTrait(2,1)step_integrated trait exchange rate Coast-HR-Offshore
-  _SET_DIAGNOSTIC_(self%id_Tdep, Temp_dep(3))                  !step_integrated Temperature dependence
+  _SET_DIAGNOSTIC_(self%id_Tdep, Temp_dep(i))                  !step_integrated Temperature dependence
     endif
   endif
 
@@ -762,7 +772,7 @@ _FABM_LOOP_BEGIN_
 ! most simple detritus pool turnover dynamics 
 !  rhsv%B_Det=  self%mS * mass_sum - self%rDet * Temp_dep(3) * var(ib)%B_Det
 !  if (mass_sum .gt. 200.0d0) mass_sum = 200.0d0
-  rhsv%B_Det=   self%rDet * (mass_sum - Temp_dep(3)/0.444 * var(ib)%B_Det)  ! 0.4444 mean of f_T 1962-2002 for Q10=2.5
+  rhsv%B_Det=   self%rDet * (mass_sum - Temp_dep(3) * var(ib)%B_Det)  ! 0.4444 mean of f_T 1962-2002 for Q10=2.5
 ! ------------------------------------------------------------------------------
 !#S_ODE
 !---------- ODE for each state variable ----------
