@@ -38,6 +38,7 @@
       !type (type_diagnostic_variable_id)   :: id_ninflux
 !     Model parameters: maximum grazing rate, half-saturation prey density, loss rate
       real(rk) :: g_max,K,h_const,remin_max,v_d,depth_ben,diff,const_det,const_nut,k_remin,nut_loss_max,k_loss,nut_pel_influx
+      character(len=16):: SVname
       logical  :: use_nut,use_det,do_sat_remin,do_nut_loss
       
       !     Model procedures
@@ -77,10 +78,10 @@
 ! !LOCAL VARIABLES:
    real(rk)                  :: det_ben_initial=0.01, nut_ben_initial=0.01
    real(rk)                  :: g_max = 1., K=1., h_const=0.05,remin_max=0.5, v_d=0.5, d_ben=0.1, diff=1e-5,const_nut=10.,const_det=10.,k_remin=1.,nut_loss_max=0.1,k_loss=1.,nut_pel_influx=0.10
-   character(len=64)         :: pelagic_nutrient_variable='',pelagic_detritus_variable=''
+   character(len=64)         :: SVname='',pelagic_nutrient_variable='',pelagic_detritus_variable=''
    logical                   :: do_sat_remin,do_nut_loss
    real(rk), parameter :: secs_pr_day = 86400.
-   namelist /hzg_benthic_pool/  pelagic_nutrient_variable,pelagic_detritus_variable, det_ben_initial,nut_ben_initial, &
+   namelist /hzg_benthic_pool/  SVname, pelagic_nutrient_variable,pelagic_detritus_variable, det_ben_initial,nut_ben_initial, &
 g_max,K,h_const,remin_max,diff,v_d,d_ben,const_nut,const_det,k_remin,nut_loss_max,nut_pel_influx,k_loss,do_sat_remin,do_nut_loss !pelagic_nutrient_variable,pelagic_detritus_variable,det_ben_initial,nut_ben_initial,g_max,K,h,diff 
                                     
 !EOP
@@ -92,6 +93,7 @@ g_max,K,h_const,remin_max,diff,v_d,d_ben,const_nut,const_det,k_remin,nut_loss_ma
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
    ! and are converted here to values per second.
+   call self%get_parameter(self%SVname,        'SVname',             default=SVname)
    call self%get_parameter(self%g_max,         'g_max',         default=g_max,       scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%h_const,       'h_const',       default=h_const,     scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%remin_max,     'remin_max',     default=remin_max,   scale_factor=1.0_rk/secs_pr_day)
@@ -111,12 +113,14 @@ g_max,K,h_const,remin_max,diff,v_d,d_ben,const_nut,const_det,k_remin,nut_loss_ma
    
    ! Register state variables
    ! NOTE the benthic=.true. argument, which specifies the variable is benthic.
-   call self%register_state_variable(self%id_det_ben,'det_ben','mmol/m**2','det_ben', &
+   !call self%register_state_variable(self%id_det_ben,'det_ben','mmol/m**2','det_ben', &
+   call self%register_state_variable(self%id_det_ben,trim(SVname)//'-det','mmol/m**2',trim(SVname)//'-det', &
                                           det_ben_initial,minimum=_ZERO_)
-   call self%register_state_variable(self%id_nut_ben,'nut_ben','mmol/m**2','nut_ben', &
+   !call self%register_state_variable(self%id_nut_ben,'nut_ben','mmol/m**2','nut_ben', &
+   call self%register_state_variable(self%id_nut_ben,trim(SVname)//'-nut','mmol/m**2',trim(SVname)//'-nut', &
                                           nut_ben_initial,minimum=_ZERO_)
 
-
+   
    ! Register link to external pelagic detritus and mineral pools, if coupling to pelagic model
    self%use_nut = pelagic_nutrient_variable/=''
    self%use_det = pelagic_detritus_variable/=''
