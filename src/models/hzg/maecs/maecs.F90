@@ -74,9 +74,9 @@ contains
 !> \describepar{domC\_initial , \mathrm{domC_initial} , Dissolved Organic Carbon, 0.1 mmol-C/m**3}
 !> \describepar{domN\_initial , \mathrm{domN_initial} , Dissolved Organic Nitrogen, 0.01 mmol-N/m**3}
 !> \describepar{domP\_initial , \mathrm{domP_initial} , Dissolved Organic Phosphorus, 0.001 mmol-P/m**3}
-!> \describepar{frac\_Rub\_ini , f_R , Rub-C_concentration, 0.4 -}
+!> \describepar{frac\_Rub\_ini , f_R , Rub-C concentration, 0.4 -}
 !> \describepar{Rub          , f_R\mathrm{Phy}_\mathrm{C}, trait x biomass}
-!> \describepar{frac\_chl\_ini , f_\theta\theta_C , chl-a_concentration, 0.034 mg-Chla/mmol-C}
+!> \describepar{frac\_chl\_ini , f_\theta\theta_C , chl-a concentration, 0.034 mg-Chla/mmol-C}
 !> \describepar{chl          , f_\theta\theta_C\mathrm{Phy}_\mathrm{C}, trait x biomass}
 ! other parameters
 !> \describepar{P\_max        , P_\mathrm{max}        , maximum potential photosynthetic rate, 18.0 d^{-1}}
@@ -99,10 +99,10 @@ contains
 !> \describepar{QSi\_phy\_max  , Q_\mathrm{Si}^\mathrm{ref}  , subsistence Si-quota, 0.045 mol-Si/mol-C}
 !> \describepar{V\_SiC\_max    , V_\mathrm{max,Si}^0    , maximum Si-uptake rate, 0.1 mol-Si/(mol-C d)}
 !> \describepar{AffSi        , A_\mathrm{Si}^0        , Si-Affinity, 0.1 m3/(mmol-C d)}
-!> \describepar{syn\_nut      , 1/h      , synchrony n_queue in nutrient quota limitation, -12 }
-!> \describepar{adap\_rub     , \delta_R     , adap_rub, 1. }
-!> \describepar{adap\_theta   , \delta_\theta   , adap_theta, 1. }
-!> \describepar{tau\_regV     , \Delta t_\mathrm{v}     , tau_regV, 99 }
+!> \describepar{syn\_nut      , 1/h      , synchrony n-queue in nutrient quota limitation, -12 }
+!> \describepar{adap\_rub     , \delta_R     , adap-rub, 1. }
+!> \describepar{adap\_theta   , \delta_\theta   , adap-theta, 1. }
+!> \describepar{tau\_regV     , \Delta t_\mathrm{v}     , tau-regV, 99 }
 !> \describepar{disease      , \mathrm{disease}      , parasites/disease mortality rate, 0.0 d^{-1}}
 !> \describepar{phi\_agg      , \mathrm{phi_agg}      , quadratic aggregation rate, 0.005 m^6 mmol-N^{-2} d^{-1}}
 !> \describepar{agg\_doc      , \mathrm{agg_doc}      , DOC multiplier in coagulation term, 0.1 m^-3 mmol-C}
@@ -435,7 +435,8 @@ call self%get_parameter(self%small        ,'small',         default=small)
 call self%get_parameter(self%dil          ,'dil',           default=dil)
 
 !!------- derived parameters  ------- 
-self%rq10         = 0.1d0*log(Q10)
+!self%rq10         = 0.1d0*log(Q10)
+self%rq10         = Q10
 self%res0         = 0.025d0*V_NC_max*zeta_CN
 self%K_QN_phy     = QN_phy_max-QN_phy_0
 self%iK_QN        = 1.0d0/self%K_QN_phy

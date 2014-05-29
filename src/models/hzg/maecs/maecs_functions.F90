@@ -185,7 +185,8 @@ T_Kelv       = env%Temp + 273.d0 ! temperature in Kelvin
 
 !WHAT IS THIS?
 !sens%f_T  = exp( maecs%rq10*(T_Kelv-maecs%T_ref))
-!the regular q10 rule:
+!OK, got it: in maecs.F90,L438, rq10=0.1*log(Q10).
+!SO THE FUNCTION BEHAVES EXACTLY AS THE Q10 RULE. BUT WHY NOT SIMPLY WRITING THE FORMULA AS EVERYONE ELSE RECOGNIZES?
 sens%f_T  = maecs%rq10**((T_Kelv-maecs%T_ref)/10.0)
 
 ! --- (potential) maximum photosynthetic rate -----------------------------------------------------
