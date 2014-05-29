@@ -208,19 +208,19 @@ reminT      = self%remin  * sens%f_T
 !_____________________________________________________________________________
 !
 !      turnover of long-term N-reservoir (denitrification + wet N-deposition)
-!if (self%NResOn) then
+if (self%NResOn) then
 
-! pelagic N-loss by denitrification, emulating benthic pool and suboxic micro-environments
-!  denitrate = self%denit * 4 * sens%f_T * (1.0d0 - exp(-det%N/self%PON_denit)) * det%N
+!pelagic N-loss by denitrification, emulating benthic pool and suboxic micro-environments
+ denitrate = self%denit * 4 * sens%f_T * (1.0d0 - exp(-det%N/self%PON_denit)) * det%N
 
-! pelagic, "volumetric" deposition, slowly refueling N-losses 
-!  deporate  = self%denit * exp(-4*sens%f_T) * env%RNit
+!pelagic, "volumetric" deposition, slowly refueling N-losses 
+ deporate  = self%denit * exp(-4*sens%f_T) * env%RNit
 
-!  rhsv%RNit = denitrate - deporate 
-!else
+ rhsv%RNit = denitrate - deporate 
+else
   deporate  = 0.0d0
   denitrate = 0.0d0
-!endif    
+endif    
 
 
 !> @fn fabm_hzg_maecs::maecs_do ()
