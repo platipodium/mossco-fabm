@@ -34,7 +34,7 @@
       type (type_dependency_id)            :: id_depth, id_temp!,id_peldenit_dep !id_totNpel
       type (type_horizontal_dependency_id) :: id_deporate_dep!, id_denitrate_dep ! id_intpeldenit_dep, id_totNpel
 !     Model parameters:
-      real(rk) :: Ntot0,Ndef0,const_det,rq10,T_ref,PON_denit,denit
+      real(rk) :: Ntot0,Ndef0,const_det,rq10,T_ref,PON_denit,denit,depocoef
       logical  :: use_det,NdepodenitON,Ndef_dyn
       
       !     Model procedures
@@ -73,10 +73,10 @@
 ! !LOCAL VARIABLES:
    character(len=64)         :: pelagic_detritus_variable='',pelagic_nutrient_variable=''
    logical                   :: NdepodenitON=.true., Ndef_dyn=.true.
-   real(rk)                  :: Ntot0=100.,Ndef0=5.,const_det=10.,rq10=2.,T_ref=288.,PON_denit=5.,denit=0.024
+   real(rk)                  :: Ntot0=100.,Ndef0=5.,const_det=10.,rq10=2.,T_ref=288.,PON_denit=5.,denit=0.024,depocoef=4.0
    
    real(rk), parameter :: secs_pr_day = 86400.
-   namelist /hzg_Ndepoden/  pelagic_detritus_variable,pelagic_nutrient_variable,Ntot0,Ndef0,NdepodenitON,const_det,rq10,T_ref,PON_denit,denit
+   namelist /hzg_Ndepoden/  pelagic_detritus_variable,pelagic_nutrient_variable,Ntot0,Ndef0,NdepodenitON,const_det,rq10,T_ref,PON_denit,denit,depocoef
                                     
 !EOP
 !-----------------------------------------------------------------------
@@ -95,7 +95,8 @@
    call self%get_parameter(self%T_ref,          'T_ref',          default=T_ref)
    call self%get_parameter(self%PON_denit,       'PON_denit',      default=PON_denit)
    call self%get_parameter(self%denit,          'denit',         default=denit, scale_factor=1.0_rk/secs_pr_day)
-       
+   call self%get_parameter(self%depocoef,       'depocoef',      default=depocoef)
+   
    ! Register link to external pelagic detritus  pool, if specified
    self%use_det = pelagic_detritus_variable/=''
    if (self%use_det) call self%register_state_dependency(self%id_det_pel,pelagic_detritus_variable)    
@@ -373,7 +374,7 @@ pure real(rk) function denitrify(self,det_pel,f_T)
    !original code from Kai:
    !deporate  = self%denit * exp(-4*sens%f_T) * env%RNit
 
-    deposit = self%denit * exp(-4*f_T)*Ndef
+    deposit = self%denit * exp(-self%depocoef*f_T)*Ndef
     
  end function deposit
  !-----------------------------------------------------------------------
