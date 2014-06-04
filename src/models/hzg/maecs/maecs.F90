@@ -443,8 +443,8 @@ self%iK_QN        = 1.0d0/self%K_QN_phy
 self%iK_QP        = 1.0d0/(QP_phy_max-QP_phy_0)
 self%iK_QSi       = 1.0d0/(QSi_phy_max-QSi_phy_0)
 self%itheta_max   = 1.0d0/theta_LHC
-self%aver_QN_phy  = 5.0d-1*(QN_phy_max+QN_phy_0)
-self%aver_QP_phy  = 5.0d-1*(QP_phy_max+QP_phy_0)
+self%aver_QN_phy  = 5.0d-1*(QN_phy_max+QN_phy_0) !why: 5*?
+self%aver_QP_phy  = 5.0d-1*(QP_phy_max+QP_phy_0) !why: 5*?
 self%small_finite  = sqrt(small)
 
 !!------- Register state variables  ------- 
@@ -478,7 +478,7 @@ end if
 
 if (PhotoacclimOn) then
     chl = frac_chl_ini * phyC_initial  ! trait times biomass
-    call self%register_state_variable(self%id_chl,   'chl','mg-Chla/mmol-C','chl-a_concentration chl', &
+    call self%register_state_variable(self%id_chl,   'chl','mg-Chla/m**3','bulk chlorophyll concentration', &
        chl, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution )
 end if
 
@@ -521,7 +521,7 @@ if (NResOn) then
 end if
 
 !!------- Register diagnostic variables  ------- 
-call self%register_diagnostic_variable(self%id_chl2C,   'chl2C','mgCHL/m**3', 'bulk chlorophyll concentration  chl2C', &
+call self%register_diagnostic_variable(self%id_C2chl,   'C2chl','gC/gchl-a', 'Carbon to chlorophyll-a concentration', &
   output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_fracR,   'fracR','-', ' fracR', &
   output=output_time_step_averaged)

@@ -431,7 +431,7 @@ end if
 ! set diag variables, mostly from PrimProd module
 !if (self%DebugDiagOn) then
 !#S_DIA
-  _SET_DIAGNOSTIC_(self%id_chl2C, phy%theta*phy%rel_chloropl) !average bulk chlorophyll concentration 
+  _SET_DIAGNOSTIC_(self%id_C2chl, 1/(phy%theta*phy%rel_chloropl/12)) ! gC/gchl-a: 1/(chl-a/chloroplast-C * chloroplast-C/phy-molC * 1molC/12gC) 
   _SET_DIAGNOSTIC_(self%id_fracR, phy%frac%Rub)             !average 
   _SET_DIAGNOSTIC_(self%id_QN, phy%Q%N)                     !average 
   _SET_DIAGNOSTIC_(self%id_QP, phy%Q%P)                     !average 
