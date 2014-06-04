@@ -86,8 +86,9 @@ end if
 !> 2. Calculate Rubisco fraction (convert from the bulk variable) 
 !>    - unpack phy\%frac\%Rub (=@f$ f_R @f$)= phy\%Rub / phy\%reg\%C
 !>    - smooth 1-@f$ f_R @f$to (small\%finite + rel_chlropl_min) (both nml pars), such that @f$ f_R @f$ is always smaller than 1
-phy%frac%Rub=maecs%frac_Rub_ini
 !>    - @f$ f_R = \mathrm{phy\%Rub} / phy_C @f$
+phy%frac%Rub=maecs%frac_Rub_ini
+
 
 !if (maecs%PhotoacclimOn) then
 if (maecs%RubiscoOn) then 
@@ -98,26 +99,27 @@ else
    phy%frac%Rub=maecs%frac_Rub_ini
 end if   
  
-!>    - note the  1-(1-x) structure
-!>       + which equals x for small x, and is slightly below x for x->1
-!>       + a counterpart of smooth-small, could be called smooth-at-one;
-!>       + ensures that f_R is always somewhat smaller than one, since it
-!>       + leaves a minimal fraction of resources to other compartments (f_V)
+!    - note the  1-(1-x) structure
+!       + which equals x for small x, and is slightly below x for x->1
+!       + a counterpart of smooth-small, could be called smooth-at-one;
+!       + ensures that f_R is always somewhat smaller than one, since it
+!       + leaves a minimal fraction of resources to other compartments (f_V)
 
 !end if
 phy%frac%Rub = _ONE_ - smooth_small(_ONE_- phy%frac%Rub ,maecs%small_finite + maecs%rel_chloropl_min)
 
 
 !> @fn maecs_functions::calc_internal_states()
-!> 3. Calculate @f$ \theta \mathrm{ and } f_{\theta} @f$ \latexonly  See also: \ref{sec:uptsys} \endlatexonly
-!>    - @f$ \mathrm{phy\%rel_chloropl} =  f_R*q_N^{\sigma} @f$
+!> 3. Calculate @f$ \theta \mathrm{ and } f_{\theta} @f$ 
+!\latexonly  See also: \ref{sec:uptsys} \endlatexonly
+!>    - @f$ \mathrm{phy\%rel\_chloropl} =  f_R*q_N^{\sigma} @f$
 !>      - phy\%rel\_chloropl = factor that relates "chl-a per chloroplast" to "chl-a per cell-C"
 !>        thus  chloroplast-C  over total intracellular C
-!>    - @f$ \mathrm{phy\%theta} =  phy_{chl}/phy_C / \mathrm{phy\%rel_chloropl} @f$
-!>      - \ref{eq:ftheta} says @f$ phy_{chl}/phy_C = f_\theta / \theta_C @f$
+!>    - @f$ \mathrm{phy\%theta} =  phy_{chl}/phy_C / \mathrm{phy\%rel\_chloropl} @f$
 !>      - phy\%chl: bulk variable. biomass (phyc) times trait (theta) times factor)
 !>      - this choice converts a "bulk trait (\%theta phy_C) to a observable, i.e. bulk CHL-a conc.
-!>    - @f$ \mathrm{phy\%frac\%theta}= phy_{chl}/phy_C * \mathrm{maecs\%itheta_max} @f$
+!>    - @f$ \mathrm{phy\%frac\%theta}= \mathrm{rel\_chloropl}*\theta* \mathrm{maecs\%itheta\_max} (=1/\theta_C) @f$
+!>      - identically, \lref{eq. ,eq:ftheta,} says @f$ f_\theta = f_R*q_N^\sigma(=\mathrm{rel\_chloropl})*\theta / \theta_C @f$
 !>    - @f$ f_V = \mathrm{phy\%frac\%TotFree} - f_{\theta} - f_R  @f$, where phy\%frac\%TotFree=1.0
 
 ! calculate rel_chloropl
@@ -161,7 +163,8 @@ end subroutine
 !> - sens\%f\_T \latexonly see eq. \ref{eq:arrhenius} \endlatexonly
 !> - sens\%P\_max \latexonly see eq. \ref{eq:Pmax} \endlatexonly
 !> - sens\%upt\_pot\%C \latexonly (=LH) see eq. \ref{eq:LH} \endlatexonly
-!> - sens\%upt\_pot\%X, (@f$=V_X@f$), X=N,P,Si calculated by uptflex() \latexonly according to eq. \ref{eq:uptakecoeffcurr} \endlatexonly
+!> - sens\%upt\_pot\%X, (@f$=V_X@f$), X=N,P,Si calculated by uptflex() \lref{see eq. ,eq:uptakecoeffcurr,.}
+!\latexonly according to eq. \ref{eq:uptakecoeffcurr} \endlatexonly
 !> @todo: a more intuitive name like calc_potentials?
 !> @todo: Q: why maecs instead of self?
 subroutine calc_sensitivities(maecs,sens,phy,env,nut)
