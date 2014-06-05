@@ -4,10 +4,10 @@
 
 include ../../../Rules.make
 
-DOCSRC	=  spm.F90
+DOCSRC	=  spm.F90 spm_old.F90
 
 OBJS   = \
-${LIBFABM}(spm.o)
+${LIBFABM}(spm.o) ${LIBFABM}(spm_old.o)
 
 all: objs
 
