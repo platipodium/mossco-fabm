@@ -396,12 +396,12 @@ end subroutine initialize
 ! relative fraction of adhults 
 ! fA0    = 0.5d0*(1.0d0 - errf) 
 ! unify all mortalities
-if(self%mS .lt. 0.0d0) then
+if(self%mS .lt. -0.001d0) then
    mS0 = self%mR
 else
    mS0 = self%mS
 endif
-if(self%mT .lt. 0.0d0) then
+if(self%mT .lt. -0.001d0) then
    mT0 = self%mR
 else
    mT0 = self%mT
@@ -448,7 +448,6 @@ _FABM_LOOP_BEGIN_
 
 ! loop over boxes   1: HR  2: Offshore
  do ib = 1, numb
-
 !
 ! ---------- set specific variables for each population  -------------------
 !
@@ -459,8 +458,12 @@ _FABM_LOOP_BEGIN_
   sigma2(3) = 0.8d0         ! log-size variance of mesozooplakton
   mass(1)   = var(ib)%B_Be  ! biomass concentration
   mass(2)   = var(ib)%B_Pp
-  mass(3)   = var(ib)%Cop * 1.0d0/(1.0d0+exp(1.0d0-var(ib)%salt))
-
+  mass(3)   = var(ib)%Cop 
+  if (self%OptionOn) then
+      mass(3)   = mass(3) * 1.0d0/(1.0d0+exp(1.0d0-var(ib)%salt))
+  else
+      mass(3)   = mass(3) * 1.0d0/(1.0d0+exp(1.0d0-0.25d0))
+  endif
   relDens(3)= 1.0d0         ! rel. C-biovolume density ratio of non-gelatinous plankton
   dlopt(1)  = (self%loptA_Be-self%l0)/(self%lA-self%l0) ! increase in l_opt; feeding mode development
   dlopt(2)  = (self%loptA_Pp-self%l0)/(self%lA-self%l0)
@@ -475,7 +478,7 @@ _FABM_LOOP_BEGIN_
 ! optimum size/stage with minimal life-stage dependent mortality 
   lcrit   = 0.5*(0.0d0 + self%lA + self%l0) 
 !  lcrit   = self%lA  
-  lavg    = 0.5*(2*self%lA + self%l0) 
+  lavg    = 0.5*(2*self%lA + self%l0) ! 1.4
 !  loop over ctenophore populations:  1: Beroe 2: Ppileus 
   do i = 1, 2
     relDens(i)= self%relCVDens
@@ -515,7 +518,8 @@ _FABM_LOOP_BEGIN_
     graz(i)   = 0.0d0
     dlpp(i)   = 0.0d0
   end do
-  mass_sum  = 0.0d0
+!  mass_sum  = 0.0d0
+  mass_sum  = 0.*var(ib)%B_Det
   do j = 1, 3
     dlp(j)    = 0.0d0
     mGrz(j)   = 0.0d0
@@ -546,7 +550,7 @@ _FABM_LOOP_BEGIN_
 
   ! update size gradient stores
      dlp(j)  = dlp(j)  - 3*dl*i13sig * mGP          ! size match to prey
-     dg_dB   = gross/((exp(preyE/bcrit)-0.9d0)*bcrit) ! derivative with respect to prey biomass
+     dg_dB   = gross/((exp(preyE/bcrit)-0.95d0)*bcrit) ! derivative with respect to prey biomass
      dB_dl   = dlopt(i)* 3*dl*i13sig *preyE! derivative of prey-mass with respect to consumer size (through optimal prey size dependency)
 !if (i .eq. 1) then
      dlpp(i) = dlpp(i) + dg_dB * dB_dl  
@@ -576,16 +580,16 @@ _FABM_LOOP_BEGIN_
 !   if (i .eq. 1 .and. mort_P .gt. 0.05d0) mort_P = 0.05d0
 
 ! temperature dependent losses, with surface-to-volume scaling
-   mort_R  = self%mR * Temp_dep(i) * exp(0.5*(lcrit-lmsize(i)))! lcrit*(1.0 + fS)
-   mort_R0 = self%mR * Temp_dep(i) * exp(0.5*(lcrit-self%l0))! *(1.0 + fS)
+   mort_R  = self%mR * Temp_dep(i) * exp(0.5*(self%lA-lmsize(i)))! lcrit*(1.0 + fS)
+   mort_R0 = self%mR * Temp_dep(i) * exp(0.5*(self%lA-self%l0))! *(1.0 + fS)
 !   mort_R0 = self%mR * Temp_dep(i) * exp(self%lA-self%l0)! *(1.0 + fS)
 
 !
 ! ----------  mortalities  -------------------
 !
 ! integration result with Gaussian size distribution (cf. effective prey biomass)
-   eS      = exp(-(lavg-lmsize(i))**2/rS)*srS !lcrit self%lA
-   eS0     = exp(-(lavg-self%l0)**2/rS)*srS  
+   eS      = exp(-(self%lA-lmsize(i))**2/rS)*srS !lcrit self%lAlavg
+   eS0     = exp(-(self%lA-self%l0)**2/rS)*srS  
  !  eS    = 0
 
 !  how far way are juveniles from maturity? 
@@ -613,7 +617,8 @@ _FABM_LOOP_BEGIN_
 ! physical damage (turbulence); can be avoided by active swimming
    mort_T0 = mT0 * exp(-var(ib)%Temp/self%T_turb) /(Temp_dep(i) +f_tc) 
 !   mort_T0 = mT0 *starv/(1.0d0+starv)* exp(-(var(ib)%Temp-0.0)/self%T_turb) /(Temp_dep(i) +f_tc) 
-   mort_T  = mort_T0 * (exp((lcrit-lmsize(i))*0.5) + exp(-self%lA*1+0.5*0.5*lmsize(i)))
+!   mort_T  = mort_T0 * (exp((lcrit-lmsize(i))*0.5) + exp(-self%lA*1+0.5*0.5*lmsize(i)))
+   mort_T  = mort_T0 * exp((self%lA-lmsize(i))*0.5) 
 ! Dissipation ~/data/DeutscheBucht/getm/Diss_temp.eps : GETM, no winter/sturm 10^o factor ~2
 ! plot [-1:5][0.05:5] exp(-0.5*(x-0.5)),exp(-0.5*(x-0.5))+exp(-2+0.25*x)
 
@@ -678,22 +683,19 @@ _FABM_LOOP_BEGIN_
 !  marginal size shift due to senescence
 !    sen_dl  = sigma2(i) * (0*mort_R + mort_Sself%mS * exp(-2*gross/Imax)* dfA_dl )
 !     if (self%OptionOn) then
-     sen_dl  = sigma2(i) * mort_S0 * eS * 2* (lavg-lmsize(i))/rS 
-!     else       sen_dl  = 0.0d0     endifself%lAlcrit
+     sen_dl  = sigma2(i) * mort_S0 * eS * 2* (self%lA-lmsize(i))/rS 
+!     else       sen_dl  = 0.0d0     endifself%lAlcritlavg
 
 !  marginal size shift due to respiration and turbulence (same scaling exponent)
-    if (self%OptionOn) then
-!      turb_dl  = sigma2(i) * mort_T * 0.5
-      turb_dl  = sigma2(i) * mort_T0 * 0.5* (exp((lcrit-lmsize(i))*0.5)- 0.5*exp(-self%lA*1+0.5*0.5*lmsize(i)))
-    else
-      turb_dl   = 0.0d0
-    endif
-    resp_dl  = sigma2(i) * mort_R * 0.5
+     turb_dl  = sigma2(i) * mort_T * 0.5
+!      turb_dl  = sigma2(i) * mort_T0 * 0.5* (exp((lcrit-lmsize(i))*0.5)- 0.5*exp(-self%lA*1+0.5*0.5*lmsize(i)))
+
+     resp_dl  = sigma2(i) * mort_R * 0.5
 
 !  marginal size shift due to density dependent mortality (parasites)
-    paras_dl = -sigma2(i) * mort_P * 2* (0*lcrit-lmsize(i))/rS 
+     paras_dl = -sigma2(i) * mort_P * 2* (0*lcrit-lmsize(i))/rS 
 
-    prod_dl  = sigma2(i) * (Prod * al1(i) + self%yield*yfac*dlpp(i))
+     prod_dl  = sigma2(i) * (Prod * al1(i) + self%yield*yfac*dlpp(i))
 !   if (abs(prod_dl) .gt. 1.) write (*,'(A,4(F12.5))') 'pdl=', prod_dl,sigma2(i),Prod * al1(i),self%yield*yfac*dlpp(i)
 
 !  sum of all size selctive forces
@@ -701,7 +703,6 @@ _FABM_LOOP_BEGIN_
 
 !  immigration  of mature individuals only
 !     sum_dl  = sum_dl + self%immigr*(self%lA+2-lmsize(i))/var(ib)%B_Be
-
    else
      sum_dl  = 0.0d0
    endif
