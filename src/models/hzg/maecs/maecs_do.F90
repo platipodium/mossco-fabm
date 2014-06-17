@@ -446,7 +446,7 @@ end if
   _SET_DIAGNOSTIC_(self%id_phyUR, uptake%C)                 !average net phyto growth
   _SET_DIAGNOSTIC_(self%id_phyELR, -exud%C)                 !average phyC exudation loss rate
   _SET_DIAGNOSTIC_(self%id_phyALR, -aggreg_rate )            !average phyC aggregation loss rate 
-  _SET_DIAGNOSTIC_(self%id_phyGLR, -graz_rate/phy%C)        !average phyC grazing loss rate
+  _SET_DIAGNOSTIC_(self%id_phyGLR, -graz_rate/phy%reg%C)        !average phyC grazing loss rate
   _SET_DIAGNOSTIC_(self%id_vsinkr, exp(-self%sink_phys*phy%relQ%N*phy%relQ%P)) !average relative sinking velocity
 !#E_DIA
 !end if
