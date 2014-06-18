@@ -523,7 +523,11 @@ end if
 !!------- Register diagnostic variables  ------- 
 call self%register_diagnostic_variable(self%id_C2chl,   'C2chl','gC/gchl-a', 'Carbon:chlorophyll-a ratio', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_fracR,   'fracR','-', ' fracR', &
+call self%register_diagnostic_variable(self%id_fracR,   'fR','-', ' fR', &
+  output=output_time_step_averaged)
+call self%register_diagnostic_variable(self%id_fracT,   'fT','-', ' fT', &
+  output=output_time_step_averaged)
+call self%register_diagnostic_variable(self%id_fracNU,   'fNU','-', ' fNU', &
   output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_QN,      'QN','-', ' QN', &
   output=output_time_step_averaged)

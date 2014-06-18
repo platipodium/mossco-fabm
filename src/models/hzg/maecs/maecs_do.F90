@@ -429,10 +429,12 @@ end if
 
 !________________________________________________________________________________
 ! set diag variables, mostly from PrimProd module
-!if (self%DebugDiagOn) then
+if (self%DebugDiagOn) then
 !#S_DIA
   _SET_DIAGNOSTIC_(self%id_C2chl, 1/(phy%theta*phy%rel_chloropl/12)) ! gC/gchl-a: 1/(chl-a/chloroplast-C * chloroplast-C/phy-molC * 1molC/12gC) 
   _SET_DIAGNOSTIC_(self%id_fracR, phy%frac%Rub)             !average 
+  _SET_DIAGNOSTIC_(self%id_fracT, phy%frac%theta)           !average 
+  _SET_DIAGNOSTIC_(self%id_fracNU, phy%frac%NutUpt)         !average
   _SET_DIAGNOSTIC_(self%id_QN, phy%Q%N)                     !average 
   _SET_DIAGNOSTIC_(self%id_QP, phy%Q%P)                     !average 
   _SET_DIAGNOSTIC_(self%id_aVN, acclim%aV%N)                !average 
@@ -449,7 +451,27 @@ end if
   _SET_DIAGNOSTIC_(self%id_phyGLR, -graz_rate/phy%reg%C)        !average phyC grazing loss rate
   _SET_DIAGNOSTIC_(self%id_vsinkr, exp(-self%sink_phys*phy%relQ%N*phy%relQ%P)) !average relative sinking velocity
 !#E_DIA
-!end if
+else 
+  _SET_DIAGNOSTIC_(self%id_C2chl,0.0d0) ! gC/gchl-a: 1/(chl-a/chloroplast-C * chloroplast-C/phy-molC * 1molC/12gC) 
+  _SET_DIAGNOSTIC_(self%id_fracR, 0.0d0)             !average 
+  _SET_DIAGNOSTIC_(self%id_fracT, 0.0d0)             !average 
+  _SET_DIAGNOSTIC_(self%id_fracNU, 0.0d0)            !average
+  _SET_DIAGNOSTIC_(self%id_QN, 0.0d0)                     !average 
+  _SET_DIAGNOSTIC_(self%id_QP, 0.0d0)                     !average 
+  _SET_DIAGNOSTIC_(self%id_aVN, 0.0d0)                !average 
+  _SET_DIAGNOSTIC_(self%id_aVP, 0.0d0)                !average 
+  _SET_DIAGNOSTIC_(self%id_aVSi, 0.0d0)              !average 
+  _SET_DIAGNOSTIC_(self%id_rQSi, 0.0d0)               !average 
+  _SET_DIAGNOSTIC_(self%id_tmp, 0.0d0)                 !average 
+  _SET_DIAGNOSTIC_(self%id_fac1, 0.0d0 )               !average acclim%fac1
+  _SET_DIAGNOSTIC_(self%id_fac2, 0.0d0 )               !average acclim%fac2
+  _SET_DIAGNOSTIC_(self%id_dPAR, 0.0d0)                   !average 
+  _SET_DIAGNOSTIC_(self%id_phyUR, 0.0d0)                 !average net phyto growth
+  _SET_DIAGNOSTIC_(self%id_phyELR, 0.0d0)                 !average phyC exudation loss rate
+  _SET_DIAGNOSTIC_(self%id_phyALR, 0.0d0)            !average phyC aggregation loss rate 
+  _SET_DIAGNOSTIC_(self%id_phyGLR, 0.0d0)        !average phyC grazing loss rate
+  _SET_DIAGNOSTIC_(self%id_vsinkr, 0.0d0) 
+end if
 !write (*,'(A,3(F11.5))') 'RN,depo,denit=',env%RNit,deporate,denitrate
 
   _LOOP_END_
