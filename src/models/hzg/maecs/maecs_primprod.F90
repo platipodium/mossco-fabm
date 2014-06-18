@@ -13,7 +13,7 @@
    public    photosynthesis     
  contains  
 
-!> @brief  calculates grazing rate
+!> @brief  calculates photosynthesis
 !> @details 
 !> This is the subroutine, where the optimal regulation of phytoplankton traits
 !> are described, which is central to the physiological-MAECS
@@ -68,15 +68,16 @@ q_Lip    = 1.  ! 0.8 storage P-stoichiometry
 f_Lip    = 1./(1.+exp(10*(1.-phy%relQ%P)))
 
 !> @fn maecs_primprod::photosynthesis()
-!> 1. Prepare loop over structure elements by assigning a poinzer structure
+!> 1. Prepare loop over structure elements by assigning a pointer structure
 !>    - Here, every possible nutrient is asked explicitely; thus first Si then P\n
-!>    - This is an example of adding a whole code source:
 !> @include 'maecs_stoichvars.F90p'
 include './maecs_stoichvars.F90p' ! order of recursive colimitation scheme
 num_nut  = self%nutind%nutnum  ! total number of nutrients
 
 ! --- relative amount of carbon invested into light harvesting complex (LHC) -------
 ! chlorophyll-to-carbon ratio of chloroplast * chloroplast concentration of cell
+!> @fn maecs_primprod::photosynthesis()
+!> 2. calculate the dchl/dtheta, dchl/dfracR, dchl/dQN, dbal/dv
 !if (self%PhotoacclimOn) then  
 acc%dRchl_dtheta = phy%rel_chloropl 
 acc%dRchl_dfracR = phy%theta * phy%relQ%N**self%sigma
@@ -84,8 +85,9 @@ acc%dRchl_dQN    = phy%theta * phy%frac%Rub * self%sigma  * self%iK_QN
                      ! * phy%relQ%N**(self%sigma-1)
 !endif
 
-dbal_dv = 1.0d0 + phy%Q%N * self%zeta_CN  ! partial derivative of the balance eq. to uptake V
-                                          !   equals ratio of gross to net primary production
+! partial derivative of the balance eq. to uptake V
+! equals ratio of gross to net primary production
+dbal_dv = 1.0d0 + phy%Q%N * self%zeta_CN  
 
 ! --- gross carbon uptake by phytoplankton (gross-primary production) ---------------
 !   phy%frac%Rub* sens%P_max_T* phy%relQ%N : carboxylation capacity = Rub * free proteins
@@ -93,10 +95,11 @@ dbal_dv = 1.0d0 + phy%Q%N * self%zeta_CN  ! partial derivative of the balance eq
 !   sens%upt_pot%C           : light harvesting (light limited growth)   
 
 ! --- synchrony in nutrient assimilation depends on growth cycle and N-quota
-!         
+!> @fn maecs_primprod::photosynthesis()
+!> 3. if \mathrm{self\%syn\_nut<0}: synergy is assumed to increase with accumulated pool size 
+!> of N & P as major biochemical species and is proportional to f_V 
+!> @todo: explain & details         
 if (self%syn_nut .le. _ZERO_ ) then  !self%nutind%iP
-!> synergy is assumed to increase with accumulated pool size of N & P as major biochemical species
-!>    and is proportional to f_V (\todo explain)
    sumrelQ = elem(self%nutind%iN)%relQ
    if (self%PhosphorusOn) sumrelQ = sumrelQ + elem(self%nutind%iP)%relQ
    if (self%SiliconOn)    sumrelQ = sumrelQ + elem(self%nutind%iSi)%relQ
@@ -112,22 +115,20 @@ acc%tmp   =   syn_act ! store
 hh      = 1.0d0 / (syn_act + eps)
 
 ! one plus correction coefficient $c_h$ to ensure convergence to Liebig and product rule
-
  c_h1 = 1.0d0  + log( 1.0d0/(4**hh) + 0.5*hh );
 
 !  auxiliary variable expressing the ratio between gross and net production
 dbal_dv = 1.0d0 + phy%Q%N * self%zeta_CN
-
 ! e_N0    = 1.0d0 / (phy%Q%N * dbal_dv) 
 
+!> @fn maecs_primprod::photosynthesis()
+!> 4. retro-loop over structure elements with arbitrary number of nutrients
+!> to calculate a process-based co-limitation factor and derivative terms needed for 
+!> extended optimality functions
+!> @todo: details
 qp_Y    = elem(num_nut)%relQ
 dqp_X_dq_X(num_nut)  = 1.0d0
 dqp_X_dqp_Y(num_nut) = 0.0d0
-
-! retro-loop over structure elements with arbitrary number of nutrients
-!   to calculate a process-based co-limitation factor and derivative terms needed for 
-!   extended optimality functions
-
 if (num_nut .gt. 1) then
  ! loop over all nutrients starting from pre-final
  do i = num_nut-1, 1, -1  
@@ -157,7 +158,6 @@ if (num_nut .gt. 1) then
  end do
 else
  qp_X = qp_Y   ! initial value for num_nut=1
-
 end if
 
 !   final efficiency in interdependent multi-nutrient processing
@@ -176,10 +176,19 @@ dfV_dtheta  = - acc%dRchl_dtheta * self%itheta_max
 ! \todo stability   sigmv(1)    =   acc%dRchl_dQN  * self%itheta_max / phy%frac%NutUpt
 sigmv(1:num_nut)  = 0.0d0
 
+
+
 ! --- gross carbon uptake by phytoplankton (gross-primary production) ---------------
-!   phy%frac%Rub* sens%P_max_T* phy%rel_QN : carboxylation capacity = Rub * free proteins
-!   fac_colim       : final synchrony in  protein/RNA dynamics (multi-nutrient processing)
-!   sens%upt_pot%C  : light harvesting (light limited growth)
+! I DONT UNDERSTAND THE FOLLOWING:
+! phy%frac%Rub * sens%P_max_T* phy%rel_QN : carboxylation capacity = Rub * free proteins
+
+!> @fn maecs_primprod::photosynthesis()
+!> 5. calculate carbon uptake by phytoplankton:
+!> - Pmaxc=fac\_colim-eps * sens\%Pmax\_T
+!>   + fac\_colim : final synchrony in  protein/RNA dynamics (multi-nutrient processing) (obtained by the que function)
+!> - grossC=Pmaxc*fR*sens\%upt\_pot\%C
+!>   + sens\%upt\_pot\%C  : light harvesting (light limited growth)
+!> - darkf= 1-exp(-grossC/self\%res0)
 Pmaxc     = (fac_colim-eps) * sens%P_max_T
 grossC    = phy%frac%Rub * Pmaxc * sens%upt_pot%C  ! primary production
 
@@ -189,6 +198,10 @@ grossC    = phy%frac%Rub * Pmaxc * sens%upt_pot%C  ! primary production
 !  offset (background respiration) derived from a_V(dmu_daV=0)*1/4*Vmax*zeta (f_A=f_V=1/2)
 darkf     = 1.0d0 - exp(-grossC/self%res0)
 
+!> @fn maecs_primprod::photosynthesis()
+!> 6. calculate (a first approximation of the ?!) activity @f$ a_{V,X} @f$, for each nutrient, X
+!> - !! @f$ a_{V,X} @f$ are instantaneously optimized traits !!
+!> @todo: details
 ! $\partial mu/\partial Q dQ/dV|_{tot}$ : initial zero berfore loop
 dmuQ_dfracR = 0.0d0
 dmuQ_dtheta = 0.0d0
@@ -230,11 +243,12 @@ end do
 !acc%fac1 = elem(self%nutind%iN)%relQ
 !acc%fac2 = elem(self%nutind%iP)%relQ
 
-
+!> @fn maecs_primprod::photosynthesis()
+!> 7. (update !? - why not in the above loop?) the @f$ a_{V,X} @f$)
+!> calculate nutrient uptake rates
+!> calculate the derivative terms dmuQ/dfR, dmuQ/dtheta
 dmuQ_dfracR = 0.0d0
 dmuQ_dtheta = 0.0d0
-
-
 do i = 1, num_nut 
    act_V           = elem(i)%aV * elem(i)%dmudaV/ (dmu_daV_tot + eps)
 ! emulates passive Si diffusion through membrane (\todo not to be assimilated)
@@ -251,7 +265,8 @@ do i = 1, num_nut
 end do
 !if (self%SiliconOn) uptake%Si=uptake%Si + 0.5*sens%upt_pot%Si
 
-
+!> @fn maecs_primprod::photosynthesis()
+!> 8. calculate lossC=f(uptake\%N), phy\%gpp=grossC-lossC, uptake\%C=grossC-lossC
 ! ---  respiration due to N assimilation --------------------------------------
 lossC     = self%zeta_CN * uptake%N                           ! [d^{-1}]
 
@@ -264,6 +279,9 @@ uptake%C  = grossC - lossC     !* (1.0d0- self%exud_phy) ![d^{-1}]
 ! --- photoacclimation and photosynthesis ------------------------------------            
 !     differential coupling between pigment synthesis and costs due to N-uptake     
 ! ---  partitioning to chloroplast and rubisco  -------------------------------
+!> @fn maecs_primprod::photosynthesis()
+!> 9. calculate (acc\%)dfR/dt,dtheta/dt  
+
 if (self%RubiscoOn) then
 ! --- derivatives of C-uptake rate  ------------------------------------------         
    dmu_dfracR = Pmaxc * sens%upt_pot%C - self%zeta_CN * upt_act%N * dfV_dfracR

@@ -120,7 +120,7 @@ phy%frac%Rub = _ONE_ - smooth_small(_ONE_- phy%frac%Rub ,maecs%small_finite + ma
 !>      - this choice converts a "bulk trait (\%theta phy_C) to a observable, i.e. bulk CHL-a conc.
 !>    - @f$ \mathrm{phy\%frac\%theta}= \mathrm{rel\_chloropl}*\theta* \mathrm{maecs\%itheta\_max} (=1/\theta_C) @f$
 !>      - identically, \lref{eq. ,eq:ftheta,} says @f$ f_\theta = f_R*q_N^\sigma(=\mathrm{rel\_chloropl})*\theta / \theta_C @f$
-!>    - @f$ f_V = \mathrm{phy\%frac\%TotFree} - f_{\theta} - f_R  @f$, where phy\%frac\%TotFree=1.0
+!>    - @f$ \mathrm{phy\%frac\%NutUpt}=f_V = \mathrm{phy\%frac\%TotFree} - f_{\theta} - f_R  @f$, where phy\%frac\%TotFree=1.0
 
 ! calculate rel_chloropl
 phy%rel_chloropl = smooth_small(phy%frac%Rub * phy%relQ%N**maecs%sigma,maecs%rel_chloropl_min)
@@ -167,7 +167,7 @@ end subroutine
 !\latexonly according to eq. \ref{eq:uptakecoeffcurr} \endlatexonly
 !> @todo: a more intuitive name like calc_potentials?
 !> @todo: Q: why maecs instead of self?
-subroutine calc_sensitivities(maecs,sens,phy,env,nut)
+subroutine calc_sensitivities(maecs,sens,phy,env,nut,acc)
 
 implicit none
 class (type_maecs_base_model), intent(in) :: maecs
@@ -175,10 +175,13 @@ type (type_maecs_sensitivities), intent(out) :: sens
 type (type_maecs_phy),intent(in) :: phy
 type (type_maecs_env),intent(in) :: env
 type (type_maecs_om),intent(in) :: nut
+type (type_maecs_traitdyn), intent(out) :: acc
 
 type (type_maecs_om) :: fA
 real(rk) :: par, T_Kelv, NutF
 
+!> @fn maecs_functions::calc_sensitivities()
+!> 1. calculate (sens\%) f\_T, P\_max\_T, a\_light, upt\_pot\%C 
 par          = maecs%frac_PAR * env%par ! use active  fraction frac_PAR of available radiation
 T_Kelv       = env%Temp + 273.d0 ! temperature in Kelvin 
 ! ----------------------------------------------------------------------------
@@ -200,13 +203,19 @@ sens%a_light = maecs%alpha * par /(sens%P_max_T)  ! par NOCH BAUSTELLE, jetzt PA
 sens%upt_pot%C  = 1.0d0 - exp(- sens%a_light * phy%theta) ! [dimensionless]
 ! write (*,'(A,5(F10.4))') 'PAR Pm a th S:',par, sens%P_max_T,sens%a_light , phy%theta,sens%upt_pot%C
 
+
+
 ! --- carbon specific N-uptake: sites vs. processing ----------------------------------
+!> @fn maecs_functions::calc_sensitivities()
+!> 2. calculate fA\%X, (sens\%) upt\_pot\%X for each element, X
+!>   - (acc\%)fA\%X= call: foptupt()
+!>   - (sens\%)upt\_pot\%X= call: uptflex()
 ! non-zero nutrient concentration for regulation
 NutF    = smooth_small(nut%N,maecs%small)
 ! optimal partitioning between
 ! surface uptake sites and internal enzymes (for assimilation)
 fA%N    =  fOptUpt(maecs%AffN,maecs%V_NC_max * sens%f_T, NutF)
-
+acc%fA%N=fA%N
 sens%upt_pot%N   = uptflex(maecs%AffN,maecs%V_NC_max*sens%f_T,Nut%N, fA%N)
 
 !  P-uptake coefficients
@@ -214,6 +223,7 @@ if (maecs%PhosphorusOn) then
    NutF    = smooth_small(nut%P,maecs%small)
 ! optimal partitioning 
    fA%P    =  fOptUpt(maecs%AffP,maecs%V_PC_max * sens%f_T, NutF)
+   acc%fA%P=fA%P
    sens%upt_pot%P  = uptflex(maecs%AffP,maecs%V_PC_max*sens%f_T,Nut%P,fA%P)
 end if
 !write (*,'(A,4(F10.3))') 'vP=',sens%upt_pot%P,maecs%V_PC_max * sens%f_T,nut%P,maecs%small*1E3
@@ -223,6 +233,7 @@ if (maecs%SiliconOn) then
    NutF    = smooth_small(nut%Si,maecs%small)
 ! optimal partitioning 
    fA%Si    =  fOptUpt(maecs%AffSi,maecs%V_SiC_max * sens%f_T, NutF)
+   acc%fA%Si=fA%Si
    sens%upt_pot%Si = uptflex(maecs%AffSi,maecs%V_SiC_max * sens%f_T,nutF,fA%Si)
 end if
 ! TODO check temperature dependence of nutrient affinity
@@ -230,6 +241,19 @@ end if
 
 end subroutine
 
+!-----------------------------------------------------------------------
+!> @brief opt. partitioning between surf upt sites and intern. enzymes for nut assim.
+!> @details 
+!> calculates @f$ f_{A,X} @f$ \lref{see eq. ,eq:optutpalloc,.}
+!> @f$ f_{A,X} = 1/ (1+ \sqrt(A_X^0*DIX/V_{max,X}^0)) @f$
+pure real(rk) function fOptUpt(Aff0, Vmax0, Nut)
+   implicit none
+
+   real(rk), intent(in)      :: Aff0, Vmax0, Nut
+
+   fOptUpt     = _ONE_/(sqrt(Aff0*Nut/(Vmax0)) + _ONE_ );
+   end function fOptUpt
+   
 !-----------------------------------------------------------------------
 !> @brief calc's pot nut upt as f(external conc, allocations)
 !> @details 
@@ -251,17 +275,6 @@ pure real(rk) function uptflex(Aff0, Vmax0, Nut, fAv)
 
    end function uptflex
 
-!-----------------------------------------------------------------------
-!> @brief opt. partitioning between surf upt sites and intern. enzymes for nut assim.
-!> @details 
-!> calculates @f$ f_{A,X} @f$ \lref{see eq. ,eq:optutpalloc,.}
-pure real(rk) function fOptUpt(Aff0, Vmax0, Nut)
-   implicit none
-
-   real(rk), intent(in)      :: Aff0, Vmax0, Nut
-
-   fOptUpt     = _ONE_/(sqrt(Aff0*Nut/(Vmax0)) + _ONE_ );
-   end function fOptUpt
 
 !-----------------------------------------------------------------------
 !> @brief the queue function 
