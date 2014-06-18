@@ -539,6 +539,12 @@ call self%register_diagnostic_variable(self%id_aVP,     'aVP','-', ' aVP', &
   output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_aVSi,    'aVSi','-', ' aVSi', &
   output=output_time_step_averaged)
+call self%register_diagnostic_variable(self%id_faN,     'faN','-', ' faN', &
+  output=output_time_step_averaged)
+call self%register_diagnostic_variable(self%id_faP,     'faP','-', ' faP', &
+  output=output_time_step_averaged)
+call self%register_diagnostic_variable(self%id_faSi,    'faSi','-', ' faSi', &
+  output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_rQSi,    'rQSi','-', ' rQSi', &
   output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_tmp,     'tmp','-', ' tmp', &

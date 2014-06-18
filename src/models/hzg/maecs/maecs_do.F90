@@ -144,7 +144,7 @@ if (.not. self%PhotoacclimOn) then
 ! write (*,'(A,2(F10.3))') 'theta:',phy%relQ%N**self%sigma,phy%theta   
 end if 
 
-call calc_sensitivities(self,sens,phy,env,nut)
+call calc_sensitivities(self,sens,phy,env,nut,acclim)
 
 !write (*,'(A,4(F10.3))') 'f=',phy%reg%C,phy%frac%Rub,self%small_finite + self%rel_chloropl_min,phy%frac%NutUpt
 !write (*,'(A,4(F10.3))') 'PAR, T, th, P =',env%par,env%temp,phy%theta, sens%upt_pot%C 
@@ -440,6 +440,9 @@ if (self%DebugDiagOn) then
   _SET_DIAGNOSTIC_(self%id_aVN, acclim%aV%N)                !average 
   _SET_DIAGNOSTIC_(self%id_aVP, acclim%aV%P)                !average 
   _SET_DIAGNOSTIC_(self%id_aVSi, acclim%aV%Si)              !average 
+  _SET_DIAGNOSTIC_(self%id_faN, acclim%fA%N)                !average 
+  _SET_DIAGNOSTIC_(self%id_faP, acclim%fA%P)                !average 
+  _SET_DIAGNOSTIC_(self%id_faSi, acclim%fA%Si)              !average 
   _SET_DIAGNOSTIC_(self%id_rQSi, phy%relQ%Si)               !average 
   _SET_DIAGNOSTIC_(self%id_tmp, acclim%tmp)                 !average 
   _SET_DIAGNOSTIC_(self%id_fac1, 0.0d0+denitrate )               !average acclim%fac1
@@ -460,7 +463,10 @@ else
   _SET_DIAGNOSTIC_(self%id_QP, 0.0d0)                     !average 
   _SET_DIAGNOSTIC_(self%id_aVN, 0.0d0)                !average 
   _SET_DIAGNOSTIC_(self%id_aVP, 0.0d0)                !average 
-  _SET_DIAGNOSTIC_(self%id_aVSi, 0.0d0)              !average 
+  _SET_DIAGNOSTIC_(self%id_aVSi, 0.0d0)              !average
+  _SET_DIAGNOSTIC_(self%id_faN, 0.0d0)                !average 
+  _SET_DIAGNOSTIC_(self%id_faP, 0.0d0)                !average 
+  _SET_DIAGNOSTIC_(self%id_faSi, 0.0d0)              !average 
   _SET_DIAGNOSTIC_(self%id_rQSi, 0.0d0)               !average 
   _SET_DIAGNOSTIC_(self%id_tmp, 0.0d0)                 !average 
   _SET_DIAGNOSTIC_(self%id_fac1, 0.0d0 )               !average acclim%fac1
