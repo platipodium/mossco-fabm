@@ -448,25 +448,25 @@ self%aver_QP_phy  = 5.0d-1*(QP_phy_max+QP_phy_0) !why: 5*?
 self%small_finite  = sqrt(small)
 
 !!------- Register state variables  ------- 
-call self%register_state_variable(self%id_nutN,  'nutN','mmol-N/m**3','Dissolved Inorganic Nitrogen DIN nutN', &
+call self%register_state_variable(self%id_nutN,  'nutN','mmol-N/m**3','Dissolved Inorganic Nitrogen DIN', &
    nutN_initial, minimum=_ZERO_, no_river_dilution=.true. )
 call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_nutN)
-call self%register_state_variable(self%id_phyC,  'phyC','mmol-C/m**3','Phytplankton Carbon phyC', &
+call self%register_state_variable(self%id_phyC,  'phyC','mmol-C/m**3','Phytplankton Carbon', &
    phyC_initial, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution )
 call self%add_to_aggregate_variable(standard_variables%total_carbon,self%id_phyC)
-call self%register_state_variable(self%id_phyN,  'phyN','mmol-N/m**3','Phytplankton Nitrogen phyN', &
+call self%register_state_variable(self%id_phyN,  'phyN','mmol-N/m**3','Phytplankton Nitrogen', &
    phyN_initial, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution )
 call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_phyN)
-call self%register_state_variable(self%id_detC,  'detC','mmol-C/m**3','Detritus Carbon detC', &
+call self%register_state_variable(self%id_detC,  'detC','mmol-C/m**3','Detritus Carbon', &
    detC_initial, minimum=_ZERO_, no_river_dilution=detritus_no_river_dilution )
 call self%add_to_aggregate_variable(standard_variables%total_carbon,self%id_detC)
-call self%register_state_variable(self%id_detN,  'detN','mmol-N/m**3','Detritus Nitrogen detN', &
+call self%register_state_variable(self%id_detN,  'detN','mmol-N/m**3','Detritus Nitrogen', &
    detN_initial, minimum=_ZERO_, no_river_dilution=detritus_no_river_dilution )
 call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_detN)
-call self%register_state_variable(self%id_domC,  'domC','mmol-C/m**3','Dissolved Organic Carbon domC', &
+call self%register_state_variable(self%id_domC,  'domC','mmol-C/m**3','Dissolved Organic Carbon', &
    domC_initial, minimum=_ZERO_, no_river_dilution=.true. )
 call self%add_to_aggregate_variable(standard_variables%total_carbon,self%id_domC)
-call self%register_state_variable(self%id_domN,  'domN','mmol-N/m**3','Dissolved Organic Nitrogen domN', &
+call self%register_state_variable(self%id_domN,  'domN','mmol-N/m**3','Dissolved Organic Nitrogen', &
    domN_initial, minimum=_ZERO_, no_river_dilution=.true. )
 call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_domN)
 
@@ -478,92 +478,92 @@ end if
 
 if (PhotoacclimOn) then
     chl = frac_chl_ini * phyC_initial  ! trait times biomass
-    call self%register_state_variable(self%id_chl,   'chl','mg-Chla/m**3','bulk chlorophyll concentration', &
+    call self%register_state_variable(self%id_chl,   'chl','mg-Chla/m**3','Bulk chlorophyll concentration', &
        chl, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution )
 end if
 
 if (PhosphorusOn) then
-    call self%register_state_variable(self%id_nutP,  'nutP','mmol-P/m**3','Dissolved Inorganic Phosphorus DIP nutP', &
+    call self%register_state_variable(self%id_nutP,  'nutP','mmol-P/m**3','Dissolved Inorganic Phosphorus', &
        nutP_initial, minimum=_ZERO_, no_river_dilution=.true. )
     call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_nutP)
-    call self%register_state_variable(self%id_phyP,  'phyP','mmol-P/m**3','Phytplankton Phosphorus phyP', &
+    call self%register_state_variable(self%id_phyP,  'phyP','mmol-P/m**3','Phytplankton Phosphorus', &
        phyP_initial, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution )
     call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_phyP)
-    call self%register_state_variable(self%id_detP,  'detP','mmol-P/m**3','Detritus Phosphorus detP', &
+    call self%register_state_variable(self%id_detP,  'detP','mmol-P/m**3','Detritus Phosphorus', &
        detP_initial, minimum=_ZERO_, no_river_dilution=detritus_no_river_dilution )
     call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_detP)
-    call self%register_state_variable(self%id_domP,  'domP','mmol-P/m**3','Dissolved Organic Phosphorus domP', &
+    call self%register_state_variable(self%id_domP,  'domP','mmol-P/m**3','Dissolved Organic Phosphorus', &
        domP_initial, minimum=_ZERO_, no_river_dilution=.true. )
     call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_domP)
 end if
 
 if (SiliconOn) then
-    call self%register_state_variable(self%id_nutS,  'nutS','mmol-Si/m**3','Dissolved Inorganic Silicon Si nutS', &
+    call self%register_state_variable(self%id_nutS,  'nutS','mmol-Si/m**3','Dissolved Inorganic Silicon', &
        nutS_initial, minimum=_ZERO_, no_river_dilution=.true. )
     call self%add_to_aggregate_variable(standard_variables%total_silicate,self%id_nutS)
-    call self%register_state_variable(self%id_phyS,  'phyS','mmol-Si/m**3','Phytplankton Silicon phyS', &
+    call self%register_state_variable(self%id_phyS,  'phyS','mmol-Si/m**3','Phytplankton Silicon', &
        phyS_initial, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution )
     call self%add_to_aggregate_variable(standard_variables%total_silicate,self%id_phyS)
-    call self%register_state_variable(self%id_detS,  'detS','mmol-Si/m**3','Detritus Silicon detS', &
+    call self%register_state_variable(self%id_detS,  'detS','mmol-Si/m**3','Detritus Silico', &
        detS_initial, minimum=_ZERO_, no_river_dilution=detritus_no_river_dilution )
     call self%add_to_aggregate_variable(standard_variables%total_silicate,self%id_detS)
 end if
 
 if (GrazingOn) then
-    call self%register_state_variable(self%id_zooC,  'zooC','mmol-C/m**3','Zooplankton Carbon zooC', &
+    call self%register_state_variable(self%id_zooC,  'zooC','mmol-C/m**3','Zooplankton Carbon', &
        zooC_initial, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution )
     call self%add_to_aggregate_variable(standard_variables%total_carbon,self%id_zooC)
 end if
 
 if (NResOn) then
-    call self%register_state_variable(self%id_RNit,  'RNit','mmol-N/m**3','N-reservoir RNit', &
+    call self%register_state_variable(self%id_RNit,  'RNit','mmol-N/m**3','N-reservoir', &
        RNit_initial, minimum=_ZERO_, no_river_dilution=.true. )
 end if
 
 !!------- Register diagnostic variables  ------- 
 call self%register_diagnostic_variable(self%id_C2chl,   'C2chl','gC/gchl-a', 'Carbon:chlorophyll-a ratio', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_fracR,   'fR','-', ' fR', &
+call self%register_diagnostic_variable(self%id_fracR,   'fR','-', 'Rubisco fract. allocation', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_fracT,   'fT','-', ' fT', &
+call self%register_diagnostic_variable(self%id_fracT,   'fT','-', ' LHC fract. allocation', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_fracNU,   'fNU','-', ' fNU', &
+call self%register_diagnostic_variable(self%id_fracNU,   'fNU','-', 'Nut. Uptake fract. allocation', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_QN,      'QN','-', ' QN', &
+call self%register_diagnostic_variable(self%id_QN,      'QN','-', 'N:C ratio', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_QP,      'QP','-', ' QP', &
+call self%register_diagnostic_variable(self%id_QP,      'QP','-', 'P:C ratio', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_aVN,     'aVN','-', ' aVN', &
+call self%register_diagnostic_variable(self%id_aVN,     'aVN','-', 'N-uptake activity', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_aVP,     'aVP','-', ' aVP', &
+call self%register_diagnostic_variable(self%id_aVP,     'aVP','-', 'P-uptake activity', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_aVSi,    'aVSi','-', ' aVSi', &
+call self%register_diagnostic_variable(self%id_aVSi,    'aVSi','-', 'Si-uptake activity', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_faN,     'faN','-', ' faN', &
+call self%register_diagnostic_variable(self%id_faN,     'faN','-', 'N-uptake affinity allocation', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_faP,     'faP','-', ' faP', &
+call self%register_diagnostic_variable(self%id_faP,     'faP','-', 'P-uptake affinity allocation', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_faSi,    'faSi','-', ' faSi', &
+call self%register_diagnostic_variable(self%id_faSi,    'faSi','-', 'Si-uptake affinity allocation', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_rQSi,    'rQSi','-', ' rQSi', &
+call self%register_diagnostic_variable(self%id_rQSi,    'rQSi','-', 'Relative Si-Quota', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_tmp,     'tmp','-', ' tmp', &
+call self%register_diagnostic_variable(self%id_tmp,     'tmp','-', 'Temperature', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_fac1,    'fac1','-', ' fac1', &
+call self%register_diagnostic_variable(self%id_fac1,    'fac1','-', 'fac1', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_fac2,    'fac2','-', ' fac2', &
+call self%register_diagnostic_variable(self%id_fac2,    'fac2','-', 'fac2', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_dPAR,    'dPAR','W/m**2', ' dPAR', &
+call self%register_diagnostic_variable(self%id_dPAR,    'dPAR','W/m**2', 'Photosynth. Available Radiation', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_phyUR,   'phyUR','1/d', 'net phyto growth phyUR', &
+call self%register_diagnostic_variable(self%id_phyUR,   'phyUR','1/d', 'Phyto net growth rate', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_phyELR,  'phyELR','1/d', 'phyC exudation loss rate phyELR', &
+call self%register_diagnostic_variable(self%id_phyELR,  'phyELR','1/d', 'PhyC exudation loss rate', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_phyALR,  'phyALR','1/d', 'phyC aggregation loss rate  phyALR', &
+call self%register_diagnostic_variable(self%id_phyALR,  'phyALR','1/d', 'PhyC aggregation loss rate', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_phyGLR,  'phyGLR','1/d', 'phyC grazing loss rate phyGLR', &
+call self%register_diagnostic_variable(self%id_phyGLR,  'phyGLR','1/d', 'PhyC grazing loss rate', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_vsinkr,  'vsinkr','-', 'relative sinking velocity vsinkr', &
+call self%register_diagnostic_variable(self%id_vsinkr,  'vsinkr','-', 'Relative sinking velocity vsinkr', &
   output=output_time_step_averaged)
 
 !!------- Register environmental dependencies  ------- 
