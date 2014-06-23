@@ -11,13 +11,14 @@
    use fabm_types
    use maecs_types
 
-   !private !!DOES THIS HAVE ANY FUNCTION?
+   !private
+   real(rk),private     ::zero=0.0_rk
    
    public   uptflex       ,& 
             queuefunc, queuefunc0, queuederiv ,&
             smooth_small, sinking, min_mass, &
-            calc_sensitivities, calc_internal_states
-
+            calc_sensitivities, calc_internal_states, nan_num
+   
  contains  
 
  !------------------------------------------------------
@@ -538,6 +539,28 @@ pure real(rk) function smooth_small(x, eps)
     smooth_small  = x
    endif
    end function smooth_small 
+
+   !---------------------------------------------------------
+!> @brief  converts nan-to be numbers to a real num (eg -9)
+!> @details 
+! \f[ x=eps+(x-eps)*e^{x/eps}/(1+e^{x/eps}) \f]
+real(rk) function nan_num(x)
+
+   implicit none
+   real(rk), intent(in)          :: x
+   real(rk)            :: xnan,xinf,xinfneg
+!--------------------------------------------------------------
+   xnan=zero/zero
+   xinf=1.0_rk/zero
+   xinfneg=-1.0_rk/zero
+   if ((x .eq. xinfneg) .or. (x .eq. xinf) .or. (x .eq. xnan)) then
+     nan_num=-2.e20_rk !that's the default FABM missing value
+   else 
+     nan_num=x
+   endif
+   !write(0,*) xnan,x,nan_num
+   
+   end function nan_num 
    
 end module maecs_functions
 !------------------------------------------------------

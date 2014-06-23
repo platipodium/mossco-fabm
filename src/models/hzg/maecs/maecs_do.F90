@@ -429,54 +429,35 @@ end if
 
 !________________________________________________________________________________
 ! set diag variables, mostly from PrimProd module
+
+!#define _REPLNAN_(X) X !changes back to original code
+#define _REPLNAN_(X) nan_num(X)
+
 if (self%DebugDiagOn) then
 !#S_DIA
-  _SET_DIAGNOSTIC_(self%id_C2chl, 1/(phy%theta*phy%rel_chloropl/12)) ! gC/gchl-a: 1/(chl-a/chloroplast-C * chloroplast-C/phy-molC * 1molC/12gC) 
-  _SET_DIAGNOSTIC_(self%id_fracR, phy%frac%Rub)             !average 
-  _SET_DIAGNOSTIC_(self%id_fracT, phy%frac%theta)           !average 
-  _SET_DIAGNOSTIC_(self%id_fracNU, phy%frac%NutUpt)         !average
-  _SET_DIAGNOSTIC_(self%id_QN, phy%Q%N)                     !average 
-  _SET_DIAGNOSTIC_(self%id_QP, phy%Q%P)                     !average 
-  _SET_DIAGNOSTIC_(self%id_aVN, acclim%aV%N)                !average 
-  _SET_DIAGNOSTIC_(self%id_aVP, acclim%aV%P)                !average 
-  _SET_DIAGNOSTIC_(self%id_aVSi, acclim%aV%Si)              !average 
-  _SET_DIAGNOSTIC_(self%id_faN, acclim%fA%N)                !average 
-  _SET_DIAGNOSTIC_(self%id_faP, acclim%fA%P)                !average 
-  _SET_DIAGNOSTIC_(self%id_faSi, acclim%fA%Si)              !average 
-  _SET_DIAGNOSTIC_(self%id_rQSi, phy%relQ%Si)               !average 
-  _SET_DIAGNOSTIC_(self%id_tmp, acclim%tmp)                 !average 
-  _SET_DIAGNOSTIC_(self%id_fac1, 0.0d0+denitrate )               !average acclim%fac1
-  _SET_DIAGNOSTIC_(self%id_fac2, 0.0d0+deporate )               !average acclim%fac2
-  _SET_DIAGNOSTIC_(self%id_dPAR, env%par)                   !average 
-  _SET_DIAGNOSTIC_(self%id_phyUR, uptake%C)                 !average net phyto growth
-  _SET_DIAGNOSTIC_(self%id_phyELR, -exud%C)                 !average phyC exudation loss rate
-  _SET_DIAGNOSTIC_(self%id_phyALR, -aggreg_rate )            !average phyC aggregation loss rate 
-  _SET_DIAGNOSTIC_(self%id_phyGLR, -graz_rate/phy%reg%C)        !average phyC grazing loss rate
-  _SET_DIAGNOSTIC_(self%id_vsinkr, exp(-self%sink_phys*phy%relQ%N*phy%relQ%P)) !average relative sinking velocity
+  _SET_DIAGNOSTIC_(self%id_C2chl, _REPLNAN_(1/(phy%theta*phy%rel_chloropl/12))) ! gC/gchl-a: 1/(chl-a/chloroplast-C * chloroplast-C/phy-molC * 1molC/12gC) 
+  _SET_DIAGNOSTIC_(self%id_fracR, _REPLNAN_(phy%frac%Rub))             !average 
+  _SET_DIAGNOSTIC_(self%id_fracT, _REPLNAN_(phy%frac%theta))          !average 
+  _SET_DIAGNOSTIC_(self%id_fracNU, _REPLNAN_(phy%frac%NutUpt))         !average
+  _SET_DIAGNOSTIC_(self%id_QN, _REPLNAN_(phy%Q%N))                     !average 
+  _SET_DIAGNOSTIC_(self%id_QP, _REPLNAN_(phy%Q%P))                     !average 
+  _SET_DIAGNOSTIC_(self%id_aVN, _REPLNAN_(acclim%aV%N))                !average 
+  _SET_DIAGNOSTIC_(self%id_aVP, _REPLNAN_(acclim%aV%P))                !average 
+  _SET_DIAGNOSTIC_(self%id_aVSi, _REPLNAN_(acclim%aV%Si))             !average 
+  _SET_DIAGNOSTIC_(self%id_faN, _REPLNAN_(acclim%fA%N))                !average 
+  _SET_DIAGNOSTIC_(self%id_faP, _REPLNAN_(acclim%fA%P))                !average 
+  _SET_DIAGNOSTIC_(self%id_faSi, _REPLNAN_(acclim%fA%Si))              !average 
+  _SET_DIAGNOSTIC_(self%id_rQSi, _REPLNAN_(phy%relQ%Si))               !average 
+  _SET_DIAGNOSTIC_(self%id_tmp, _REPLNAN_(acclim%tmp))                 !average 
+  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(0.0d0+denitrate))              !average acclim%fac1
+  _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(0.0d0+deporate ))               !average acclim%fac2
+  _SET_DIAGNOSTIC_(self%id_dPAR, _REPLNAN_(env%par))                   !average 
+  _SET_DIAGNOSTIC_(self%id_phyUR, _REPLNAN_(uptake%C))                 !average net phyto growth
+  _SET_DIAGNOSTIC_(self%id_phyELR, _REPLNAN_(-exud%C))                 !average phyC exudation loss rate
+  _SET_DIAGNOSTIC_(self%id_phyALR, _REPLNAN_(-aggreg_rate))            !average phyC aggregation loss rate 
+  _SET_DIAGNOSTIC_(self%id_phyGLR, _REPLNAN_(-graz_rate/phy%reg%C))        !average phyC grazing loss rate
+  _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(exp(-self%sink_phys*phy%relQ%N*phy%relQ%P))) !average relative sinking velocity
 !#E_DIA
-else 
-  _SET_DIAGNOSTIC_(self%id_C2chl,0.0d0) ! gC/gchl-a: 1/(chl-a/chloroplast-C * chloroplast-C/phy-molC * 1molC/12gC) 
-  _SET_DIAGNOSTIC_(self%id_fracR, 0.0d0)             !average 
-  _SET_DIAGNOSTIC_(self%id_fracT, 0.0d0)             !average 
-  _SET_DIAGNOSTIC_(self%id_fracNU, 0.0d0)            !average
-  _SET_DIAGNOSTIC_(self%id_QN, 0.0d0)                     !average 
-  _SET_DIAGNOSTIC_(self%id_QP, 0.0d0)                     !average 
-  _SET_DIAGNOSTIC_(self%id_aVN, 0.0d0)                !average 
-  _SET_DIAGNOSTIC_(self%id_aVP, 0.0d0)                !average 
-  _SET_DIAGNOSTIC_(self%id_aVSi, 0.0d0)              !average
-  _SET_DIAGNOSTIC_(self%id_faN, 0.0d0)                !average 
-  _SET_DIAGNOSTIC_(self%id_faP, 0.0d0)                !average 
-  _SET_DIAGNOSTIC_(self%id_faSi, 0.0d0)              !average 
-  _SET_DIAGNOSTIC_(self%id_rQSi, 0.0d0)               !average 
-  _SET_DIAGNOSTIC_(self%id_tmp, 0.0d0)                 !average 
-  _SET_DIAGNOSTIC_(self%id_fac1, 0.0d0 )               !average acclim%fac1
-  _SET_DIAGNOSTIC_(self%id_fac2, 0.0d0 )               !average acclim%fac2
-  _SET_DIAGNOSTIC_(self%id_dPAR, 0.0d0)                   !average 
-  _SET_DIAGNOSTIC_(self%id_phyUR, 0.0d0)                 !average net phyto growth
-  _SET_DIAGNOSTIC_(self%id_phyELR, 0.0d0)                 !average phyC exudation loss rate
-  _SET_DIAGNOSTIC_(self%id_phyALR, 0.0d0)            !average phyC aggregation loss rate 
-  _SET_DIAGNOSTIC_(self%id_phyGLR, 0.0d0)        !average phyC grazing loss rate
-  _SET_DIAGNOSTIC_(self%id_vsinkr, 0.0d0) 
 end if
 !write (*,'(A,3(F11.5))') 'RN,depo,denit=',env%RNit,deporate,denitrate
 

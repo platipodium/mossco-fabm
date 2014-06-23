@@ -448,13 +448,13 @@ self%aver_QP_phy  = 5.0d-1*(QP_phy_max+QP_phy_0) !why: 5*?
 self%small_finite  = sqrt(small)
 
 !!------- Register state variables  ------- 
-call self%register_state_variable(self%id_nutN,  'nutN','mmol-N/m**3','Dissolved Inorganic Nitrogen DIN', &
+call self%register_state_variable(self%id_nutN,  'nutN','mmol-N/m**3','Dissolved Inorganic Nitrogen', &
    nutN_initial, minimum=_ZERO_, no_river_dilution=.true. )
 call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_nutN)
-call self%register_state_variable(self%id_phyC,  'phyC','mmol-C/m**3','Phytplankton Carbon', &
+call self%register_state_variable(self%id_phyC,  'phyC','mmol-C/m**3','Phytoplankton Carbon', &
    phyC_initial, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution )
 call self%add_to_aggregate_variable(standard_variables%total_carbon,self%id_phyC)
-call self%register_state_variable(self%id_phyN,  'phyN','mmol-N/m**3','Phytplankton Nitrogen', &
+call self%register_state_variable(self%id_phyN,  'phyN','mmol-N/m**3','Phytoplankton Nitrogen', &
    phyN_initial, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution )
 call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_phyN)
 call self%register_state_variable(self%id_detC,  'detC','mmol-C/m**3','Detritus Carbon', &
@@ -486,7 +486,7 @@ if (PhosphorusOn) then
     call self%register_state_variable(self%id_nutP,  'nutP','mmol-P/m**3','Dissolved Inorganic Phosphorus', &
        nutP_initial, minimum=_ZERO_, no_river_dilution=.true. )
     call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_nutP)
-    call self%register_state_variable(self%id_phyP,  'phyP','mmol-P/m**3','Phytplankton Phosphorus', &
+    call self%register_state_variable(self%id_phyP,  'phyP','mmol-P/m**3','Phytoplankton Phosphorus', &
        phyP_initial, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution )
     call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_phyP)
     call self%register_state_variable(self%id_detP,  'detP','mmol-P/m**3','Detritus Phosphorus', &
@@ -521,6 +521,7 @@ if (NResOn) then
 end if
 
 !!------- Register diagnostic variables  ------- 
+if (self%DebugDiagOn) then
 call self%register_diagnostic_variable(self%id_C2chl,   'C2chl','gC/gchl-a', 'Carbon:chlorophyll-a ratio', &
   output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_fracR,   'fR','-', 'Rubisco fract. allocation', &
@@ -565,6 +566,7 @@ call self%register_diagnostic_variable(self%id_phyGLR,  'phyGLR','1/d', 'PhyC gr
   output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_vsinkr,  'vsinkr','-', 'Relative sinking velocity vsinkr', &
   output=output_time_step_averaged)
+end if
 
 !!------- Register environmental dependencies  ------- 
 call self%register_dependency(self%id_temp,standard_variables%temperature)
