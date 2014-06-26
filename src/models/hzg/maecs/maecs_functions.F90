@@ -100,13 +100,12 @@ else
    phy%frac%Rub=maecs%frac_Rub_ini
 end if   
  
+!min-max correction: 
 !    - note the  1-(1-x) structure
 !       + which equals x for small x, and is slightly below x for x->1
 !       + a counterpart of smooth-small, could be called smooth-at-one;
 !       + ensures that f_R is always somewhat smaller than one, since it
 !       + leaves a minimal fraction of resources to other compartments (f_V)
-
-!end if
 phy%frac%Rub = _ONE_ - smooth_small(_ONE_- phy%frac%Rub ,maecs%small_finite + maecs%rel_chloropl_min)
 
 
@@ -134,9 +133,18 @@ if (maecs%PhotoacclimOn) then
 ! cell specific CHL:C ratio of chloroplasts / carbon bound to LHC per CHL-pigment
   phy%frac%theta= phy%theta * phy%rel_chloropl * maecs%itheta_max ! []     no smaller than o(1.d-5)!
 endif
+
+!min-max correction: 
+!    - note the  1-(1-x) structure
+!       + which equals x for small x, and is slightly below x for x->1
+!       + a counterpart of smooth-small, could be called smooth-at-one;
+!       + ensures that f_R is always somewhat smaller than one, since it
+!       + leaves a minimal fraction of resources to other compartments (f_V)
+phy%frac%theta = _ONE_ - smooth_small(_ONE_- phy%frac%theta ,maecs%small_finite + maecs%rel_chloropl_min)
+
+
 ! --- total pool-size of available/free proteins/enzymes and RNA -------------------   
 phy%frac%TotFree= 1.0d0 
-
 ! -- remaining nitrogen fraction for uptake and nutrient processing --------------
 phy%frac%NutUpt = smooth_small(phy%frac%TotFree - phy%frac%Rub - phy%frac%theta, maecs%small)
 
