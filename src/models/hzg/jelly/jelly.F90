@@ -377,7 +377,7 @@ end subroutine initialize
   real(rk), dimension(2,numb) :: dConc,dTrait
   real(rk), dimension(3) :: Imax, al1, dlopt,lopt, graz,Temp_dep, Temp_dep0
   real(rk), dimension(3) :: mGrz, mGrz0, sig, sigma2, lmsize, dlp,dlpp, mass, relDens
-  real(rk) :: dl0, dl, dl2, bcrit, prey, preyE, mGP, aS=2.0
+  real(rk) :: dl0, dl, dl2, bcrit, prey, preyE, mGP, fLc, aS=2.0
   real(rk) :: fR, fA, dfA_dl, lm_adult, al, lprey, lcrit, lavg
   real(rk) :: gross, Prod, dg_dB, dB_dl, dg_dlY, srS, mS0, mT0
   integer  :: ib, ic, i, j
@@ -459,11 +459,10 @@ _FABM_LOOP_BEGIN_
   mass(1)   = var(ib)%B_Be  ! biomass concentration
   mass(2)   = var(ib)%B_Pp
   mass(3)   = var(ib)%Cop 
-  if (self%OptionOn) then
-      mass(3)   = mass(3) * 1.0d0/(1.0d0+exp(1.0d0-var(ib)%salt))
-  else
-      mass(3)   = mass(3) * 1.0d0/(1.0d0+exp(1.0d0-0.25d0))
-  endif
+!  if (self%OptionOn) then
+!      mass(3)   = mass(3) * 1.0d0/(1.0d0+exp(1.0d0-var(ib)%salt))  else
+!      mass(3)   = mass(3) * 1.0d0/(1.0d0+exp(1.0d0-0.25d0))
+!  endif
   relDens(3)= 1.0d0         ! rel. C-biovolume density ratio of non-gelatinous plankton
   dlopt(1)  = (self%loptA_Be-self%l0)/(self%lA-self%l0) ! increase in l_opt; feeding mode development
   dlopt(2)  = (self%loptA_Pp-self%l0)/(self%lA-self%l0)
@@ -480,6 +479,9 @@ _FABM_LOOP_BEGIN_
 !  lcrit   = self%lA  
   lavg    = 0.5*(2*self%lA + self%l0) ! 1.4
 !  loop over ctenophore populations:  1: Beroe 2: Ppileus 
+! fraction of large "meso"zooplakton as suitable parasite host 
+  fLc       = exp(-(lavg-lmsize(3))**2/(2*sigma2(3)))
+
   do i = 1, 2
     relDens(i)= self%relCVDens
     lopt(i)   = self%l0 + (lmsize(i)-self%l0)*dlopt(i) ! optimal prey size
@@ -500,18 +502,27 @@ _FABM_LOOP_BEGIN_
 !    if (al1(i) .lt. al0) al1(i) = al0  
 
 ! temperature dependency for egg spawning, somatic growth and mortalities 
-    Temp_dep(i) = f_temp(self%Q10 +lopt(i), var(ib)%Temp, self%Tc)
+  if (self%OptionOn) then
+    Temp_dep(i) = f_temp(self%Q10 +1*lopt(i), var(ib)%Temp, self%Tc)
+  else
+    Temp_dep(i) = f_temp(self%Q10 +0*lopt(i), var(ib)%Temp, self%Tc)
+  endif
 !  Temp_dep0= f_temp(self%Q10, var(ib)%Temp, 0.0d0)
 
 ! std of size distribution increases at large mean size and drops at very low number concentration
-!    rS        = sqrt(mass(i))/(sqrt(mass(i))+0.5d0*sqrt(self%sigmbc))
+    rS        = self%dil_HO + (1.0d0-self%dil_HO)*sqrt(mass(i))/(sqrt(mass(i))+sqrt(self%sigmbc))
 !    sig(i)    = self%sigma * (0.*self%sigma + (lcrit*4+lmsize(i)))
 ! TODO: refine empirical relationship using Greve, Falkenhaug1996 or Finenko2003 data 
 ! sig(i) = self%sigma * (lmsize(i)*(2*self%lA-lmsize(i)))
 !    sigma2(i) = sig(i)*sig(i)*rS ! variance from std
 
 !    sigma2(i) = self%sigma *(1 - 1./(1+exp(2*(1.5d0-lmsize(i)))));
-    sigma2(i) = self%sigma * exp(-0.75d0*(0.75d0-lmsize(i))**2)
+!    sig     dl      = lmsize(j) - lopt(i)     ! size match to prey
+!ma2(i) = self%sigma * exp(-0.75d0*(0.75d0-lmsize(i))**2)
+    dl        = (self%lA - self%l0)/3.1415
+!    if (i .eq. -1) then      dl=dl*1.     endif
+   
+    sigma2(i) = self%sigma * dl*dl* exp(-((self%lA+self%l0-lmsize(i))/(dl))**2)*rs
     sig(i)    = sqrt(sigma2(i))
 
 ! set accumulating stores to zero
@@ -576,7 +587,10 @@ _FABM_LOOP_BEGIN_
  !  eS    = 0
 ! life-stage dependent mortality due to parasites
 !   mort_P  = self%mP * pS * (mass(i) + 0.004*var(ib)%B_Det) * var(ib)%B_Det !* Temp_dep(3)
-   mort_P  = self%mP * pS * sqrt(mass(i)*var(ib)%B_Det) * var(ib)%B_Det* Temp_dep(i) 
+!   mort_P  = self%mP * pS * sqrt(mass(i)*var(ib)%B_Det) * var(ib)%B_Det* Temp_dep(i) 
+!   mort_P  = self%mP * pS * mass(i) * var(ib)%B_Det* Temp_dep(i) 
+   mort_P  = self%mP * pS * (mass(1)+mass(2)+fLc*mass(3)) * var(ib)%B_Det* Temp_dep(i) 
+
 !   if (i .eq. 1 .and. mort_P .gt. 0.05d0) mort_P = 0.05d0
 
 ! temperature dependent losses, with surface-to-volume scaling
@@ -612,13 +626,14 @@ _FABM_LOOP_BEGIN_
    mort_S  = mort_S0 * (1.0d0-eS)
 !    if (abs(mort_S) .gt. 13.5) write (*,'(A,1(I2),4(F12.4))') 'mS=',i,mort_S,mort_S0,eS,starv
 
-
 !   if (var(ib)%l_Pp .lt. -0.7 .and. i .eq. 2) write (*,'(A,3(F12.5))') 'l1=',var(ib)%l_Pp,yfac,dlpp(i)
 ! physical damage (turbulence); can be avoided by active swimming
-   mort_T0 = mT0 * exp(-var(ib)%Temp/self%T_turb) /(Temp_dep(i) +f_tc) 
-!   mort_T0 = mT0 *starv/(1.0d0+starv)* exp(-(var(ib)%Temp-0.0)/self%T_turb) /(Temp_dep(i) +f_tc) 
-!   mort_T  = mort_T0 * (exp((lcrit-lmsize(i))*0.5) + exp(-self%lA*1+0.5*0.5*lmsize(i)))
-   mort_T  = mort_T0 * exp((self%lA-lmsize(i))*0.5) 
+!   mort_T0 = mT0 * exp(-var(ib)%Temp/self%T_turb) /(Temp_dep(i) +f_tc) 
+!   mort_T0 = mT0 * exp(-var(ib)%Temp/self%T_turb)
+   mort_T0 = mT0 *starv/(1.0d0+starv)* exp(-var(ib)%Temp/self%T_turb) /(Temp_dep(i) +f_tc)
+   mort_T  = mort_T0 * exp((lavg-lmsize(i))*0.5) 
+!+ exp(-self%lA*1+0.5*0.5*lmsize(i)))
+!   mort_T  = mort_T0  
 ! Dissipation ~/data/DeutscheBucht/getm/Diss_temp.eps : GETM, no winter/sturm 10^o factor ~2
 ! plot [-1:5][0.05:5] exp(-0.5*(x-0.5)),exp(-0.5*(x-0.5))+exp(-2+0.25*x)
 
@@ -778,7 +793,7 @@ _FABM_LOOP_BEGIN_
 ! most simple detritus pool turnover dynamics 
 !  rhsv%B_Det=  self%mS * mass_sum - self%rDet * Temp_dep(3) * var(ib)%B_Det
 !  if (mass_sum .gt. 200.0d0) mass_sum = 200.0d0
-  rhsv%B_Det=   self%rDet * (mass_sum - Temp_dep(3) * var(ib)%B_Det)  ! 0.4444 mean of f_T 1962-2002 for Q10=2.5
+  rhsv%B_Det=   self%rDet * (mass_sum - Temp_dep(1) * var(ib)%B_Det)  ! 0.4444 mean of f_T 1962-2002 for Q10=2.5
 ! ------------------------------------------------------------------------------
 !#S_ODE
 !---------- ODE for each state variable ----------
