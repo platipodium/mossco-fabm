@@ -480,7 +480,7 @@ _FABM_LOOP_BEGIN_
   lavg    = 0.5*(2*self%lA + self%l0) ! 1.4
 !  loop over ctenophore populations:  1: Beroe 2: Ppileus 
 ! fraction of large "meso"zooplakton as suitable parasite host 
-  fLc       = exp(-(lavg-lmsize(3))**2/(2*sigma2(3)))
+  fLc       = exp(-(self%dil_CH*lavg-lmsize(3))**2/(2*sigma2(3)))
 
   do i = 1, 2
     relDens(i)= self%relCVDens
