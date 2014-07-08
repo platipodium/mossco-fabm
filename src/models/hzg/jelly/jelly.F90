@@ -444,7 +444,8 @@ _FABM_LOOP_BEGIN_
 ! var(numb)%Temp = (1.0d0-self%fTempGB)*10.0d0 + self%fTempGB*var(numb)%Temp
 
 ! f_tc  = 1.0d0/(exp(-(self%Tc-20.0d0)*0.1*log(self%Q10))+ 1.0d0 )
-  f_tc  = 1.0d0/(exp(-(0-20.0d0)*0.1*log(self%Q10)) + 1.0d0)
+!  f_tc  = 1.0d0/(exp(-(0-20.0d0)*0.1*log(self%Q10)) + 1.0d0)
+  f_tc  = 1.0d0/(exp(-(self%relV_O-20.0d0)*0.1*log(self%Q10)) + 1.0d0)
 
 ! loop over boxes   1: HR  2: Offshore
  do ib = 1, numb
