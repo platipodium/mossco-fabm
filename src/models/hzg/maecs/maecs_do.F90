@@ -443,6 +443,7 @@ if (self%DebugDiagOn) then
   _SET_DIAGNOSTIC_(self%id_C2chl, _REPLNAN_(1/(phy%theta*phy%rel_chloropl/12))) ! gC/gchl-a: 1/(chl-a/chloroplast-C * chloroplast-C/phy-molC * 1molC/12gC) 
   _SET_DIAGNOSTIC_(self%id_fracR, _REPLNAN_(phy%frac%Rub))             !average 
   _SET_DIAGNOSTIC_(self%id_fracT, _REPLNAN_(phy%frac%theta))                !average 
+  _SET_DIAGNOSTIC_(self%id_Theta, _REPLNAN_(phy%theta))                !average
   _SET_DIAGNOSTIC_(self%id_fracNU, _REPLNAN_(phy%frac%NutUpt))         !average
   _SET_DIAGNOSTIC_(self%id_QN, _REPLNAN_(phy%Q%N))                     !average 
   _SET_DIAGNOSTIC_(self%id_QP, _REPLNAN_(phy%Q%P))                     !average 
@@ -454,8 +455,11 @@ if (self%DebugDiagOn) then
   _SET_DIAGNOSTIC_(self%id_faSi, _REPLNAN_(acclim%fA%Si))              !average 
   _SET_DIAGNOSTIC_(self%id_rQSi, _REPLNAN_(phy%relQ%Si))               !average 
   _SET_DIAGNOSTIC_(self%id_tmp, _REPLNAN_(acclim%tmp))                 !average 
-  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(0.0d0+denitrate))              !average acclim%fac1
-  _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(0.0d0+deporate ))               !average acclim%fac2
+  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC ))   !average acclim%fac1
+  _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(dRchl_phyC_dt))     !average acclim%fac2
+  _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%dRchl_dtheta * acclim%dtheta_dt))     !average acclim%fac3
+  _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(acclim%dRchl_dfracR * acclim%dfracR_dt))     !average acclim%fac4
+  _SET_DIAGNOSTIC_(self%id_fac5, _REPLNAN_(acclim%dRchl_dQN    * dQN_dt))     !average acclim%fac5
   _SET_DIAGNOSTIC_(self%id_dPAR, _REPLNAN_(env%par))                   !average 
   _SET_DIAGNOSTIC_(self%id_phyUR, _REPLNAN_(uptake%C))                 !average net phyto growth
   _SET_DIAGNOSTIC_(self%id_phyELR, _REPLNAN_(-exud%C))                 !average phyC exudation loss rate

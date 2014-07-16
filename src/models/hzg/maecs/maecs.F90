@@ -528,6 +528,8 @@ call self%register_diagnostic_variable(self%id_fracR,   'fR','-', 'Rubisco fract
   output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_fracT,   'fT','-', ' LHC fract. allocation', &
   output=output_time_step_averaged)
+call self%register_diagnostic_variable(self%id_Theta,   'Theta','-', ' Theta', &
+  output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_fracNU,   'fNU','-', 'Nut. Uptake fract. allocation', &
   output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_QN,      'QN','-', 'N:C ratio', &
@@ -553,6 +555,12 @@ call self%register_diagnostic_variable(self%id_tmp,     'tmp','-', 'Temperature'
 call self%register_diagnostic_variable(self%id_fac1,    'fac1','-', 'fac1', &
   output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_fac2,    'fac2','-', 'fac2', &
+  output=output_time_step_averaged)
+call self%register_diagnostic_variable(self%id_fac3,    'fac3','-', 'fac3', &
+  output=output_time_step_averaged)
+call self%register_diagnostic_variable(self%id_fac4,    'fac4','-', 'fac4', &
+  output=output_time_step_averaged)
+call self%register_diagnostic_variable(self%id_fac5,    'fac5','-', 'fac5', &
   output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_dPAR,    'dPAR','W/m**2', 'Photosynth. Available Radiation', &
   output=output_time_step_averaged)
