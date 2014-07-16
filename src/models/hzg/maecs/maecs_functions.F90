@@ -101,23 +101,24 @@ else
 end if   
  
 !min-max correction: 
-!    - note the  1-(1-x) structure
-!       + which equals x for small x, and is slightly below x for x->1
-!       + a counterpart of smooth-small, could be called smooth-at-one;
-!       + ensures that f_R is always somewhat smaller than one, since it
-!       + leaves a minimal fraction of resources to other compartments (f_V)
+! note the  1-(1-x) structure
+! which equals x for small x, and is slightly below x for x->1
+! a counterpart of smooth-small, could be called smooth-at-one;
+! ensures that f_R is always somewhat smaller than one, since it
+! leaves a minimal fraction of resources to other compartments (f_V)
 phy%frac%Rub = _ONE_ - smooth_small(_ONE_- phy%frac%Rub ,maecs%small_finite + maecs%rel_chloropl_min)
 
 
 !> @fn maecs_functions::calc_internal_states()
 !> 3. Calculate @f$ \theta \mathrm{ and } f_{\theta} @f$ 
 !\latexonly  See also: \ref{sec:uptsys} \endlatexonly
-!>    - @f$ \mathrm{phy\%rel\_chloropl} =  f_R*q_N^{\sigma} @f$
+!>    - phy\%rel\_chloropl =  @f$  f_R*q_N^{\sigma} @f$
 !>      - phy\%rel\_chloropl = factor that relates "chl-a per chloroplast" to "chl-a per cell-C"
 !>        thus  chloroplast-C  over total intracellular C
 !>    - @f$ \mathrm{phy\%theta} =  phy_{chl}/phy_C / \mathrm{phy\%rel\_chloropl} @f$
 !>      - phy\%chl: bulk variable. biomass (phyc) times trait (theta) times factor)
-!>      - this choice converts a "bulk trait (\%theta phy_C) to a observable, i.e. bulk CHL-a conc.
+!>      - thus, phy\%theta= (gchl/gC) * (gC/gchloroplastC) =gchl/ gchlroplastC
+!>      - thus, with this transformation the transported trait variable (\%theta*phy_C) is translated into an observable, i.e. bulk CHL-a conc.
 !>    - @f$ \mathrm{phy\%frac\%theta}= \mathrm{rel\_chloropl}*\theta* \mathrm{maecs\%itheta\_max} (=1/\theta_C) @f$
 !>      - identically, \lref{eq. ,eq:ftheta,} says @f$ f_\theta = f_R*q_N^\sigma(=\mathrm{rel\_chloropl})*\theta / \theta_C @f$
 !>    - @f$ \mathrm{phy\%frac\%NutUpt}=f_V = \mathrm{phy\%frac\%TotFree} - f_{\theta} - f_R  @f$, where phy\%frac\%TotFree=1.0
@@ -132,14 +133,16 @@ if (maecs%PhotoacclimOn) then
 
 ! cell specific CHL:C ratio of chloroplasts / carbon bound to LHC per CHL-pigment
   phy%frac%theta= phy%theta * phy%rel_chloropl * maecs%itheta_max ! []     no smaller than o(1.d-5)!
+!equally:
+!  phy%frac%theta= (phy%chl / phy%reg%C) / theta_LHC
 endif
 
 !min-max correction: 
-!    - note the  1-(1-x) structure
-!       + which equals x for small x, and is slightly below x for x->1
-!       + a counterpart of smooth-small, could be called smooth-at-one;
-!       + ensures that f_R is always somewhat smaller than one, since it
-!       + leaves a minimal fraction of resources to other compartments (f_V)
+! note the  1-(1-x) structure
+! which equals x for small x, and is slightly below x for x->1
+! a counterpart of smooth-small, could be called smooth-at-one;
+! ensures that f_R is always somewhat smaller than one, since it
+! leaves a minimal fraction of resources to other compartments (f_V)
 phy%frac%theta = _ONE_ - smooth_small(_ONE_- phy%frac%theta ,maecs%small_finite + maecs%rel_chloropl_min)
 
 

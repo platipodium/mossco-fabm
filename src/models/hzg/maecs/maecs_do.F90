@@ -258,9 +258,14 @@ rhsv%phyN =  uptake%N             * phy%C &
 
 !> @fn fabm_hzg_maecs::maecs_do ()
 !> 4. Assign rates of change of 'traits' property variables
-!>    - if PhotoacclimOn: rhsv%chl
-!>    - if RubiscoOn: rhsv%Rub
-!> @todo: add the rhs equations
+!>    - if PhotoacclimOn: rhsv%chl=A + B
+!>      + A = rhsv\%phyC*phy\%theta*rel_chlorpl [= gC/m3/d * gchl/gchlorpl-C * gchloropl-C/gC]
+!>      + B = dRchl/dtheta* dtheta/dt + dRchl/dfracR*dfracR/dt+dRchl/dQN * dQN/dt
+!>      + all terms in B except dQN/dt are calculated in maecs_primprod::photosynthesis()
+!>      + dQN/dt = (rhsv\%phyN* phyC - rhsv\*phyC*phyN )/(phyC^2)
+!>    - if RubiscoOn: rhsv%Rub=A+B
+!>      + A = rhsv\%phyC * phyRub/phyC
+!>      + B = dfracR_dt is calculated in maecs_primprod::photosynthesis()
 
 if (self%PhotoacclimOn) then
 ! PHYTOPLANKTON CHLa
@@ -280,7 +285,7 @@ if (self%PhotoacclimOn) then
 end if 
 
 if (self%RubiscoOn) then 
-   rhsv%Rub  = acclim%dfracR_dt * phy%C + phy%Rub/phy%reg%C * rhsv%phyC 
+   rhsv%Rub  = phy%Rub/phy%reg%C * rhsv%phyC + acclim%dfracR_dt * phy%C 
 end if 
 
 !________________________________________________________________________________
@@ -437,7 +442,7 @@ if (self%DebugDiagOn) then
 !#S_DIA
   _SET_DIAGNOSTIC_(self%id_C2chl, _REPLNAN_(1/(phy%theta*phy%rel_chloropl/12))) ! gC/gchl-a: 1/(chl-a/chloroplast-C * chloroplast-C/phy-molC * 1molC/12gC) 
   _SET_DIAGNOSTIC_(self%id_fracR, _REPLNAN_(phy%frac%Rub))             !average 
-  _SET_DIAGNOSTIC_(self%id_fracT, _REPLNAN_(phy%frac%theta))          !average 
+  _SET_DIAGNOSTIC_(self%id_fracT, _REPLNAN_(phy%frac%theta))                !average 
   _SET_DIAGNOSTIC_(self%id_fracNU, _REPLNAN_(phy%frac%NutUpt))         !average
   _SET_DIAGNOSTIC_(self%id_QN, _REPLNAN_(phy%Q%N))                     !average 
   _SET_DIAGNOSTIC_(self%id_QP, _REPLNAN_(phy%Q%P))                     !average 
@@ -460,7 +465,7 @@ if (self%DebugDiagOn) then
 !#E_DIA
 end if
 !write (*,'(A,3(F11.5))') 'RN,depo,denit=',env%RNit,deporate,denitrate
-
+                  
   _LOOP_END_
 
 end subroutine maecs_do
