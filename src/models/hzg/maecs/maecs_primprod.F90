@@ -183,7 +183,7 @@ sigmv(1:num_nut)  = 0.0d0
 ! phy%frac%Rub * sens%P_max_T* phy%rel_QN : carboxylation capacity = Rub * free proteins
 
 !> @fn maecs_primprod::photosynthesis()
-!> 5. calculate carbon uptake by phytoplankton:
+!> 5. Calculate carbon uptake by phytoplankton:
 !> - Pmaxc=fac\_colim-eps * sens\%Pmax\_T
 !>   + fac\_colim : final synchrony in  protein/RNA dynamics (multi-nutrient processing) (obtained by the que function)
 !> - grossC=Pmaxc*fR*sens\%upt\_pot\%C
@@ -199,7 +199,7 @@ grossC    = phy%frac%Rub * Pmaxc * sens%upt_pot%C  ! primary production
 darkf     = 1.0d0 - exp(-grossC/self%res0)
 
 !> @fn maecs_primprod::photosynthesis()
-!> 6. calculate (a first approximation of the ?!) activity @f$ a_{V,X} @f$, for each nutrient, X
+!> 6. Calculate (a first approximation of the ?!) activity @f$ a_{V,X} @f$, for each nutrient, X
 !> - !! @f$ a_{V,X} @f$ are instantaneously optimized traits !!
 !> @todo: details
 ! $\partial mu/\partial Q dQ/dV|_{tot}$ : initial zero berfore loop
@@ -280,7 +280,7 @@ uptake%C  = grossC - lossC     !* (1.0d0- self%exud_phy) ![d^{-1}]
 !     differential coupling between pigment synthesis and costs due to N-uptake     
 ! ---  partitioning to chloroplast and rubisco  -------------------------------
 !> @fn maecs_primprod::photosynthesis()
-!> 9. calculate (acc\%)dfR/dt,dtheta/dt  
+!> 9. calculate (acc\%)dfR/dt
 
 if (self%RubiscoOn) then
 ! --- derivatives of C-uptake rate  ------------------------------------------         
@@ -301,6 +301,18 @@ if (self%RubiscoOn) then
 end if
 !write (*,'(A,2(F10.3))') 'dfracR_dt: ',acc%dfracR_dt*1E3, grad_fracR *1E3
 
+
+!> @fn maecs_primprod::photosynthesis()
+!> 10. acc\%dtheta\_dt
+!>   + reorganize \lref{eq. ,eq:ftheta,} as: @f$ \theta=\theta_C/chl_{r}* f_\theta @f$
+!>     - where @f$ chl_{r}=f_R*Q_N^\sigma @f$ as set in subroutine calc_internal_states()
+!>   + @f$ d\theta/dt= \theta_C/chl_{r}* df_\theta/dt  @f$
+!>     - @f$ df_\theta/dt=\delta_\theta^* *f_\theta*(1-f_\theta)*(d\mu/df_\theta + dmuQ/df_\theta) @f$. \lref{see eq. ,eq:dmu_dtheta,.}
+!>     - @f$ (d\mu/df_\theta + dmuQ/df_\theta) = (d\mu/d\theta+dmuQ/d\theta)*\theta_C/chl_{r}@f$
+!>   + substituting, @f$ d\theta/dt= \delta_\theta^* * (\theta_C/chl_{r})^2* f_\theta*(1-f_\theta) * (d\mu/d\theta+dmuQ/d\theta)  @f$
+!>     - @f$  d\mu/d\theta @f$ : \lref{see eq. ,eq:dmu_dtheta,.}
+!>     - @f$  dmuQ/d\theta @f$ : see above
+
 if (self%PhotoacclimOn) then
 ! --- derivatives of C-uptake rate  --------------------------------------------         
 !     positive gradient term due to PAR adsorption by CHL 
@@ -310,10 +322,14 @@ if (self%PhotoacclimOn) then
    grad_theta = dmu_dtheta + dmuQ_dtheta  ! marginal C gain and indirect costs of chloroplasts
 
   ! --- regulation speed in photoacclimation  -----------------------------------
-   flex_theta  = self%adap_theta * ( self%theta_LHC - phy%theta ) * phy%theta
+  !flex_theta  = self%adap_theta * ( self%theta_LHC - phy%theta) * phy%theta
+  flex_theta  = self%adap_theta * (self%theta_LHC/phy%rel_chloropl)**2 * (1- phy%frac%theta) * phy%frac%theta 
 
   ! *** ADAPTIVE EQUATION FOR 'theta'
    acc%dtheta_dt = flex_theta * grad_theta
+   !for being able to save these intermediate quantities as diag vars:
+   acc%fac1=flex_theta 
+   acc%fac2=grad_theta
 
 end if
 ! --- carbon exudation   -------------------------------------------------------
