@@ -277,7 +277,8 @@ if (self%PhotoacclimOn) then
                   + acclim%dRchl_dfracR * acclim%dfracR_dt   & 
                   + acclim%dRchl_dQN    * dQN_dt 
 
-   rhsv%chl = phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC + dRchl_phyC_dt * phy%C
+!   rhsv%chl = phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC + dRchl_phyC_dt * phy%C
+   rhsv%chl = phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC + dRchl_phyC_dt * phy%reg%C
 
 !write (*,'(A,4(F10.3))') 'rhs chl=', phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC,dRchl_phyC_dt * phy%reg%C*1E1,phy%relQ%N**self%sigma,phy%theta
 
@@ -440,9 +441,9 @@ end if
 
 if (self%DebugDiagOn) then
 !#S_DIA
-  _SET_DIAGNOSTIC_(self%id_C2chl, _REPLNAN_(1/(phy%theta*phy%rel_chloropl/12))) ! gC/gchl-a: 1/(chl-a/chloroplast-C * chloroplast-C/phy-molC * 1molC/12gC) 
+  _SET_DIAGNOSTIC_(self%id_chl2C, _REPLNAN_((phy%theta*phy%rel_chloropl/12))) ! gchl-a/gC: chl-a/chloroplast-C * chloroplast-C/phy-molC * 1molC/12gC) 
   _SET_DIAGNOSTIC_(self%id_fracR, _REPLNAN_(phy%frac%Rub))             !average 
-  _SET_DIAGNOSTIC_(self%id_fracT, _REPLNAN_(phy%frac%theta))                !average 
+  _SET_DIAGNOSTIC_(self%id_fracT, _REPLNAN_(phy%frac%theta))           !average 
   _SET_DIAGNOSTIC_(self%id_Theta, _REPLNAN_(phy%theta))                !average
   _SET_DIAGNOSTIC_(self%id_fracNU, _REPLNAN_(phy%frac%NutUpt))         !average
   _SET_DIAGNOSTIC_(self%id_QN, _REPLNAN_(phy%Q%N))                     !average 
@@ -455,11 +456,12 @@ if (self%DebugDiagOn) then
   _SET_DIAGNOSTIC_(self%id_faSi, _REPLNAN_(acclim%fA%Si))              !average 
   _SET_DIAGNOSTIC_(self%id_rQSi, _REPLNAN_(phy%relQ%Si))               !average 
   _SET_DIAGNOSTIC_(self%id_tmp, _REPLNAN_(acclim%tmp))                 !average 
-  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC ))   !average acclim%fac1
-  _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(dRchl_phyC_dt))     !average acclim%fac2
-  _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%dRchl_dtheta * acclim%dtheta_dt))     !average acclim%fac3
-  _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(acclim%dRchl_dfracR * acclim%dfracR_dt))     !average acclim%fac4
-  _SET_DIAGNOSTIC_(self%id_fac5, _REPLNAN_(acclim%dRchl_dQN    * dQN_dt))     !average acclim%fac5
+  !_SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC)) !average. dchl/dt due to dPhyC/dt
+  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(dRchl_phyC_dt))   !average
+  _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(acclim%dRchl_dfracR * acclim%dfracR_dt))     !average. change in chl due to change in Rubisco
+  _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%dRchl_dtheta * acclim%dtheta_dt))     !average. change in chl due to change in theta
+  _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(acclim%fac1))     !average dtheta_dt due to flex_theta
+  _SET_DIAGNOSTIC_(self%id_fac5, _REPLNAN_(acclim%fac2))     !average dtheta_dt due to grad_theta
   _SET_DIAGNOSTIC_(self%id_dPAR, _REPLNAN_(env%par))                   !average 
   _SET_DIAGNOSTIC_(self%id_phyUR, _REPLNAN_(uptake%C))                 !average net phyto growth
   _SET_DIAGNOSTIC_(self%id_phyELR, _REPLNAN_(-exud%C))                 !average phyC exudation loss rate
@@ -532,7 +534,13 @@ _FABM_LOOP_BEGIN_
 
    ! Calculate sinking
 !  call sinking(self%vS_phy, phyQstat, vsink)
+
+   !SINKING AS A FUNCTION OF INTERNAL STATES
    vsink = self%vS_phy * exp( -self%sink_phys * phyQstat)
+
+   !CONSTANT SINKING
+   !vsink = self%vS_phy
+   
    vsink = vsink / secs_pr_day
    !write (*,'(A,2(F10.3))') 'phyQstat, vsink=', phyQstat, vsink
    

@@ -522,7 +522,7 @@ end if
 
 !!------- Register diagnostic variables  ------- 
 if (self%DebugDiagOn) then
-call self%register_diagnostic_variable(self%id_C2chl,   'C2chl','gC/gchl-a', 'Carbon:chlorophyll-a ratio', &
+call self%register_diagnostic_variable(self%id_chl2C,   'chl2C','gchl-a/gC', 'chlorophyll:carbon ratio', &
   output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_fracR,   'fR','-', 'Rubisco fract. allocation', &
   output=output_time_step_averaged)
