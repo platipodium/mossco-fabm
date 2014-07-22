@@ -479,7 +479,7 @@ _FABM_LOOP_BEGIN_
 !  lopt(3)  = (-2.0-self%l0)/(self%lA-self%l0)
   lopt(3)   = self%l0
   Imax(3)   = 1.0d0
-  Temp_dep(3) = f_temp(1.5d0, var(ib)%Temp, 0.0d0)
+  Temp_dep(3) = f_temp(2.5d0, var(ib)%Temp, 0.0d0)
 
 ! re-gauge coefficient to apply  Imax-scaling of Wirtz JPR,2012 
 !    log(1E3/80) converts from log(micro-m) to log(mm) but accounts for much lower C-density
@@ -592,7 +592,7 @@ _FABM_LOOP_BEGIN_
 !   pS      = exp(-(self%l0+1.0d0-lmsize(i))**2/rS)*srS
    rS      = 1.0d0 + 3. * sigma2(i)  ! "life-span"=1 : width of life-stage dependent mortality
    srS     = 1.0d0/sqrt(rS)
-   pS      = exp(-(0*lcrit-lmsize(i))**2/rS)*srS
+   pS      = exp(-(0*lcrit+0.-lmsize(i))**2/rS)*srS
    pS0     = exp(-self%l0**2/rS)*srS
  !  eS    = 0
 ! life-stage dependent mortality due to parasites
@@ -600,6 +600,7 @@ _FABM_LOOP_BEGIN_
 !   mort_P  = self%mP * pS * sqrt(mass(i)*var(ib)%B_Det) * var(ib)%B_Det* Temp_dep(i) 
 !   mort_P  = self%mP * pS * mass(i) * var(ib)%B_Det* Temp_dep(i) 
    mort_P  = self%mP * pS * (mass(1)+mass(2)+fLc*mass(3)) * var(ib)%B_Det* Temp_dep(i) 
+!   mort_P  = self%mP * pS * (mass(i)+fLc*mass(3)) * var(ib)%B_Det* Temp_dep(i) 
 
 !   if (i .eq. 1 .and. mort_P .gt. 0.05d0) mort_P = 0.05d0
 
@@ -642,7 +643,6 @@ _FABM_LOOP_BEGIN_
 !   mort_T0 = mT0 * exp(-var(ib)%Temp/self%T_turb)
    mort_T0 = mT0 *starv/(1.0d0+starv)* exp(-var(ib)%Temp/self%T_turb) /(Temp_dep(i) +f_tc)
    mort_T0 = mort_T0 * (var(ib)%Wind/6.25d0)**self%W_turb_exp  ! long-term mean 6.25m/s
-
    mort_T  = mort_T0 * exp((lavg-lmsize(i))*0.5) 
 !+ exp(-self%lA*1+0.5*0.5*lmsize(i)))
 !   mort_T  = mort_T0  
@@ -720,7 +720,7 @@ _FABM_LOOP_BEGIN_
      resp_dl  = sigma2(i) * mort_R * 0.5
 
 !  marginal size shift due to density dependent mortality (parasites)
-     paras_dl = -sigma2(i) * mort_P * 2* (0*lcrit-lmsize(i))/rS 
+     paras_dl = -sigma2(i) * mort_P * 2* (0*lcrit+0.-lmsize(i))/rS 
 
      prod_dl  = sigma2(i) * (Prod * al1(i) + self%yield*yfac*dlpp(i))
 !   if (abs(prod_dl) .gt. 1.) write (*,'(A,4(F12.5))') 'pdl=', prod_dl,sigma2(i),Prod * al1(i),self%yield*yfac*dlpp(i)
