@@ -267,7 +267,9 @@ rhsv%phyN =  uptake%N             * phy%C &
 !>      + A = rhsv\%phyC * phyRub/phyC
 !>      + B = dfracR_dt is calculated in maecs_primprod::photosynthesis()
 
-if (self%PhotoacclimOn) then
+if (abs(phy%reg%C) .gt. 1d-4) then
+ if (self%PhotoacclimOn .and. ) then ! check for too small biomasses 
+
 ! PHYTOPLANKTON CHLa
      ! note that theta*rel_chloropl in units [mg Chla (mmol C)^{-1}] 
    dQN_dt        = (rhsv%phyN * phy%reg%C - rhsv%phyC * phy%reg%N) / (phy%reg%C*phy%reg%C)
@@ -283,11 +285,15 @@ if (self%PhotoacclimOn) then
 !write (*,'(A,4(F10.3))') 'rhs chl=', phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC,dRchl_phyC_dt * phy%reg%C*1E1,phy%relQ%N**self%sigma,phy%theta
 
 !_____________________________________________ _________________________________
-end if 
+ end if 
 
-if (self%RubiscoOn) then 
+ if (self%RubiscoOn) then 
    rhsv%Rub  = phy%Rub/phy%reg%C * rhsv%phyC + acclim%dfracR_dt * phy%C 
-end if 
+ end if 
+else
+  rhsv%Rub  = 0.0d0
+  rhsv%chl  = 0.0d0
+endif
 
 !________________________________________________________________________________
 !
