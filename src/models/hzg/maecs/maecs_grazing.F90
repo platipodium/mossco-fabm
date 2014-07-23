@@ -17,13 +17,13 @@ module maecs_grazing
 !> @brief  calculates grazing rate
 !> @details 
 !> rate= @f$ I_{max} * F^2/(K^2+F^2) @f$
+!> (Holling-III response function)
 subroutine grazing(Imax,HalfSat,preyconc,rate)
 !
   implicit none
   real(rk), intent(in)       :: Imax,HalfSat,preyconc
   real(rk), intent(out)      :: rate
-!-------------------------------------------------------------
-  ! Holling-III response function
+
   rate   = Imax * preyconc**2 /(HalfSat**2+preyconc**2)          ! [d^{-1}]
   end subroutine grazing
 
@@ -33,8 +33,8 @@ subroutine grazing(Imax,HalfSat,preyconc,rate)
 !> @brief  loss rates of grazers to inorganic and  organic particulate
 !> @details 
 !> assumes a constant C:N:P unit feeding on variable C:N:P food 
-!> @todo: add a description and details
 subroutine grazing_losses(zoo,resC,Q_prey,lossZNut,lossZDet,mswitch)
+!called as:grazing_losses(zoo,zoo_respC,nquot,lossZ,floppZ, mswitch) 
 !
   implicit none
   type (type_maecs_zoo), intent(in)     :: zoo ! zooplankton type containing quota information
@@ -42,6 +42,18 @@ subroutine grazing_losses(zoo,resC,Q_prey,lossZNut,lossZDet,mswitch)
   type (type_maecs_switch), intent(in)  :: mswitch
   type (type_maecs_om), intent(in)      :: Q_prey
   type (type_maecs_om), intent(out)     :: lossZNut,lossZDet 
+  
+!>@fn maecs_grazing::grazing_losses()
+!> 1. calculate lossZDet (floppZ in maecs_do())
+!>    - lossZDet\%C=zoo\%floppI*zoo\%feeding
+!>    - lossZDet\%X=zoo\%floppI*zoo\%feeding*Q_prey\%X
+!> 2. calculate lossZNut (lossZ in maecs_do())
+!>    - lossZNut\%C=resC (= self\%basal\_resp\_zoo * sens\%f\_T as calc in maecs_do() )
+!>    - lossZNut\%X=resC*zoo\%Q\%X + zoo\%yield * zoo\%feeding * ( Q_prey\%X - zoo%Q%X )
+!>      + idea is, zoo takes in Y*F*QX_{food}, keeps Y*F*QX_{zoo}, excretes the rest (+ bg)
+!>      + zoo\%Q\%X calc. in maecs_functions::calc_internal_states()
+!>      + zoo\%feeding=grazing() as set in maecs_do()
+
 ! -------------- loss by floppy feeding and egestion to detritus
   lossZDet%C     = zoo%flopp  * zoo%feeding 
   lossZDet%N     = lossZDet%C * Q_prey%N
@@ -58,7 +70,18 @@ subroutine grazing_losses(zoo,resC,Q_prey,lossZNut,lossZDet,mswitch)
 ! lossZNut%N     = zoo%yield * zoo%feeding * ( Q_prey%N - zoo%Q%N ) ! [molN/molC d^{-1}]
 !  lossZNut%N  = lossZNut%C *  zoo%Q%N + excess_N_graz ! includes basal excretion
 
-! --------------- respiration and/or excretion rates adjusted to maintain constant C:N:P ratio
+!>@fn maecs_grazing::grazing_losses()
+!> 3. adjust lossZDet \&lossZNut to maintain constant C:N:P ratio
+!>   + if lossZNut\%N<0 -> negative excretion! (would gain N)
+!>     - lossZDet\%N = lossZDet\%N + lossZNut\%N;  lossZNut\%N=0 
+!>     - if lossZDet\%N <0 -> negative loss. Then increase the C excr
+!>       * lossZDet\%N=0, but still the N balance goes up -> compensate by increased lossZNut\%C
+!>       * lossZNut\%C  = lossZNut\%C - (lossZNut\%N-lossZDet\%N(prev))
+!>       * subst. lossZDet\%N(prev)=lossZDet\%N-lossZNut\%N
+!>       * lossZNut\%C  = lossZNut\%C - (lossZNut\%N-(lossZDet\%N-lossZNut\%N))/zoo\%Q\%N
+!>       * lossZNut\%C  = lossZNut\%C - lossZDet\%N/zoo\%Q\%N
+!>   + if lossZNut\%P<0 -> negative excretion! (would gain P)
+!>     - the same way, adjust lossZNut\%C(\&N) and lossZDet\%C(\&N) to maintain the const. C:N:P 
   if (lossZNut%N .lt. 0.0d0) then
 ! ------ compensate with unused prey components  ?
      if (mswitch%isTotIng) then  
@@ -72,7 +95,7 @@ subroutine grazing_losses(zoo,resC,Q_prey,lossZNut,lossZDet,mswitch)
      endif
      lossZNut%N  = 0.0d0
   end if 
-
+ 
   if (mswitch%isP) then ! P-relaxation
 !    lossZNut%P  = lossZNut%C * zoo%Q%P  + excess_P_graz ! includes basal excretion
     lossZNut%P   = lossZNut%C*zoo%Q%P + zoo%yield * zoo%feeding * ( Q_prey%P - zoo%Q%P ) ![mmolP m^{-3} d^{-1}] 

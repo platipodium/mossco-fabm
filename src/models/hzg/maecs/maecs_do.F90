@@ -175,6 +175,7 @@ if (self%GrazingOn) then
   zoo_respC   = self%basal_resp_zoo * sens%f_T  !  basal respiration of grazers
   nquot       = type_maecs_om(1.0_rk, phy%Q%N, phy%Q%P, phy%Q%Si )
   mswitch     = type_maecs_switch(self%PhosphorusOn,self%SiliconOn,.true. )
+                                  !isP, isSi, isTotIng
 ! --- calculates zooplankton loss rates (excretion->Nut, floppy+egestion->Det), specific to C
   call grazing_losses(zoo,zoo_respC,nquot,lossZ,floppZ, mswitch) 
 !  --- transform from specific to bulk grazing rate
