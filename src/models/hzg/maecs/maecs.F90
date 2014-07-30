@@ -220,12 +220,13 @@ logical   :: BioOxyOn     ! use oxygen from other FABM model
 logical   :: DebugDiagOn  ! output of all diagnostics
 logical   :: ChemostatOn  ! use Chemostat mode 
 logical   :: NResOn       ! use long-term N-reservoir
+integer   :: kwFzmaxMeth  ! method to describe backgorund attenuation as a function of depth
 logical   :: detritus_no_river_dilution ! use riverine det import
 logical   :: plankton_no_river_dilution ! use riverine det import
 
 namelist /maecs_switch/ &
   RubiscoOn, PhotoacclimOn, PhosphorusOn, SiliconOn, GrazingOn, BioOxyOn, &
-  DebugDiagOn, ChemostatOn, NResOn, detritus_no_river_dilution, plankton_no_river_dilution
+  DebugDiagOn, ChemostatOn, NResOn, kwFzmaxMeth,detritus_no_river_dilution, plankton_no_river_dilution
 
 namelist /maecs_init/ &
   RNit_initial, nutN_initial, nutP_initial, nutS_initial, phyC_initial, &
@@ -343,6 +344,7 @@ call self%get_parameter(self%BioOxyOn,      'BioOxyOn',      default=BioOxyOn)
 call self%get_parameter(self%DebugDiagOn,   'DebugDiagOn',   default=DebugDiagOn)
 call self%get_parameter(self%ChemostatOn,   'ChemostatOn',   default=ChemostatOn)
 call self%get_parameter(self%NResOn,        'NResOn',        default=NResOn)
+call self%get_parameter(self%kwFzmaxMeth,   'kwFzmaxMeth',   default=kwFzmaxMeth)
 call self%get_parameter(self%detritus_no_river_dilution,  'detritus_no_river_dilution',  default=detritus_no_river_dilution)
 call self%get_parameter(self%plankton_no_river_dilution,  'plankton_no_river_dilution',  default=plankton_no_river_dilution)
 
@@ -579,6 +581,7 @@ end if
 !!------- Register environmental dependencies  ------- 
 call self%register_dependency(self%id_temp,standard_variables%temperature)
 call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
+call self%register_horizontal_dependency(self%id_zmax,standard_variables%bottom_depth)
 
 ! extra line included from parser var init_incl 
 call maecs_init_stoichvars(self)
@@ -618,8 +621,8 @@ end subroutine initialize
    class(type_hzg_maecs),intent(in)          :: self 
    _DECLARE_ARGUMENTS_GET_EXTINCTION_
    
-   real(rk) :: p,d,z
-
+   real(rk) :: p,d,z,kw,zmax
+   
    ! Enter spatial loops (if any)
    _LOOP_BEGIN_
   
@@ -632,8 +635,23 @@ end subroutine initialize
     z=0.0_rk 
    end if
    
-   ! Self-shading with explicit contribution from background phytoplankton concentration.
-   _SET_EXTINCTION_(self%a_water + self%a_spm*(p+d+z))
+   if (self%kwFzmaxMeth .eq. 0) then
+     !constant bg attenuation
+     kw=self%a_water
+   else if (self%kwFzmaxMeth .eq. 1) then
+    _GET_HORIZONTAL_(self%id_zmax, zmax)  ! water temperature
+    !exponential convergence to the 10% of 'self%a_water' with depth
+    kw=self%a_water*(0.1 + 0.9*exp(-zmax/10.0))
+   else if (self%kwFzmaxMeth .eq. 2) then
+    _GET_HORIZONTAL_(self%id_zmax, zmax)  ! water temperature
+    !sigmoidal function of depth with an upper plateau (100%) at 0-10 m and a lower (10%) for 30+
+    kw=self%a_water*(0.1+0.9*(1-1/(1+exp(-zmax*0.5+10))))
+   end if
+   
+   !write (*,'(A,2(F5.2))') 'zmax,kw:',zmax,kw 
+   
+   ! Attenuation as a result of background turbidity and self-shading of phytoplankton.
+   _SET_EXTINCTION_(kw + self%a_spm*(p+d+z))
 
    ! Leave spatial loops (if any)
    _LOOP_END_
