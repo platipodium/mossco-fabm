@@ -220,7 +220,7 @@ logical   :: BioOxyOn     ! use oxygen from other FABM model
 logical   :: DebugDiagOn  ! output of all diagnostics
 logical   :: ChemostatOn  ! use Chemostat mode 
 logical   :: NResOn       ! use long-term N-reservoir
-integer   :: kwFzmaxMeth  ! method to describe backgorund attenuation as a function of depth
+integer   :: kwFzmaxMeth  ! method to describe backgorund attenuation. 0:constant,1:f(d),exponential, 2:f(d),sigmoidal 
 logical   :: detritus_no_river_dilution ! use riverine det import
 logical   :: plankton_no_river_dilution ! use riverine det import
 

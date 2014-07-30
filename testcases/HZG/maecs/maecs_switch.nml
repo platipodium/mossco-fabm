@@ -21,6 +21,10 @@
 !                  use Chemostat mode 
 ! UptakeLock     [bool]
 !                  use same allocation for all uptake systems (Smith2008)
+! NResOn = .true.[bool]
+!                  use long-term N-reservoir
+! kwFzmaxMeth = 2 [int]
+!                  method to describe backgorund attenuation. 0:constant,1:f(d),exponential, 2:f(d),sigmoidal 
 ! detritus_no_river_dilution [bool]
 !                  use riverine det import
 ! plankton_no_river_dilution [bool]
@@ -38,6 +42,8 @@
    DebugDiagOn = .true.,
    ChemostatOn = .false.,
    UptakeLock = .false.,
+   NResOn = .true., 
+   kwFzmaxMeth = 2,
    detritus_no_river_dilution=.false.,
    plankton_no_river_dilution=.true.,
 /

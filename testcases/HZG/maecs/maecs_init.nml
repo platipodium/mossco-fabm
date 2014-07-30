@@ -54,6 +54,6 @@
    domN_initial = 0.01,
    domP_initial = 0.001,
    frac_Rub_ini = 0.4,
-   frac_chl_ini = 0.034,
+   frac_chl_ini = 0.2,
 /
 
