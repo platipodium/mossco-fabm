@@ -453,7 +453,7 @@ _FABM_LOOP_BEGIN_
 !  var(2)%Cop  = 1.5 * var(2)%Cop
 !  var(2)%Temp = -0.5 + 1.15*var(2)%Temp
 
-f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 1.0d0)
+f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
 
 ! loop over boxes   1: HR  2: Offshore
  do ib = 1, numb
@@ -631,7 +631,7 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 1.0d0)
 ! physiological/starvation status affects yield (Reeve1989)
 !  numerical loop 
 !   starv    = 0.0d0
-   argA    = 0.5*(self%yield*graz(i)-mort_R)/(self%mR+1E-4)
+   argA    = (self%yield*graz(i)-mort_R)/(self%mR+1E-4)
 !  if (-argA .gt. 3) argA=-3.0d0 
    starv   = exp(-argA)!self%yield *
 !   do j = 1, 1
