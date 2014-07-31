@@ -204,6 +204,7 @@ real(rk)  :: yield_zoo    ! yield of herbivory
 real(rk)  :: basal_resp_zoo ! basal respiration
 real(rk)  :: mort_zoo     ! quadratic mortality
 !!------- Parameters from nml-list maecs_env ------- 
+real(rk)  :: a_minfr      ! min.fraction of the background attenuation coefficient that applies
 real(rk)  :: a_water      ! background attenuation coefficient
 real(rk)  :: a_spm        ! attenuation coefficient of SPM
 real(rk)  :: a_chl        ! attenuation coefficient due to Chl absorption
@@ -246,7 +247,7 @@ namelist /maecs_graz/ &
   mort_zoo
 
 namelist /maecs_env/ &
-  a_water, a_spm, a_chl, frac_PAR, small, dil
+  a_minfr,a_water, a_spm, a_chl, frac_PAR, small, dil
 
 RNit_initial = 0.0_rk             ! mmol-N/m**3
 nutN_initial = 30.0_rk            ! mmol-N/m**3
@@ -310,6 +311,7 @@ k_grazC      = 5.0_rk             ! mmolN/m**3
 yield_zoo    = 0.35_rk            ! 
 basal_resp_zoo = 0.04_rk            ! per d
 mort_zoo     = 0.035_rk           ! m**3/mmolN.d
+a_minfr      = 0.05_rk            ! 
 a_water      = 0.01_rk            ! 1/m
 a_spm        = 0.001_rk           ! m**3/m.mmolC
 a_chl        = 0.02_rk            ! m**3/m.mgChl
@@ -429,6 +431,7 @@ if (GrazingOn) then
 end if
 
 !!------- model parameters from nml-list maecs_env ------- 
+call self%get_parameter(self%a_minfr      ,'a_minfr',       default=a_minfr)
 call self%get_parameter(self%a_water      ,'a_water',       default=a_water)
 call self%get_parameter(self%a_spm        ,'a_spm',         default=a_spm)
 call self%get_parameter(self%a_chl        ,'a_chl',         default=a_chl)
@@ -621,7 +624,7 @@ end subroutine initialize
    class(type_hzg_maecs),intent(in)          :: self 
    _DECLARE_ARGUMENTS_GET_EXTINCTION_
    
-   real(rk) :: p,d,z,kw,zmax
+   real(rk) :: p,d,z,kw,zmax,atminfr
    
    ! Enter spatial loops (if any)
    _LOOP_BEGIN_
@@ -641,11 +644,11 @@ end subroutine initialize
    else if (self%kwFzmaxMeth .eq. 1) then
     _GET_HORIZONTAL_(self%id_zmax, zmax)  ! water temperature
     !exponential convergence to the 10% of 'self%a_water' with depth
-    kw=self%a_water*(0.1 + 0.9*exp(-zmax/10.0))
+    kw=self%a_water*(self%a_minfr + (1-self%a_minfr)*exp(-zmax/10.0))
    else if (self%kwFzmaxMeth .eq. 2) then
     _GET_HORIZONTAL_(self%id_zmax, zmax)  ! water temperature
     !sigmoidal function of depth with an upper plateau (100%) at 0-10 m and a lower (10%) for 30+
-    kw=self%a_water*(0.1+0.9*(1-1/(1+exp(-zmax*0.5+10))))
+    kw=self%a_water*(self%a_minfr+(1-self%a_minfr)*(1-1/(1+exp(-zmax*0.5+10))))
    end if
    
    !write (*,'(A,2(F5.2))') 'zmax,kw:',zmax,kw 

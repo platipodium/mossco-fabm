@@ -1,6 +1,8 @@
 !-------------------------------------------------------------------------------
 ! MAECS environment parameters
 !-------------------------------------------------------------------------------
+! a_minfr  [float]
+!            min.fraction of the background attenuation coefficient that applies
 ! a_water  [float, unit = 1/m]
 !            background attenuation coefficient
 ! a_spm    [float, unit = m**3/m.mmolC]
@@ -16,7 +18,8 @@
 !-------------------------------------------------------------------------------
 
 &maecs_env
-   a_water = 5.0,
+   a_minfr = 0.05,
+   a_water = 1.0,
    a_spm = 0.001,
    a_chl = 0.02,
    frac_PAR = 1.0,
