@@ -567,17 +567,17 @@ call self%register_diagnostic_variable(self%id_fac4,    'fac4','-', 'fac4', &
   output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_fac5,    'fac5','-', 'fac5', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_dPAR,    'dPAR','W/m**2', 'Photosynth. Available Radiation', &
+call self%register_diagnostic_variable(self%id_dPAR,    'dPAR','W/m**2', 'photosynthetically Available Radiation', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_phyUR,   'phyUR','1/d', 'Phyto net growth rate', &
+call self%register_diagnostic_variable(self%id_phyUR,   'phyUR','1/d', 'Phytoplankton Net Growth Rate', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_phyELR,  'phyELR','1/d', 'PhyC exudation loss rate', &
+call self%register_diagnostic_variable(self%id_phyELR,  'phyELR','1/d', 'Phytoplankton Exudation Loss Rate', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_phyALR,  'phyALR','1/d', 'PhyC aggregation loss rate', &
+call self%register_diagnostic_variable(self%id_phyALR,  'phyALR','1/d', 'Phytoplankton Aggregation Loss Rate', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_phyGLR,  'phyGLR','1/d', 'PhyC grazing loss rate', &
+call self%register_diagnostic_variable(self%id_phyGLR,  'phyGLR','1/d', 'Phytoplankton Grazing Loss Rate', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_vsinkr,  'vsinkr','-', 'Relative sinking velocity vsinkr', &
+call self%register_diagnostic_variable(self%id_vsinkr,  'vsinkr','-', 'Relative Sinking Velocity', &
   output=output_time_step_averaged)
 end if
 
