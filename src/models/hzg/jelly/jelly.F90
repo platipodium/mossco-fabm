@@ -537,7 +537,7 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
 ! TODO: refine empirical relationship using Falkenhaug1996 or Finenko2003 data 
 !  lopt = l0 + (ml*0-l0)*dlopt(sp) % optimal prey size
 !  mstd=sqrt(dl.*exp(-((ml-lmsize)./(sqrt(2)*dl)).^2));
-    lcrit     = self%l0 + (0-self%min_lvar*self%l0)*dlopt(i)
+    lcrit     = self%l0 * (1.0d0 - dlopt(i))
 !    lcrit     = self%l0
     dl        = (self%lA +lcrit - 2*self%l0)/4
 !    if (i .eq. -1) then      dl=dl*1.     endif
@@ -616,7 +616,7 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
 !   pS      = exp(-(self%l0+1.0d0-lmsize(i))**2/rS)*srS
    rS      = 1.0d0 + 3. * sigma2(i)  ! "life-span"=1 : width of life-stage dependent mortality
    srS     = 1.0d0/sqrt(rS)
-   pS      = exp(-(lavg -lmsize(i))**2/rS)*srS
+   pS      = exp(-(self%min_lvar -lmsize(i))**2/rS)*srS
    pS0     = exp(-self%l0**2/rS)*srS
  !  eS    = 0
 ! life-stage dependent mortality due to parasites
@@ -750,7 +750,7 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
      resp_dl  = sigma2(i) * mort_R * 0.5
 
 !  marginal size shift due to density dependent mortality (parasites)
-     paras_dl = -sigma2(i) * mort_P * 2* (lavg-lmsize(i))/rS 
+     paras_dl = -sigma2(i) * mort_P * 2* (self%min_lvar-lmsize(i))/rS 
 
      prod_dl  = sigma2(i) * (Prod * al1(i) + self%yield*yfac*(dlpp(i)+dg_dl(i)))
 !   if (abs(prod_dl) .gt. 1.) write (*,'(A,4(F12.5))') 'pdl=', prod_dl,sigma2(i),Prod * al1(i),self%yield*yfac*dlpp(i)
