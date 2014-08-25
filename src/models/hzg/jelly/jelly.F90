@@ -496,7 +496,6 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
    !    converts from log(µm) to log(mm) but accounts for much lower C-density  
 !    lesdr     = 0.0d0
     dal_dl    = 0.41d0 * (1.0 - dlopt(i))
-
     if (.false.) then
 ! correction to prevent unrealistic Imax-size dependency for juveniles (see Fig.4 Wirtz JPR 2013)
       argA      = lmsize(i)/lavg
@@ -516,6 +515,7 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
 ! size derivative of Imax-scaling
 !    al1(i)    = (al-3) + dlopt(i)*(2-al)
     al1(i)  = (al-3) + dlopt(i)*(2-al) + dal_dl*(1.0d0 - loptm + lesdr)
+
     if (.false.) then
       dll     = ( (1.0d0+argA)*(efp*efp+1.0d0) - (efp+efn)*(argA*efp+1.0d0))/(efp+efn)**2
       al1(i)  = al1(i)* dll
@@ -535,14 +535,17 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
 ! std of size distribution increases at large mean size and drops at very low number concentration
 !    rS        = self%min_lvar + (1.0d0-self%min_lvar)*sqrt(mass(i))/(sqrt(mass(i))+sqrt(self%sigmbc))
 ! TODO: refine empirical relationship using Falkenhaug1996 or Finenko2003 data 
+
 !  lopt = l0 + (ml*0-l0)*dlopt(sp) % optimal prey size
 !  mstd=sqrt(dl.*exp(-((ml-lmsize)./(sqrt(2)*dl)).^2));
+!    lcrit     = self%l0 + (0-self%min_lvar*self%l0)*dlopt(i)
     lcrit     = self%l0 * (1.0d0 - dlopt(i))
 !    lcrit     = self%l0
     dl        = (self%lA +lcrit - 2*self%l0)/4
 !    if (i .eq. -1) then      dl=dl*1.     endif
-
-!  dl=(lAv(sp)+lopt-2*l0)/4; lopt(i)
+!    dl        = (self%lA - self%l0)/3.1415  dl=(lAv(sp)+lopt-2*l0)/4; 
+!  lopt = l0 + (ml*0-l0)*dlopt(sp) % optimal prey size
+!  mstd=sqrt(dl.*exp(-((ml-lmsize)./(sqrt(2)*dl)).^2));
 
     sigma2(i) = self%sigma * dl * exp(-((lavg-lmsize(i))/(sqrt(2.0d0)*dl))**2)
     sig(i)    = sqrt(sigma2(i))
@@ -603,7 +606,7 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
 !    mGrz0(j)= mGrz0(j)+ mGP*exp(-((self%l0-lopt(i))**2-dl**2)/(2*sigma2(j))) ! offspring mortality
 
   ! update size gradient stores
-     dlp(j)  = dlp(j)  - 3*dl*i13sig * mGP          ! size match to prey
+     dlp(j)  = dlp(j)  - 3*dl*i13sig * mGP          ! size match to prey 
 !   if (abs(dg_dB * dB_dl) .gt. 1.) write (*,'(A,4(F12.5))') 'dlpp=',dg_dB , dB_dl ,preyE,gross
 !   if (abs(dlopt(i)* 3*dl*i13sig * dg_dB) .gt. 2.) write (*,'(A,2(I2),7(F12.5))') 'lpp=',i,j,dlpp(i),gross,dg_dB,dl,dlopt(i)* 3*dl*i13sig,lmsize(j), lopt(i)
    end do
@@ -643,7 +646,7 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
 ! physiological/starvation status affects yield (Reeve1989)
 !  numerical loop 
 !   starv    = 0.0d0
-   argA    = (self%yield*graz(i)-mort_R)/(self%mR+1E-4)
+   argA    = (self%yield*graz(i)-mort_R-0*mort_P)/(self%mR+1E-4)
 !  if (-argA .gt. 3) argA=-3.0d0 
    starv   = exp(-argA)!self%yield *
 !   do j = 1, 1
@@ -675,7 +678,6 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
 !   mort_T  = mort_T0 * (exp(-lmsize(i))+ 0.0d0)
    mort_T  = mort_T0 * (1.0d0 - exp(-(self%lA-lmsize(i))**2))
 
-   !+ exp(-self%lA*1+0.5*0.5*lmsize(i)))
 !   mort_T  = mort_T0  
 ! Dissipation ~/data/DeutscheBucht/getm/Diss_temp.eps : GETM, no winter/sturm 10^o factor ~2
 ! plot [-1:5][0.05:5] exp(-0.5*(x-0.5)),exp(-0.5*(x-0.5))+exp(-2+0.25*x)
@@ -741,7 +743,6 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
      sen_dl  = sigma2(i) * mort_S0 * eS * 2* (self%lA-lmsize(i))/rS 
 
 !  marginal size shift due to respiration and turbulence (same scaling exponent)
-
 !      turb_dl  = sigma2(i) * mort_T * 0.5
 !    turb_dl  = sigma2(i) * mort_T0 * 0.5 * (exp(self%lA*0.5-lmsize(i)*0.5)- exp(lmsize(i)*0.5))
 !    turb_dl  = sigma2(i) * mort_T0 * exp(-lmsize(i))
@@ -760,8 +761,8 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
 
 ! boundary condition of offspring production and adaptive size shift
 
-     argA     = (self%l0-lmsize(i))/(sqrt(2.d0)*sig(i))
-     min_dl   = -recruit * exp(argA**2) * sig(i) / sqrt(2.d0*3.1415)
+     argA      = (self%l0-lmsize(i))/(sqrt(2.d0)*sig(i))
+     min_dl  = -recruit * exp(argA**2) * sig(i) / sqrt(2.d0*3.1415)
      if (sum_dl .lt. min_dl ) then 
        bound_dl = min_dl-sum_dl
      else
