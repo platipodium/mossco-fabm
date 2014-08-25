@@ -381,7 +381,7 @@ end subroutine initialize
 !  type (type_environment),   intent(inout)  :: environment 
   real(rk) :: mort_S, mort_S0,mort_SJ, mort_R, mort_R0, mort_T0, mort_G
   real(rk) :: mort_J, mort_AJ, mort_P, mort_T, mort_sum, mass_sum
-  real(rk) :: errf, argA, aa, rS, pS, pS0, eS, eS0, al0,alr, yfac
+  real(rk) :: errf, argA, aa, rS, pS, eS, eS0, al0,alr, yfac
   real(rk) :: Imaxr, lesdr, efn, efp, dll,loptm
   real(rk) :: somgrwth, recruit,lco, mGBe, f_tc, starv, dal_dl, min_dl, bound_dl
   real(rk) :: prod_dl, sum_dl, resp_dl,paras_dl, turb_dl
@@ -620,8 +620,6 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
    rS      = 1.0d0 + 3. * sigma2(i)  ! "life-span"=1 : width of life-stage dependent mortality
    srS     = 1.0d0/sqrt(rS)
    pS      = exp(-(self%min_lvar -lmsize(i))**2/rS)*srS
-   pS0     = exp(-self%l0**2/rS)*srS
- !  eS    = 0
 ! life-stage dependent mortality due to parasites
 !   mort_P  = self%mP * pS * (mass(1)+mass(2)+fLc*mass(3)) * var(ib)%B_Det* Temp_dep(i) 
    mort_P  = self%mP * pS * (mass(i)+fLc*mass(3)) * var(ib)%B_Det* Temp_dep(i) 
@@ -636,9 +634,7 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
 ! ----------  mortalities  -------------------
 !
 ! integration result with Gaussian size distribution (cf. effective prey biomass)
-   eS      = exp(-(self%lA-lmsize(i))**2/rS)*srS !lcrit self%lAlavg
-   eS0     = exp(-(self%lA-self%l0)**2/rS)*srS  
- !  eS    = 0
+   eS      = exp(-((self%lA-lmsize(i))**2)/rS)*srS !lcrit self%lAlavg
 
 !  how far way are juveniles from maturity? 
 !       physiological/starvation mortality 
@@ -676,7 +672,8 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
 !   mort_T  = mort_T0 * exp((lavg-lmsize(i))*0.5) 
 !   mort_T  = mort_T0 * (exp(self%lA*0.5-lmsize(i)*0.5)+ exp(lmsize(i)*0.5))
 !   mort_T  = mort_T0 * (exp(-lmsize(i))+ 0.0d0)
-   mort_T  = mort_T0 * (1.0d0 - exp(-(self%lA-lmsize(i))**2))
+   eS0     = exp(-((self%lA-lmsize(i))**2)/rS)
+   mort_T  = mort_T0 * (1.0d0 - eS0)
 
 !   mort_T  = mort_T0  
 ! Dissipation ~/data/DeutscheBucht/getm/Diss_temp.eps : GETM, no winter/sturm 10^o factor ~2
@@ -711,8 +708,6 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
    if(somgrwth .lt. 0.0d0 .and. lmsize(i) .lt. lavg ) somgrwth = 0.0d0 !exception: small organsisms; TODO: release?
 
 ! offspring mortality and long-term consequences; TODO: include realisic lag
-!   mort_J  = mGrz0(i) + mort_S0*(1.0d0-eS0) + mort_R0!+ self%mP *mass(i)*pS0 !+ 0*mort_R0
-
 ! vulnerability proportional to stage duration (~ inverse temperature; food already in mort_S0 )
 !   argA    = (mort_J-recruit)/self%mR
 !   if (argA .gt. 10) argA = 10.0  ! to prevent numerical overflow 
@@ -746,12 +741,12 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
 !      turb_dl  = sigma2(i) * mort_T * 0.5
 !    turb_dl  = sigma2(i) * mort_T0 * 0.5 * (exp(self%lA*0.5-lmsize(i)*0.5)- exp(lmsize(i)*0.5))
 !    turb_dl  = sigma2(i) * mort_T0 * exp(-lmsize(i))
-     turb_dl  = sigma2(i) * mort_T0 * (self%lA-lmsize(i))
+     turb_dl  = sigma2(i) * mort_T0 * eS0* 2* (self%lA-lmsize(i))/rS
 !   mort_T  = mort_T0 * (exp((self%lA-lmsize(i))*0.5)+ exp(lmsize(i)*0.5))
      resp_dl  = sigma2(i) * mort_R * 0.5
 
 !  marginal size shift due to density dependent mortality (parasites)
-     paras_dl = -sigma2(i) * mort_P * 2* (self%min_lvar-lmsize(i))/rS 
+     paras_dl = -sigma2(i) * mort_P * 2 * (self%min_lvar-lmsize(i))/rS 
 
      prod_dl  = sigma2(i) * (Prod * al1(i) + self%yield*yfac*(dlpp(i)+dg_dl(i)))
 !   if (abs(prod_dl) .gt. 1.) write (*,'(A,4(F12.5))') 'pdl=', prod_dl,sigma2(i),Prod * al1(i),self%yield*yfac*dlpp(i)
