@@ -574,9 +574,10 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
      dl      = lmsize(j) - lopt(i)     ! size match to prey
      dl2     = 1.5d0*dl**2             ! feeding kernel argument, assumes "neutral" selectivity s=3/2
      preyc(j)= prey_effc(dl2)  ! effective prey mass after integration over selection kernel
-     preyE   = preyc(j)* mass(j) ! effective prey mass after integration over selection kernel
 !     preyE   = prey_eff(dl2,mass(j) )  
-     if (i.eq.1 .and. j.eq.-1 ) preyE = preyE * exp(1*(self%l0-lopt(i))/sig(i)) ! reduce cannibalism in Beroe (Hosia2011)     
+!     if (i.eq.1 .and. j.eq.1 ) preyc(j)= preyc(j)*  exp(1*(self%l0-lopt(i))/sig(i)) ! reduce cannibalism in Beroe (Hosia2011)     
+!     if (i.eq.1 .and. j.eq.1 ) preyc(j)= preyc(j)* 0.5 ! reduce cannibalism in Beroe (Hosia2011)     
+     preyE   = preyc(j)* mass(j) ! effective prey mass after integration over selection kernel
      preyT   = preyT + preyE  ! effective prey mass after integration over selection kernel
    end do
 
