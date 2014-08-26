@@ -453,7 +453,7 @@ _FABM_LOOP_BEGIN_
 !  var(2)%Cop  = 1.5 * var(2)%Cop
 !  var(2)%Temp = -0.5 + 1.15*var(2)%Temp
 
-f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
+! f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
 
 ! loop over boxes   1: HR  2: Offshore
  do ib = 1, numb
@@ -484,8 +484,6 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
 ! optimum size/stage with minimal life-stage dependent mortality 
   lavg    = 0.5*(self%lA + self%l0) ! 0.4
 !  loop over ctenophore populations:  1: Beroe 2: Ppileus 
-! fraction of large "meso"zooplakton as suitable parasite host 
-  fLc       = exp(-(self%rlcop_p*lavg-lmsize(3))**2/(2*sigma2(3)))
 
   do i = 1, 2
     relDens(i)= self%relCVDens
@@ -496,7 +494,7 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
    !    converts from log(µm) to log(mm) but accounts for much lower C-density  
 !    lesdr     = 0.0d0
     dal_dl    = 0.41d0 * (1.0 - dlopt(i))
-    if (.false.) then
+    if (.true.) then
 ! correction to prevent unrealistic Imax-size dependency for juveniles (see Fig.4 Wirtz JPR 2013)
       argA      = lmsize(i)/lavg
       efp       = exp(argA)
@@ -516,7 +514,7 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
 !    al1(i)    = (al-3) + dlopt(i)*(2-al)
     al1(i)  = (al-3) + dlopt(i)*(2-al) + dal_dl*(1.0d0 - loptm + lesdr)
 
-    if (.false.) then
+    if (.true.) then
       dll     = ( (1.0d0+argA)*(efp*efp+1.0d0) - (efp+efn)*(argA*efp+1.0d0))/(efp+efn)**2
       al1(i)  = al1(i)* dll
     endif
@@ -570,7 +568,7 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
 !  loop over (ctenophore) predators
   do i = 1, 2
 !  loop over prey populations:  1: Beroe 2: Ppileus 3: Cops
-
+   dB_dl   = 0.0d0
    preyT   = 0.0d0
    do j = 1, 1+i  ! calc total available prey biomass first
      i13sig  = 1.0d0/(1.0d0 + 3*sigma2(j))     ! 
@@ -582,6 +580,7 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
 !     if (i.eq.1 .and. j.eq.1 ) preyc(j)= preyc(j)* 0.5 ! reduce cannibalism in Beroe (Hosia2011)     
      preyE   = preyc(j)* mass(j) ! effective prey mass after integration over selection kernel
      preyT   = preyT + preyE  ! effective prey mass after integration over selection kernel
+     dB_dl   = dB_dl + preyE * dlopt(i)* 3*dl*i13sig   ! derivative of prey-mass with respect to consumer size (through optimal prey size dependency)
    end do
 
 
@@ -593,11 +592,9 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
 !   graz(i) = graz(i) + gross
    graz(i) = gross  
    ratf    = preyT/bcrit
-   dg_dB   = gross/((exp(ratf)-0.95d0)*bcrit) ! derivative with respect to prey biomass
-   dB_dl   = dlopt(i)* 3*dl*i13sig *preyT  ! derivative of prey-mass with respect to consumer size (through optimal prey size dependency)
-
-   dlpp(i) = dg_dB * dB_dl  
-   dg_dl(i)= -(al1(i)-0.5d0)* Temp_dep(i)*Imax(i)*ratf* exp(-ratf) ! derivative through half-saturation
+   argA    = Temp_dep(i)*Imax(i)* exp(-ratf)
+   dlpp(i) = dB_dl * argA /bcrit
+   dg_dl(i)= -(al1(i)-0.5d0)*ratf * argA  ! derivative through half-saturation
 
    do j = 1, 1+i  ! calc total available prey biomass first
 
@@ -619,12 +616,12 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
 !   pS      = exp(-(self%l0+1.0d0-lmsize(i))**2/rS)*srS
    rS      = 1.0d0 + 3. * sigma2(i)  ! "life-span"=1 : width of life-stage dependent mortality
    srS     = 1.0d0/sqrt(rS)
-   pS      = exp(-(self%min_lvar -lmsize(i))**2/rS)*srS
+   pS      = exp(-1*(self%min_lvar -lmsize(i))**2/rS)*srS
 ! life-stage dependent mortality due to parasites
 !   mort_P  = self%mP * pS * (mass(1)+mass(2)+fLc*mass(3)) * var(ib)%B_Det* Temp_dep(i) 
-   mort_P  = self%mP * pS * (mass(i)+fLc*mass(3)) * var(ib)%B_Det* Temp_dep(i) 
-
-!   if (i .eq. 1 .and. mort_P .gt. 0.05d0) mort_P = 0.05d0
+! fraction of large "meso"zooplakton as suitable parasite host 
+   fLc     = exp(-(self%rlcop_p*(self%min_lvar+lopt(i))-lmsize(3))**2/(2*sigma2(3)))
+   mort_P  = self%mP * (1.0d0+pS) * (mass(i)+fLc*mass(3)) * var(ib)%B_Det* Temp_dep(i) 
 
 ! temperature dependent losses, with surface-to-volume scaling
    mort_R  = self%mR * Temp_dep(i) * exp(0.5*(self%lA-lmsize(i)))! lcrit*(1.0 + fS)
@@ -650,7 +647,7 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
    yfac    = 1.0d0/(1.0d0+0*starv)
    Prod    = self%yield * yfac * graz(i)
 ! life-stage dependent mortality 
-   argA   = (Prod-mort_R-0*mort_P)/(5*self%mR+1e-4)
+   argA   = (Prod-mort_R-0*mort_P)/(15*self%mR+1e-4)
 !    argA   = (Prod-mort_R)/(self%mR+1E-4)
 !    if (abs(starv) .gt. 24.) write (*,'(A,1(I2),5(F12.3))') 'starv=',j,starv,Prod,yfac,mort_R,mort_P
 !   end do
@@ -661,18 +658,14 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
 !    if (abs(mort_S) .gt. 13.5) write (*,'(A,1(I2),4(F12.4))') 'mS=',i,mort_S,mort_S0,eS,starv
 
 ! physical damage (turbulence); can be avoided by active swimming
-!   mort_T0 = mT0 * exp(-var(ib)%Temp/self%T_turb) /(Temp_dep(i) +f_tc) 
-!   mort_T0 = mT0 /(1.0d0+starv) / (Temp_dep(i) + 1.0)
-
- !  mort_T0 = mT0/((1.0d0+exp(argA)) * (Temp_dep(i) +f_tc))
+!  mort_T0 = mT0/((1.0d0+exp(argA)) * (Temp_dep(i) +f_tc))
 !   mort_T0 = mT0 * exp(0.5 - Temp_dep(i))
    mort_T0 = mT0 * starv 
 !   mort_T0 = mT0
    mort_T0 = mort_T0 * (var(ib)%Wind/6.25d0)**self%W_turb_exp  ! long-term mean 6.25m/s
 !   mort_T  = mort_T0 * exp((lavg-lmsize(i))*0.5) 
 !   mort_T  = mort_T0 * (exp(self%lA*0.5-lmsize(i)*0.5)+ exp(lmsize(i)*0.5))
-!   mort_T  = mort_T0 * (exp(-lmsize(i))+ 0.0d0)
-   eS0     = exp(-((self%lA-lmsize(i))**2)/rS)
+   eS0     = exp(-1*((self%lA-lmsize(i))**2)/rS)
    mort_T  = mort_T0 * (1.0d0 - eS0)
 
 !   mort_T  = mort_T0  
@@ -746,7 +739,7 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
      resp_dl  = sigma2(i) * mort_R * 0.5
 
 !  marginal size shift due to density dependent mortality (parasites)
-     paras_dl = -sigma2(i) * mort_P * 2 * (self%min_lvar-lmsize(i))/rS 
+     paras_dl = -sigma2(i) * mort_P * pS/(1.0d0+pS)* 2 * (self%min_lvar-lmsize(i))/rS 
 
      prod_dl  = sigma2(i) * (Prod * al1(i) + self%yield*yfac*(dlpp(i)+dg_dl(i)))
 !   if (abs(prod_dl) .gt. 1.) write (*,'(A,4(F12.5))') 'pdl=', prod_dl,sigma2(i),Prod * al1(i),self%yield*yfac*dlpp(i)
@@ -756,7 +749,7 @@ f_tc  = 1.0d0/(exp(-(self%TempC_0-20.0d0)*0.1*log(self%Q10)) + 0.0d0)
 
 ! boundary condition of offspring production and adaptive size shift
 
-     argA      = (self%l0-lmsize(i))/(sqrt(2.d0)*sig(i))
+     argA    = (self%l0-lmsize(i))/(sqrt(2.d0)*sig(i))
      min_dl  = -recruit * exp(argA**2) * sig(i) / sqrt(2.d0*3.1415)
      if (sum_dl .lt. min_dl ) then 
        bound_dl = min_dl-sum_dl
