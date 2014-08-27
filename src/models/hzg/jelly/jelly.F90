@@ -388,7 +388,7 @@ end subroutine initialize
   real(rk) :: graz_dl, som_dl, init_dl, sen_dl
   real(rk), dimension(2,numb) :: dConc,dTrait
   real(rk), dimension(3) :: Imax, al1, dlopt,lopt, graz,Temp_dep, Temp_dep0, preyc, dg_dl
-  real(rk), dimension(3) :: mGrz, mGrz0, sig, sigma2, lmsize, dlp,dlpp, mass, relDens
+  real(rk), dimension(3) :: mGrz, mGrz0, sig, sigma2, lmsize, dlp,dlpp, mass, relDens,loptA
   real(rk) :: dl0, dl, dl2, bcrit, prey, preyE, preyT, mGP, fLc, aS=2.0
   real(rk) :: fR, fA, dfA_dl, lm_adult, al, lprey, lcrit, lavg
   real(rk) :: gross, Prod, dg_dB, dB_dl, dg_dlY, srS, mS0, mT0, ratf
@@ -489,6 +489,7 @@ _FABM_LOOP_BEGIN_
     relDens(i)= self%relCVDens
     lco       = log(1E3/self%relCVDens)
     lopt(i)   = self%l0 + (lmsize(i)-self%l0)*dlopt(i) ! optimal prey size
+    loptA(i)   = self%l0 + (self%lA-self%l0)*dlopt(i) ! optimal prey size
 ! potential maximum ingestion rate depending on size, T, and feeding mode
    ! re-gauge log size to µm-scale used in Wirtz JPR,2012     log(1E3/80)=2.5
    !    converts from log(µm) to log(mm) but accounts for much lower C-density  
@@ -620,7 +621,7 @@ _FABM_LOOP_BEGIN_
 ! life-stage dependent mortality due to parasites
 !   mort_P  = self%mP * pS * (mass(1)+mass(2)+fLc*mass(3)) * var(ib)%B_Det* Temp_dep(i) 
 ! fraction of large "meso"zooplakton as suitable parasite host 
-   fLc     = exp(-(self%rlcop_p*(self%min_lvar+lopt(i))-lmsize(3))**2/(2*sigma2(3)))
+   fLc     = exp(-(self%rlcop_p*(self%min_lvar+loptA(i))-lmsize(3))**2/(2*sigma2(3)))
    mort_P  = self%mP * (1.0d0+pS) * (mass(i)+fLc*mass(3)) * var(ib)%B_Det* Temp_dep(i) 
 
 ! temperature dependent losses, with surface-to-volume scaling
