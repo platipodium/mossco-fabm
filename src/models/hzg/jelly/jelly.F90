@@ -578,7 +578,7 @@ _FABM_LOOP_BEGIN_
      preyc(j)= prey_effc(dl2)  ! effective prey mass after integration over selection kernel
 !     preyE   = prey_eff(dl2,mass(j) )  
 !     if (i.eq.1 .and. j.eq.1 ) preyc(j)= preyc(j)*  exp(1*(self%l0-lopt(i))/sig(i)) ! reduce cannibalism in Beroe (Hosia2011)     
-!     if (i.eq.1 .and. j.eq.1 ) preyc(j)= preyc(j)* 0.5 ! reduce cannibalism in Beroe (Hosia2011)     
+!     if (i.eq.1 .and. j.eq.1 ) preyc(j)= preyc(j)* 0. ! reduce cannibalism in Beroe (Hosia2011)     
      preyE   = preyc(j)* mass(j) ! effective prey mass after integration over selection kernel
      preyT   = preyT + preyE  ! effective prey mass after integration over selection kernel
      dB_dl   = dB_dl + preyE * dlopt(i)* 3*dl*i13sig   ! derivative of prey-mass with respect to consumer size (through optimal prey size dependency)
@@ -613,50 +613,53 @@ _FABM_LOOP_BEGIN_
 !  loop over dynamic ctenophore populations 
   do i = 1, 2
 
-! mortality due to parasites maximal at newly hetched larvae (Hirota1974 ,Greve)
-!   pS      = exp(-(self%l0+1.0d0-lmsize(i))**2/rS)*srS
-   rS      = 1.0d0 + 3. * sigma2(i)  ! "life-span"=1 : width of life-stage dependent mortality
-   srS     = 1.0d0/sqrt(rS)
-   pS      = exp(-1*(self%min_lvar -lmsize(i))**2/rS)*srS
-! life-stage dependent mortality due to parasites
-!   mort_P  = self%mP * pS * (mass(1)+mass(2)+fLc*mass(3)) * var(ib)%B_Det* Temp_dep(i) 
-! fraction of large "meso"zooplakton as suitable parasite host 
-   fLc     = exp(-(self%rlcop_p*(self%min_lvar+loptA(i))-lmsize(3))**2/(2*sigma2(3)))
-   mort_P  = self%mP * (1.0d0+pS) * (mass(i)+fLc*mass(3)) * var(ib)%B_Det* Temp_dep(i) 
-
-! temperature dependent losses, with surface-to-volume scaling
-   mort_R  = self%mR * Temp_dep(i) * exp(0.5*(self%lA-lmsize(i)))! lcrit*(1.0 + fS)
-   mort_R0 = self%mR * Temp_dep(i) * exp(0.5*(self%lA-self%l0))! *(1.0 + fS)
-
 !
 ! ----------  mortalities  -------------------
 !
 ! integration result with Gaussian size distribution (cf. effective prey biomass)
    eS      = exp(-((self%lA-lmsize(i))**2)/rS)*srS !lcrit self%lAlavg
 
-!  how far way are juveniles from maturity? 
+!  how far way are juveniles from maturity?
 !       physiological/starvation mortality 
-
 ! physiological/starvation status affects yield (Reeve1989)
 !  numerical loop 
 !   starv    = 0.0d0
-   argA    = (self%yield*graz(i)-mort_R-0*mort_P)/(self%mR+1E-4)
+!   argA    = (self%yield*graz(i)-mort_R)/(0*self%mR+1.0d0)
 !  if (-argA .gt. 3) argA=-3.0d0 
    starv   = exp(-argA)!self%yield *
-!   do j = 1, 1
 ! secondary production  
-   yfac    = 1.0d0/(1.0d0+0*starv)
+!   yfac    = 1.0d0/(1.0d0+0*starv)
+   yfac    = 1.0d0
    Prod    = self%yield * yfac * graz(i)
 ! life-stage dependent mortality 
-   argA   = (Prod-mort_R-0*mort_P)/(15*self%mR+1e-4)
+   argA   = (Prod-mort_R)/(1.0d0+0*self%mR+1e-4)
 !    argA   = (Prod-mort_R)/(self%mR+1E-4)
-!    if (abs(starv) .gt. 24.) write (*,'(A,1(I2),5(F12.3))') 'starv=',j,starv,Prod,yfac,mort_R,mort_P
-!   end do
    starv   = exp(-argA)!self%yield *
 
    mort_S0 = mS0 *starv 
    mort_S  = mort_S0 * (1.0d0-eS)
 !    if (abs(mort_S) .gt. 13.5) write (*,'(A,1(I2),4(F12.4))') 'mS=',i,mort_S,mort_S0,eS,starv
+
+! mortality due to parasites maximal at newly hetched larvae (Hirota1974 ,Greve)
+!   pS      = exp(-(self%l0+1.0d0-lmsize(i))**2/rS)*srS
+   rS      = 1.0d0 + 3. * sigma2(i)  ! "life-span"=1 : width of life-stage dependent mortality
+   srS     = 1.0d0/sqrt(rS)
+   pS      = exp(-(self%min_lvar -lmsize(i))**2/rS)*srS
+! life-stage dependent mortality due to parasites
+!   mort_P  = self%mP * pS * (mass(1)+mass(2)+fLc*mass(3)) * var(ib)%B_Det* Temp_dep(i) 
+! fraction of large "meso"zooplakton as suitable parasite host 
+!   fLc     = exp(-1.*(self%rlcop_p*(self%lA+1.5*loptA(i))-lmsize(3))**2/(2*sigma2(3)))
+   fLc     = exp(-(loptA(i)-lmsize(3))**2/(1*sigma2(3)))
+   fLc     = fLc* exp(-(self%lA-lmsize(3))**2/rS)
+!   fLc     = exp(-(loptA(i)-lmsize(3))**2/(2*sigma2(3)))self%min_lvar
+!   fLc     = fLc* exp(-(0.5-lmsize(3))**2/(2*sigma2(3)))
+   fLc     = fLc* Temp_dep(3)!*mass(i)**0.5d0
+   f_tc    = mass(i)/(mass(i)+0.1d0)
+   mort_P  = self%mP * (starv+0*f_tc+pS) *(mass(i)+fLc*(mass(3)+fLc*var(ib)%B_Det)) * var(ib)%B_Det* Temp_dep(i) 
+
+! temperature dependent losses, with surface-to-volume scaling
+   mort_R  = self%mR * Temp_dep(i) * exp(-0.5*(lmsize(i)-lavg))
+!   mort_R  = self%mR * Temp_dep(i) * exp(0.5*(self%lA-lmsize(i)))! lcrit*(1.0 + fS)
 
 ! physical damage (turbulence); can be avoided by active swimming
 !  mort_T0 = mT0/((1.0d0+exp(argA)) * (Temp_dep(i) +f_tc))
@@ -666,9 +669,9 @@ _FABM_LOOP_BEGIN_
    mort_T0 = mort_T0 * (var(ib)%Wind/6.25d0)**self%W_turb_exp  ! long-term mean 6.25m/s
 !   mort_T  = mort_T0 * exp((lavg-lmsize(i))*0.5) 
 !   mort_T  = mort_T0 * (exp(self%lA*0.5-lmsize(i)*0.5)+ exp(lmsize(i)*0.5))
-   eS0     = exp(-1*((self%lA-lmsize(i))**2)/rS)
-   mort_T  = mort_T0 * (1.0d0 - eS0)
-
+   eS0     = exp(-((self%lA-lmsize(i))**2)/rS)
+   mort_T0 = mort_T0 * (1.0d0 + starv) * exp(-2*dlopt(i)) 
+   mort_T  = mort_T0 * (1.0d0 - eS0) 
 !   mort_T  = mort_T0  
 ! Dissipation ~/data/DeutscheBucht/getm/Diss_temp.eps : GETM, no winter/sturm 10^o factor ~2
 ! plot [-1:5][0.05:5] exp(-0.5*(x-0.5)),exp(-0.5*(x-0.5))+exp(-2+0.25*x)
@@ -735,12 +738,12 @@ _FABM_LOOP_BEGIN_
 !      turb_dl  = sigma2(i) * mort_T * 0.5
 !    turb_dl  = sigma2(i) * mort_T0 * 0.5 * (exp(self%lA*0.5-lmsize(i)*0.5)- exp(lmsize(i)*0.5))
 !    turb_dl  = sigma2(i) * mort_T0 * exp(-lmsize(i))
-     turb_dl  = sigma2(i) * mort_T0 * eS0* 2* (self%lA-lmsize(i))/rS
+     turb_dl  = sigma2(i) * mort_T0 * eS0 *2* (self%lA-lmsize(i))/rS
 !   mort_T  = mort_T0 * (exp((self%lA-lmsize(i))*0.5)+ exp(lmsize(i)*0.5))
      resp_dl  = sigma2(i) * mort_R * 0.5
 
 !  marginal size shift due to density dependent mortality (parasites)
-     paras_dl = -sigma2(i) * mort_P * pS/(1.0d0+pS)* 2 * (self%min_lvar-lmsize(i))/rS 
+     paras_dl = -sigma2(i) * mort_P * pS/(f_tc+pS+starv)* 2 * (self%min_lvar-lmsize(i))/rS 
 
      prod_dl  = sigma2(i) * (Prod * al1(i) + self%yield*yfac*(dlpp(i)+dg_dl(i)))
 !   if (abs(prod_dl) .gt. 1.) write (*,'(A,4(F12.5))') 'pdl=', prod_dl,sigma2(i),Prod * al1(i),self%yield*yfac*dlpp(i)
@@ -788,6 +791,8 @@ _FABM_LOOP_BEGIN_
   _SET_DIAGNOSTIC_(self%id_Mort_Be, mort_sum)               !step_integrated mortality rate of Beroe
   _SET_DIAGNOSTIC_(self%id_fA_Be, fA)                       !step_integrated relative propotion adults Beroe
   _SET_DIAGNOSTIC_(self%id_Imax_Be, Imax(1))                !step_integrated maximum ingestion rate adult Beroe
+  _SET_DIAGNOSTIC_(self%id_al_Im, fLc)                   !al1(ib)step_integrated size scaling expoentent Imax 
+
     endif
 
    else  !  P.Pileus
@@ -822,10 +827,6 @@ _FABM_LOOP_BEGIN_
   _SET_DIAGNOSTIC_(self%id_mort_T, mort_T)                !step_integrated damaging effect of turbulence 
   _SET_DIAGNOSTIC_(self%id_somgrowth, somgrwth)             !step_integrated somatic growth rate 
   _SET_DIAGNOSTIC_(self%id_recruit, preyc(3))                !recruitstep_integrated egg production rate 
-! 
-
-
-  _SET_DIAGNOSTIC_(self%id_al_Im, ratf)                   !al1(ib)step_integrated size scaling expoentent Imax 
   _SET_DIAGNOSTIC_(self%id_mixBmass,starv)            !step_integrated mass exchange rate Coast-HR-Offshore (var(ib)%Wind/6.25d0)**self%W_turb_exp
   _SET_DIAGNOSTIC_(self%id_mixlsize, mass(3))           !dTrait(2,1)step_integrated trait exchange rate Coast-HR-Offshore
   _SET_DIAGNOSTIC_(self%id_Tdep, Temp_dep(i))                  !step_integrated Temperature dependence
@@ -840,7 +841,7 @@ _FABM_LOOP_BEGIN_
 ! most simple detritus pool turnover dynamics 
 !  rhsv%B_Det=  self%mS * mass_sum - self%rDet * Temp_dep(3) * var(ib)%B_Det
 !  if (mass_sum .gt. 200.0d0) mass_sum = 200.0d0
-  rhsv%B_Det=   self%rDet * (mass_sum - Temp_dep(1) * var(ib)%B_Det)  ! 0.4444 mean of f_T 1962-2002 for Q10=2.5
+  rhsv%B_Det=   self%rDet * (mass_sum - 0.5*Temp_dep(1) * var(ib)%B_Det)  ! 0.4444 mean of f_T 1962-2002 for Q10=2.5
 ! ------------------------------------------------------------------------------
 !#S_ODE
 !---------- ODE for each state variable ----------
