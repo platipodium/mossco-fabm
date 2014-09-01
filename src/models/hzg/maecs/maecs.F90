@@ -642,11 +642,11 @@ end subroutine initialize
      !constant bg attenuation
      kw=self%a_water
    else if (self%kwFzmaxMeth .eq. 1) then
-    _GET_HORIZONTAL_(self%id_zmax, zmax)  ! water temperature
+    _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
     !exponential convergence to the 10% of 'self%a_water' with depth
     kw=self%a_water*(self%a_minfr + (1-self%a_minfr)*exp(-zmax/10.0))
    else if (self%kwFzmaxMeth .eq. 2) then
-    _GET_HORIZONTAL_(self%id_zmax, zmax)  ! water temperature
+    _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
     !sigmoidal function of depth with an upper plateau (100%) at 0-10 m and a lower (10%) for 30+
     kw=self%a_water*(self%a_minfr+(1-self%a_minfr)*(1-1/(1+exp(-zmax*0.5+10))))
    end if
