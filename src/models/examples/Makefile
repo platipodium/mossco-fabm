@@ -10,6 +10,8 @@ SUBDIRS += benthic_predator
 BENTHIC_PREDATOR = ${LIBFABM}(benthic_predator.o)
 
 SUBDIRS += duplicator
+DUPLICATOR = ${LIBFABM}(duplicator.o)
+
 SUBDIRS += mean
 MEAN = ${LIBFABM}(mean.o)
 
