@@ -10,7 +10,7 @@ module fabm_properties
 
    private
 
-   public type_property,type_property_dictionary,type_set
+   public type_property,type_property_dictionary,type_set,type_hierarchical_dictionary
    public type_integer_property,type_real_property,type_logical_property,type_string_property
 
    integer, parameter :: rk = _FABM_REAL_KIND_
@@ -20,11 +20,12 @@ module fabm_properties
    integer, parameter :: typecode_unknown = -1, typecode_real = 1, typecode_integer = 2, typecode_logical = 3, typecode_string = 4
 
    type,abstract :: type_property
-      character(len=metadata_string_length) :: name       = ''
-      character(len=metadata_string_length) :: long_name  = ''
-      character(len=metadata_string_length) :: units      = ''
-      logical                               :: accessed   = .false.
-      class (type_property), pointer        :: next       => null()
+      character(len=metadata_string_length) :: name        = ''
+      character(len=metadata_string_length) :: long_name   = ''
+      character(len=metadata_string_length) :: units       = ''
+      character(len=metadata_string_length) :: key         = ''      ! name wih normalized case
+      logical                               :: has_default = .false.
+      class (type_property), pointer        :: next        => null()
    contains
       procedure :: typecode
       procedure :: to_real
@@ -35,18 +36,22 @@ module fabm_properties
 
    type,extends(type_property) :: type_integer_property
       integer :: value
+      integer :: default = 0
    end type
 
    type,extends(type_property) :: type_real_property
       real(rk) :: value
+      real(rk) :: default = 0.0_rk
    end type
 
    type,extends(type_property) :: type_logical_property
       logical :: value
+      logical :: default = .true.
    end type
 
    type,extends(type_property) :: type_string_property
       character(len=value_string_length) :: value
+      character(len=value_string_length) :: default= ''
    end type
 
    type type_property_dictionary
@@ -60,13 +65,17 @@ module fabm_properties
       procedure :: set_logical
       procedure :: set_string
 
-      procedure :: get_property
+      procedure :: get_property_by_name
+      procedure :: get_property_by_index
+      generic   :: get_property => get_property_by_name,get_property_by_index
       procedure :: get_real
       procedure :: get_integer
       procedure :: get_logical
       procedure :: get_string
 
-      procedure :: delete => delete_property
+      procedure :: delete_by_name
+      procedure :: delete_by_index
+      generic   :: delete => delete_by_name, delete_by_index
 
       procedure :: update
 
@@ -74,8 +83,6 @@ module fabm_properties
       procedure :: keys
 
       procedure :: compare_keys
-
-      procedure :: reset_accessed
    end type
 
    type type_set_element
@@ -88,9 +95,21 @@ module fabm_properties
    contains
       procedure :: contains => set_contains
       procedure :: add      => set_add
+      procedure :: discard  => set_discard
       procedure :: size     => set_size
       procedure :: to_array => set_to_array
       procedure :: finalize => set_finalize
+   end type
+
+   type,extends(type_property_dictionary) :: type_hierarchical_dictionary
+      type (type_set)                               :: retrieved
+      type (type_set)                               :: missing
+      character(len=metadata_string_length)         :: name = ''
+      class (type_hierarchical_dictionary), pointer :: parent => null()
+   contains
+      procedure :: find_in_tree => hierarchical_dictionary_find_in_tree
+      procedure :: set_in_tree  => hierarchical_dictionary_set_in_tree
+      procedure :: add_child    => hierarchical_dictionary_add_child
    end type
 
 contains
@@ -225,45 +244,53 @@ contains
       class (type_property),           intent(in)    :: property
       logical,optional,                intent(in)    :: overwrite
 
-      class (type_property),pointer                  :: current,next
+      class (type_property),pointer                  :: current,previous
       logical                                        :: overwrite_eff
+      character(len=metadata_string_length)          :: key
 
       overwrite_eff = .true.
       if (present(overwrite)) overwrite_eff = overwrite
 
-      nullify(next)
+      key = string_lower(property%name)
+
+      ! First determine if a property with this name already exists (if so, delete it)
+      nullify(previous)
+      current => dictionary%first
+      do while (associated(current))
+         if (current%key==key) then
+            ! We found a property with the specified name - if we are not allowed to oevrwrite it, we're done.
+            if (.not.overwrite_eff) return
+
+            ! We are allowed to overwrite the existing property. Remove it from the list and deallocate it.
+            if (associated(previous)) then
+               ! Second or further down the list.
+               previous%next => current%next
+            else
+               ! First in the list.
+               dictionary%first => current%next
+            end if
+            deallocate(current)
+            exit
+         end if
+         previous => current
+         current => previous%next
+      end do
+
       if (.not.associated(dictionary%first)) then
          ! First property in list
          allocate(dictionary%first,source=property)
          current => dictionary%first
       else
-         ! List already contains one or more properties.
-         if (dictionary%compare_keys(dictionary%first%name,property%name)) then
-            ! The provided property replaces the head of the list.
-            if (.not.overwrite_eff) return
-            next => dictionary%first%next
-            deallocate(dictionary%first)
-            allocate(dictionary%first,source=property)
-            current => dictionary%first
-         else
-            ! Look for last element in list, or the one prior to the element with the same name.
-            current => dictionary%first
-            do while (associated(current%next))
-               if (dictionary%compare_keys(current%next%name,property%name)) exit
-               current => current%next
-            end do
-            if (associated(current%next)) then
-               ! We are replacing current%next
-               if (.not.overwrite_eff) return
-               next => current%next%next
-               deallocate(current%next)
-            end if
-            allocate(current%next,source=property)
+         ! Look for last element in list.
+         current => dictionary%first
+         do while (associated(current%next))
             current => current%next
-         end if
+         end do
+         allocate(current%next,source=property)
+         current => current%next
       end if
-      current%accessed = .true.
-      current%next => next
+      current%key = key
+      nullify(current%next)
    end subroutine
 
    subroutine update(target,source,overwrite)
@@ -307,17 +334,31 @@ contains
       call dictionary%set_property(type_string_property(name=name,value=value))
    end subroutine
 
-   function get_property(dictionary,name) result(property)
+   function get_property_by_name(dictionary,name) result(property)
       class (type_property_dictionary),intent(inout) :: dictionary
       character(len=*),                intent(in)    :: name
       class (type_property),pointer                  :: property
 
+      character(len=len(name))                       :: key
+
+      key = string_lower(name)
       property => dictionary%first
       do while (associated(property))
-         if (dictionary%compare_keys(property%name,name)) then
-            property%accessed = .true.
-            return
-         end if
+         if (property%key==key) return
+         property => property%next
+      end do
+   end function
+
+   function get_property_by_index(dictionary,index) result(property)
+      class (type_property_dictionary),intent(inout) :: dictionary
+      integer,                         intent(in)    :: index
+      class (type_property),pointer                  :: property
+
+      integer                                        :: i
+
+      property => dictionary%first
+      do i=2,index
+         if (.not.associated(property)) return
          property => property%next
       end do
    end function
@@ -378,13 +419,17 @@ contains
       value = property%to_string(default=default)
    end function
 
-   subroutine delete_property(dictionary,name)
+   subroutine delete_by_name(dictionary,name)
       class (type_property_dictionary),intent(inout) :: dictionary
       character(len=*),                intent(in)    :: name
       class (type_property),pointer                  :: property,previous
 
+      character(len=len(name))                       :: key
+
+      key = string_lower(name)
+
       ! First consume properties with this name at the start of the list.
-      do while (dictionary%compare_keys(dictionary%first%name,name))
+      do while (dictionary%first%key==key)
          property => dictionary%first
          dictionary%first => property%next
          deallocate(property)
@@ -392,9 +437,9 @@ contains
 
       ! Now look internally for properties with this name.
       previous => dictionary%first
-      property => property%next
+      property => previous%next
       do while (associated(property))
-         if (dictionary%compare_keys(property%name,name)) then
+         if (property%key==key) then
             previous%next => property%next
             deallocate(property)
          else
@@ -402,6 +447,30 @@ contains
          end if
          property => previous%next
       end do
+   end subroutine
+
+   subroutine delete_by_index(dictionary,index)
+      class (type_property_dictionary),intent(inout) :: dictionary
+      integer,                         intent(in)    :: index
+
+      class (type_property),pointer                  :: property,previous
+      integer                                        :: i
+
+      if (.not.associated(dictionary%first)) return
+      property => dictionary%first
+      if (index==1) then
+         ! Remove head
+         dictionary%first => property%next
+      else
+         ! Remove non-head
+         do i=2,index
+            previous => property
+            property => previous%next
+            if (.not.associated(property)) return
+         end do
+         previous%next => property%next
+      end if
+      deallocate(property)
    end subroutine
 
    function get_size(dictionary) result(n)
@@ -430,18 +499,6 @@ contains
       do while (associated(property))
          n = n + 1
          names(n) = trim(property%name)
-         property => property%next
-      end do
-   end subroutine
-
-   subroutine reset_accessed(dictionary)
-      class (type_property_dictionary),intent(inout) :: dictionary
-
-      class (type_property),pointer :: property
-
-      property => dictionary%first
-      do while (associated(property))
-         property%accessed = .false.
          property => property%next
       end do
    end subroutine
@@ -483,6 +540,29 @@ contains
          element => previous%next
       end if
       element%string = string
+   end subroutine
+
+   subroutine set_discard(self,string)
+      class (type_set),intent(inout) :: self
+      character(len=*),intent(in)    :: string
+
+      type (type_set_element),pointer :: previous,element
+
+      nullify(previous)
+      element => self%first
+      do while (associated(element))
+         if (element%string==string) exit
+         previous => element
+         element => element%next
+      end do
+      if (associated(element)) then
+         if (associated(previous)) then
+            previous%next => element%next
+         else
+            self%first => element%next
+         end if
+         deallocate(element)
+      end if
    end subroutine
 
    function set_size(self) result(n)
@@ -528,5 +608,69 @@ contains
          element => next
       end do
    end subroutine
+
+   function hierarchical_dictionary_find_in_tree(self,name) result(property)
+      class (type_hierarchical_dictionary), intent(inout), target :: self
+      character(len=*),                     intent(in)            :: name
+      class (type_property), pointer :: property
+
+      class (type_hierarchical_dictionary), pointer :: current_dictionary
+      class (type_property),                pointer :: current_property
+      character(len=metadata_string_length)         :: localname
+
+      nullify(property)
+      current_dictionary => self
+      localname = name
+      do while (associated(current_dictionary))
+         ! Register that the value of this parameter was requested (i.e., used) by a biogeochemical model.
+         call current_dictionary%retrieved%add(localname)
+
+         current_property => current_dictionary%get_property(localname)
+         if (associated(current_property)) property => current_property
+         localname = trim(self%name)//'/'//localname
+         current_dictionary => current_dictionary%parent
+      end do
+      if (associated(property)) return
+
+      ! Value not found. Register at all levels of the hierarchy that this parameter is missing.
+      current_dictionary => self
+      localname = name
+      do while (associated(current_dictionary))
+         call current_dictionary%missing%add(localname)
+         localname = trim(self%name)//'/'//localname
+         current_dictionary => current_dictionary%parent
+      end do
+   end function hierarchical_dictionary_find_in_tree
+
+   subroutine hierarchical_dictionary_set_in_tree(self,parameter)
+   ! !INPUT PARAMETERS:
+      class (type_hierarchical_dictionary), intent(inout), target :: self
+      class (type_property),                intent(inout)         :: parameter
+   !
+   !EOP
+      class (type_hierarchical_dictionary), pointer :: current_dictionary
+      character(len=metadata_string_length)         :: oldname
+   !-----------------------------------------------------------------------
+   !BOC
+      current_dictionary => self
+      oldname = parameter%name
+      do while (associated(current_dictionary))
+         ! Store metadata
+         call current_dictionary%set_property(parameter)
+         parameter%name = trim(self%name)//'/'//parameter%name
+         current_dictionary => current_dictionary%parent
+      end do
+      parameter%name = oldname
+   end subroutine hierarchical_dictionary_set_in_tree
+   !EOC
+
+   subroutine hierarchical_dictionary_add_child(self,child,name)
+      class (type_hierarchical_dictionary), intent(in), target :: self
+      class (type_hierarchical_dictionary), intent(inout)      :: child
+      character(len=*),                     intent(in)         :: name
+      
+      child%parent => self
+      child%name = name
+   end subroutine hierarchical_dictionary_add_child
 
 end module fabm_properties

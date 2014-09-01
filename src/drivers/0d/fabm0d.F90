@@ -13,11 +13,16 @@
 ! !USES:
    use time
    use input
+   use eqstate,only:rho_feistel
+
    use fabm
-   use fabm_types, only:rk
-#ifdef NETCDF4
-   use netcdf
-#endif
+   use fabm_driver
+   use fabm_types
+   use fabm_expressions
+   use fabm_config
+
+   use shared
+   use output
 
    implicit none
    private
@@ -26,49 +31,35 @@
    public init_run, time_loop, clean_up
 !
 ! !DEFINED PARAMETERS:
-   integer, parameter        :: namlst=10, out_unit = 12, bio_unit=22
+   integer, parameter        :: namlst=10, yaml_unit=23
    integer, parameter        :: CENTER=0,SURFACE=1,BOTTOM=2
-   character, parameter      :: separator = char(9)
-   integer, parameter        :: ASCII_FMT=1
-   integer, parameter        :: NETCDF_FMT=2
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
 !  private data members initialised via namelists
-   character(len=80)         :: title
    real(rk)                  :: dt
-!  station description
-   real(rk)                  :: latitude,longitude
-   integer                   :: output_format
-   integer                   :: ncid=-1
-#ifdef NETCDF4
-   integer                   :: setn
-   integer                   :: time_id
-   integer                   :: par_id,temp_id,salt_id
-   integer, allocatable, dimension(:)  :: statevar_ids,diagnostic_ids,conserved_ids
-#endif
+
+!  FABM yalmm configuration file
+   character(len=PATH_MAX)   :: fabm_yaml_file='fabm.yaml'
 
    ! Bio model info
    integer  :: ode_method
    logical  :: repair_state
-   integer(timestepkind)::nsave
    integer  :: swr_method
    real(rk) :: cloud
    real(rk) :: par_fraction
    real(rk) :: par_background_extinction
    logical  :: apply_self_shading
-   logical  :: add_environment
-   logical  :: add_conserved_quantities
-   logical  :: add_diagnostic_variables
 
    ! Environment
-   real(rk),target :: temp,salt,par,current_depth,dens,wind_sf,taub,decimal_yearday
-   real(rk)        :: par_sf,par_bt,par_ct,column_depth
+   real(rk),target :: current_depth,dens,decimal_yearday
+   real(rk)        :: swr_sf,par_sf,par_bt,par_ct,extinction
 
-   real(rk),allocatable      :: cc(:,:),totals(:)
-   type (type_model),pointer :: model
-   character(len=128)        :: cbuf
+   real(rk),allocatable :: expression_data(:)
+
+   type (type_bulk_variable_id), save :: id_dens, id_par
+   logical                            :: compute_density
 
    interface
       function short_wave_radiation(jul,secs,dlon,dlat,cloud,bio_albedo) result(swr)
@@ -84,6 +75,63 @@
 !-----------------------------------------------------------------------
 
    contains
+
+#define _ODE_ZEROD_   
+#include "ode_solvers_template.F90"
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Parse the command line
+!
+! !INTERFACE:
+   subroutine  cmdline
+   implicit none
+
+!   character(len=*), parameter :: version = '1.0'
+   character(len=32) :: arg
+   integer :: i
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   do i = 1, command_argument_count()
+      call get_command_argument(i, arg)
+ 
+      select case (arg)
+#if 0
+      case ('-v', '--version')
+         print '(2a)', 'fabm0d version ', version
+         stop
+#endif
+      case ('-h', '--help')
+         call print_help()
+         stop
+      case ('-y', '--yaml')
+         call get_command_argument(i+1, fabm_yaml_file)
+!         print '(a)', fabm_yaml_file
+      case default
+#if 0
+         print '(a,a,/)', 'Unrecognized command-line option: ', arg
+         call print_help()
+         stop
+#endif
+      end select
+   end do
+
+   contains
+
+   subroutine print_help()
+      print '(a)', 'usage: fabm0d [OPTIONS]'
+      print '(a)', ''
+      print '(a)', 'Without further options, fabm0d run using default input filenames.'
+      print '(a)', ''
+      print '(a)', 'fabm0d options:'
+      print '(a)', ''
+      print '(a)', '  -h, --help        print usage information and exit'
+      print '(a)', '  -y, --yaml file   use <file> as FABM yaml configuration file - default fabm.yaml'
+   end subroutine print_help
+
+   end subroutine  cmdline
 
 !-----------------------------------------------------------------------
 !BOP
@@ -104,20 +152,22 @@
 !
 !
 ! !LOCAL VARIABLES:
-   character(len=PATH_MAX)   :: env_file,output_file
+   character(len=PATH_MAX)   :: env_file
    integer                   :: i
    real(rk)                  :: depth
    real(rk),parameter        :: invalid_latitude = -100._rk,invalid_longitude = -400.0_rk
+   logical                   :: file_exists
+   real(rk),allocatable      :: rhs(:,:)
 
    namelist /model_setup/ title,start,stop,dt,ode_method,repair_state
    namelist /environment/ env_file,swr_method, &
                           latitude,longitude,cloud,par_fraction, &
                           depth,par_background_extinction,apply_self_shading
-   namelist /output/      output_file,output_format,nsave,add_environment, &
-                          add_diagnostic_variables, add_conserved_quantities
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   call cmdline
+
    LEVEL1 'init_run'
    STDERR LINE
 
@@ -130,12 +180,10 @@
    salt = 0.0_rk
    par = 0.0_rk
    dens = 0.0_rk
-   wind_sf = 0.0_rk
    par_sf = 0.0_rk
    par_bt = 0.0_rk
    par_ct = 0.0_rk
    decimal_yearday = 0.0_rk
-   taub  = 0.0_rk
 
    ! Read all namelists
    title = ''
@@ -158,14 +206,7 @@
    apply_self_shading = .true.
    read(namlst,nml=environment,err=92)
 
-   ! Read output namelist
-   output_file = ''
-   output_format=ASCII_FMT
-   nsave = 1
-   add_environment = .false.
-   add_conserved_quantities = .false.
-   add_diagnostic_variables=.false.
-   read(namlst,nml=output     ,err=93)
+   call configure_output(namlst)
 
    ! Close the namelist file.
    close (namlst)
@@ -204,7 +245,7 @@
       FATAL 'run.nml: a positive value for "depth" must be provided in "environment" namelist.'
       stop 'init_run'
    end if
-   column_depth = depth ! For now we have a single depth value only. Use that for both column depth and evaluation depth.
+   column_depth = depth ! Provided depth is the column depth. The modelled biogeochemistry will be positioned at half this depth.
    call update_depth(CENTER)
    
    ! If longitude and latitude are used, make sure they have been provided and are valid.
@@ -219,21 +260,6 @@
       end if
    end if
    
-   if (output_file=='') then
-      FATAL 'run.nml: "output_file" must be set to a valid file path in "output" namelist.'
-      stop 'init_run'
-   end if
-#if 0
-   if (output_format/=ASCII_FMT) then
-      STDERR 'run.nml: "output_format" NetCDF is not fully implemented yet'
-      STDERR 'shifting to ASCII output.'
-      output_format=ASCII_FMT
-   end if
-#endif
-
-
-   LEVEL2 'done.'
-
    ! Configure the time module to use actual start and stop dates.
    timefmt = 2
 
@@ -263,48 +289,70 @@
    call init_time(MinN,MaxN)
 
    ! Open the file with observations of the local environment.
-   LEVEL2 'Reading local environment data from:'
+   LEVEL1 'init environment'
+   LEVEL2 'reading local environment data from:'
    LEVEL3 trim(env_file)
    call init_input()
-   call register_input_0d(env_file,1,par_sf)
-   call register_input_0d(env_file,2,temp)
-   call register_input_0d(env_file,3,salt)
+   call register_input_0d(env_file,1,swr_sf,'shortwave radiation')
+   call register_input_0d(env_file,2,temp,'temperature')
+   call register_input_0d(env_file,3,salt,'salinity')
 
-   ! Build FABM model tree.
-   model => fabm_create_model_from_file(namlst)
+   ! Build FABM model tree. Use 'fabm_yaml_file' if available, otherwise fall back to fabm.nml.
+   LEVEL1 'initialize FABM'
+   LEVEL2 'reading configuration from:'
+   inquire(file=trim(fabm_yaml_file),exist=file_exists)
+   if (file_exists) then
+      ! From YAML file fabm.yaml
+      LEVEL3 trim(fabm_yaml_file)
+      allocate(model)
+      call fabm_create_model_from_yaml_file(model,path=trim(fabm_yaml_file))
+   else
+      ! From namelists in fabm.nml
+      LEVEL3 'fabm.nml'
+      model => fabm_create_model_from_file(namlst)
+   end if
 
    ! Send information on spatial domain to FABM (this also allocates memory for diagnostics)
    call fabm_set_domain(model,dt)
 
-   ! Allocate space for totals of conserved quantities.
-   allocate(totals(1:size(model%info%conserved_quantities)))
-
    ! Create state variable vector, using the initial values specified by the model,
    ! and link state data to FABM.
-   allocate(cc(size(model%info%state_variables)+size(model%info%state_variables_ben),0:1))
-   do i=1,size(model%info%state_variables)
-      cc(i,1) = model%info%state_variables(i)%initial_value
-      call fabm_link_bulk_state_data(model,i,cc(i,1))
+   allocate(cc(size(model%state_variables)+size(model%bottom_state_variables)+size(model%surface_state_variables)))
+   do i=1,size(model%state_variables)
+      cc(i) = model%state_variables(i)%initial_value
+      call fabm_link_bulk_state_data(model,i,cc(i))
    end do
 
-   ! Create benthos variable vector, using the initial values specified by the model,
+   ! Create bottom-bound state variable vector, using the initial values specified by the model,
    ! and link state data to FABM.
-   do i=1,size(model%info%state_variables_ben)
-      cc(size(model%info%state_variables)+i,1) = model%info%state_variables_ben(i)%initial_value
-      call fabm_link_bottom_state_data(model,i,cc(size(model%info%state_variables)+i,1))
+   do i=1,size(model%bottom_state_variables)
+      cc(size(model%state_variables)+i) = model%bottom_state_variables(i)%initial_value
+      call fabm_link_bottom_state_data(model,i,cc(size(model%state_variables)+i))
    end do
+
+   ! Create surface-bound state variable vector, using the initial values specified by the model,
+   ! and link state data to FABM.
+   do i=1,size(model%surface_state_variables)
+      cc(size(model%state_variables)+size(model%bottom_state_variables)+i) = model%surface_state_variables(i)%initial_value
+      call fabm_link_surface_state_data(model,i,cc(size(model%state_variables)+size(model%bottom_state_variables)+i))
+   end do
+
+   id_dens = fabm_get_bulk_variable_id(model,standard_variables%density)
+   compute_density = fabm_variable_needs_values(id_dens)
+   if (compute_density) call fabm_link_bulk_data(model,id_dens,dens)
+
+   id_par = fabm_get_bulk_variable_id(model,standard_variables%downwelling_photosynthetic_radiative_flux)
 
    ! Link environmental data to FABM
    call fabm_link_bulk_data(model,standard_variables%temperature,temp)
    call fabm_link_bulk_data(model,standard_variables%practical_salinity,salt)
-   call fabm_link_bulk_data(model,standard_variables%downwelling_photosynthetic_radiative_flux,par)
+   if (fabm_variable_needs_values(id_par)) call fabm_link_bulk_data(model,id_par,par)
    call fabm_link_bulk_data(model,standard_variables%pressure,current_depth)
-   call fabm_link_bulk_data(model,standard_variables%density,dens)
    call fabm_link_bulk_data(model,standard_variables%cell_thickness,column_depth)
    call fabm_link_bulk_data(model,standard_variables%depth,current_depth)
-   call fabm_link_horizontal_data(model,standard_variables%wind_speed,wind_sf)
+   call fabm_link_bulk_data(model,standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux,extinction)
    call fabm_link_horizontal_data(model,standard_variables%surface_downwelling_photosynthetic_radiative_flux,par_sf)
-   call fabm_link_horizontal_data(model,standard_variables%bottom_stress,taub)
+   call fabm_link_horizontal_data(model,standard_variables%surface_downwelling_shortwave_flux,swr_sf)
    call fabm_link_horizontal_data(model,standard_variables%cloud_area_fraction,cloud)
    call fabm_link_horizontal_data(model,standard_variables%bottom_depth,column_depth)
    call fabm_link_horizontal_data(model,standard_variables%bottom_depth_below_geoid,column_depth)
@@ -312,12 +360,27 @@
    if (longitude/=invalid_longitude) call fabm_link_horizontal_data(model,standard_variables%longitude,longitude)
    call fabm_link_scalar_data(model,standard_variables%number_of_days_since_start_of_the_year,decimal_yearday)
 
+   ! Read forcing data specified in input.yaml.
+   call init_yaml()
+
+   ! Allocate memory for the value of any requested vertical integrals/averages of FABM variables.
+   call check_fabm_expressions()
+
+   ! Check whether all dependencies of biogeochemical models have now been fulfilled.
    call fabm_check_ready(model)
 
    call init_output(output_format,output_file,start)
-   call do_output(output_format,0_timestepkind)
+   call do_output(output_format,0)
 
-   LEVEL2 'done.'
+   ! Allow the model to compute all diagnostics, so output for initial time contains sensible values.
+   allocate(rhs(size(cc,1),0:1))
+   call get_rhs(.true.,size(cc,1),cc,rhs)
+
+   ! Output variable values at initial time
+   LEVEL1 'init_output'
+   call init_output(start)
+   call do_output(0_timestepkind)
+
    STDERR LINE
 
    return
@@ -328,14 +391,207 @@
    stop 'init_run'
 92 FATAL 'I could not read the "environment" namelist'
    stop 'init_run'
-93 FATAL 'I could not read the "output" namelist'
-   stop 'init_run'
-95 FATAL 'I could not open ',trim(env_file)
-   stop 'init_run'
-97 FATAL 'I could not open fabm.nml for reading'
-   stop 'init_run'
+
    end subroutine init_run
 !EOC
+
+   subroutine init_yaml()
+      use fabm_config_types
+      use fabm_yaml,yaml_parse=>parse,yaml_error_length=>error_length
+
+      logical                            :: exists
+      character(len=yaml_error_length)   :: yaml_error
+      class (type_node),         pointer :: node
+
+      ! Determine whether input.yaml exists.
+      inquire(file='input.yaml',exist=exists)
+      if (.not.exists) return
+
+      ! Parse YAML.
+      node => yaml_parse('input.yaml',yaml_unit,yaml_error)
+      if (yaml_error/='') call driver%fatal_error('init_yaml',trim(yaml_error))
+
+      ! Process root-level dictionary.
+      select type (node)
+         class is (type_dictionary)
+            ! Process "input" section.
+            call init_yaml_input(node)
+         class default
+            call fatal_error('init_yaml','input.yaml must contain a dictionary with (variable name : information) pairs, not a single value.')
+      end select
+   end subroutine init_yaml
+
+   subroutine init_yaml_input(mapping)
+      use fabm_config_types
+
+      class (type_dictionary),intent(in)  :: mapping
+
+      character(len=64)                  :: variable_name
+      type (type_key_value_pair),pointer :: pair
+
+      pair => mapping%first
+      if (associated(pair)) call driver%log_message('Forcing data specified in input.yaml:')
+      do while (associated(pair))
+         variable_name = trim(pair%key)
+         if (variable_name=='') call driver%fatal_error('init_yaml_input','Empty variable name specified.')
+         select type (dict=>pair%value)
+            class is (type_dictionary)
+               call parse_input_variable(variable_name,dict)
+            class default
+               call fatal_error('init_input','Contents of '//trim(dict%path)//' must be a dictionary, not a single value.')
+         end select
+         pair => pair%next
+      end do
+   end subroutine init_yaml_input
+
+   subroutine parse_input_variable(variable_name,mapping)
+      use fabm_config_types
+
+      character(len=*),      intent(in) :: variable_name
+      type (type_dictionary),intent(in) :: mapping
+
+      type (type_error),         pointer :: config_error
+      class (type_node),         pointer :: node
+      class (type_scalar),       pointer :: scalar
+      character(len=1024)                :: path,message
+      integer                            :: column
+      real(rk)                           :: scale_factor
+      real(rk)                           :: relaxation_time
+      logical                            :: is_state_variable
+      type (type_input_data),    pointer :: input_data
+      type (type_key_value_pair),pointer :: pair
+      type (type_bulk_variable_id)       :: bulk_id
+      type (type_horizontal_variable_id) :: horizontal_id
+      type (type_scalar_variable_id)     :: scalar_id
+
+      ! Try to locate the forced variable among bulk, horizontal, and global variables in the active biogeochemical models.
+      is_state_variable = .false.
+      bulk_id = fabm_get_bulk_variable_id(model,variable_name)
+      if (fabm_is_variable_used(bulk_id)) then
+         is_state_variable = bulk_id%state_index/=-1
+      else
+         horizontal_id = fabm_get_horizontal_variable_id(model,variable_name)
+         if (fabm_is_variable_used(horizontal_id)) then
+            is_state_variable = horizontal_id%state_index/=-1
+         else
+            scalar_id = fabm_get_scalar_variable_id(model,variable_name)
+            if (.not.fabm_is_variable_used(scalar_id)) &
+               call fatal_error('parse_input_variable','input.yaml: Variable "'//trim(variable_name)//'" is not present in any biogeochemical  model.')
+         end if
+      end if
+
+      ! Prepend to list of input data.
+      allocate(input_data)
+      input_data%next => first_input_data
+      first_input_data => input_data
+      input_data%variable_name = variable_name
+      call driver%log_message('  '//trim(input_data%variable_name))
+
+      scalar => mapping%get_scalar('constant_value',required=.false.,error=config_error)
+      if (associated(scalar)) then
+         ! Input variable is set to a constant value.
+         input_data%value = mapping%get_real('constant_value',error=config_error)
+         if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
+
+         ! Make sure keys related to time-varying input are not present.
+         node => mapping%get('file')
+         if (associated(node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": keys "constant_value" and "file" cannot both be present.')
+         node => mapping%get('column')
+         if (associated(node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": keys "constant_value" and "column" cannot both be present.')
+         node => mapping%get('scale_factor')
+         if (associated(node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": keys "constant_value" and "scale_factor" cannot both be present.')
+         write (message,'(g13.6)') input_data%value
+         call driver%log_message('    constant_value = '//adjustl(message))
+      else
+         ! Input variable is set to a time-varying value. Obtain path, column number and scale factor.
+         path = mapping%get_string('file',error=config_error)
+         if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
+         column = mapping%get_integer('column',default=1,error=config_error)
+         if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
+         scale_factor = mapping%get_real('scale_factor',default=1.0_rk,error=config_error)
+         if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
+         call register_input_0d(path,column,input_data%value,variable_name,scale_factor=scale_factor)
+         call driver%log_message('    file = '//trim(path))
+         write (message,'(i0)') column
+         call driver%log_message('    column = '//adjustl(message))
+         write (message,'(g13.6)') scale_factor
+         call driver%log_message('    scale factor = '//adjustl(message))
+      end if
+
+      if (is_state_variable) then
+         ! This is a state variable. Obtain associated relaxation time.
+         relaxation_time = mapping%get_real('relaxation_time',default=1.e15_rk,error=config_error)
+         if (associated(config_error)) call fatal_error('parse_input_variable',config_error%message)
+      else
+         ! This is not a state variable. Make sure no relaxation time is specified.
+         node => mapping%get('relaxation_time')
+         if (associated(node)) call fatal_error('parse_input_variable','input.yaml, variable "'//trim(variable_name)//'": key "relaxation_time" is not supported because "'//trim(variable_name)//'" is not a state variable.')
+      end if
+
+      ! Warn about uninterpreted keys.
+      pair => mapping%first
+      do while (associated(pair))
+         if (.not.pair%accessed) call fatal_error('parse_input_variable','input.yaml: Unrecognized option "'//trim(pair%key)//'" found for variable "'//trim(variable_name)//'".')
+         pair => pair%next
+      end do
+
+      ! Link forced data to target variable.
+      if (fabm_is_variable_used(bulk_id)) then
+         call fabm_link_bulk_data(model,bulk_id,input_data%value)
+      elseif (fabm_is_variable_used(horizontal_id)) then
+         call fabm_link_horizontal_data(model,horizontal_id,input_data%value)
+      else
+         call fabm_link_scalar_data(model,scalar_id,input_data%value)
+      end if
+
+   end subroutine parse_input_variable
+
+   subroutine start_time_step(n)
+      integer(timestepkind),intent(in) :: n
+
+      real(rk)                         :: bio_albedo
+
+      ! Update time in time manager
+      call update_time(n)
+
+      ! Compute decimal year day (input for some biogeochemical models)
+      decimal_yearday = yearday-1 + dble(secondsofday)/86400
+
+      ! Update environment (i.e., read from input files)
+      call do_input(julianday,secondsofday)
+
+      ! Calculate light extinction
+      extinction = 0.0_rk
+      if (apply_self_shading) call fabm_get_light_extinction(model,extinction)
+      extinction = extinction + par_background_extinction
+
+      ! Calculate photosynthetically active radiation at surface, if it is not provided in the input file.
+      if (swr_method==0) then
+         ! Calculate photosynthetically active radiation from geographic location, time, cloud cover.
+         call fabm_get_albedo(model,bio_albedo)
+         swr_sf = short_wave_radiation(julianday,secondsofday,longitude,latitude,cloud,bio_albedo)
+      end if
+
+      ! Multiply by fraction of short-wave radiation that is photosynthetically active.
+      par_sf = par_fraction*swr_sf
+
+      ! Apply light attentuation with depth, unless local light is provided in the input file.
+      if (swr_method/=2) then
+         ! Either we calculate surface PAR, or surface PAR is provided.
+         ! Calculate the local PAR at the given depth from par fraction, extinction coefficient, and depth.
+         par_ct = par_sf*exp(-0.5_rk*column_depth*extinction)
+         par_bt = par_sf*exp(-column_depth*extinction)
+      else
+         par_ct = par_sf
+         par_bt = par_sf
+      end if
+      call update_depth(CENTER)
+
+      call fabm_get_light(model)
+
+      ! Compute density from temperature and salinity, if required by biogeochemistry.
+      if (compute_density) dens = rho_feistel(salt,temp,5._rk*column_depth,.true.)
+   end subroutine start_time_step
 
 !-----------------------------------------------------------------------
 !BOP
@@ -356,47 +612,14 @@
 ! !LOCAL VARIABLES:
    integer                   :: i
    integer(timestepkind)     :: n
-   real(rk)                  :: extinction,bio_albedo
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    LEVEL1 'time_loop'
 
    do n=MinN,MaxN
-
-      ! Update time
-      call update_time(n)
-
-      decimal_yearday = yearday-1 + dble(secondsofday)/86400.
-
-      ! Update environment
-      call do_input(julianday,secondsofday)
-
-      ! Calculate photosynthetically active radiation if it is not provided in the input file.
-      if (swr_method==0) then
-         ! Calculate photosynthetically active radiation from geographic location, time, cloud cover.
-         call fabm_get_albedo(model,bio_albedo)
-         par_sf = short_wave_radiation(julianday,secondsofday,longitude,latitude,cloud,bio_albedo)
-      end if
-
-      ! Multiply by fraction of short-wave radiation that is photosynthetically active.
-      par_sf = par_fraction*par_sf
-
-      ! Apply light attentuation with depth, unless local light is provided in the input file.
-      if (swr_method/=2) then
-         ! Either we calculate surface PAR, or surface PAR is provided.
-         ! Calculate the local PAR at the given depth from par fraction, extinction coefficient, and depth.
-         extinction = 0.0_rk
-         if (apply_self_shading) call fabm_get_light_extinction(model,extinction)
-         extinction = extinction + par_background_extinction
-         par_ct = par_sf*exp(-0.5_rk*column_depth*extinction)
-         par_bt = par_sf*exp(-column_depth*extinction)
-
-      else
-         par_ct = par_sf
-         par_bt = par_sf
-      end if
-      call update_depth(CENTER)
+      ! Update time and all time-dependent inputs.
+      call start_time_step(n)
 
       ! Repair state before calling FABM
       call do_repair_state('0d::time_loop(), before ode_solver()')
@@ -404,28 +627,28 @@
       call fabm_update_time(model,real(n,rk))
 
       ! Integrate one time step
-      call ode_solver(ode_method,size(model%info%state_variables)+size(model%info%state_variables_ben),1,dt,cc,get_rhs,get_ppdd)
+      call ode_solver(ode_method,size(model%state_variables)+size(model%bottom_state_variables),dt,cc,get_rhs,get_ppdd)
 
       ! ODE solver may have redirected the current state with to an array with intermediate values.
       ! Reset to global array.
-      do i=1,size(model%info%state_variables)
-         call fabm_link_bulk_state_data(model,i,cc(i,1))
+      do i=1,size(model%state_variables)
+         call fabm_link_bulk_state_data(model,i,cc(i))
       end do
-      do i=1,size(model%info%state_variables_ben)
-         call fabm_link_bottom_state_data(model,i,cc(size(model%info%state_variables)+i,1))
+      do i=1,size(model%bottom_state_variables)
+         call fabm_link_bottom_state_data(model,i,cc(size(model%state_variables)+i))
+      end do
+      do i=1,size(model%surface_state_variables)
+         call fabm_link_surface_state_data(model,i,cc(size(model%state_variables)+size(model%bottom_state_variables)+i))
       end do
 
       call do_repair_state('0d::time_loop(), after ode_solver()')
 
       ! Do output
-      if (mod(n,nsave)==0) then
-         call do_output(output_format,n)
-      end if
+      call do_output(n)
 
    end do
    STDERR LINE
 
-   return
    end subroutine time_loop
 !EOC
 
@@ -443,22 +666,13 @@
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
-! !LOCAL PARAMETERS:
-   integer                              :: iret
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    LEVEL1 'clean_up'
 
    call close_input()
-   if (ncid .ne. -1) then
-#ifdef NETCDF4
-      iret = nf90_close(ncid)
-      call check_err(iret)
-#endif
-   else
-      close(out_unit)
-   end if
+   call clean_output()
 
    end subroutine clean_up
 !EOC
@@ -480,8 +694,6 @@
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
-! !LOCAL PARAMETERS:
-   integer                              :: n
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -496,6 +708,7 @@
          current_depth = 0.5_rk*column_depth
          par = par_ct
    end select
+
    end subroutine update_depth
 !EOC
 
@@ -531,7 +744,7 @@
       FATAL location
       FATAL 'note that repair_state() should be used with caution.'
       FATAL 'try and decrease dt first - and see if that helps.'
-      stop 'od_fabm::do_repair_state'
+      stop 'fabm0d::do_repair_state'
    end if
 
    end subroutine do_repair_state
@@ -543,19 +756,19 @@
 ! !IROUTINE: Get the right-hand side of the ODE system.
 !
 ! !INTERFACE:
-   subroutine get_ppdd(first,numc,nlev,cc,pp,dd)
+   subroutine get_ppdd(first,numc,cc,pp,dd)
 !
 ! !DESCRIPTION:
 ! TODO
 !
 ! !INPUT PARAMETERS:
    logical, intent(in)                  :: first
-   integer, intent(in)                  :: numc,nlev
-   real(rk), intent(in)                 :: cc(1:numc,0:nlev)
+   integer, intent(in)                  :: numc
+   real(rk), intent(in)                 :: cc(1:numc)
 !
 ! !OUTPUT PARAMETERS:
-   real(rk), intent(out)                :: pp(1:numc,1:numc,0:nlev)
-   real(rk), intent(out)                :: dd(1:numc,1:numc,0:nlev)
+   real(rk), intent(out)                :: pp(1:numc,1:numc)
+   real(rk), intent(out)                :: dd(1:numc,1:numc)
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -566,32 +779,37 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Initialize production/destruction matrices to zero (entries will be incremented by FABM)
-   pp(:,:,1) = 0.0_rk
-   dd(:,:,1) = 0.0_rk
+   pp = 0.0_rk
+   dd = 0.0_rk
 
    ! Send current state to FABM
    ! (this may differ from the global state cc if using a multi-step integration scheme such as Runge-Kutta)
-   do n=1,size(model%info%state_variables)
-      call fabm_link_bulk_state_data(model,n,cc(n,1))
+   do n=1,size(model%state_variables)
+      call fabm_link_bulk_state_data(model,n,cc(n))
    end do
-   do n=1,size(model%info%state_variables_ben)
-      call fabm_link_bottom_state_data(model,n,cc(size(model%info%state_variables)+n,1))
+   do n=1,size(model%bottom_state_variables)
+      call fabm_link_bottom_state_data(model,n,cc(size(model%state_variables)+n))
+   end do
+   do n=1,size(model%surface_state_variables)
+      call fabm_link_surface_state_data(model,n,cc(size(model%state_variables)+size(model%bottom_state_variables)+n))
    end do
 
+   call update_fabm_expressions()
+
    ! Shortcut to the number of pelagic state variables.
-   n = size(model%info%state_variables)
+   n = size(model%state_variables)
 
    ! Calculate temporal derivatives due to benthic processes.
    call update_depth(BOTTOM)
-   call fabm_do_benthos(model,pp(:,:,1),dd(:,:,1),n)
+   call fabm_do_benthos(model,pp,dd,n)
 
    ! For pelagic variables: translate bottom flux to into change in concentration
-   pp(1:n,:,1) = pp(1:n,:,1)/column_depth
-   dd(1:n,:,1) = dd(1:n,:,1)/column_depth
+   pp(1:n,:) = pp(1:n,:)/column_depth
+   dd(1:n,:) = dd(1:n,:)/column_depth
 
    ! For pelagic variables: surface and bottom flux (rate per surface area) to concentration (rate per volume)
    call update_depth(CENTER)
-   call fabm_do(model,pp(:,:,1),dd(:,:,1))
+   call fabm_do(model,pp,dd)
 
    end subroutine get_ppdd
 !EOC
@@ -602,18 +820,18 @@
 ! !IROUTINE: Get the right-hand side of the ODE system.
 !
 ! !INTERFACE:
-   subroutine get_rhs(first,numc,nlev,cc,rhs)
+   subroutine get_rhs(first,numc,cc,rhs)
 !
 ! !DESCRIPTION:
 ! TODO
 !
 ! !INPUT PARAMETERS:
    logical, intent(in)                  :: first
-   integer, intent(in)                  :: numc,nlev
-   real(rk), intent(in)                 :: cc(1:numc,0:nlev)
+   integer, intent(in)                  :: numc
+   real(rk), intent(in)                 :: cc(1:numc)
 !
 ! !OUTPUT PARAMETERS:
-   real(rk), intent(out)                :: rhs(1:numc,0:nlev)
+   real(rk), intent(out)                :: rhs(1:numc)
 !
 ! !LOCAL PARAMETERS:
    integer                              :: n
@@ -625,338 +843,85 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Initialize derivatives to zero (entries will be incremented by FABM)
-   rhs(:,1) = 0.0_rk
+   rhs = 0.0_rk
 
    ! Send current state to FABM
    ! (this may differ from the global state cc if using a multi-step integration scheme such as Runge-Kutta)
-   do n=1,size(model%info%state_variables)
-      call fabm_link_bulk_state_data(model,n,cc(n,1))
+   do n=1,size(model%state_variables)
+      call fabm_link_bulk_state_data(model,n,cc(n))
    end do
-   do n=1,size(model%info%state_variables_ben)
-      call fabm_link_bottom_state_data(model,n,cc(size(model%info%state_variables)+n,1))
+   do n=1,size(model%bottom_state_variables)
+      call fabm_link_bottom_state_data(model,n,cc(size(model%state_variables)+n))
    end do
+   do n=1,size(model%surface_state_variables)
+      call fabm_link_surface_state_data(model,n,cc(size(model%state_variables)+size(model%bottom_state_variables)+n))
+   end do
+
+   call update_fabm_expressions()
 
    ! Shortcut to the number of pelagic state variables.
-   n = size(model%info%state_variables)
+   n = size(model%state_variables)
 
-   ! Calculate temporal derivatives due to surface exchange.
+   ! Calculate temporal derivatives due to surface-bound processes.
    call update_depth(SURFACE)
-   call fabm_get_surface_exchange(model,rhs(1:n,1))
+   call fabm_do_surface(model,rhs(1:n),rhs(n+size(model%bottom_state_variables)+1:))
 
-   ! Calculate temporal derivatives due to benthic processes.
+   ! Calculate temporal derivatives due to bottom-bound processes.
    call update_depth(BOTTOM)
-   call fabm_do_benthos(model,rhs(1:n,1),rhs(n+1:,1))
+   call fabm_do_bottom(model,rhs(1:n),rhs(n+1:n+size(model%bottom_state_variables)))
 
    ! For pelagic variables: surface and bottom flux (rate per surface area) to concentration (rate per volume)
-   rhs(1:n,1) = rhs(1:n,1)/column_depth
+   rhs(1:n) = rhs(1:n)/column_depth
 
    ! Add change in pelagic variables.
    call update_depth(CENTER)
-   call fabm_do(model,rhs(:,1))
+   call fabm_do(model,rhs)
 
    end subroutine get_rhs
 !EOC
 
-!-----------------------------------------------------------------------
-!BOP
-! !IROUTINE: prepare for output
-!
-! !INTERFACE:
-   subroutine init_output(output_format,output_file,start)
-!
-! !DESCRIPTION:
-! TODO
-!
-! !INPUT PARAMETERS:
-   integer, intent(in)                 :: output_format
-   character(len=*), intent(in)        :: output_file,start
-!
-! !REVISION HISTORY:
-!  Original author(s): Karsten Bolding
-!
-! !LOCAL PARAMETERS:
-   integer         :: i,n,iret
-#ifdef NETCDF4
-   integer         :: lon_dim,lat_dim,time_dim
-   integer         :: lon_id,lat_id
-   integer         :: dims(3)
-   character(len=128) :: ncdf_time_str
-#endif
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   select case (output_format)
-      case(ASCII_FMT)
-         open(out_unit,file=trim(output_file),action='write', &
-              status='replace',err=96)
-         LEVEL2 'Writing results to:'
-         LEVEL3 trim(output_file)
+   subroutine check_fabm_expressions()
+      class (type_expression),pointer :: expression
+      integer :: n
+      
+      n = 0
+      expression => model%root%first_expression
+      do while (associated(expression))
+         select type (expression)
+            class is (type_vertical_integral)
+                n = n + 1
+         end select
+         expression => expression%next
+      end do
 
-         ! Write header to the output file.
-         write(out_unit,FMT='(''# '',A)') title
-         write(out_unit,FMT='(''# '',A)',ADVANCE='NO') 'time'
-         if (add_environment) then
-            write(out_unit,FMT=100,ADVANCE='NO') separator,'photosynthetically active radiation','W/m2'
-            write(out_unit,FMT=100,ADVANCE='NO') separator,'temperature',                        'degrees C'
-            write(out_unit,FMT=100,ADVANCE='NO') separator,'salinity',                           'kg/m3'
-         end if
-         do i=1,size(model%info%state_variables)
-            write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%state_variables(i)%long_name),trim(model%info%state_variables(i)%units)
-         end do
-         do i=1,size(model%info%state_variables_ben)
-            write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%state_variables_ben(i)%long_name),trim(model%info%state_variables_ben(i)%units)
-         end do
-         if (add_diagnostic_variables) then
-            do i=1,size(model%info%diagnostic_variables)
-               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%diagnostic_variables(i)%long_name),trim(model%info%diagnostic_variables(i)%units)
-            end do
-            do i=1,size(model%info%diagnostic_variables_hz)
-               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%diagnostic_variables_hz(i)%long_name),trim(model%info%diagnostic_variables_hz(i)%units)
-            end do
-         end if
-         if (add_conserved_quantities) then
-            do i=1,size(model%info%conserved_quantities)
-               write(out_unit,FMT=100,ADVANCE='NO') separator,trim(model%info%conserved_quantities(i)%long_name),trim(model%info%conserved_quantities(i)%units)
-            end do
-         end if
-         write(out_unit,*)
-      case (NETCDF_FMT)
-#ifdef NETCDF4
-         setn=0
-         LEVEL2 'NetCDF version: ',trim(NF90_INQ_LIBVERS())
-         iret = nf90_create(output_file,NF90_CLOBBER,ncid)
-         call check_err(iret)
-!        define dimensions
-         iret = nf90_def_dim(ncid, 'lon', 1, lon_dim)
-         call check_err(iret)
-         iret = nf90_def_dim(ncid, 'lat', 1, lat_dim)
-         call check_err(iret)
-         iret = nf90_def_dim(ncid, 'time', NF90_UNLIMITED, time_dim)
-         call check_err(iret)
-         dims(1) = lon_dim; dims(2) = lat_dim; dims(3) = time_dim
+      allocate(expression_data(n))
+      expression_data = _ZERO_
 
-!        define coordinates
-         iret = nf90_def_var(ncid,'lon',NF90_REAL,lon_dim,lon_id)
-         call check_err(iret)
-         iret = nf90_def_var(ncid,'lat',NF90_REAL,lat_dim,lat_id)
-         call check_err(iret)
-         iret = nf90_def_var(ncid,'time',NF90_REAL,time_dim,time_id)
-         call check_err(iret)
+      n = 0
+      expression => model%root%first_expression
+      do while (associated(expression))
+         select type (expression)
+            class is (type_vertical_integral)
+               n = n + 1
+               call fabm_link_horizontal_data(model,trim(expression%output_name),expression_data(n))
+         end select
+         expression => expression%next
+      end do
+   end subroutine
 
-         write(ncdf_time_str,110) 'seconds',trim(start)
-         iret = nf90_put_att(ncid,time_id,"units",trim(ncdf_time_str))
-         call check_err(iret)
-110 format(A,' since ',A)
+   subroutine update_fabm_expressions()
+      class (type_expression),pointer :: expression
 
-!        define variables
-         iret = nf90_def_var(ncid,'par',NF90_REAL,dims,par_id)
-         call check_err(iret)
-         iret = nf90_def_var(ncid,'temp',NF90_REAL,dims,temp_id)
-         call check_err(iret)
-         iret = nf90_def_var(ncid,'salt',NF90_REAL,dims,salt_id)
-         call check_err(iret)
-
-         allocate(statevar_ids(size(model%info%state_variables)+size(model%info%state_variables_ben)))
-         allocate(diagnostic_ids(size(model%info%diagnostic_variables)+size(model%info%diagnostic_variables_hz)))
-         allocate(conserved_ids(size(model%info%conserved_quantities)))
-
-         do i=1,size(model%info%state_variables)
-            iret = nf90_def_var(ncid,trim(model%info%state_variables(i)%name),NF90_REAL,dims,statevar_ids(i))
-            call check_err(iret)
-            iret = nf90_put_att(ncid,statevar_ids(i),"long_name",trim(model%info%state_variables(i)%long_name))
-            call check_err(iret)
-            iret = nf90_put_att(ncid,statevar_ids(i),"units",trim(model%info%state_variables(i)%units))
-            call check_err(iret)
-         end do
-
-         n = size(model%info%state_variables)
-         do i=1,size(model%info%state_variables_ben)
-            iret = nf90_def_var(ncid,trim(model%info%state_variables_ben(i)%name),NF90_REAL,dims,statevar_ids(i+n))
-            call check_err(iret)
-            iret = nf90_put_att(ncid,statevar_ids(i+n),"long_name",trim(model%info%state_variables_ben(i)%long_name))
-            call check_err(iret)
-            iret = nf90_put_att(ncid,statevar_ids(i+n),"units",trim(model%info%state_variables_ben(i)%units))
-            call check_err(iret)
-         end do
-
-         do i=1,size(model%info%diagnostic_variables)
-            iret = nf90_def_var(ncid,trim(model%info%diagnostic_variables(i)%name),NF90_REAL,dims,diagnostic_ids(i))
-            call check_err(iret)
-            iret = nf90_put_att(ncid,diagnostic_ids(i),"long_name",trim(model%info%diagnostic_variables(i)%long_name))
-            call check_err(iret)
-            iret = nf90_put_att(ncid,diagnostic_ids(i),"units",trim(model%info%diagnostic_variables(i)%units))
-            call check_err(iret)
-         end do
-
-         n = size(model%info%diagnostic_variables)
-         do i=1,size(model%info%diagnostic_variables_hz)
-            iret = nf90_def_var(ncid,trim(model%info%state_variables(i)%name),NF90_REAL,dims,diagnostic_ids(i+n))
-            call check_err(iret)
-            iret = nf90_put_att(ncid,diagnostic_ids(i+n),"long_name",trim(model%info%diagnostic_variables_hz(i)%long_name))
-            call check_err(iret)
-            iret = nf90_put_att(ncid,diagnostic_ids(i+n),"units",trim(model%info%diagnostic_variables_hz(i)%units))
-            call check_err(iret)
-         end do
-
-         do i=1,size(model%info%conserved_quantities)
-            iret = nf90_def_var(ncid,trim(model%info%conserved_quantities(i)%name),NF90_REAL,dims,conserved_ids(i))
-            call check_err(iret)
-            iret = nf90_put_att(ncid,conserved_ids(i),"long_name",trim(model%info%conserved_quantities(i)%long_name))
-            call check_err(iret)
-            iret = nf90_put_att(ncid,conserved_ids(i),"units",trim(model%info%conserved_quantities(i)%units))
-            call check_err(iret)
-         end do
-
-!        global attributes
-         iret = nf90_put_att(ncid,NF90_GLOBAL,'title',trim(title))
-!         history = 'Created by GOTM v. '//RELEASE
-!         iret = nf90_put_att(ncid,NF90_GLOBAL,'history',trim(history))
-         iret = nf90_put_att(ncid,NF90_GLOBAL,'Conventions','COARDS')
-         call check_err(iret)
-
-!        leave define mode
-         iret = nf90_enddef(ncid)
-         call check_err(iret)
-
-!        save latitude and logitude
-         iret = nf90_put_var(ncid,lon_id,longitude)
-         iret = nf90_put_var(ncid,lat_id,latitude)
-
-         iret = nf90_sync(ncid)
-         call check_err(iret)
-#endif
-      case default
-   end select
-
-   return
-96 FATAL 'I could not open ',trim(output_file)
-   stop 'init_output'
-100 format (A, A, ' (', A, ')')
-   end subroutine init_output
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-! !IROUTINE: do the output
-!
-! !INTERFACE:
-   subroutine do_output(output_format,n)
-!
-! !DESCRIPTION:
-! TODO
-   implicit none
-!
-! !INPUT PARAMETERS:
-   integer, intent(in)                 :: output_format
-   integer(timestepkind), intent(in)   :: n
-!
-! !REVISION HISTORY:
-!  Original author(s): Karsten Bolding
-!
-! !LOCAL PARAMETERS:
-   integer         :: i,j,iret
-   integer         :: start(3),edges(3)
-   REALTYPE        :: x(1)
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   select case (output_format)
-      case(ASCII_FMT)
-         call write_time_string(julianday,secondsofday,timestr)
-         write (out_unit,FMT='(A)',ADVANCE='NO') timestr
-         if (add_environment) then
-            write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,par
-            write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,temp
-            write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,salt
-         end if
-         do i=1,(size(model%info%state_variables)+size(model%info%state_variables_ben))
-            write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,cc(i,1)
-         end do
-         if (add_diagnostic_variables) then
-            do i=1,size(model%info%diagnostic_variables)
-               write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,fabm_get_bulk_diagnostic_data(model,i)
-            end do
-            do i=1,size(model%info%diagnostic_variables_hz)
-               write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,fabm_get_horizontal_diagnostic_data(model,i)
-            end do
-         end if
-         if (add_conserved_quantities) then
-            call fabm_get_conserved_quantities(model,totals)
-            do i=1,size(model%info%conserved_quantities)
-               write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,totals(i)
-            end do
-         end if
-         write (out_unit,*)
-
-      case (NETCDF_FMT)
-#ifdef NETCDF4
-         setn = setn + 1
-         start(1) = setn; edges(1) = 1
-
-         x(1) = n * timestep
-         iret = nf90_put_var(ncid,time_id,x,start,edges)
-
-         start(1) = 1; start(2) = 1; start(3) = setn
-         edges(1) = 1; edges(2) = 1; edges(3) = 1
-
-         x(1) = par_sf
-         iret = nf90_put_var(ncid,par_id,x,start,edges)
-         call check_err(iret)
-         x(1) = temp
-         iret = nf90_put_var(ncid,temp_id,x,start,edges)
-         call check_err(iret)
-         x(1) = salt
-         iret = nf90_put_var(ncid,salt_id,x,start,edges)
-         call check_err(iret)
-
-         do i=1,size(model%info%state_variables)
-            x(1) = cc(i,1)
-            iret = nf90_put_var(ncid,statevar_ids(i),x,start,edges)
-            call check_err(iret)
-         end do
-
-         j=size(model%info%state_variables)
-         do i=1,size(model%info%state_variables_ben)
-            x(1) = cc(i+j,1)
-            iret = nf90_put_var(ncid,statevar_ids(i+j),x,start,edges)
-            call check_err(iret)
-         end do
-
-         do i=1,size(model%info%diagnostic_variables)
-            x(1) = fabm_get_bulk_diagnostic_data(model,i)
-            iret = nf90_put_var(ncid,diagnostic_ids(i),x,start,edges)
-            call check_err(iret)
-         end do
-
-         j = size(model%info%diagnostic_variables)
-         do i=1,size(model%info%diagnostic_variables_hz)
-            x(1) = fabm_get_horizontal_diagnostic_data(model,i)
-            iret = nf90_put_var(ncid,diagnostic_ids(i+j),x,start,edges)
-            call check_err(iret)
-         end do
-
-         do i=1,size(model%info%conserved_quantities)
-            x(1) = totals(i)
-            iret = nf90_put_var(ncid,conserved_ids(i),x,start,edges)
-            call check_err(iret)
-         end do
-#endif
-      case default
-   end select
-   return
-   end subroutine do_output
-!EOC
-
-#ifdef NETCDF4
-subroutine check_err(iret)
-use netcdf
-integer iret
-if (iret .ne. NF90_NOERR) then
-print *, nf90_strerror(iret)
-stop
-endif
-end subroutine
-#endif
+      expression => model%root%first_expression
+      do while (associated(expression))
+         select type (expression)
+            class is (type_vertical_integral)
+               expression%out%p = expression%in%p
+               if (.not.expression%average) expression%out%p = expression%out%p*(min(expression%maximum_depth,column_depth)-expression%minimum_depth)
+         end select
+         expression => expression%next
+      end do
+   end subroutine
 
 !-----------------------------------------------------------------------
 

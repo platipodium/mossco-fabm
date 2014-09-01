@@ -2,17 +2,47 @@
 # Makefile to build the FABM example models
 #
 
-#SUBDIRS += benthic_predator
+include ../../Rules.make
+
+LIBRARY  = ${LIBFABM}(examples_model_library.o)
+
+SUBDIRS += benthic_predator
+BENTHIC_PREDATOR = ${LIBFABM}(benthic_predator.o)
+
+SUBDIRS += duplicator
+SUBDIRS += mean
+MEAN = ${LIBFABM}(mean.o)
+
 SUBDIRS += npzd
+NPZD = ${LIBFABM}(examples_npzd.o)
+
 SUBDIRS += npzd_f2003
-#SUBDIRS += duplicator
-#SUBDIRS += mean
+NPZD_F2003 = ${LIBFABM}(npzd_f2003.o)
 
-#all: OBJS
-#	$(MOVE_MODULES_COMMAND)
 
-objs doc clean:
+all: objs
+
+objs: $(LIBRARY)
+
+$(LIBRARY): $(BENTHIC_PREDATOR) $(DUPLICATOR) $(MEAN) $(NPZD) $(NPZD_F2003)
+
+$(BENTHIC_PREDATOR): benthic_predator
+	$(MAKE) -C benthic_predator objs
+
+$(DUPLICATOR): duplicator
+	$(MAKE) -C duplicator objs
+
+$(MEAN): mean
+	$(MAKE) -C mean objs
+
+$(NPZD): npzd
+	$(MAKE) -C npzd objs
+
+$(NPZD_F2003): npzd_f2003
+	$(MAKE) -C npzd_f2003 objs
+
+doc clean:
 	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir $@ ; done
 
-.PHONY: objs doc clean $(SUBDIRS)
+.PHONY: doc clean $(SUBDIRS)
 

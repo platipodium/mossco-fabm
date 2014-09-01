@@ -58,8 +58,7 @@
 
    public type_expression, type_bulk_expression, type_horizontal_expression
 
-   public type_weighted_sum
-   public type_coupling
+   public type_weighted_sum,type_simple_depth_integral
    public connect_bulk_state_variable_id
 
    public type_bulk_data_pointer,type_horizontal_data_pointer,type_scalar_data_pointer
@@ -294,20 +293,6 @@
       type (type_scalar_data_pointer_pointer),allocatable :: alldata(:) 
    end type type_scalar_variable
 
-   type type_coupling
-      character(len=attribute_length) :: slave    = ''
-      character(len=attribute_length) :: master   = ''
-      logical                         :: required = .false.
-      class (type_coupling),pointer   :: next     => null()
-   end type
-
-   type type_coupling_list
-      class (type_coupling),pointer :: first => null()
-   contains
-      procedure :: add => coupling_list_add
-      procedure :: find => coupling_list_find
-   end type
-
    type type_link
       character(len=attribute_length)       :: name    = ''
       class (type_internal_object), pointer :: target  => null()
@@ -361,24 +346,22 @@
       type (type_model_list)          :: children
 
       ! Model name and variable prefixes.
-      character(len=64) :: name             = ''
-      character(len=64) :: name_prefix      = ''
-      character(len=64) :: long_name_prefix = ''
+      character(len=64) :: name      = ''
+      character(len=64) :: long_name = ''
+      character(len=64) :: type_name = ''
 
       ! Models constituents: links to variables, coupling requests, parameters, expressions
       type (type_link),              pointer :: first_link               => null()
       type (type_aggregate_variable),pointer :: first_aggregate_variable => null()
 
-      type (type_coupling_list)       :: couplings
-      type (type_property_dictionary) :: parameters
-      type (type_set)                 :: retrieved_parameters, missing_parameters
+      type (type_hierarchical_dictionary) :: couplings
+      type (type_hierarchical_dictionary) :: parameters
 
       class (type_expression), pointer :: first_expression => null()
 
       real(rk) :: dt = 1.0_rk
 
       logical :: check_conservation = .false.
-      logical :: check_missing_parameters = .true.
 
       ! Identifiers for variables that contain zero at all time.
       type (type_dependency_id)            :: id_zero
@@ -594,6 +577,18 @@
       procedure :: evaluate_horizontal => horizontal_weighted_sum_evaluate_horizontal
       procedure :: do_bottom           => horizontal_weighted_sum_do_bottom
       procedure :: after_coupling      => horizontal_weighted_sum_after_coupling
+   end type
+
+   type,extends(type_base_model) :: type_simple_depth_integral
+      type (type_dependency_id)                     :: id_input
+      type (type_horizontal_dependency_id)          :: id_depth
+      type (type_horizontal_diagnostic_variable_id) :: id_output
+      real(rk)                                      :: minimum_depth = 0.0_rk
+      real(rk)                                      :: maximum_depth = huge(1.0_rk)
+      logical                                       :: average       = .false.
+   contains
+      procedure :: initialize => simple_depth_integral_initialize
+      procedure :: do         => simple_depth_integral_do
    end type
 
    ! ====================================================================================================
@@ -829,14 +824,14 @@
       if (associated(model%parent)) call self%fatal_error('add_child','The provided child model has already been connected to a parent.')
 
       model%name = name
-      model%name_prefix = trim(name)//'_'
       if (present(long_name)) then
-         model%long_name_prefix = trim(long_name)//' '
+         model%long_name = trim(long_name)
       else
-         model%long_name_prefix = trim(name)//' '
+         model%long_name = trim(name)
       end if
       model%parent => self
-      model%check_missing_parameters = self%check_missing_parameters
+      call self%parameters%add_child(model%parameters,name)
+      call self%couplings%add_child(model%couplings,name)
       call self%children%append(model)
       call model%initialize(configunit)
    end subroutine add_child
@@ -1049,109 +1044,30 @@ recursive subroutine add_alias(self,target,name)
    type (type_link),pointer :: link
 
    link => create_link(self,target,name,owner=.false.)
-   if (associated(self%parent)) call self%parent%add_alias(target,trim(self%name_prefix)//trim(name))
+   if (associated(self%parent)) call self%parent%add_alias(target,trim(self%name)//'/'//trim(name))
 end subroutine
 
-subroutine coupling_list_add(self,coupling)
-   class (type_coupling_list),intent(inout) :: self
-   class (type_coupling),pointer            :: coupling
-
-   class (type_coupling),pointer :: current_coupling,previous_coupling
-
-   if (.not.associated(self%first)) then
-      ! No couplings yet - add the first.
-      self%first => coupling
-   else
-      ! Try to find existing coupling for this slave.
-      nullify(previous_coupling)
-      current_coupling => self%first
-      do while (associated(current_coupling))
-         if (current_coupling%slave==coupling%slave) exit
-         previous_coupling => current_coupling
-         current_coupling => current_coupling%next
-      end do
-
-      if (associated(current_coupling)) then
-         ! Coupling for this slave exists - replace it.
-         coupling%next => current_coupling%next
-         if (associated(previous_coupling)) then
-            previous_coupling%next => coupling
-         else
-            self%first => coupling
-         end if
-         deallocate(current_coupling)
-      else
-         ! Coupling for this slave does not exist yet - add it.
-         current_coupling => self%first
-         do while (associated(current_coupling%next))
-            current_coupling => current_coupling%next
-         end do
-         current_coupling%next => coupling
-      end if
-   end if
-
-end subroutine
-
-function coupling_list_find(self,slave,remove) result(coupling)
-   class (type_coupling_list),intent(inout) :: self
-   character(len=*),          intent(in)    :: slave
-   logical,optional,          intent(in)    :: remove
-   class (type_coupling),pointer            :: coupling
-
-   class (type_coupling),pointer            :: previous_coupling
-   logical                                  :: remove_eff
-
-   remove_eff = .false.
-   if (present(remove)) remove_eff = remove
-
-   nullify(previous_coupling)
-   coupling => self%first
-   do while (associated(coupling))
-      if (coupling%slave==slave) exit
-      previous_coupling => coupling
-      coupling => coupling%next
-   end do
-
-   if (associated(coupling).and.remove_eff) then
-      ! Remove the coupling command from the list, as requested.
-      if (.not.associated(previous_coupling)) then
-         self%first => coupling%next
-      else
-         previous_coupling%next => coupling%next
-      end if
-   end if
-end function
-
-subroutine request_coupling_for_link(self,link,master,required)
+subroutine request_coupling_for_link(self,link,master)
    class (type_base_model),intent(inout)              :: self
    type (type_link),       intent(inout)              :: link
    character(len=*),       intent(in)                 :: master
-   logical,optional,       intent(in)                 :: required
 
-   call self%request_coupling(link%name,master,required)
+   call self%request_coupling(link%name,master)
 end subroutine request_coupling_for_link
 
-subroutine request_coupling_for_name(self,slave,master,required)
+subroutine request_coupling_for_name(self,slave,master)
    class (type_base_model),intent(inout)              :: self
    character(len=*),       intent(in)                 :: slave,master
-   logical,optional,       intent(in)                 :: required
 
-   class (type_coupling),pointer :: coupling
-
-   allocate(coupling)
-   coupling%slave = slave
-   coupling%master = master
-   if (present(required)) coupling%required = required
-   call self%couplings%add(coupling)
+   call self%couplings%set_string(slave,master)
 end subroutine request_coupling_for_name
 
-subroutine request_coupling_for_id(self,id,master,required)
+subroutine request_coupling_for_id(self,id,master)
    class (type_base_model), intent(inout) :: self
    class (type_variable_id),intent(inout) :: id
    character(len=*),        intent(in)    :: master
-   logical,optional,        intent(in)    :: required
 
-   call self%request_coupling(id%link,master,required)
+   call self%request_coupling(id%link,master)
 end subroutine request_coupling_for_id
 
 subroutine integer_pointer_set_append(self,value)
@@ -1403,7 +1319,7 @@ end subroutine
       ! Stage 1: implicit - couple variables based on overlapping standard identities.
       ! Stage 2: explicit - resolve user- or model-specified links between variables.
       call couple_standard_variables(self)
-      call process_coupling_tasks(self)
+      call process_coupling_tasks(self,.false.)
 
       ! Create models for aggregate variables at root level, to be used to compute conserved quantities.
       ! After this step, the set of variables that contribute to aggregate quatities may not be modified.
@@ -1412,7 +1328,7 @@ end subroutine
       call create_aggregate_models(self)
 
       ! Repeat coupling because new aggregate variables are now available.
-      call process_coupling_tasks(self)
+      call process_coupling_tasks(self,.true.)
 
       ! Allow inheriting models to perform additional tasks after coupling.
       call after_coupling(self)
@@ -1637,6 +1553,8 @@ end subroutine
       type (type_bulk_variable),pointer                  :: variable
       type (type_link), pointer :: link
       class (type_internal_object),pointer :: object
+      if (variable%name=='' .or. variable%name/=get_safe_name(variable%name)) &
+         call self%fatal_error('add_bulk_variable','Cannot register variable because its name is not valid: "'//trim(variable%name)//'".')
       object => variable
       link => add_object(self,object)
       if (.not.associated(object)) nullify(variable)
@@ -1649,6 +1567,8 @@ end subroutine
       type (type_horizontal_variable),pointer            :: variable
       type (type_link), pointer :: link
       class (type_internal_object),pointer :: object
+      if (variable%name=='' .or. variable%name/=get_safe_name(variable%name)) &
+         call self%fatal_error('add_horizontal_variable','Cannot register variable because its name is not valid: "'//trim(variable%name)//'".')
       object => variable
       link => add_object(self,object)
       if (.not.associated(object)) nullify(variable)
@@ -1661,6 +1581,8 @@ end subroutine
       type (type_scalar_variable),pointer                :: variable
       type (type_link), pointer :: link
       class (type_internal_object),pointer :: object
+      if (variable%name=='' .or. variable%name/=get_safe_name(variable%name)) &
+         call self%fatal_error('add_scalar_variable','Cannot register variable because its name is not valid: "'//trim(variable%name)//'".')
       object => variable
       link => add_object(self,object)
       if (.not.associated(object)) nullify(variable)
@@ -1683,8 +1605,8 @@ end subroutine
 
       ! Forward to parent
       if (associated(self%parent)) then
-         object%name = trim(self%name_prefix)//trim(object%name)
-         object%long_name = trim(self%long_name_prefix)//' '//trim(object%long_name)
+         object%name = trim(self%name)//'/'//trim(object%name)
+         object%long_name = trim(self%long_name)//' '//trim(object%long_name)
          parent_link => self%parent%add_object(object)
       end if
    end function
@@ -2129,7 +2051,7 @@ end subroutine
 
       id%link => self%add_bulk_variable(variable)
 
-      if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
+      !if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
 
    end subroutine register_named_bulk_dependency
 !EOC
@@ -2188,7 +2110,7 @@ end subroutine
 
       id%link => self%add_horizontal_variable(variable)
 
-      if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
+      !if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
 
    end subroutine register_named_horizontal_dependency
 !EOC
@@ -2247,7 +2169,7 @@ end subroutine
 
       id%link => self%add_scalar_variable(variable)
 
-      if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
+      !if (associated(self%parent).and..not.present(standard_variable)) call self%request_coupling(id,name,required=.false.)
 
    end subroutine register_named_global_dependency
 !EOC
@@ -2305,283 +2227,185 @@ recursive subroutine register_expression(self,expression)
    if (associated(self%parent)) call register_expression(self%parent,expression)
 end subroutine
 
-recursive subroutine get_real_parameter(self,value,name,units,long_name,scale_factor,default,found)
+subroutine get_real_parameter(self,value,name,units,long_name,default,scale_factor)
 ! !INPUT PARAMETERS:
    class (type_base_model), intent(inout), target  :: self
    real(rk),                intent(inout)          :: value
    character(len=*),        intent(in)             :: name
    character(len=*),        intent(in),   optional :: units,long_name
-   real(rk),                intent(in),   optional :: scale_factor,default
-   logical,                 intent(inout),optional :: found
+   real(rk),                intent(in),   optional :: default,scale_factor
 !
 !EOP
 !
 ! !LOCAL VARIABLES:
    class (type_property),    pointer :: property
-   type (type_real_property),pointer :: current_parameter
-   real(rk)                          :: default_eff
-   logical                           :: found_eff,success
+   logical                           :: success
+   type (type_real_property)         :: current_parameter
 !
 !-----------------------------------------------------------------------
 !BOC
-   if (self%retrieved_parameters%contains(name)) call self%fatal_error('get_real_parameter', &
-      'Value for parameter "'//trim(name)//'" has already been retrieved once.')
-   call self%retrieved_parameters%add(name)
-
    if (present(default)) then
-      default_eff = default
-   else
-      default_eff = value
-   end if
-   if (present(found)) then
-      found_eff = found
-   else
-      found_eff = .false.
+      current_parameter%has_default = .true.
+      current_parameter%default = default
+      value = default
    end if
 
-   ! Try to find the parameter in the model's own parameter list.
-   property => self%parameters%get_property(name)
+   ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
+   property => self%parameters%find_in_tree(name)
    if (associated(property)) then
-      found_eff = .true.
-      default_eff = property%to_real(success=success)
+      ! Value found - try to convert to real.
+      value = property%to_real(success=success)
       if (.not.success) call self%fatal_error('get_real_parameter', &
          'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not a real number.')
-   end if
-
-   if (associated(self%parent)) then
-      call self%parent%get_parameter(value,trim(self%name)//'/'//name,units,long_name,1.0_rk,default_eff,found_eff)
-   else
-      value = default_eff
-   end if
-
-   if (self%check_missing_parameters.and..not.(present(found).or.found_eff)) then
-      ! We are back at the model that started the parameter search, but have not found a value.
-      ! Raise an error if the model did not provide a default value.
-      if (.not.present(default)) call self%fatal_error('get_real_parameter','No value provided for parameter "'//trim(name)//'".')
-      call self%missing_parameters%add(name)
+   elseif (.not.present(default)) then
+      call self%fatal_error('get_real_parameter','No value provided for parameter "'//trim(name)//'".')
    end if
 
    ! Store parameter settings
-   allocate(current_parameter)
    current_parameter%value = value
+   call set_parameter(self,current_parameter,name,units,long_name)
 
-   call add_parameter(self,current_parameter,name,units,long_name)
-
+   ! Apply scale factor to value provided to the model (if requested).
    if (present(scale_factor)) value = value*scale_factor
-
 end subroutine get_real_parameter
 !EOC
 
-recursive subroutine get_integer_parameter(self,value,name,units,long_name,default,found)
+subroutine set_parameter(self,parameter,name,units,long_name)
+! !INPUT PARAMETERS:
+   class (type_base_model), intent(inout), target :: self
+   class (type_property),   intent(inout)         :: parameter
+   character(len=*),        intent(in)            :: name
+   character(len=*),        intent(in),optional   :: units,long_name
+!
+!EOP
+   class (type_base_model), pointer :: pmodel
+!-----------------------------------------------------------------------
+!BOC
+   parameter%name = name
+   if (present(units))     parameter%units     = units
+   if (present(long_name)) parameter%long_name = long_name
+   call self%parameters%set_in_tree(parameter)
+end subroutine set_parameter
+!EOC
+
+subroutine get_integer_parameter(self,value,name,units,long_name,default)
 ! !INPUT PARAMETERS:
    class (type_base_model), intent(inout), target :: self
    integer,                 intent(inout)         :: value
    character(len=*),        intent(in)            :: name
    character(len=*),        intent(in),optional   :: units,long_name
    integer,                 intent(in),optional   :: default
-   logical,                 intent(inout),optional :: found
 !
 !EOP
 !
 ! !LOCAL VARIABLES:
    class (type_property),       pointer :: property
-   type (type_integer_property),pointer :: current_parameter
-   integer                              :: default_eff
-   logical                              :: found_eff,success
+   type (type_integer_property)         :: current_parameter
+   logical                              :: success
 !
 !-----------------------------------------------------------------------
 !BOC
-   if (self%retrieved_parameters%contains(name)) call self%fatal_error('get_integer_parameter', &
-      'Value for parameter "'//trim(name)//'" has already been retrieved once.')
-   call self%retrieved_parameters%add(name)
-
    if (present(default)) then
-      default_eff = default
-   else
-      default_eff = value
-   end if
-   if (present(found)) then
-      found_eff = found
-   else
-      found_eff = .false.
+      current_parameter%has_default = .true.
+      current_parameter%default = default
+      value = default
    end if
 
-   ! Try to find the parameter in the model's own parameter list.
-   property => self%parameters%get_property(name)
+   ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
+   property => self%parameters%find_in_tree(name)
    if (associated(property)) then
-      found_eff = .true.
-      default_eff = property%to_integer(success=success)
+      ! Value found - try to convert to integer.
+      value = property%to_integer(success=success)
       if (.not.success) call self%fatal_error('get_integer_parameter', &
-         'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not an integer.')
-   end if
-
-   if (associated(self%parent)) then
-      call self%parent%get_parameter(value,trim(self%name)//'/'//name,units,long_name,default_eff,found_eff)
-   else
-      value = default_eff
-   end if
-
-   if (self%check_missing_parameters.and..not.(present(found).or.found_eff)) then
-      ! We are back at the model that started the parameter search, but have not found a value.
-      ! Raise an error if the model did not provide a default value.
-      if (.not.present(default)) call self%fatal_error('get_integer_parameter','No value provided for parameter "'//trim(name)//'".')
-      call self%missing_parameters%add(name)
+         'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not an integer number.')
+   elseif (.not.present(default)) then
+      call self%fatal_error('get_integer_parameter','No value provided for parameter "'//trim(name)//'".')
    end if
 
    ! Store parameter settings
-   allocate(current_parameter)
    current_parameter%value = value
-
-   call add_parameter(self,current_parameter,name,units,long_name)
-
+   call set_parameter(self,current_parameter,name,units,long_name)
 end subroutine get_integer_parameter
 !EOC
 
-recursive subroutine get_logical_parameter(self,value,name,units,long_name,default,found)
+subroutine get_logical_parameter(self,value,name,units,long_name,default)
 ! !INPUT PARAMETERS:
    class (type_base_model), intent(inout), target :: self
    logical,                 intent(inout)         :: value
    character(len=*),        intent(in)            :: name
    character(len=*),        intent(in),optional   :: units,long_name
    logical,                 intent(in),optional   :: default
-   logical,                 intent(inout),optional :: found
 !
 !EOP
 !
 ! !LOCAL VARIABLES:
    class (type_property),       pointer :: property
-   type (type_logical_property),pointer :: current_parameter
-   logical                              :: default_eff
-   logical                              :: found_eff,success
+   type (type_logical_property)         :: current_parameter
+   logical                              :: success
 !
 !-----------------------------------------------------------------------
 !BOC
-   if (self%retrieved_parameters%contains(name)) call self%fatal_error('get_logical_parameter', &
-      'Value for parameter "'//trim(name)//'" has already been retrieved once.')
-   call self%retrieved_parameters%add(name)
-
    if (present(default)) then
-      default_eff = default
-   else
-      default_eff = value
-   end if
-   if (present(found)) then
-      found_eff = found
-   else
-      found_eff = .false.
+      current_parameter%has_default = .true.
+      current_parameter%default = default
+      value = default
    end if
 
-   ! Try to find the parameter in the model's own parameter list.
-   property => self%parameters%get_property(name)
+   ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
+   property => self%parameters%find_in_tree(name)
    if (associated(property)) then
-      found_eff = .true.
-      default_eff = property%to_logical(success=success)
+      ! Value found - try to convert to logical.
+      value = property%to_logical(success=success)
       if (.not.success) call self%fatal_error('get_logical_parameter', &
-         'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not an Boolean.')
-   end if
-   
-   if (associated(self%parent)) then
-      call self%parent%get_parameter(value,trim(self%name)//'/'//name,units,long_name,default_eff,found_eff)
-   else
-      value = default_eff
-   end if
-
-   if (self%check_missing_parameters.and..not.(present(found).or.found_eff)) then
-      ! We are back at the model that started the parameter search, but have not found a value.
-      ! Raise an error if the model did not provide a default value.
-      if (.not.present(default)) call self%fatal_error('get_logical_parameter','No value provided for parameter "'//trim(name)//'".')
-      call self%missing_parameters%add(name)
+         'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not a Boolean value.')
+   elseif (.not.present(default)) then
+      call self%fatal_error('get_logical_parameter','No value provided for parameter "'//trim(name)//'".')
    end if
 
    ! Store parameter settings
-   allocate(current_parameter)
    current_parameter%value = value
-
-   call add_parameter(self,current_parameter,name,units,long_name)
-
+   call set_parameter(self,current_parameter,name,units,long_name)
 end subroutine get_logical_parameter
 !EOC
 
-recursive subroutine get_string_parameter(self,value,name,units,long_name,default,found)
+recursive subroutine get_string_parameter(self,value,name,units,long_name,default)
 ! !INPUT PARAMETERS:
    class (type_base_model), intent(inout), target :: self
    character(len=*),        intent(inout)         :: value
    character(len=*),        intent(in)            :: name
    character(len=*),        intent(in),optional   :: units,long_name
    character(len=*),        intent(in),optional   :: default
-   logical,                 intent(inout),optional :: found
 !
 !EOP
 !
 ! !LOCAL VARIABLES:
-   class (type_property),       pointer :: property
-   type (type_string_property),pointer :: current_parameter
-   character(len=1024)                 :: default_eff
-   logical                              :: found_eff
+   class (type_property),      pointer :: property
+   type (type_string_property)         :: current_parameter
+   logical                             :: success
 !
 !-----------------------------------------------------------------------
 !BOC
-   if (self%retrieved_parameters%contains(name)) call self%fatal_error('get_string_parameter', &
-      'Value for parameter "'//trim(name)//'" has already been retrieved once.')
-   call self%retrieved_parameters%add(name)
-
    if (present(default)) then
-      default_eff = default
-   else
-      default_eff = value
-   end if
-   if (present(found)) then
-      found_eff = found
-   else
-      found_eff = .false.
+      current_parameter%has_default = .true.
+      current_parameter%default = default
+      value = default
    end if
 
-   ! Try to find the parameter in the model's own parameter list.
-   property => self%parameters%get_property(name)
+   ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
+   property => self%parameters%find_in_tree(name)
    if (associated(property)) then
-      found_eff = .true.
-      default_eff = property%to_string()
-   end if
-
-   if (associated(self%parent)) then
-      call self%parent%get_parameter(value,trim(self%name)//'/'//name,units,long_name,default_eff,found_eff)
-   else
-      value = default_eff
-   end if
-
-   if (self%check_missing_parameters.and..not.(present(found).or.found_eff)) then
-      ! We are back at the model that started the parameter search, but have not found a value.
-      ! Raise an error if the model did not provide a default value.
-      if (.not.present(default)) call self%fatal_error('get_real_parameter','No value provided for parameter "'//trim(name)//'".')
-      call self%missing_parameters%add(name)
+      ! Value found - try to convert to string.
+      value = property%to_string(success=success)
+      if (.not.success) call self%fatal_error('get_string_parameter', &
+         'Value for parameter "'//trim(name)//'" cannot be converted to string.')
+   elseif (.not.present(default)) then
+      call self%fatal_error('get_string_parameter','No value provided for parameter "'//trim(name)//'".')
    end if
 
    ! Store parameter settings
-   allocate(current_parameter)
    current_parameter%value = value
-
-   call add_parameter(self,current_parameter,name,units,long_name)
-
+   call set_parameter(self,current_parameter,name,units,long_name)
 end subroutine get_string_parameter
-!EOC
-
-subroutine add_parameter(model,parameter,name,units,long_name)
-! !INPUT PARAMETERS:
-   class (type_base_model), intent(inout), target :: model
-   class (type_property),   intent(inout), target :: parameter
-   character(len=*),        intent(in)            :: name
-   character(len=*),        intent(in),optional   :: units,long_name
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   ! Store metadata
-   parameter%name = name
-   if (present(units))     parameter%units     = units
-   if (present(long_name)) parameter%long_name = long_name
-   call model%parameters%set_property(parameter)
-
-end subroutine add_parameter
 !EOC
 
 !-----------------------------------------------------------------------
@@ -2691,12 +2515,13 @@ end subroutine add_parameter
 ! !IROUTINE: Process all model-specific coupling tasks.
 !
 ! !INTERFACE:
-   recursive subroutine process_coupling_tasks(self)
+   recursive subroutine process_coupling_tasks(self,check)
 !
 ! !DESCRIPTION:
 !
 ! !INPUT PARAMETERS:
       class (type_base_model),intent(inout),target :: self
+      logical,                intent(in)           :: check
 !
 !EOP
 !
@@ -2704,7 +2529,7 @@ end subroutine add_parameter
       class (type_base_model),     pointer :: root
       type (type_model_list_node), pointer :: child
       type (type_link),            pointer :: link
-      class (type_coupling),       pointer :: coupling
+      class (type_property),       pointer :: master_name
       class (type_internal_object),pointer :: master
 !
 !-----------------------------------------------------------------------
@@ -2715,35 +2540,46 @@ end subroutine add_parameter
          root => root%parent
       end do
 
-      ! Enumerate named couplings, locate slave and target variables, and couple them.
-      coupling => self%couplings%first
-      do while (associated(coupling))
-         ! First locate the slave variable
-         link => self%find_link(coupling%slave)
-         if (.not.associated(link)) &
-            call self%fatal_error('process_coupling_tasks','Slave variable "'//trim(coupling%slave)//'" was not found.')
+      ! For each variable, determine if a coupling command is provided.
+      link => self%first_link
+      do while (associated(link))
 
-         ! Try to find the master variable among the variables of the requesting model or its parents.
-         if (coupling%slave/=coupling%master) then
-            ! Master and slave name differ: start master search in current model, then move up tree.
-            master => self%find_object(coupling%master,recursive=.true.)
-         elseif (associated(self%parent)) then
-            ! Master and slave name are identical: start master search in parent model, then move up tree.
-            master => self%parent%find_object(coupling%master,recursive=.true.)
-         end if
-         if (associated(master)) then
-            ! Target variable found: perform the coupling.
-            call couple_variables(root,master,link%target)
-         elseif (coupling%required) then
-            call self%fatal_error('process_coupling_tasks','Coupling target "'//trim(coupling%master)//'" for "'//trim(coupling%slave)//'" was not found.')
-         end if
-         coupling => coupling%next
+         ! Only process own links (those without slash in the name)
+         if (index(link%name,'/')==0) then
+
+            ! Try to find a coupling for this variable.
+            master_name => self%couplings%find_in_tree(link%name)
+
+            if (associated(master_name)) then
+               select type (master_name)
+                  class is (type_string_property)
+                     ! Try to find the master variable among the variables of the requesting model or its parents.
+                     if (link%name/=master_name%value) then
+                        ! Master and slave name differ: start master search in current model, then move up tree.
+                        master => self%find_object(master_name%value,recursive=.true.,exact=.false.)
+                     elseif (associated(self%parent)) then
+                        ! Master and slave name are identical: start master search in parent model, then move up tree.
+                        master => self%parent%find_object(master_name%value,recursive=.true.,exact=.false.)
+                     end if
+                     if (associated(master)) then
+                        ! Target variable found: perform the coupling.
+                        call couple_variables(root,master,link%target)
+                     elseif (check) then
+                        call self%fatal_error('process_coupling_tasks', &
+                           'Coupling target "'//trim(master_name%value)//'" for "'//trim(link%name)//'" was not found.')
+                     end if
+               end select
+            end if ! If own link (no / in name)
+
+         end if ! If coupling was specified
+
+         link => link%next
       end do
 
       ! Process coupling tasks registered with child models.
       child => self%children%first
       do while (associated(child))
-         call process_coupling_tasks(child%model)
+         call process_coupling_tasks(child%model,check)
          child => child%next
       end do
 
@@ -2907,40 +2743,62 @@ subroutine merge_scalar_variables(master,slave)
    end if
 end subroutine merge_scalar_variables
 
-   function find_object(self,name,recursive) result(object)
+   function find_object(self,name,recursive,exact) result(object)
 
       class (type_base_model),  intent(in),target :: self
       character(len=*),         intent(in)        :: name
-      logical,         optional,intent(in)        :: recursive
+      logical,         optional,intent(in)        :: recursive,exact
       class (type_internal_object),pointer        :: object
 
       type (type_link), pointer :: link
 
       nullify(object)
-      link => self%find_link(name,recursive)
+      link => self%find_link(name,recursive,exact)
       if (associated(link)) object => link%target
       
    end function find_object
 
-   recursive function find_link(self,name,recursive) result(link)
+   function find_link(self,name,recursive,exact) result(link)
 
       class (type_base_model),  intent(in),target :: self
       character(len=*),         intent(in)        :: name
-      logical,         optional,intent(in)        :: recursive
-      type (type_link),       pointer             :: link
+      logical,         optional,intent(in)        :: recursive,exact
+      type (type_link),pointer                    :: link
 
-      logical :: recursive_eff
+      logical                         :: recursive_eff,exact_eff
+      class (type_base_model),pointer :: current
 
-      link => self%first_link
-      do while (associated(link))
-         if (link%name==name) return
-         link => link%next
-      end do
-
-      ! Object not found - try parent if allowed.
       recursive_eff = .false.
       if (present(recursive)) recursive_eff = recursive
-      if (recursive_eff.and.associated(self%parent)) link => self%parent%find_link(name,recursive)
+      nullify(link)
+
+      ! First search self and ancestors (if allowed) based on exact name provided.
+      current => self
+      do while (associated(current))
+         link => current%first_link
+         do while (associated(link))
+            if (link%name==name) return
+            link => link%next
+         end do
+         if (.not.recursive_eff) exit
+         current => current%parent
+      end do
+
+      exact_eff = .true.
+      if (present(exact)) exact_eff = exact
+      if (exact_eff) return
+
+      ! Not found. Now search self and ancestors (if allowed) based on safe name (letters and underscores only).
+      current => self
+      do while (associated(current))
+         link => current%first_link
+         do while (associated(link))
+            if (get_safe_name(link%name)==name) return
+            link => link%next
+         end do
+         if (.not.recursive_eff) exit
+         current => current%parent
+      end do
 
    end function find_link
 
@@ -3663,6 +3521,30 @@ end subroutine
          case (output_time_step_integrated); time_treatment = time_treatment_step_integrated
       end select
    end function
+
+   subroutine simple_depth_integral_initialize(self,configunit)
+      class (type_simple_depth_integral),intent(inout),target :: self
+      integer,                           intent(in)           :: configunit
+      call self%register_dependency(self%id_input,'source')
+      if (.not.self%average) call self%register_dependency(self%id_depth,standard_variables%bottom_depth)
+      call self%register_diagnostic_variable(self%id_output,'result','','result')
+   end subroutine
+
+   subroutine simple_depth_integral_do(self,_ARGUMENTS_DO_)
+      class (type_simple_depth_integral),intent(in) :: self
+      _DECLARE_ARGUMENTS_DO_
+
+      real(rk) :: value,depth
+
+      _HORIZONTAL_LOOP_BEGIN_
+         _GET_(self%id_input,value)
+         if (.not.self%average) then
+            _GET_HORIZONTAL_(self%id_depth,depth)
+            value = value*(min(self%maximum_depth,depth)-self%minimum_depth)
+         end if
+         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_output,value)
+      _HORIZONTAL_LOOP_END_
+   end subroutine
 
    end module fabm_types
 

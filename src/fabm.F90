@@ -29,8 +29,10 @@
 !
 !  Reference modules of specific biogeochemical models
    use fabm_gotm_npzd
-   !use fabm_gotm_fasham
-   !use fabm_examples_benthic_predator
+   use fabm_gotm_fasham
+   use fabm_metu_mnemiopsis
+   use fabm_examples_benthic_predator
+   use fabm_klimacampus_phy_feedback
    ! ADD_NEW_MODEL_HERE - required if the model is contained in a Fortran 90 module
 
    implicit none
@@ -56,7 +58,7 @@
    ! Management of model variables: retrieve identifiers, get and set data.
    public fabm_get_bulk_variable_id,fabm_get_horizontal_variable_id,fabm_get_scalar_variable_id
    public fabm_get_variable_name, fabm_is_variable_used, fabm_variable_needs_values
-   public fabm_link_bulk_state_data, fabm_link_bottom_state_data
+   public fabm_link_bulk_state_data, fabm_link_bottom_state_data, fabm_link_surface_state_data
    public fabm_link_bulk_data, fabm_link_horizontal_data, fabm_link_scalar_data
    public fabm_get_bulk_diagnostic_data, fabm_get_horizontal_diagnostic_data
 
@@ -117,6 +119,7 @@
       character(len=attribute_length) :: name          = ''
       character(len=attribute_length) :: long_name     = ''
       character(len=attribute_length) :: units         = ''
+      character(len=attribute_length) :: path          = ''
       real(rk)                        :: minimum       = -1.e20_rk
       real(rk)                        :: maximum       =  1.e20_rk
       real(rk)                        :: missing_value = -2.e20_rk
@@ -194,6 +197,7 @@
       type (type_bulk_data_pointer) :: extinction_data
 
       ! Derived types that belong to specific biogeochemical models.
+      !type (type_metu_mnemiopsis)           :: metu_mnemiopsis
       ! ADD_NEW_MODEL_HERE - required if the model groups its data in a custom derived type
    contains
       procedure :: link_bulk_data_by_id   => fabm_link_bulk_data_by_id
@@ -307,13 +311,19 @@
       module procedure fabm_bulk_variable_needs_values
    end interface
 
+   interface fabm_do_surface
+      module procedure fabm_do_surface_nosfstate
+      module procedure fabm_do_surface_sfstate
+   end interface
+
    ! For backward compatibility only:
    interface fabm_do_benthos
       module procedure fabm_do_bottom_rhs
       module procedure fabm_do_bottom_ppdd
    end interface
    interface fabm_get_surface_exchange
-      module procedure fabm_do_surface
+      module procedure fabm_do_surface_nosfstate
+      module procedure fabm_do_surface_sfstate
    end interface
 
    interface create_external_variable_id
@@ -405,7 +415,6 @@
 
    ! Create model tree
    allocate(model)
-   model%root%check_missing_parameters = .false.
    do i=1,size(models)
       if (models(i)/='') then
          ! Determine if this model name is used multiple times.
@@ -472,17 +481,21 @@
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
-      type (type_model_list_node),pointer :: node
+      type (type_model_list_node),   pointer :: node
       type (type_aggregate_variable),pointer :: aggregate_variable
 !EOP
 !-----------------------------------------------------------------------
 !BOC
       self%info => self ! For backward compatibility (pre 11/2013 hosts only)
 
-      ! Make sure a variable for light extinction is created at the root level.
-      ! This is used from fabm_get_light_extinction.
+      ! Make sure a variable for light extinction is created at the root level when calling freeze_model_info.
+      ! This variable is used from fabm_get_light_extinction.
       aggregate_variable => get_aggregate_variable(self%root,standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
       aggregate_variable%bulk_required = .true.
+
+      ! Filter out expressions that FABM can handle itself.
+      ! The remainder, if any, must be handled by the host model.
+      call filter_expressions(self)
 
       ! This will resolve all FABM dependencies and generate final authorative lists of variables of different types.
       call freeze_model_info(self%root)
@@ -504,6 +517,46 @@
 
    end subroutine fabm_initialize
 !EOC
+
+   subroutine filter_expressions(self)
+      class (type_model),intent(inout)           :: self
+      class (type_expression),           pointer :: current,previous,next
+      class (type_simple_depth_integral),pointer :: integral
+      logical                                    :: filter
+
+      nullify(previous)
+      current => self%root%first_expression
+      do while (associated(current))
+         select type (current)
+            class is (type_vertical_integral)
+#ifndef _FABM_DEPTH_DIMENSION_INDEX_
+               ! For models without depth dimension, FABM can calculate depth averages and integrals itself.
+               allocate(integral)
+               integral%minimum_depth = current%minimum_depth
+               integral%maximum_depth = current%maximum_depth
+               integral%average       = current%average
+               call self%root%add_child(integral,current%output_name,configunit=-1)
+               call integral%request_coupling(integral%id_input,current%input_name)
+               call self%root%request_coupling(current%output_name,integral%id_output%link%target%name)
+               filter = .true.
+#endif
+         end select
+         
+         ! If FABM handles this expression internally, remove it from the list.
+         next => current%next
+         if (filter) then
+            if (associated(previous)) then
+               previous%next => next
+            else
+               self%root%first_expression => next
+            end if
+            deallocate(current)
+         else
+            previous => current
+         end if
+         current => next
+      end do
+   end subroutine
 
 !-----------------------------------------------------------------------
 !BOP
@@ -897,7 +950,7 @@
    do while (associated(link))
       select type (object=>link%target)
          class is (type_bulk_variable)
-            if (object%name==name) then
+            if (object%name==name.or.get_safe_name(object%name)==name) then
                id = create_external_variable_id(object)
                return
             end if
@@ -972,7 +1025,7 @@
    do while (associated(link))
       select type (object=>link%target)
          class is (type_horizontal_variable)
-            if (object%name==name) then
+            if (object%name==name.or.get_safe_name(object%name)==name) then
                id = create_external_variable_id(object)
                return
             end if
@@ -1049,7 +1102,7 @@
    do while (associated(link))
       select type (object=>link%target)
          class is (type_scalar_variable)
-            if (object%name==name) then
+            if (object%name==name.or.get_safe_name(object%name)==name) then
                id = create_external_variable_id(object)
                return
             end if
@@ -1120,7 +1173,7 @@
 !-----------------------------------------------------------------------
 !BOC
    name = ''
-   if (associated(id%variable)) name = id%variable%name
+   if (associated(id%variable)) name = get_safe_name(id%variable%name)
 
    end function fabm_get_bulk_variable_name
 !EOC
@@ -1148,7 +1201,7 @@
 !-----------------------------------------------------------------------
 !BOC
    name = ''
-   if (associated(id%variable)) name = id%variable%name
+   if (associated(id%variable)) name = get_safe_name(id%variable%name)
 
    end function fabm_get_horizontal_variable_name
 !EOC
@@ -1176,7 +1229,7 @@
 !-----------------------------------------------------------------------
 !BOC
    name = ''
-   if (associated(id%variable)) name = id%variable%name
+   if (associated(id%variable)) name = get_safe_name(id%variable%name)
 
    end function fabm_get_scalar_variable_name
 !EOC
@@ -1641,6 +1694,31 @@
 !-----------------------------------------------------------------------
 !BOP
 !
+! !IROUTINE: Provide FABM with (a pointer to) the array with data for
+! a single surface-bound state variable.
+!
+! !INTERFACE:
+   subroutine fabm_link_surface_state_data(self,id,dat)
+!
+! !INPUT PARAMETERS:
+   class (type_model),                           intent(inout) :: self
+   integer,                                      intent(in)    :: id
+   real(rk) _DIMENSION_GLOBAL_HORIZONTAL_,target,intent(in)    :: dat
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   call fabm_link_horizontal_data(self,self%surface_state_variables(id)%globalid,dat)
+
+   end subroutine fabm_link_surface_state_data
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
 ! !IROUTINE: Returns (a pointer to) the array with data for
 ! a single diagnostic variable, defined on the full spatial domain.
 !
@@ -1987,14 +2065,50 @@ end subroutine
 ! out of the ocean. Units are tracer unit * m/s.
 !
 ! !INTERFACE:
-   subroutine fabm_do_surface(self _ARG_LOCATION_VARS_HZ_,flux)
+   subroutine fabm_do_surface_nosfstate(self _ARG_LOCATION_VARS_HZ_,flux_pel)
 !
 ! !INPUT PARAMETERS:
       class (type_model),                          intent(inout) :: self
       _DECLARE_LOCATION_ARG_HZ_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-      real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(out)   :: flux
+      real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(out)   :: flux_pel
+!
+! !REVISION HISTORY:
+!  Original author(s): Jorn Bruggeman
+!EOP
+!
+      type (type_model_list_node), pointer :: node
+      real(rk),allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ALLOCATABLE_ :: flux_sf
+!-----------------------------------------------------------------------
+!BOC
+      allocate(flux_sf(_HORIZONTAL_SLICE_SHAPE_ 0))
+      flux_pel = 0.0_rk
+      node => self%models%first
+      do while (associated(node))
+         call node%model%do_surface(_ARGUMENTS_IN_HZ_,flux_pel,flux_sf)
+         node => node%next
+      end do
+
+   end subroutine
+!EOC
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Get the air-water exchange fluxes for all biogeochemical state variables.
+! Positive values indicate fluxes into the ocean, negative values indicate fluxes
+! out of the ocean. Units are tracer unit * m/s.
+!
+! !INTERFACE:
+   subroutine fabm_do_surface_sfstate(self _ARG_LOCATION_VARS_HZ_,flux_pel,flux_sf)
+!
+! !INPUT PARAMETERS:
+      class (type_model),                          intent(inout) :: self
+      _DECLARE_LOCATION_ARG_HZ_
+!
+! !INPUT/OUTPUT PARAMETERS:
+      real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(out)   :: flux_pel,flux_sf
 !
 ! !REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
@@ -2003,14 +2117,15 @@ end subroutine
       type (type_model_list_node), pointer :: node
 !-----------------------------------------------------------------------
 !BOC
-      flux = 0.0_rk
+      flux_pel = 0.0_rk
+      flux_sf = 0.0_rk
       node => self%models%first
       do while (associated(node))
-         call node%model%do_surface(_ARGUMENTS_IN_HZ_,flux)
+         call node%model%do_surface(_ARGUMENTS_IN_HZ_,flux_pel,flux_sf)
          node => node%next
       end do
 
-   end subroutine fabm_do_surface
+   end subroutine
 !EOC
 
 !-----------------------------------------------------------------------
@@ -2619,6 +2734,7 @@ subroutine classify_variables(self)
       consvar%name = trim(consvar%standard_variable%name)
       consvar%units = trim(consvar%standard_variable%units)
       consvar%long_name = trim(consvar%standard_variable%name)
+      consvar%path = trim(consvar%standard_variable%name)
       consvar%aggregate_variable => aggregate_variable
       object => self%root%find_object(trim(aggregate_variable%standard_variable%name))
       select type (object)
@@ -2665,7 +2781,7 @@ subroutine classify_variables(self)
                         call object%state_indices%set_value(nstate)
                      case (presence_external_required)
                         call fatal_error('classify_variables', &
-                           'Variable "'//trim(link%name)//'" must be coupled to an existing state variable.')
+                           'Variable '//trim(link%name)//' must be coupled to an existing state variable.')
                      case default
                         continue
                   end select
@@ -2692,7 +2808,7 @@ subroutine classify_variables(self)
                         end select
                      case (presence_external_required)
                         call fatal_error('classify_variables', &
-                           'Variable "'//trim(link%name)//'" must be coupled to an existing state variable.')
+                           'Variable '//trim(link%name)//' must be coupled to an existing state variable.')
                   end select
                end if
          end select
@@ -2815,9 +2931,10 @@ subroutine copy_variable_metadata(internal_variable,external_variable)
    class (type_external_variable),intent(inout) :: external_variable
    class (type_internal_variable),intent(in)    :: internal_variable
 
-   external_variable%name          = internal_variable%name
+   external_variable%name          = get_safe_name(internal_variable%name)
    external_variable%long_name     = internal_variable%long_name
    external_variable%units         = internal_variable%units
+   external_variable%path          = internal_variable%name
    external_variable%minimum       = internal_variable%minimum
    external_variable%maximum       = internal_variable%maximum
    external_variable%missing_value = internal_variable%missing_value
