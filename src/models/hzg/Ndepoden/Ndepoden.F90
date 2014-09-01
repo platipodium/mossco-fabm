@@ -129,7 +129,7 @@
    call self%register_dependency(self%id_depth,standard_variables%depth) !for implementing the nut_influx
 
    ! in order to be able to calculate the dNdef=total(denitrate)-deporate, we need to 
-   call self%register_horizontal_dependency(self%id_deporate_dep,'hzg_Ndepoden_deporate') !,required=.false.
+   call self%register_horizontal_dependency(self%id_deporate_dep,'deporate') !,required=.false.
    !call self%register_horizontal_dependency(self%id_denitrate_dep,'hzg_Ndepoden_denitrate') !,required=.false.
    
    !register the bulk pelagic denitrification as a bulk dependency

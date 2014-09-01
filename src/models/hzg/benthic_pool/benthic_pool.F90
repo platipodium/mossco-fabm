@@ -114,10 +114,10 @@ g_max,K,h_const,remin_max,diff,v_d,d_ben,const_nut,const_det,k_remin,nut_loss_ma
    ! Register state variables
    ! NOTE the benthic=.true. argument, which specifies the variable is benthic.
    !call self%register_state_variable(self%id_det_ben,'det_ben','mmol/m**2','det_ben', &
-   call self%register_state_variable(self%id_det_ben,trim(SVname)//'-det','mmol/m**2',trim(SVname)//'-det', &
+   call self%register_state_variable(self%id_det_ben,trim(SVname)//'_det','mmol/m**2',trim(SVname)//'-det', &
                                           det_ben_initial,minimum=_ZERO_)
    !call self%register_state_variable(self%id_nut_ben,'nut_ben','mmol/m**2','nut_ben', &
-   call self%register_state_variable(self%id_nut_ben,trim(SVname)//'-nut','mmol/m**2',trim(SVname)//'-nut', &
+   call self%register_state_variable(self%id_nut_ben,trim(SVname)//'_nut','mmol/m**2',trim(SVname)//'-nut', &
                                           nut_ben_initial,minimum=_ZERO_)
 
    
