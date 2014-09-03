@@ -1,0 +1,31 @@
+! SVname = 'benN' 
+! pelagic_nutrient_variable = target dissolved nutrient variable in the pelagic
+! pelagic_detritus_variable = target detrital nutrient variable in the pelagic 
+! det_ben_initial = initial value of the detrital nutrient variable in benthos
+! nut_ben_initial = initial value of the dissolved nutrient variable in benthos
+! const_nut = M, if not coupled to a dynamic pelagic model, constant concentration of the pelagic_nutrient_variable
+! const_det = M, if not coupled to a dynamic pelagic model, constant concentration of the pelagic_detritus_variable
+! remin_const = /d, constant remineralization rate in benthos (valid only if do_sat_remin=.false.)
+! remin_max = /d, max. remineralization rate in benthos (valid only if do_sat_remin=.true.)
+! k_remin = mmol/m2, half sat. constant for the saturating remineralization function in benthos (valid only if do_sat_remin=.true.)
+! v_d = m/d, sinking velocity of detritus in the pelagic
+! d_ben = m, thickness of the benthic layer
+! diff = m2/d, diffusion coefficient across the pelagic-benthic interface
+! do_sat_remin = .false. 
+
+&hzg_benthic_pool 
+   SVname = 'benN' 
+   pelagic_nutrient_variable = 'hzg_maecs_nutN' 
+   pelagic_detritus_variable = 'hzg_maecs_detN' 
+   det_ben_initial = 160 
+   nut_ben_initial = 160 
+   const_nut = 10 
+   const_det = 10 
+   remin_const = 0.01 
+   remin_max = 0 
+   k_remin = 1 
+   v_d = 0.5 
+   d_ben = 0.2 
+   diff = 5e-04 
+   do_sat_remin = .false. 
+/ 
