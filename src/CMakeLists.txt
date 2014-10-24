@@ -36,16 +36,22 @@ elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
   if(NOT WIN32)
     # Do not warn about Windows-specific export directives
     set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -diag-disable 7841")
+  else()
+    set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} /Od")
   endif()
 elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Cray")
   set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -N 1023")
 endif()
 
-# Make sure FABM_HOST is set to a subdir of src/drivers
-FILE(GLOB HOSTNAMES RELATIVE "${PROJECT_SOURCE_DIR}/drivers" "${PROJECT_SOURCE_DIR}/drivers/*")
-set (FABM_HOST "gotm" CACHE STRING "Host that FABM should be compiled for")
-set_property(CACHE FABM_HOST PROPERTY STRINGS ${HOSTNAMES})
-message(STATUS "FABM host: ${FABM_HOST}")
+if(FORCED_FABM_HOST)
+  set(FABM_HOST ${FORCED_FABM_HOST})
+else()
+  # Make sure FABM_HOST is set to a subdir of src/drivers
+  FILE(GLOB HOSTNAMES RELATIVE "${PROJECT_SOURCE_DIR}/drivers" "${PROJECT_SOURCE_DIR}/drivers/*")
+  set (FABM_HOST "gotm" CACHE STRING "Host that FABM should be compiled for")
+  set_property(CACHE FABM_HOST PROPERTY STRINGS ${HOSTNAMES})
+  message(STATUS "FABM host: ${FABM_HOST}")
+endif()
 
 # Use use position-independent code (-fPIC) everywhere if building shared libraries
 if(BUILD_SHARED_LIBS OR ${FABM_HOST} STREQUAL "python")
@@ -66,7 +72,7 @@ endif()
 # Global include directories
 include_directories("${PROJECT_SOURCE_DIR}/drivers/${FABM_HOST}"
                     "${PROJECT_SOURCE_DIR}/../include"
-                    "${CMAKE_BINARY_DIR}/modules"
+                    "${CMAKE_CURRENT_BINARY_DIR}/modules"
                    )
 
 add_library(fabm_base OBJECT
@@ -76,6 +82,7 @@ add_library(fabm_base OBJECT
             fabm_types.F90
             fabm_particle.F90
             fabm_expressions.F90
+            fabm_builtin_models.F90
             ../include/fabm.h
             ${PROJECT_SOURCE_DIR}/drivers/${FABM_HOST}/fabm_driver.h
            )
@@ -83,13 +90,14 @@ add_library(fabm_base OBJECT
 # Create a list of institute-specific object libraries.
 foreach(institute ${FABM_INSTITUTES}) 
   add_subdirectory(models/${institute})
-  list(APPEND MODEL_OBJECTS $<TARGET_OBJECTS:${institute}>)
+  list(APPEND MODEL_OBJECTS $<TARGET_OBJECTS:fabm_models_${institute}>)
 endforeach(institute) 
 
 add_library(fabm
             $<TARGET_OBJECTS:fabm_base>
             ${MODEL_OBJECTS}
             fabm_library.F90
+            fabm_coupling.F90
             fabm.F90
             config/fabm_config_types.F90
             config/fabm_yaml.F90
@@ -100,11 +108,11 @@ add_library(fabm
 source_group(config REGULAR_EXPRESSION config/)
 
 # Store FABM *.mod in separate directory, so these files can later be installed.
-set_property(TARGET fabm_base fabm PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/modules)
+set_property(TARGET fabm_base fabm PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
 
 # Add directories with model-specific *.mod to include directories of main FABM library.
 foreach(institute ${FABM_INSTITUTES})
-  set_property(TARGET fabm APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}/models/${institute}")
+  set_property(TARGET fabm APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}")
 endforeach(institute)
 
 # Run host-specific cmake scripts if present.
@@ -113,8 +121,12 @@ if(EXISTS ${PROJECT_SOURCE_DIR}/drivers/${FABM_HOST}/CMakeLists.txt)
 endif()
 
 # Place projects in specific solution folders (Visual Studio only).
-set_property(TARGET fabm_base fabm     PROPERTY FOLDER fabm)
-set_property(TARGET ${FABM_INSTITUTES} PROPERTY FOLDER fabm/models)
+set_property(TARGET fabm_base fabm PROPERTY FOLDER fabm)
+foreach(institute ${FABM_INSTITUTES})
+  set_property(TARGET fabm_models_${institute} PROPERTY FOLDER fabm/models)
+endforeach(institute)
+
+if(NOT FORCED_FABM_HOST)
 
 # Re-initialize installation prefix if needed.
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT OR CMAKE_INSTALL_PREFIX STREQUAL PREVIOUS_DEFAULT_PREFIX)
@@ -134,3 +146,10 @@ if (NOT DEFINED FABM_NO_LIBRARY_INSTALL)
     DESTINATION include)
 endif()
 
+# Begin testing section
+
+add_custom_target(test_all COMMENT "building tests - nothing yet :-)")
+
+# End of testing section
+
+endif()

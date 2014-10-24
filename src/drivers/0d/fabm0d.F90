@@ -76,7 +76,7 @@
 
    contains
 
-#define _ODE_ZEROD_   
+#define _ODE_ZEROD_
 #include "ode_solvers_template.F90"
 
 !-----------------------------------------------------------------------
@@ -96,7 +96,7 @@
 !BOC
    do i = 1, command_argument_count()
       call get_command_argument(i, arg)
- 
+
       select case (arg)
 #if 0
       case ('-v', '--version')
@@ -193,7 +193,7 @@
    ode_method = 1
    repair_state = .false.
    read(namlst,nml=model_setup,err=91)
-   
+
    ! Read environment namelist
    env_file = ''
    swr_method = 0
@@ -247,7 +247,7 @@
    end if
    column_depth = depth ! Provided depth is the column depth. The modelled biogeochemistry will be positioned at half this depth.
    call update_depth(CENTER)
-   
+
    ! If longitude and latitude are used, make sure they have been provided and are valid.
    if (swr_method==0) then
       if (latitude==invalid_latitude) then
@@ -259,7 +259,7 @@
          stop 'init_run'
       end if
    end if
-   
+
    ! Configure the time module to use actual start and stop dates.
    timefmt = 2
 
@@ -338,7 +338,7 @@
    end do
 
    id_dens = fabm_get_bulk_variable_id(model,standard_variables%density)
-   compute_density = fabm_variable_needs_values(id_dens)
+   compute_density = fabm_variable_needs_values(model,id_dens)
    if (compute_density) call fabm_link_bulk_data(model,id_dens,dens)
 
    id_par = fabm_get_bulk_variable_id(model,standard_variables%downwelling_photosynthetic_radiative_flux)
@@ -346,7 +346,7 @@
    ! Link environmental data to FABM
    call fabm_link_bulk_data(model,standard_variables%temperature,temp)
    call fabm_link_bulk_data(model,standard_variables%practical_salinity,salt)
-   if (fabm_variable_needs_values(id_par)) call fabm_link_bulk_data(model,id_par,par)
+   if (fabm_variable_needs_values(model,id_par)) call fabm_link_bulk_data(model,id_par,par)
    call fabm_link_bulk_data(model,standard_variables%pressure,current_depth)
    call fabm_link_bulk_data(model,standard_variables%cell_thickness,column_depth)
    call fabm_link_bulk_data(model,standard_variables%depth,current_depth)
@@ -362,9 +362,6 @@
 
    ! Read forcing data specified in input.yaml.
    call init_yaml()
-
-   ! Allocate memory for the value of any requested vertical integrals/averages of FABM variables.
-   call check_fabm_expressions()
 
    ! Check whether all dependencies of biogeochemical models have now been fulfilled.
    call fabm_check_ready(model)
@@ -702,7 +699,7 @@
          current_depth = 0.0_rk
          par = par_sf
       case (BOTTOM)
-         current_depth = column_depth            
+         current_depth = column_depth
          par = par_bt
       case (CENTER)
          current_depth = 0.5_rk*column_depth
@@ -794,8 +791,6 @@
       call fabm_link_surface_state_data(model,n,cc(size(model%state_variables)+size(model%bottom_state_variables)+n))
    end do
 
-   call update_fabm_expressions()
-
    ! Shortcut to the number of pelagic state variables.
    n = size(model%state_variables)
 
@@ -857,8 +852,6 @@
       call fabm_link_surface_state_data(model,n,cc(size(model%state_variables)+size(model%bottom_state_variables)+n))
    end do
 
-   call update_fabm_expressions()
-
    ! Shortcut to the number of pelagic state variables.
    n = size(model%state_variables)
 
@@ -879,49 +872,6 @@
 
    end subroutine get_rhs
 !EOC
-
-   subroutine check_fabm_expressions()
-      class (type_expression),pointer :: expression
-      integer :: n
-      
-      n = 0
-      expression => model%root%first_expression
-      do while (associated(expression))
-         select type (expression)
-            class is (type_vertical_integral)
-                n = n + 1
-         end select
-         expression => expression%next
-      end do
-
-      allocate(expression_data(n))
-      expression_data = _ZERO_
-
-      n = 0
-      expression => model%root%first_expression
-      do while (associated(expression))
-         select type (expression)
-            class is (type_vertical_integral)
-               n = n + 1
-               call fabm_link_horizontal_data(model,trim(expression%output_name),expression_data(n))
-         end select
-         expression => expression%next
-      end do
-   end subroutine
-
-   subroutine update_fabm_expressions()
-      class (type_expression),pointer :: expression
-
-      expression => model%root%first_expression
-      do while (associated(expression))
-         select type (expression)
-            class is (type_vertical_integral)
-               expression%out%p = expression%in%p
-               if (.not.expression%average) expression%out%p = expression%out%p*(min(expression%maximum_depth,column_depth)-expression%minimum_depth)
-         end select
-         expression => expression%next
-      end do
-   end subroutine
 
 !-----------------------------------------------------------------------
 

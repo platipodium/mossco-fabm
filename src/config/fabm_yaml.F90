@@ -80,7 +80,8 @@ contains
                class is (type_dictionary)
                   write (error,'(a,a,i0,a)') trim(path),', line ',file%iline,': unexpected decrease in indentation.'
                class is (type_scalar)
-                  write (error,'(a,a,i0,a)') trim(path),', line ',file%iline,': expected end of file after reading one scalar value.'
+                  write (error,'(a,a,i0,a)') trim(path),', line ',file%iline,': expected end of file after reading &
+                                             &one scalar value.'
                class default
                   write (error,'(a,a,i0,a)') trim(path),', line ',file%iline,': expected end of file.'
             end select
@@ -201,7 +202,7 @@ contains
                   call node%set(pair%key,pair%value)
             end select
 
-            ! Check indentation of next line.   
+            ! Check indentation of next line.
             if (file%indent>firstindent) then
                call file%set_error('unexpected increase in indentation following key-value pair "'//trim(pair%key)//'".')
                return
@@ -310,5 +311,5 @@ contains
       file%error_message = error
       file%has_error = .true.
    end subroutine
-   
+
 end module fabm_yaml

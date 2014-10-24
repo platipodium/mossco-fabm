@@ -10,10 +10,16 @@ if args: yamlfile = args[0]
 
 try:
     import pyfabm
+except ImportError:
+    print 'Unable to load pyfabm. Please build and install FABM with FABM_HOST=python and make sure your Python installation includes numpy.'
+    sys.exit(1)
+
+try:
     import pyfabm.gui_qt
 except ImportError:
-    print 'Unable to load pyfabm. Please build and install FABM with FABMHOST=python.'
+    print 'Unable to load pyfabm.gui_qt. Do you have PySide installed?'
     sys.exit(1)
+
 
 # Create model object
 model = pyfabm.Model(yamlfile)
@@ -27,7 +33,7 @@ layout = QtGui.QHBoxLayout()
 tree = QtGui.QTreeView()
 
 itemmodel = pyfabm.gui_qt.ItemModel(model,dialog)
-
+tree.setItemDelegate(pyfabm.gui_qt.Delegate(dialog))
 tree.setModel(itemmodel)
 tree.setUniformRowHeights(True)
 tree.expandAll()
@@ -40,7 +46,7 @@ def onTreeViewContextMenu(pos):
                 data.reset()
                 itemmodel.rebuild()
             contextMenu = QtGui.QMenu(tree)
-            contextMenu.addAction('Reset to %s' % data.default,reset)
+            contextMenu.addAction('Reset to default (%s)' % data.default,reset)
             contextMenu.exec_(tree.mapToGlobal(pos))
 tree.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
 tree.customContextMenuRequested.connect(onTreeViewContextMenu)

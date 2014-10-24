@@ -111,15 +111,14 @@ contains
          select type (dict=>pair%value)
             class is (type_dictionary)
                childmodel => create_model_from_dictionary(instancename,dict,model%root, &
-                                                          require_initialization,require_all_parameters)
+                                                          require_initialization,require_all_parameters,check_conservation)
             class is (type_null)
                childmodel => create_model_from_dictionary(instancename,type_dictionary(),model%root, &
-                                                          require_initialization,require_all_parameters)
+                                                          require_initialization,require_all_parameters,check_conservation)
             class is (type_node)
                call fatal_error('create_model_tree_from_dictionary','Configuration information for model "'// &
                   trim(instancename)//'" must be a dictionary, not a single value.')
          end select
-         childmodel%check_conservation = check_conservation
          pair => pair%next
       end do
 
@@ -138,11 +137,12 @@ contains
 
    end subroutine create_model_tree_from_dictionary
 
-   function create_model_from_dictionary(instancename,node,parent,require_initialization,require_all_parameters) result(model)
+   function create_model_from_dictionary(instancename,node,parent, &
+                                         require_initialization,require_all_parameters,check_conservation) result(model)
       character(len=*),       intent(in)           :: instancename
       class (type_dictionary),intent(in)           :: node
       class (type_base_model),intent(inout),target :: parent
-      logical,                intent(in)           :: require_initialization,require_all_parameters
+      logical,                intent(in)           :: require_initialization,require_all_parameters,check_conservation
       class (type_base_model),pointer              :: model
 
       character(len=64)                  :: modelname
@@ -184,7 +184,7 @@ contains
                   call fatal_error('create_model_from_dictionary','BUG: "flatten" should &
                      &have ensured that the value of '//trim(value%path)//' is scalar, not a nested dictionary.')
             end select
-            pair => pair%next   
+            pair => pair%next
          end do
       end if
 
@@ -222,7 +222,7 @@ contains
                   call fatal_error('create_model_from_dictionary','The value of '//trim(value%path)// &
                      ' must be a string, not a nested dictionary.')
             end select
-            pair => pair%next   
+            pair => pair%next
          end do
       end if
 
@@ -241,8 +241,6 @@ contains
       !do while (associated(link))
       !   if (link%owner.and..not.associated(model%couplings%find(link%name))) then
       !      ! This link is our own: not coupled to another variable, not an alias, and no intention to couple was registered.
-      !      select type (object=>link%target)
-      !         class is (type_internal_variable)
       !            if (.not.object%state_indices%is_empty()) then
       !               if (object%presence/=presence_external_optional .and. .not.initialized_set%contains(trim(link%name))) then
       !                  ! State variable is required, but initial value is not explicitly provided.
@@ -259,12 +257,11 @@ contains
       !                     //': initial value provided for variable "'//trim(link%name)//'", but this variable is not used.')
       !               end if
       !            end if
-      !      end select
       !   end if
       !   link => link%next
       !end do
 
-      model%check_conservation = node%get_logical('check_conservation',default=model%check_conservation,error=config_error)
+      model%check_conservation = node%get_logical('check_conservation',default=check_conservation,error=config_error)
       if (associated(config_error)) call fatal_error('create_model_from_dictionary',config_error%message)
 
       ! Check whether any keys at the model level remain unused.
@@ -283,10 +280,10 @@ contains
       type (type_set),        intent(out)   :: initialized_set
       logical,                intent(in)    :: get_background
 
-      type (type_key_value_pair),  pointer :: pair
-      class (type_internal_object),pointer :: object
-      logical                              :: is_state_variable,success
-      real(rk)                             :: realvalue
+      type (type_key_value_pair),   pointer :: pair
+      type (type_internal_variable),pointer :: object
+      logical                               :: is_state_variable,success
+      real(rk)                              :: realvalue
 
       ! Transfer user-specified initial state to the model.
       pair => node%first
@@ -297,21 +294,18 @@ contains
                if (.not.associated(object)) call fatal_error('parse_initialization', &
                   trim(value%path)//': "'//trim(pair%key)//'" is not a member of model "'//trim(model%name)//'".')
                is_state_variable = .false.
-               select type (object)
-                  class is (type_internal_variable)
-                     if (.not.object%state_indices%is_empty()) then
-                        realvalue = value%to_real(default=0.0_rk,success=success)
-                        if (.not.success) call fatal_error('parse_initialization', &
-                           trim(value%path)//': "'//trim(value%string)//'" is not a real number.')
-                        if (get_background) then
-                           call object%background_values%set_value(realvalue)
-                        else
-                           object%initial_value = realvalue
-                        end if
-                        call initialized_set%add(trim(pair%key))
-                        is_state_variable = .true.
-                     end if
-               end select
+               if (.not.object%state_indices%is_empty()) then
+                  realvalue = value%to_real(default=0.0_rk,success=success)
+                  if (.not.success) call fatal_error('parse_initialization', &
+                     trim(value%path)//': "'//trim(value%string)//'" is not a real number.')
+                  if (get_background) then
+                     call object%background_values%set_value(realvalue)
+                  else
+                     object%initial_value = realvalue
+                  end if
+                  call initialized_set%add(trim(pair%key))
+                  is_state_variable = .true.
+               end if
                if (.not.is_state_variable) call fatal_error('parse_initialization', &
                   trim(value%path)//': "'//trim(pair%key)//'" is not a state variable of model "'//trim(model%name)//'".')
             class is (type_null)

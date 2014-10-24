@@ -24,7 +24,7 @@
 ! dependency in the zooplankton model, and linking that at run-time to the phytoplankton model.
 ! The zooplankton model can then directly query the variables of the prey model (e.g., total carbon),
 ! and subsequently apply a specific loss rate to all of the prey model's state variables.
-   
+
 module fabm_particle
 
    use fabm_types
@@ -145,7 +145,7 @@ module fabm_particle
       coupling%model_reference => master_model%reference
       coupling%next => self%first_model_coupling
       self%first_model_coupling => coupling
-   end subroutine
+   end subroutine request_coupling_to_model_name
 
    subroutine request_coupling_to_model_sn(self,slave_variable,master_model,master_variable)
       class (type_particle_model),  intent(inout) :: self
@@ -163,7 +163,7 @@ module fabm_particle
       coupling%model_reference => master_model%reference
       coupling%next => self%first_model_coupling
       self%first_model_coupling => coupling
-   end subroutine
+   end subroutine request_coupling_to_model_sn
 
    subroutine before_coupling(self)
       class (type_particle_model),intent(inout) :: self
@@ -195,16 +195,16 @@ module fabm_particle
       coupling => self%first_model_coupling
       do while (associated(coupling))
          if (coupling%master/='') then
-            call self%couplings%set_string(trim(coupling%slave),trim(coupling%model_reference%model%name)//'/'//trim(coupling%master))
+            call self%couplings%set_string(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(coupling%master))
          else
             aggregate_variable => get_aggregate_variable(coupling%model_reference%model,coupling%standard_variable)
             aggregate_variable%bulk_required = .true.
-            call self%couplings%set_string(trim(coupling%slave),trim(coupling%model_reference%model%name)//'/'//trim(aggregate_variable%standard_variable%name))
+            call self%couplings%set_string(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name))
          end if
          coupling => coupling%next
       end do
-   end subroutine
-   
+   end subroutine before_coupling
+
    subroutine build_state_id_list(self)
       class (type_particle_model),intent(inout) :: self
 
@@ -217,12 +217,9 @@ module fabm_particle
       do while (associated(reference))
          ! Count number of state variables in target model.
          n = 0
-         link => reference%model%first_link
+         link => reference%model%links%first
          do while (associated(link))
-            select type (object=>link%target)
-               class is (type_bulk_variable)
-                  if (object%presence==presence_internal.and.link%owner.and..not.object%state_indices%is_empty()) n = n + 1
-            end select
+            if (link%target%domain==domain_bulk.and.link%original%presence==presence_internal.and..not.link%original%state_indices%is_empty()) n = n + 1
             link => link%next
          end do
 
@@ -231,17 +228,14 @@ module fabm_particle
 
          ! Connect target state variables to identifiers in model reference.
          n = 0
-         link => reference%model%first_link
+         link => reference%model%links%first
          do while (associated(link))
-            select type (object=>link%target)
-               class is (type_bulk_variable)
-                  if (object%presence==presence_internal.and.link%owner.and..not.object%state_indices%is_empty()) then
-                     n = n + 1
-                     write (strindex,'(i0)') n
-                     call self%register_state_dependency(reference%id%state(n),trim(reference%name)//'_state'//trim(strindex),object%units,trim(reference%name)//' state variable '//trim(strindex))
-                     call self%request_coupling_to_model(reference%id%state(n),reference%id,link%name)
-                  end if
-            end select
+            if (link%target%domain==domain_bulk.and.link%original%presence==presence_internal.and..not.link%original%state_indices%is_empty()) then
+               n = n + 1
+               write (strindex,'(i0)') n
+               call self%register_state_dependency(reference%id%state(n),trim(reference%name)//'_state'//trim(strindex),link%target%units,trim(reference%name)//' state variable '//trim(strindex))
+               call self%request_coupling_to_model(reference%id%state(n),reference%id,link%name)
+            end if
             link => link%next
          end do
 
