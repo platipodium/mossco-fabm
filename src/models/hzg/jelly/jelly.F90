@@ -1,5 +1,5 @@
 #include "fabm_driver.h"
-#ifdef _FABM_F2003_
+!#ifdef _FABM_F2003_
 ! --------------------------------------------
 ! Size- & distribution based ctenophore model
 ! kai wirtz Apr 2014
@@ -931,4 +931,4 @@ end subroutine errfunc
 
 !EOC
 end module fabm_hzg_jelly
-#endif
+!:#endif

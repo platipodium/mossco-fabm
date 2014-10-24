@@ -3,18 +3,18 @@ cmake_minimum_required(VERSION 2.8)
 # Create a list of all institutes to include.
 # When adding new institutes to the source tree, please add them here as well.
 set(FABM_INSTITUTES
-    aed          # Aquatic Eco Dynamics, University of Western Australia
-    au           # University of Aarhus
-    bb           # Bolding & Burchard
+    #aed          # Aquatic Eco Dynamics, University of Western Australia
+    #au           # University of Aarhus
+    #bb           # Bolding & Burchard
     examples     # Examples supplied with FABM itself
     gotm         # Models ported from original GOTM/BIO library
     hzg          # Helmholtz-Zentrum Geesthacht
     iow          # Leibniz Institute for Baltic Sea Research
-    klimacampus  # KlimaCampus Hamburg
-    metu         # Middle East Technical University
-    msi          # Marine Systems Institute, Tallinn University of Technology
-    niva         # Norsk Institutt for Vannforskning
-    pml          # Plymouth Marine Laboratory
+    #klimacampus  # KlimaCampus Hamburg
+    #metu         # Middle East Technical University
+    #msi          # Marine Systems Institute, Tallinn University of Technology
+    #niva         # Norsk Institutt for Vannforskning
+    #pml          # Plymouth Marine Laboratory
    )
 
 # Use solution folders in IDEs

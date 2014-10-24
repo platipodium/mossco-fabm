@@ -3,6 +3,7 @@ add_library(fabm_models_iow OBJECT
            age/iow_age.F90
            ergom/ergom_cgt.F90
            spm/spm.F90
+           spm/spm_old.F90
            )
 
 add_dependencies(fabm_models_iow fabm_base)
