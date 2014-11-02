@@ -381,8 +381,8 @@ end subroutine initialize
 !  type (type_environment),   intent(inout)  :: environment 
   real(rk) :: mort_S, mort_S0,mort_SJ, mort_R, mort_R0, mort_T0, mort_G
   real(rk) :: mort_J, mort_AJ, mort_P, mort_T, mort_sum, mass_sum
-  real(rk) :: errf, argA, aa, rS, pS, eS, eS0, al0,alr, yfac
-  real(rk) :: Imaxr, lesdr, efn, efp, dll,loptm
+  real(rk) :: errf, eargA, argA, aa, rS, pS, eS, eS0, al0,alr, yfac
+  real(rk) :: Imaxr, lesdr, efn, efp, dll,loptm, m_host, sBDet,detect
   real(rk) :: somgrwth, recruit,lco, mGBe, f_tc, starv, dal_dl, min_dl, bound_dl
   real(rk) :: prod_dl, sum_dl, resp_dl,paras_dl, turb_dl
   real(rk) :: graz_dl, som_dl, init_dl, sen_dl
@@ -538,15 +538,15 @@ _FABM_LOOP_BEGIN_
 !  lopt = l0 + (ml*0-l0)*dlopt(sp) % optimal prey size
 !  mstd=sqrt(dl.*exp(-((ml-lmsize)./(sqrt(2)*dl)).^2));
 !    lcrit     = self%l0 + (0-self%min_lvar*self%l0)*dlopt(i)
-    lcrit     = self%l0 * (1.0d0 - dlopt(i))
+    lcrit     = self%l0 * (1.0d0 - 0.*dlopt(i))
 !    lcrit     = self%l0
     dl        = (self%lA +lcrit - 2*self%l0)/4
 !    if (i .eq. -1) then      dl=dl*1.     endif
 !    dl        = (self%lA - self%l0)/3.1415  dl=(lAv(sp)+lopt-2*l0)/4; 
 !  lopt = l0 + (ml*0-l0)*dlopt(sp) % optimal prey size
 !  mstd=sqrt(dl.*exp(-((ml-lmsize)./(sqrt(2)*dl)).^2));
-
-    sigma2(i) = self%sigma * dl * exp(-((lavg-lmsize(i))/(sqrt(2.0d0)*dl))**2)
+!    sigma2(i) = self%sigma * dl * exp(-((lavg-lmsize(i))/(sqrt(2.0d0)*dl))**2)
+    sigma2(i) = self%sigma * exp(-0.5*(lavg-lmsize(i))**2)
     sig(i)    = sqrt(sigma2(i))
 
 ! set accumulating stores to zero
@@ -564,6 +564,9 @@ _FABM_LOOP_BEGIN_
 !
 ! ---------- calculate RHS  -------------------
 !
+! first the detritus change, as detrivory influences parasites
+  sBDet     =   mass_sum - 0.5*Temp_dep(1) * var(ib)%B_Det
+
 ! ----------  loop over all trophic interactions  -------------------
 !
 !  loop over (ctenophore) predators
@@ -584,16 +587,19 @@ _FABM_LOOP_BEGIN_
      dB_dl   = dB_dl + preyE * dlopt(i)* 3*dl*i13sig   ! derivative of prey-mass with respect to consumer size (through optimal prey size dependency)
    end do
 
+! effect of reduces prey detectability at high consumer density
+!   detect  = 2.0d0/(1.0d0+exp(mass(i)/self%T_turb))
+   detect  = 1.0d0 - exp(-self%T_turb/(mass(i)*exp(0.*(lmsize(i)-lopt(i)))+1E-5))
 
    bcrit   = self%Bcrit/relDens(i+1) ! half-sturation constant TODDO: replace with mechanistic par
    bcrit   = bcrit * exp((al1(i)-0.5d0)*lmsize(j))  ! constant affinity induces scaling in half-saturation constant
-   gross   = Temp_dep(i) * grazrate(dl2, Imax(i), bcrit, preyT) ! grazing rate
+   gross   = detect*Temp_dep(i) * grazrate(dl2, Imax(i), bcrit, preyT) ! grazing rate
 
   ! update all flux stores
 !   graz(i) = graz(i) + gross
    graz(i) = gross  
    ratf    = preyT/bcrit
-   argA    = Temp_dep(i)*Imax(i)* exp(-ratf)
+   argA    = Temp_dep(i)*Imax(i)* exp(-ratf) * detect
    dlpp(i) = dB_dl * argA /bcrit
    dg_dl(i)= -(al1(i)-0.5d0)*ratf * argA  ! derivative through half-saturation
 
@@ -617,6 +623,9 @@ _FABM_LOOP_BEGIN_
 ! ----------  mortalities  -------------------
 !
 ! integration result with Gaussian size distribution (cf. effective prey biomass)
+!   pS      = exp(-(self%l0+1.0d0-lmsize(i))**2/rS)*srS
+   rS      = 1.0d0 + 3. * sigma2(i)  ! "life-span"=1 : width of life-stage dependent mortality
+   srS     = 1.0d0/sqrt(rS)
    eS      = exp(-((self%lA-lmsize(i))**2)/rS)*srS !lcrit self%lAlavg
 
 !  how far way are juveniles from maturity?
@@ -641,21 +650,27 @@ _FABM_LOOP_BEGIN_
 !    if (abs(mort_S) .gt. 13.5) write (*,'(A,1(I2),4(F12.4))') 'mS=',i,mort_S,mort_S0,eS,starv
 
 ! mortality due to parasites maximal at newly hetched larvae (Hirota1974 ,Greve)
-!   pS      = exp(-(self%l0+1.0d0-lmsize(i))**2/rS)*srS
-   rS      = 1.0d0 + 3. * sigma2(i)  ! "life-span"=1 : width of life-stage dependent mortality
-   srS     = 1.0d0/sqrt(rS)
    pS      = exp(-(self%min_lvar -lmsize(i))**2/rS)*srS
 ! life-stage dependent mortality due to parasites
 !   mort_P  = self%mP * pS * (mass(1)+mass(2)+fLc*mass(3)) * var(ib)%B_Det* Temp_dep(i) 
 ! fraction of large "meso"zooplakton as suitable parasite host 
 !   fLc     = exp(-1.*(self%rlcop_p*(self%lA+1.5*loptA(i))-lmsize(3))**2/(2*sigma2(3)))
-   fLc     = exp(-(loptA(i)-lmsize(3))**2/(1*sigma2(3)))
-   fLc     = fLc* exp(-(self%lA-lmsize(3))**2/rS)
+!   f_tc    = exp(-(self%lA-lmsize(3))**2/rS)
+   f_tc    = 1.0d0!mass(i)/(mass(i)+0.1d0)
+!   fLc     = exp(-(loptA(i)-lmsize(3))**2/(1*sigma2(3)))
+   fLc     = exp(-(loptA(i)-lmsize(3))**2/rS)
+   fLc     = fLc * Temp_dep(3) * f_tc 
 !   fLc     = exp(-(loptA(i)-lmsize(3))**2/(2*sigma2(3)))self%min_lvar
 !   fLc     = fLc* exp(-(0.5-lmsize(3))**2/(2*sigma2(3)))
-   fLc     = fLc* Temp_dep(3)!*mass(i)**0.5d0
-   f_tc    = mass(i)/(mass(i)+0.1d0)
-   mort_P  = self%mP * (starv+0*f_tc+pS) *(mass(i)+fLc*(mass(3)+fLc*var(ib)%B_Det)) * var(ib)%B_Det* Temp_dep(i) 
+!   fDc     = exp(-(loptA(i)-lmsize(3))**2/(1*sigma2(3)))* Temp_dep(3) * f_tc   !*mass(i)**0.5d0
+!   m_host  = mass(i)+fLc*mass(3)+fLc*fLc*var(ib)%B_Det
+   m_host  = mass(i)+fLc*mass(3) + fLc*0.*var(ib)%B_Det
+
+!   bcrit   = self%Bcrit/relDens(i+1) ! half-sturation constant TODDO: replace with mechanistic par
+  bcrit   = self%Bcrit/relDens(i+1)
+
+!   mort_P  = self%mP * (starv+pS) *m_host * var(ib)%B_Det/(1+0*relDens(i+1)) * Temp_dep(i) 
+   mort_P  = self%mP * (starv*0+1.+pS) *m_host * var(ib)%B_Det * Temp_dep(i) *bcrit * exp(-1*sBDet/250.0d0)!var(ib)%B_Det
 
 ! temperature dependent losses, with surface-to-volume scaling
    mort_R  = self%mR * Temp_dep(i) * exp(-0.5*(lmsize(i)-lavg))
@@ -666,11 +681,11 @@ _FABM_LOOP_BEGIN_
 !   mort_T0 = mT0 * exp(0.5 - Temp_dep(i))
    mort_T0 = mT0 * starv 
 !   mort_T0 = mT0
-   mort_T0 = mort_T0 * (var(ib)%Wind/6.25d0)**self%W_turb_exp  ! long-term mean 6.25m/s
+!   mort_T0 = mort_T0 * (var(ib)%Wind/6.25d0)**self%W_turb_exp  ! long-term mean 6.25m/s
 !   mort_T  = mort_T0 * exp((lavg-lmsize(i))*0.5) 
 !   mort_T  = mort_T0 * (exp(self%lA*0.5-lmsize(i)*0.5)+ exp(lmsize(i)*0.5))
    eS0     = exp(-((self%lA-lmsize(i))**2)/rS)
-   mort_T0 = mort_T0 * (1.0d0 + starv) * exp(-2*dlopt(i)) 
+!   mort_T0 = mort_T0 * (1.0d0 + starv) * exp(-2*dlopt(i)) 
    mort_T  = mort_T0 * (1.0d0 - eS0) 
 !   mort_T  = mort_T0  
 ! Dissipation ~/data/DeutscheBucht/getm/Diss_temp.eps : GETM, no winter/sturm 10^o factor ~2
@@ -692,11 +707,16 @@ _FABM_LOOP_BEGIN_
 ! size derivative of adult fraction
 !   dfA_dl= sqrt(2.d0*3.1415)/sig(i) * eargA
 ! mean adult size
-!   lm_adult = lmsize(i) + sigma2(i) * dfA_dl / fA
+   eargA = exp(- argA*argA)
+ !  if (eargA .gt. 1.2 .or. eargA .lt. 0.0001) write (*,'(A,1(I2),5(F12.5))') 'fA=',i,lmsize(i),sig(i) ,argA,eargA, fA 
+
+   lm_adult = lmsize(i) + sig(i) / sqrt(2.d0*3.1415) * eargA / (abs(fA)+0.05d0)
+!   lm_adult = lmsize(i) 
 
 ! fraction of adult secondary production allocated to recruitment
 !   fR    = fS * yfac
-   fR      = Temp_dep(i)
+  fR      = Temp_dep(i)
+!   fR      = 0.5d0
 ! rate at which adults spawn new eggs
    recruit = fA * fR * Prod
 
@@ -720,8 +740,8 @@ _FABM_LOOP_BEGIN_
 !
    if (self%SizeDynOn) then
 ! egg production related part of size dynamics 
-!   init_dl = (self%l0 - lm_adult) * recruit
-     init_dl = (self%l0 - lmsize(i)) * recruit 
+   init_dl = (self%l0 - lm_adult) * recruit
+!     init_dl = (self%l0 - lmsize(i)) * recruit 
 !    if (abs(init_dl) .gt. 200.) write (*,'(A,1(I2),5(F12.5))') 'init=',i, init_dl ,recruit,fA , fR , Prod
  
 ! somatic growth related part of size dynamics 
@@ -743,7 +763,7 @@ _FABM_LOOP_BEGIN_
      resp_dl  = sigma2(i) * mort_R * 0.5
 
 !  marginal size shift due to density dependent mortality (parasites)
-     paras_dl = -sigma2(i) * mort_P * pS/(f_tc+pS+starv)* 2 * (self%min_lvar-lmsize(i))/rS 
+     paras_dl = -sigma2(i) * mort_P*pS/(starv*0+1.+pS+1.0E-4) *2 * (self%min_lvar-lmsize(i))/rS !/(0*f_tc+pS+0*starv)
 
      prod_dl  = sigma2(i) * (Prod * al1(i) + self%yield*yfac*(dlpp(i)+dg_dl(i)))
 !   if (abs(prod_dl) .gt. 1.) write (*,'(A,4(F12.5))') 'pdl=', prod_dl,sigma2(i),Prod * al1(i),self%yield*yfac*dlpp(i)
@@ -773,6 +793,8 @@ _FABM_LOOP_BEGIN_
  
 !   if (abs(sum_dl) .gt. 10. .and. ib .eq. 1) write (*,'(A,2(I2),5(F12.5))') 'dl=',i,ib,sum_dl , init_dl , som_dl , prod_dl,lmsize(i)
 !   if (abs(Prod - mort_sum) .gt. 10. .and. ib .eq. 1) write (*,'(A,2(I2),6(F12.5))') 'dB=',i,ib,Prod , mort_sum,mort_S,mort_T,mort_P,mass(i)*1E3
+!write (0,'(A,1(I2),3(F12.5))') 'i=',i,Prod,mort_sum,sum_dl
+write (0,'(A)',advance='no') ''
 
 !#S__RHS
 !#E__RHS
@@ -841,7 +863,7 @@ _FABM_LOOP_BEGIN_
 ! most simple detritus pool turnover dynamics 
 !  rhsv%B_Det=  self%mS * mass_sum - self%rDet * Temp_dep(3) * var(ib)%B_Det
 !  if (mass_sum .gt. 200.0d0) mass_sum = 200.0d0
-  rhsv%B_Det=   self%rDet * (mass_sum - 0.5*Temp_dep(1) * var(ib)%B_Det)  ! 0.4444 mean of f_T 1962-2002 for Q10=2.5
+  rhsv%B_Det=   self%rDet * sBDet  ! 0.4444 mean of f_T 1962-2002 for Q10=2.5
 ! ------------------------------------------------------------------------------
 !#S_ODE
 !---------- ODE for each state variable ----------
