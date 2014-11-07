@@ -30,21 +30,21 @@ module fabm_hzg_jelly
 !!----------------------------------------------------------------------
 ! --- HZG model types
 type type_jelly_var
- real(rk) :: B_Pp,l_Pp,B_Be,l_Be,B_Det
+ real(rk) :: B_Pp,l_Pp,B_Be,l_Be,B_Det,Parasite
  real(rk) :: Cop,Temp,Wind
 end type
 type type_jelly_rhs
- real(rk) :: B_Pp,l_Pp,B_Be,l_Be,B_Det
+ real(rk) :: B_Pp,l_Pp,B_Be,l_Be,B_Det,Parasite
 end type
 ! standard fabm model types
 type,extends(type_base_model),public :: type_hzg_jelly
-type (type_state_variable_id)        :: id_B_Pp,id_l_Pp,id_B_Be,id_l_Be,id_B_Det
+type (type_state_variable_id)        :: id_B_Pp,id_l_Pp,id_B_Be,id_l_Be,id_B_Det,id_Parasite
 type (type_dependency_id)            :: id_Cop
 type (type_dependency_id)            :: id_Temp
 type (type_dependency_id)            :: id_Wind
 type (type_diagnostic_variable_id)   :: id_prod_Be, id_Mort_Be, id_fA_Be, id_Imax_Be, id_lopt_Be, id_prod_Pp, id_Mort_Pp, id_fA_Pp, id_Imax_Pp, id_mort_P, id_mort_S, id_mort_R, id_mort_G, id_mort_J, id_mort_T, id_somgrowth, id_recruit, id_paras_dl, id_som_dl, id_turb_dl, id_init_dl, id_graz_dl, id_sen_dl, id_prod_dl, id_resp_dl, id_dl_prey, id_dl_pred, id_al_Im, id_mixBmass, id_mixlsize, id_Tdep
-real(rk) ::  B_Pp_initial, l_Pp_initial, B_Be_initial, l_Be_initial, B_Det_initial
-real(rk) ::  lA, l0, sigma, Imax_pot, yield, mR, mS, mP, mT, Q10, Tc, Bcrit, relCVDens, m_predBe, loptA_Pp, loptA_Be, sigmbc, immigr, rDet, T_turb, W_turb_exp, rlcop_p, min_lvar, TempC_0
+real(rk) ::  B_Pp_initial, l_Pp_initial, B_Be_initial, l_Be_initial, B_Det_initial, Parasite_initial
+real(rk) ::  lA, l0, lstarv, sigma, Imax_pot, yield, mR, mS, mP, mT, Q10, Tc, Bcrit, relCVDens, m_predBe, loptA_Pp, loptA_Be, immigr, rDet, rParasite, W_turb_exp, mDisturb
 logical  ::  TransectOn, SizeDynOn, LowPassOn, OptionOn, MortSizeOn
 
 contains
@@ -69,33 +69,31 @@ contains
 !> \describepar{TransectOn   ,    , mixing between coastal transect boxes, .false. }
 !> \describepar{SizeDynOn    ,     , life stage cycling enabled, .true. }
 !> \describepar{LowPassOn    ,     , filter high frequency in forcing, .true. }
-!> \describepar{OptionOn     ,      , generic, .true. }
+!> \describepar{OptionOn     ,      , generic, .false. }
 !> \describepar{MortSizeOn   ,    , size dependency in mortality,  }
 ! other parameters
-!> \describepar{lA           , \ell_A           , adult ctenophore size        , 2. log(ESD/mm)}
+!> \describepar{lA           , \ell_A           , adult ctenophore size        , 1.8 log(ESD/mm)}
 !> \describepar{l0           , \ell_0           , offspring size, -1.2 log(ESD/mm)}
-!> \describepar{sigma        , \sigma'        , log-size specific std deviation , 0.4000 log(ESD/mm)^2}
+!> \describepar{lstarv       , \ell_S       , minimum starvation size, 1.8 log(ESD/mm)}
+!> \describepar{sigma        , \sigma'        , log-size specific std deviation , 1. log(ESD/mm)^2}
 !> \describepar{Imax_pot     , I_\mathrm{max}^*     , maximum ingestion rate for ideal consumer, prey, T, and food , 173. 1/d}
-!> \describepar{yield        , y_0        , assimilation efficiency, 0.6900 }
-!> \describepar{mR           , m_R^0           , temperature dependent, natural mortality rate , 1.2000e-02 1/d}
-!> \describepar{mS           , m_S^0           , physiological mortality under senescence , 0.0000e+00 1/d}
-!> \describepar{mP           , m_P^0           , density dependent mortality rate (parasites), 2.5000e-04 1/d.µg-C/L}
-!> \describepar{mT           , m_{T}^0           , mortality due to physical damage (turbulence) 0.028, 3.0000e-02 1/d}
-!> \describepar{Q10          , Q_{10}          , rate increase at 10C temperature rise, 2.4000 }
-!> \describepar{Tc           , ^o$C] $T_c           , critical threshold temperature, 4.5000 $^o$C}
-!> \describepar{Bcrit        , B^*        , minimal prey biomass (Holling-III) , 32.0000 µg-C/L}
-!> \describepar{relCVDens    , R_\rho    , C-biovolume density ratio non-gelatinous/gelatinous plankton, 104.0000 µg-C/L}
-!> \describepar{m_predBe     , m_\mathrm{top}     , loss rate of Beroe due to top-predator , 0. 1/d}
-!> \describepar{loptA_Pp     , \lcsize_\mathrm{opt,Pp}^A     , optimal prey size adult P.pileus , -0.8000 }
-!> \describepar{loptA_Be     , \lcsize_\mathrm{opt,Be}^A     , optimal prey size adult Beroe , 1.8500 }
-!> \describepar{sigmbc       , B_{\sigma}       , biomass below var size drop, 9.0000e-06 µg-C/L}
-!> \describepar{immigr       , \epsilon_\mathrm{in}       , migration mass inflow rate , 1E-8 µg-C/L.d}
-!> \describepar{rDet         , r_\mathrm{Det}         , detritus turnover rate , 7.0000e-03 1/d}
-!> \describepar{T_turb       , ^o$C] $T_\mathrm{turb}       , correlation temperature-turbulence , 7.0 $^o$C}
-!> \describepar{W_turb_exp   , w_\mathrm{turb}   , exponent of wind-turbulence relation  , 0.0 }
-!> \describepar{rlcop_p      ,       , low size of cop parasitism rel to cten size, 0.8500 }
-!> \describepar{min_lvar     ,      , minimum size STD at low biomass, 0.100 log(ESD/mm)}
-!> \describepar{TempC_0      , ^o      , offset of (inverse) temperature factor, 0. $^o$C}
+!> \describepar{yield        , y_0        , assimilation efficiency, 0.65 }
+!> \describepar{mR           , m_R^0           , temperature dependent, natural mortality rate , 0.2 1/d}
+!> \describepar{mS           , m_S^0           , physiological mortality under senescence , 0.2 1/d}
+!> \describepar{mP           , m_P^0           , density dependent mortality rate (parasites), 5e-06 1/d.µg-C/L}
+!> \describepar{mT           , m_{T}^0           , mortality due to physical damage (turbulence) 0.028, 0. 1/d}
+!> \describepar{Q10          , Q_{10}          , rate increase at 10C temperature rise, 2.2 }
+!> \describepar{Tc           , ^o$C] $T_c           , critical threshold temperature, 4.5 $^o$C}
+!> \describepar{Bcrit        , B^*        , minimal prey biomass (Holling-III) , 10.0 µg-C/L}
+!> \describepar{relCVDens    , R_\rho    , C-biovolume density ratio non-gelatinous/gelatinous plankton, 80.0 µg-C/L}
+!> \describepar{m_predBe     , m_\mathrm{top}     , loss rate of Beroe due to top-predator , 0.0 1/d}
+!> \describepar{loptA_Pp     , \lcsize_\mathrm{opt,Pp}^A     , optimal prey size adult P.pileus , -0.60 }
+!> \describepar{loptA_Be     , \lcsize_\mathrm{opt,Be}^A     , optimal prey size adult Beroe , 1.4 }
+!> \describepar{immigr       , \epsilon_\mathrm{in}       , migration mass inflow rate , 3e-05 µg-C/L.d}
+!> \describepar{rDet         , r_\mathrm{Det}         , detritus turnover rate , 0.035 1/d}
+!> \describepar{rParasite    , r_\mathrm{P}    , low size of cop parasitism rel to cten size, 0.1 }
+!> \describepar{W_turb_exp   , w_\mathrm{turb}   , exponent of wind-turbulence relation  , 1.0 }
+!> \describepar{mDisturb     , B_\mathrm{cd}     , critical mass concentration detection disturbance   , 7.0 µg-C/L}
 subroutine initialize(self, configunit)
 
 class (type_hzg_jelly), intent(inout), target :: self
@@ -104,43 +102,44 @@ integer,                  intent(in)            :: configunit
 ! !LOCAL VARIABLES:
 integer    :: namlst=19
 !!------- Initial values of model jelly ------- 
-!> \describepar{B_Pp_initial , B_\mathrm{Pp} , P.Pileus biomass, 5E-2 µg-C/L}
-!> \describepar{l_Pp_initial , \ell_\mathrm{Pp} , P.Pileus mean log size, 1.5 log(ESD/mm)}
+!> \describepar{B_Pp_initial , B_\mathrm{Pp} , P.Pileus biomass, 3E-2 µg-C/L}
+!> \describepar{l_Pp_initial , \ell_\mathrm{Pp} , P.Pileus mean log size, 1.4 log(ESD/mm)}
 !> \describepar{B_Be_initial , B_\mathrm{Be} , Beroe biomass, 1E-4 µg-C/L}
-!> \describepar{l_Be_initial , \ell_\mathrm{Be} , Beroe mean log size, 1.5 log(ESD/mm)}
-!> \describepar{B_Det_initial , \ell_\mathrm{Be} , detritus, 0. µg-C/L}
+!> \describepar{l_Be_initial , \ell_\mathrm{Be} , Beroe mean log size, 1.25 log(ESD/mm)}
+!> \describepar{B_Det_initial , \ell_\mathrm{Be} , detritus, 50. µg-C/L}
+!> \describepar{Parasite_initial , \ell_\mathrm{Be} , parasite, 50. µg-C/L}
 real(rk)  :: B_Pp_initial ! P.Pileus biomass
 real(rk)  :: l_Pp_initial ! P.Pileus mean log size
 real(rk)  :: B_Be_initial ! Beroe biomass
 real(rk)  :: l_Be_initial ! Beroe mean log size
 real(rk)  :: B_Det_initial ! detritus
-!> describepar{lA           , \ell_A           , adult ctenophore size        , 2. log(ESD/mm)}
+real(rk)  :: Parasite_initial ! parasite
+!> describepar{lA           , \ell_A           , adult ctenophore size        , 1.8 log(ESD/mm)}
 !> describepar{l0           , \ell_0           , offspring size, -1.2 log(ESD/mm)}
-!> describepar{sigma        , \sigma'        , log-size specific std deviation , 0.4000 log(ESD/mm)^2}
+!> describepar{lstarv       , \ell_S       , minimum starvation size, 1.8 log(ESD/mm)}
+!> describepar{sigma        , \sigma'        , log-size specific std deviation , 1. log(ESD/mm)^2}
 !> describepar{Imax_pot     , I_\mathrm{max}^*     , maximum ingestion rate for ideal consumer, prey, T, and food , 173. 1/d}
-!> describepar{yield        , y_0        , assimilation efficiency, 0.6900 }
-!> describepar{mR           , m_R^0           , temperature dependent, natural mortality rate , 1.2000e-02 1/d}
-!> describepar{mS           , m_S^0           , physiological mortality under senescence , 0.0000e+00 1/d}
-!> describepar{mP           , m_P^0           , density dependent mortality rate (parasites), 2.5000e-04 1/d.µg-C/L}
-!> describepar{mT           , m_{T}^0           , mortality due to physical damage (turbulence) 0.028, 3.0000e-02 1/d}
-!> describepar{Q10          , Q_{10}          , rate increase at 10C temperature rise, 2.4000 }
-!> describepar{Tc           , ^o$C] $T_c           , critical threshold temperature, 4.5000 $^o$C}
-!> describepar{Bcrit        , B^*        , minimal prey biomass (Holling-III) , 32.0000 µg-C/L}
-!> describepar{relCVDens    , R_\rho    , C-biovolume density ratio non-gelatinous/gelatinous plankton, 104.0000 µg-C/L}
-!> describepar{m_predBe     , m_\mathrm{top}     , loss rate of Beroe due to top-predator , 0. 1/d}
-!> describepar{loptA_Pp     , \lcsize_\mathrm{opt,Pp}^A     , optimal prey size adult P.pileus , -0.8000 }
-!> describepar{loptA_Be     , \lcsize_\mathrm{opt,Be}^A     , optimal prey size adult Beroe , 1.8500 }
-!> describepar{sigmbc       , B_{\sigma}       , biomass below var size drop, 9.0000e-06 µg-C/L}
-!> describepar{immigr       , \epsilon_\mathrm{in}       , migration mass inflow rate , 1E-8 µg-C/L.d}
-!> describepar{rDet         , r_\mathrm{Det}         , detritus turnover rate , 7.0000e-03 1/d}
-!> describepar{T_turb       , ^o$C] $T_\mathrm{turb}       , correlation temperature-turbulence , 7.0 $^o$C}
-!> describepar{W_turb_exp   , w_\mathrm{turb}   , exponent of wind-turbulence relation  , 0.0 }
-!> describepar{rlcop_p      ,       , low size of cop parasitism rel to cten size, 0.8500 }
-!> describepar{min_lvar     ,      , minimum size STD at low biomass, 0.100 log(ESD/mm)}
-!> describepar{TempC_0      , ^o      , offset of (inverse) temperature factor, 0. $^o$C}
+!> describepar{yield        , y_0        , assimilation efficiency, 0.65 }
+!> describepar{mR           , m_R^0           , temperature dependent, natural mortality rate , 0.2 1/d}
+!> describepar{mS           , m_S^0           , physiological mortality under senescence , 0.2 1/d}
+!> describepar{mP           , m_P^0           , density dependent mortality rate (parasites), 5e-06 1/d.µg-C/L}
+!> describepar{mT           , m_{T}^0           , mortality due to physical damage (turbulence) 0.028, 0. 1/d}
+!> describepar{Q10          , Q_{10}          , rate increase at 10C temperature rise, 2.2 }
+!> describepar{Tc           , ^o$C] $T_c           , critical threshold temperature, 4.5 $^o$C}
+!> describepar{Bcrit        , B^*        , minimal prey biomass (Holling-III) , 10.0 µg-C/L}
+!> describepar{relCVDens    , R_\rho    , C-biovolume density ratio non-gelatinous/gelatinous plankton, 80.0 µg-C/L}
+!> describepar{m_predBe     , m_\mathrm{top}     , loss rate of Beroe due to top-predator , 0.0 1/d}
+!> describepar{loptA_Pp     , \lcsize_\mathrm{opt,Pp}^A     , optimal prey size adult P.pileus , -0.60 }
+!> describepar{loptA_Be     , \lcsize_\mathrm{opt,Be}^A     , optimal prey size adult Beroe , 1.4 }
+!> describepar{immigr       , \epsilon_\mathrm{in}       , migration mass inflow rate , 3e-05 µg-C/L.d}
+!> describepar{rDet         , r_\mathrm{Det}         , detritus turnover rate , 0.035 1/d}
+!> describepar{rParasite    , r_\mathrm{P}    , low size of cop parasitism rel to cten size, 0.1 }
+!> describepar{W_turb_exp   , w_\mathrm{turb}   , exponent of wind-turbulence relation  , 1.0 }
+!> describepar{mDisturb     , B_\mathrm{cd}     , critical mass concentration detection disturbance   , 7.0 µg-C/L}
 !!------- Parameters from nml-list jelly_pars ------- 
 real(rk)  :: lA           ! adult ctenophore size        
 real(rk)  :: l0           ! offspring size
+real(rk)  :: lstarv       ! minimum starvation size
 real(rk)  :: sigma        ! log-size specific std deviation 
 real(rk)  :: Imax_pot     ! maximum ingestion rate for ideal consumer, prey, T, and food 
 real(rk)  :: yield        ! assimilation efficiency
@@ -155,14 +154,11 @@ real(rk)  :: relCVDens    ! C-biovolume density ratio non-gelatinous/gelatinous 
 real(rk)  :: m_predBe     ! loss rate of Beroe due to top-predator 
 real(rk)  :: loptA_Pp     ! optimal prey size adult P.pileus 
 real(rk)  :: loptA_Be     ! optimal prey size adult Beroe 
-real(rk)  :: sigmbc       ! biomass below var size drop
 real(rk)  :: immigr       ! migration mass inflow rate 
 real(rk)  :: rDet         ! detritus turnover rate 
-real(rk)  :: T_turb       ! correlation temperature-turbulence 
+real(rk)  :: rParasite    ! low size of cop parasitism rel to cten size
 real(rk)  :: W_turb_exp   ! exponent of wind-turbulence relation  
-real(rk)  :: rlcop_p      ! low size of cop parasitism rel to cten size
-real(rk)  :: min_lvar     ! minimum size STD at low biomass
-real(rk)  :: TempC_0      ! offset of (inverse) temperature factor
+real(rk)  :: mDisturb     ! critical mass concentration detection disturbance   
 !!------- Switches for configuring model structure -------
 logical   :: TransectOn   ! mixing between coastal transect boxes
 logical   :: SizeDynOn    ! life stage cycling enabled
@@ -171,45 +167,44 @@ logical   :: OptionOn     ! generic
 logical   :: MortSizeOn   ! size dependency in mortality
 
 namelist /jelly_init/ &
-  B_Pp_initial, l_Pp_initial, B_Be_initial, l_Be_initial, B_Det_initial
+  B_Pp_initial, l_Pp_initial, B_Be_initial, l_Be_initial, B_Det_initial, &
+  Parasite_initial
 
 namelist /jelly_pars/ &
-  lA, l0, sigma, Imax_pot, yield, mR, mS, mP, mT, Q10, Tc, Bcrit, relCVDens, m_predBe, &
-  loptA_Pp, loptA_Be, sigmbc, immigr, rDet, T_turb, W_turb_exp, rlcop_p, min_lvar, &
-  TempC_0
+  lA, l0, lstarv, sigma, Imax_pot, yield, mR, mS, mP, mT, Q10, Tc, Bcrit, relCVDens, m_predBe, &
+  loptA_Pp, loptA_Be, immigr, rDet, rParasite, W_turb_exp, mDisturb
 
 namelist /jelly_switch/ &
   TransectOn, SizeDynOn, LowPassOn, OptionOn, MortSizeOn
 
-B_Pp_initial = 5E-2_rk            ! µg-C/L
-l_Pp_initial = 1.5_rk             ! log(ESD/mm)
+B_Pp_initial = 3E-2_rk            ! µg-C/L
+l_Pp_initial = 1.4_rk             ! log(ESD/mm)
 B_Be_initial = 1E-4_rk            ! µg-C/L
-l_Be_initial = 1.5_rk             ! log(ESD/mm)
-B_Det_initial = 0._rk              ! µg-C/L
-lA           = 2._rk              ! log(ESD/mm)
+l_Be_initial = 1.25_rk            ! log(ESD/mm)
+B_Det_initial = 50._rk             ! µg-C/L
+Parasite_initial = 50._rk             ! µg-C/L
+lA           = 1.8_rk             ! log(ESD/mm)
 l0           = -1.2_rk            ! log(ESD/mm)
-sigma        = 0.4000_rk          ! log(ESD/mm)^2
+lstarv       = 1.8_rk             ! log(ESD/mm)
+sigma        = 1._rk              ! log(ESD/mm)^2
 Imax_pot     = 173._rk            ! 1/d
-yield        = 0.6900_rk          ! 
-mR           = 1.2000e-02_rk      ! 1/d
-mS           = 0.0000e+00_rk      ! 1/d
-mP           = 2.5000e-04_rk      ! 1/d.µg-C/L
-mT           = 3.0000e-02_rk      ! 1/d
-Q10          = 2.4000_rk          ! 
-Tc           = 4.5000_rk          ! $^o$C
-Bcrit        = 32.0000_rk         ! µg-C/L
-relCVDens    = 104.0000_rk        ! µg-C/L
-m_predBe     = 0._rk              ! 1/d
-loptA_Pp     = -0.8000_rk         ! 
-loptA_Be     = 1.8500_rk          ! 
-sigmbc       = 9.0000e-06_rk      ! µg-C/L
-immigr       = 1E-8_rk            ! µg-C/L.d
-rDet         = 7.0000e-03_rk      ! 1/d
-T_turb       = 7.0_rk             ! $^o$C
-W_turb_exp   = 0.0_rk             ! 
-rlcop_p      = 0.8500_rk          ! 
-min_lvar     = 0.100_rk           ! log(ESD/mm)
-TempC_0      = 0._rk              ! $^o$C
+yield        = 0.65_rk            ! 
+mR           = 0.2_rk             ! 1/d
+mS           = 0.2_rk             ! 1/d
+mP           = 5e-06_rk           ! 1/d.µg-C/L
+mT           = 0._rk              ! 1/d
+Q10          = 2.2_rk             ! 
+Tc           = 4.5_rk             ! $^o$C
+Bcrit        = 10.0_rk            ! µg-C/L
+relCVDens    = 80.0_rk            ! µg-C/L
+m_predBe     = 0.0_rk             ! 1/d
+loptA_Pp     = -0.60_rk           ! 
+loptA_Be     = 1.4_rk             ! 
+immigr       = 3e-05_rk           ! µg-C/L.d
+rDet         = 0.035_rk           ! 1/d
+rParasite    = 0.1_rk             ! 
+W_turb_exp   = 1.0_rk             ! 
+mDisturb     = 7.0_rk             ! µg-C/L
 
 
 !--------- read namelists --------- 
@@ -237,10 +232,12 @@ call self%get_parameter(self%l_Pp_initial ,'l_Pp_initial',  default=l_Pp_initial
 call self%get_parameter(self%B_Be_initial ,'B_Be_initial',  default=B_Be_initial)
 call self%get_parameter(self%l_Be_initial ,'l_Be_initial',  default=l_Be_initial)
 call self%get_parameter(self%B_Det_initial ,'B_Det_initial',  default=B_Det_initial)
+call self%get_parameter(self%Parasite_initial ,'Parasite_initial',  default=Parasite_initial)
 
 !!------- model parameters from nml-list jelly_pars ------- 
 call self%get_parameter(self%lA           ,'lA',            default=lA)
 call self%get_parameter(self%l0           ,'l0',            default=l0)
+call self%get_parameter(self%lstarv       ,'lstarv',        default=lstarv)
 call self%get_parameter(self%sigma        ,'sigma',         default=sigma)
 call self%get_parameter(self%Imax_pot     ,'Imax_pot',      default=Imax_pot)
 call self%get_parameter(self%yield        ,'yield',         default=yield)
@@ -255,26 +252,25 @@ call self%get_parameter(self%relCVDens    ,'relCVDens',     default=relCVDens)
 call self%get_parameter(self%m_predBe     ,'m_predBe',      default=m_predBe)
 call self%get_parameter(self%loptA_Pp     ,'loptA_Pp',      default=loptA_Pp)
 call self%get_parameter(self%loptA_Be     ,'loptA_Be',      default=loptA_Be)
-call self%get_parameter(self%sigmbc       ,'sigmbc',        default=sigmbc)
 call self%get_parameter(self%immigr       ,'immigr',        default=immigr)
 call self%get_parameter(self%rDet         ,'rDet',          default=rDet)
-call self%get_parameter(self%T_turb       ,'T_turb',        default=T_turb)
+call self%get_parameter(self%rParasite    ,'rParasite',     default=rParasite)
 call self%get_parameter(self%W_turb_exp   ,'W_turb_exp',    default=W_turb_exp)
-call self%get_parameter(self%rlcop_p      ,'rlcop_p',       default=rlcop_p)
-call self%get_parameter(self%min_lvar     ,'min_lvar',      default=min_lvar)
-call self%get_parameter(self%TempC_0      ,'TempC_0',       default=TempC_0)
+call self%get_parameter(self%mDisturb     ,'mDisturb',      default=mDisturb)
 
 !!------- Register state variables  ------- 
 call self%register_state_variable(self%id_B_Pp,  'B_Pp','µg-C/L','P.Pileus biomass B_Pp', &
    B_Pp_initial, minimum=_ZERO_, no_river_dilution=.true. )
 call self%register_state_variable(self%id_l_Pp,  'l_Pp','log(ESD/mm)','P.Pileus mean log size l_Pp', &
-   l_Pp_initial, minimum=-92.0d0, no_river_dilution=.true. )
+   l_Pp_initial, minimum=-3.0d0, no_river_dilution=.true. )
 call self%register_state_variable(self%id_B_Be,  'B_Be','µg-C/L','Beroe biomass B_Be', &
    B_Be_initial, minimum=_ZERO_, no_river_dilution=.true. )
 call self%register_state_variable(self%id_l_Be,  'l_Be','log(ESD/mm)','Beroe mean log size l_Be', &
-   l_Be_initial, minimum=-92.0d0, no_river_dilution=.true. )
+   l_Be_initial, minimum=-3.0d0, no_river_dilution=.true. )
 call self%register_state_variable(self%id_B_Det, 'B_Det','µg-C/L','detritus B_Det', &
    B_Det_initial, minimum=_ZERO_, no_river_dilution=.true. )
+call self%register_state_variable(self%id_Parasite, 'Parasite','µg-C/L','parasite Parasite', &
+   Parasite_initial, minimum=_ZERO_, no_river_dilution=.true. )
 
 !!------- Register diagnostic variables  ------- 
 call self%register_diagnostic_variable(self%id_prod_Be, 'prod_Be','1/d', 'secondary production rate Beroe prod_Be', &
@@ -435,6 +431,7 @@ _FABM_LOOP_BEGIN_
   _GET_(self%id_B_Be, var(ib)%B_Be)  ! Beroe biomass in µg-C/L
   _GET_(self%id_l_Be, var(ib)%l_Be)  ! Beroe mean log size in log(ESD/mm)
   _GET_(self%id_B_Det, var(ib)%B_Det)  ! detritus in µg-C/L
+  _GET_(self%id_Parasite, var(ib)%Parasite)  ! parasite in µg-C/L
 !#E_GET
    ! Retrieve current environmental conditions.
 !#S_GED
@@ -532,12 +529,12 @@ _FABM_LOOP_BEGIN_
 !  Temp_dep0= f_temp(self%Q10, var(ib)%Temp, 0.0d0)
 
 ! std of size distribution increases at large mean size and drops at very low number concentration
-!    rS        = self%min_lvar + (1.0d0-self%min_lvar)*sqrt(mass(i))/(sqrt(mass(i))+sqrt(self%sigmbc))
+!    rS        = self%lA + (1.0d0-self%lA)*sqrt(mass(i))/(sqrt(mass(i))+sqrt(self%sigmbc))
 ! TODO: refine empirical relationship using Falkenhaug1996 or Finenko2003 data 
 
 !  lopt = l0 + (ml*0-l0)*dlopt(sp) % optimal prey size
 !  mstd=sqrt(dl.*exp(-((ml-lmsize)./(sqrt(2)*dl)).^2));
-!    lcrit     = self%l0 + (0-self%min_lvar*self%l0)*dlopt(i)
+!    lcrit     = self%l0 + (0-self%lA*self%l0)*dlopt(i)
     lcrit     = self%l0 * (1.0d0 - 0.*dlopt(i))
 !    lcrit     = self%l0
     dl        = (self%lA +lcrit - 2*self%l0)/4
@@ -564,9 +561,6 @@ _FABM_LOOP_BEGIN_
 !
 ! ---------- calculate RHS  -------------------
 !
-! first the detritus change, as detrivory influences parasites
-  sBDet     =   mass_sum - 0.5*Temp_dep(1) * var(ib)%B_Det
-
 ! ----------  loop over all trophic interactions  -------------------
 !
 !  loop over (ctenophore) predators
@@ -589,8 +583,10 @@ _FABM_LOOP_BEGIN_
 
 ! effect of reduces prey detectability at high consumer density
 !   detect  = 2.0d0/(1.0d0+exp(mass(i)/self%T_turb))
-   detect  = 1.0d0 - exp(-self%T_turb/(mass(i)*exp(0.*(lmsize(i)-lopt(i)))+1E-5))
-
+!   detect  = 1.0d0 - exp(-self%mDisturb/(mass(i)*exp(lmsize(i)-lopt(i)-1.0d0))**2+1E-5)
+   detect  = (mass(1)+mass(2))/self%mDisturb !*exp(lmsize(i)-lopt(i))
+!   detect  = 2.0d0/(1.0d0+exp(detect))
+   detect  = exp(-detect**2)
    bcrit   = self%Bcrit/relDens(i+1) ! half-sturation constant TODDO: replace with mechanistic par
    bcrit   = bcrit * exp((al1(i)-0.5d0)*lmsize(j))  ! constant affinity induces scaling in half-saturation constant
    gross   = detect*Temp_dep(i) * grazrate(dl2, Imax(i), bcrit, preyT) ! grazing rate
@@ -605,7 +601,7 @@ _FABM_LOOP_BEGIN_
 
    do j = 1, 1+i  ! calc total available prey biomass first
 
-     mGP     = gross* preyc(j)*mass(i)/(preyT+self%sigmbc) ! grazing mortality of prey
+     mGP     = gross* preyc(j)*mass(i)/(preyT+1e-5) ! grazing mortality of prey
      mGrz(j) = mGrz(j) + mGP
 !    mGrz0(j)= mGrz0(j)+ mGP*exp(-((self%l0-lopt(i))**2-dl**2)/(2*sigma2(j))) ! offspring mortality
 
@@ -631,17 +627,12 @@ _FABM_LOOP_BEGIN_
 !  how far way are juveniles from maturity?
 !       physiological/starvation mortality 
 ! physiological/starvation status affects yield (Reeve1989)
-!  numerical loop 
-!   starv    = 0.0d0
-!   argA    = (self%yield*graz(i)-mort_R)/(0*self%mR+1.0d0)
-!  if (-argA .gt. 3) argA=-3.0d0 
-   starv   = exp(-argA)!self%yield *
 ! secondary production  
 !   yfac    = 1.0d0/(1.0d0+0*starv)
    yfac    = 1.0d0
    Prod    = self%yield * yfac * graz(i)
 ! life-stage dependent mortality 
-   argA   = (Prod-mort_R)/(1.0d0+0*self%mR+1e-4)
+   argA    = (Prod-mort_R)/(2*self%mR+1e-4)
 !    argA   = (Prod-mort_R)/(self%mR+1E-4)
    starv   = exp(-argA)!self%yield *
 
@@ -650,30 +641,28 @@ _FABM_LOOP_BEGIN_
 !    if (abs(mort_S) .gt. 13.5) write (*,'(A,1(I2),4(F12.4))') 'mS=',i,mort_S,mort_S0,eS,starv
 
 ! mortality due to parasites maximal at newly hetched larvae (Hirota1974 ,Greve)
-   pS      = exp(-(self%min_lvar -lmsize(i))**2/rS)*srS
+   pS      = exp(-(self%lstarv -lmsize(i))**2/rS)*srS
 ! life-stage dependent mortality due to parasites
-!   mort_P  = self%mP * pS * (mass(1)+mass(2)+fLc*mass(3)) * var(ib)%B_Det* Temp_dep(i) 
 ! fraction of large "meso"zooplakton as suitable parasite host 
-!   fLc     = exp(-1.*(self%rlcop_p*(self%lA+1.5*loptA(i))-lmsize(3))**2/(2*sigma2(3)))
 !   f_tc    = exp(-(self%lA-lmsize(3))**2/rS)
    f_tc    = 1.0d0!mass(i)/(mass(i)+0.1d0)
 !   fLc     = exp(-(loptA(i)-lmsize(3))**2/(1*sigma2(3)))
    fLc     = exp(-(loptA(i)-lmsize(3))**2/rS)
    fLc     = fLc * Temp_dep(3) * f_tc 
-!   fLc     = exp(-(loptA(i)-lmsize(3))**2/(2*sigma2(3)))self%min_lvar
 !   fLc     = fLc* exp(-(0.5-lmsize(3))**2/(2*sigma2(3)))
-!   fDc     = exp(-(loptA(i)-lmsize(3))**2/(1*sigma2(3)))* Temp_dep(3) * f_tc   !*mass(i)**0.5d0
-!   m_host  = mass(i)+fLc*mass(3)+fLc*fLc*var(ib)%B_Det
    m_host  = mass(i)+fLc*mass(3) + fLc*0.*var(ib)%B_Det
 
 !   bcrit   = self%Bcrit/relDens(i+1) ! half-sturation constant TODDO: replace with mechanistic par
-  bcrit   = self%Bcrit/relDens(i+1)
+   bcrit   = self%Bcrit/relDens(i+1)
 
 !   mort_P  = self%mP * (starv+pS) *m_host * var(ib)%B_Det/(1+0*relDens(i+1)) * Temp_dep(i) 
-   mort_P  = self%mP * (starv*0+1.+pS) *m_host * var(ib)%B_Det * Temp_dep(i) *bcrit * exp(-1*sBDet/250.0d0)!var(ib)%B_Det
+   mort_P  = self%mP * (starv*0+1.+pS) *m_host * var(ib)%Parasite * Temp_dep(i) *bcrit 
+!* exp(-1*sBDet/250.0d0)!var(ib)%B_Det
 
 ! temperature dependent losses, with surface-to-volume scaling
-   mort_R  = self%mR * Temp_dep(i) * exp(-0.5*(lmsize(i)-lavg))
+!   mort_R  = self%mR * Temp_dep(i) * exp(-0.5*(lmsize(i)-lavg))
+   mort_R  = self%mR * Temp_dep(i) * exp(-0.5*(lmsize(i)-lavg+lopt(i)))
+
 !   mort_R  = self%mR * Temp_dep(i) * exp(0.5*(self%lA-lmsize(i)))! lcrit*(1.0 + fS)
 
 ! physical damage (turbulence); can be avoided by active swimming
@@ -763,7 +752,7 @@ _FABM_LOOP_BEGIN_
      resp_dl  = sigma2(i) * mort_R * 0.5
 
 !  marginal size shift due to density dependent mortality (parasites)
-     paras_dl = -sigma2(i) * mort_P*pS/(starv*0+1.+pS+1.0E-4) *2 * (self%min_lvar-lmsize(i))/rS !/(0*f_tc+pS+0*starv)
+     paras_dl = -sigma2(i) * mort_P*pS/(starv*0+1.+pS+1.0E-4) *2 * (self%lA-lmsize(i))/rS !/(0*f_tc+pS+0*starv)
 
      prod_dl  = sigma2(i) * (Prod * al1(i) + self%yield*yfac*(dlpp(i)+dg_dl(i)))
 !   if (abs(prod_dl) .gt. 1.) write (*,'(A,4(F12.5))') 'pdl=', prod_dl,sigma2(i),Prod * al1(i),self%yield*yfac*dlpp(i)
@@ -794,7 +783,7 @@ _FABM_LOOP_BEGIN_
 !   if (abs(sum_dl) .gt. 10. .and. ib .eq. 1) write (*,'(A,2(I2),5(F12.5))') 'dl=',i,ib,sum_dl , init_dl , som_dl , prod_dl,lmsize(i)
 !   if (abs(Prod - mort_sum) .gt. 10. .and. ib .eq. 1) write (*,'(A,2(I2),6(F12.5))') 'dB=',i,ib,Prod , mort_sum,mort_S,mort_T,mort_P,mass(i)*1E3
 !write (0,'(A,1(I2),3(F12.5))') 'i=',i,Prod,mort_sum,sum_dl
-write (0,'(A)',advance='no') ''
+!write (0,'(A)',advance='no') ''
 
 !#S__RHS
 !#E__RHS
@@ -863,7 +852,13 @@ write (0,'(A)',advance='no') ''
 ! most simple detritus pool turnover dynamics 
 !  rhsv%B_Det=  self%mS * mass_sum - self%rDet * Temp_dep(3) * var(ib)%B_Det
 !  if (mass_sum .gt. 200.0d0) mass_sum = 200.0d0
-  rhsv%B_Det=   self%rDet * sBDet  ! 0.4444 mean of f_T 1962-2002 for Q10=2.5
+! first the detritus change, as detrivory influences parasites
+  sBDet     =   mass_sum - 0.5*Temp_dep(1) * var(ib)%B_Det
+
+  rhsv%B_Det    = self%rDet * sBDet  ! 0.4444 mean of f_T 1962-2002 for Q10=2.5
+!  rhsv%Parasite = self%rParasite*(var(ib)%B_Det*Temp_dep(3) - var(ib)%Parasite*2)
+  rhsv%Parasite = self%rParasite*(var(ib)%B_Det*Temp_dep(3) - 0.5d0*var(ib)%Parasite/(0.001d0+Temp_dep(2)))
+! + 0.0*Temp_dep(3)
 ! ------------------------------------------------------------------------------
 !#S_ODE
 !---------- ODE for each state variable ----------
@@ -872,6 +867,7 @@ write (0,'(A)',advance='no') ''
   _SET_ODE_(self%id_B_Be, rhsv%B_Be UNIT)
   _SET_ODE_(self%id_l_Be, rhsv%l_Be UNIT)
   _SET_ODE_(self%id_B_Det, rhsv%B_Det UNIT)
+  _SET_ODE_(self%id_Parasite, rhsv%Parasite UNIT)
 !#E_ODE
   end do
 
