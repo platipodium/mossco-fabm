@@ -225,7 +225,7 @@
                      output=output_time_step_averaged)
    call self%register_diagnostic_variable(self%id_dPlim,'Plim','-',  'Plim',                     &
                      output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_dMort,'sp. phyto mortality rate','1/d',  'mort_phy',                         &
+   call self%register_diagnostic_variable(self%id_dMort,'specific_phyto_mortality_rate','1/d',  'mort_phy',                         &
                      output=output_time_step_averaged)
    call self%register_diagnostic_variable(self%id_dPAR,'PAR','W/m**2',     'PAR',&
                      output=output_time_step_averaged)
@@ -239,9 +239,9 @@
                      output=output_time_step_averaged)
    call self%register_diagnostic_variable(self%id_deC,'eC','-',  'C_eff',           &
                      output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_dgraz,'grazing rate','mmolC/m**3/d',  'graz',           &
+   call self%register_diagnostic_variable(self%id_dgraz,'grazing_rate','mmolC/m**3/d',  'graz',           &
                      output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_dmortz,'zoo mortality rate','mmolC/m**3/d',  'mort_zoo',           &
+   call self%register_diagnostic_variable(self%id_dmortz,'zoo_mortality_rate','mmolC/m**3/d',  'mort_zoo',           &
                      output=output_time_step_averaged)
 !   call register_diagnostic_variable(modelinfo,self%id_PPR,'PPR','mmol/m**3/d','gross primary production rate',      &
 !                     time_treatment=time_treatment_averaged)
@@ -423,9 +423,9 @@
 
    ! Export diagnostic variables
    _SET_DIAGNOSTIC_(self%id_dPAR,par)
-   _SET_DIAGNOSTIC_(self%id_GPP ,primprod)
+   _SET_DIAGNOSTIC_(self%id_GPP ,primprod) !registered as a 'time integrated' quantity, so no time conversion necessary (has the units [mmol/m3])
    _SET_DIAGNOSTIC_(self%id_dLlim,Llim)
-   _SET_DIAGNOSTIC_(self%id_dMort,mort_phy*secs_pr_day)
+   _SET_DIAGNOSTIC_(self%id_dMort,mort_phy*secs_pr_day)  !registered as a 'time averaged' quantity, so time conversion necessary (has the units [mmol/m3/d])
    _SET_DIAGNOSTIC_(self%id_dNlim,Nlim)
    _SET_DIAGNOSTIC_(self%id_dPlim,Plim)
    _SET_DIAGNOSTIC_(self%id_dqnc,qnc)
@@ -434,7 +434,7 @@
    _SET_DIAGNOSTIC_(self%id_deP,e_P)
    _SET_DIAGNOSTIC_(self%id_deC,ee_C)
    _SET_DIAGNOSTIC_(self%id_dgraz,grazing*secs_pr_day*ee_C*zooC)
-   _SET_DIAGNOSTIC_(self%id_dmortz,mort_Z*secs_pr_day*zooC)
+   _SET_DIAGNOSTIC_(self%id_dmortz,mort_Z*secs_pr_day)
    !_SET_DIAGNOSTIC_(self%id_dexcr_N,ee_C)
    !_SET_DIAGNOSTIC_(self%id_NCP ,primprod - self%rpn*phyC)
    !_SET_DIAGNOSTIC_(self%id_PPR ,primprod*secs_pr_day)
