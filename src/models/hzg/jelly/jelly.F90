@@ -377,17 +377,19 @@ end subroutine initialize
 !  type (type_environment),   intent(inout)  :: environment 
   real(rk) :: mort_S, mort_S0,mort_SJ, mort_R, mort_R0, mort_T0, mort_G
   real(rk) :: mort_J, mort_AJ, mort_P, mort_T, mort_sum, mass_sum
-  real(rk) :: errf, eargA, argA, aa, rS, pS, eS, eS0, al0,alr, yfac
+  real(rk) :: errf, eargA, argA, aa, pS, eS, eS0, al0,alr, yfac, affin
   real(rk) :: Imaxr, lesdr, efn, efp, dll,loptm, m_host, sBDet,detect
   real(rk) :: somgrwth, recruit,lco, mGBe, f_tc, starv, dal_dl, min_dl, bound_dl
   real(rk) :: prod_dl, sum_dl, resp_dl,paras_dl, turb_dl
   real(rk) :: graz_dl, som_dl, init_dl, sen_dl
   real(rk), dimension(2,numb) :: dConc,dTrait
-  real(rk), dimension(3) :: Imax, al1, dlopt,lopt, graz,Temp_dep, Temp_dep0, preyc, dg_dl
-  real(rk), dimension(3) :: mGrz, mGrz0, sig, sigma2, lmsize, dlp,dlpp, mass, relDens,loptA
+  real(rk), dimension(3) :: Imax, Imact, di_dl, di0_dl, dg_dly, dprod_dl
+  real(rk), dimension(3) :: dlopt,lopt, graz,Temp_dep,sig13, sig23,ksat
+  real(rk), dimension(3) :: mGrz, sig, sigma2, lmsize, mass,relDens,loptA, preyc
+  real(rk), dimension(3,3):: grss
   real(rk) :: dl0, dl, dl2, bcrit, prey, preyE, preyT, mGP, fLc, aS=2.0
-  real(rk) :: fR, fA, dfA_dl, lm_adult, al, lprey, lcrit, lavg
-  real(rk) :: gross, Prod, dg_dB, dB_dl, dg_dlY, srS, mS0, mT0, ratf
+  real(rk) :: fR, fA, dfA_dl, lm_adult, al, lprey, lcrit, lavg,aff, dp_dB
+  real(rk) :: gross, prod, dg_dB, dp_dl, mS0, mT0, ratf
   integer  :: ib, ic, i, j
 !  real(rk) :: inflow=2E-1, Adorm=2E-3
 
@@ -481,18 +483,21 @@ _FABM_LOOP_BEGIN_
 ! optimum size/stage with minimal life-stage dependent mortality 
   lavg    = 0.5*(self%lA + self%l0) ! 0.4
 !  loop over ctenophore populations:  1: Beroe 2: Ppileus 
+! effect of reduces prey detectability at high consumer density
+  detect  = (mass(1)+mass(2))/self%mDisturb !*exp(lmsize(i)-lopt(i))
+!   detect  = 2.0d0/(1.0d0+exp(detect))
+  detect  = exp(-detect**2)
 
   do i = 1, 2
     relDens(i)= self%relCVDens
     lco       = log(1E3/self%relCVDens)
     lopt(i)   = self%l0 + (lmsize(i)-self%l0)*dlopt(i) ! optimal prey size
-    loptA(i)   = self%l0 + (self%lA-self%l0)*dlopt(i) ! optimal prey size
+    loptA(i)  = self%l0 + (self%lA-self%l0)*dlopt(i) ! optimal prey size
 ! potential maximum ingestion rate depending on size, T, and feeding mode
    ! re-gauge log size to µm-scale used in Wirtz JPR,2012     log(1E3/80)=2.5
    !    converts from log(µm) to log(mm) but accounts for much lower C-density  
 !    lesdr     = 0.0d0
-    dal_dl    = 0.41d0 * (1.0 - dlopt(i))
-    if (.true.) then
+    if (.false.) then
 ! correction to prevent unrealistic Imax-size dependency for juveniles (see Fig.4 Wirtz JPR 2013)
       argA      = lmsize(i)/lavg
       efp       = exp(argA)
@@ -503,160 +508,145 @@ _FABM_LOOP_BEGIN_
       lesdr   = lmsize(i)
       loptm   = lopt(i) ! optimal prey size
     endif
-
-    al      = -0.41d0 * (loptm-lesdr)
-    Imax(i) = self%Imax_pot * exp( al + (2-al)*(loptm+lco) +(al-3)*(lesdr+lco) )
-
-!    al1(i)  = Temp_dep*(al-3) +Temp_dep*dlopt(i)*(2-al)
-! size derivative of Imax-scaling
-!    al1(i)    = (al-3) + dlopt(i)*(2-al)
-    al1(i)  = (al-3) + dlopt(i)*(2-al) + dal_dl*(1.0d0 - loptm + lesdr)
-
-    if (.true.) then
-      dll     = ( (1.0d0+argA)*(efp*efp+1.0d0) - (efp+efn)*(argA*efp+1.0d0))/(efp+efn)**2
-      al1(i)  = al1(i)* dll
+! temperature dependency for egg spawning, somatic growth and mortalities 
+    if (self%OptionOn) then
+      Temp_dep(i) = f_temp(self%Q10 +1*lopt(i), var(ib)%Temp, self%Tc)
+    else
+      Temp_dep(i) = f_temp(self%Q10, var(ib)%Temp, self%Tc)
     endif
 
-!    al0       = -2.5d0
-!    if (al1(i) .lt. al0) al1(i) = al0  
+    al      = -0.41d0 * (loptm-lesdr)
+    Imax(i) = self%Imax_pot *Temp_dep(i) *  exp( al + (2-al)*(loptm+lco) +(al-3)*(lesdr+lco) )
 
-! temperature dependency for egg spawning, somatic growth and mortalities 
-  if (self%OptionOn) then
-    Temp_dep(i) = f_temp(self%Q10 +1*lopt(i), var(ib)%Temp, self%Tc)
-  else
-    Temp_dep(i) = f_temp(self%Q10 +0*lopt(i), var(ib)%Temp, self%Tc)
-  endif
-!  Temp_dep0= f_temp(self%Q10, var(ib)%Temp, 0.0d0)
+! size derivative of Imax-scaling
+    dal_dl     = 0.41d0 * (1.0 - dlopt(i))
+    di0_dl(i)  = (al-3) + dlopt(i)*(2-al) + dal_dl*(1.0d0 - loptm + lesdr)
 
-! std of size distribution increases at large mean size and drops at very low number concentration
-!    rS        = self%lA + (1.0d0-self%lA)*sqrt(mass(i))/(sqrt(mass(i))+sqrt(self%sigmbc))
-! TODO: refine empirical relationship using Falkenhaug1996 or Finenko2003 data 
+    if (.false.) then
+      dll       = ( (1.0d0+argA)*(efp*efp+1.0d0) - (efp+efn)*(argA*efp+1.0d0))/(efp+efn)**2
+      di0_dl(i) = di0_dl(i)* dll
+    endif
 
-!  lopt = l0 + (ml*0-l0)*dlopt(sp) % optimal prey size
-!  mstd=sqrt(dl.*exp(-((ml-lmsize)./(sqrt(2)*dl)).^2));
-!    lcrit     = self%l0 + (0-self%lA*self%l0)*dlopt(i)
-    lcrit     = self%l0 * (1.0d0 - 0.*dlopt(i))
-!    lcrit     = self%l0
-    dl        = (self%lA +lcrit - 2*self%l0)/4
-!    if (i .eq. -1) then      dl=dl*1.     endif
-!    dl        = (self%lA - self%l0)/3.1415  dl=(lAv(sp)+lopt-2*l0)/4; 
-!  lopt = l0 + (ml*0-l0)*dlopt(sp) % optimal prey size
-!  mstd=sqrt(dl.*exp(-((ml-lmsize)./(sqrt(2)*dl)).^2));
-!    sigma2(i) = self%sigma * dl * exp(-((lavg-lmsize(i))/(sqrt(2.0d0)*dl))**2)
+!! TODO: refine empirical relationship using Falkenhaug1996 or Finenko2003 data 
     sigma2(i) = self%sigma * exp(-0.5*(lavg-lmsize(i))**2)
     sig(i)    = sqrt(sigma2(i))
 
 ! set accumulating stores to zero
 !    graz(i)   = 0.0d0
-!    dlpp(i)   = 0.0d0
   end do
-!  mass_sum  = 0.0d0
-  mass_sum  = 0.*var(ib)%B_Det
+  mass_sum  = 0.0d0
+!  mass_sum  = 0.*var(ib)%B_Det
   do j = 1, 3
-    dlp(j)    = 0.0d0
+    dg_dly(j) = 0.0d0
     mGrz(j)   = 0.0d0
 !    mGrz0(j)  = 0.0d0
-    mass_sum  = mass_sum + mass(i)
+!    if(mass(j) .lt. 200.0) then
+       mass_sum  = mass_sum + mass(j) 
+!    else
+!       mass_sum  = mass_sum + 200.0 
+!    endif
+! integration result with Gaussian size distribution (cf. effective prey biomass)
+    sig23(j)   = 1.5d0/(1.0d0 + 3*sigma2(j))  ! "life-span"=1 : width of life-stage dependent mortality
+    sig13(j)   = 1.0d0/sqrt(1.0d0 + 3*sigma2(j))
+ 
   end do
 !
 ! ---------- calculate RHS  -------------------
-!
+
 ! ----------  loop over all trophic interactions  -------------------
 !
 !  loop over (ctenophore) predators
   do i = 1, 2
 !  loop over prey populations:  1: Beroe 2: Ppileus 3: Cops
-   dB_dl   = 0.0d0
+   dp_dl   = 0.0d0
    preyT   = 0.0d0
+   gross   = 0.0d0
    do j = 1, 1+i  ! calc total available prey biomass first
-     i13sig  = 1.0d0/(1.0d0 + 3*sigma2(j))     ! 
      dl      = lmsize(j) - lopt(i)     ! size match to prey
-     dl2     = 1.5d0*dl**2             ! feeding kernel argument, assumes "neutral" selectivity s=3/2
-     preyc(j)= prey_effc(dl2)  ! effective prey mass after integration over selection kernel
-!     preyE   = prey_eff(dl2,mass(j) )  
+! ingestion kernel
+     Imact(j)= Imax(i) * exp(-1.5d0 * dl**2)
+! effective prey mass after integration over selection kernel, with "neutral" selectivity s=3/2
+     preyc(j)= sig13(j) * exp(-sig23(j)*dl**2)  
+! contribution to consumer size scaling in Imax 
+     di_dl(j)= di0_dl(i) + 3*dl*dlopt(i)
+!     preyc(j)= prey_effc(dl2)  ! effective prey mass after integration over selection kernel
 !     if (i.eq.1 .and. j.eq.1 ) preyc(j)= preyc(j)*  exp(1*(self%l0-lopt(i))/sig(i)) ! reduce cannibalism in Beroe (Hosia2011)     
 !     if (i.eq.1 .and. j.eq.1 ) preyc(j)= preyc(j)* 0. ! reduce cannibalism in Beroe (Hosia2011)     
-     preyE   = preyc(j)* mass(j) ! effective prey mass after integration over selection kernel
-     preyT   = preyT + preyE  ! effective prey mass after integration over selection kernel
-     dB_dl   = dB_dl + preyE * dlopt(i)* 3*dl*i13sig   ! derivative of prey-mass with respect to consumer size (through optimal prey size dependency)
+     preyT   = preyT + preyc(j)* mass(j)  ! effective prey mass after integration over selection kernel
    end do
-
-! effect of reduces prey detectability at high consumer density
-!   detect  = 2.0d0/(1.0d0+exp(mass(i)/self%T_turb))
-!   detect  = 1.0d0 - exp(-self%mDisturb/(mass(i)*exp(lmsize(i)-lopt(i)-1.0d0))**2+1E-5)
-   detect  = (mass(1)+mass(2))/self%mDisturb !*exp(lmsize(i)-lopt(i))
-!   detect  = 2.0d0/(1.0d0+exp(detect))
-   detect  = exp(-detect**2)
-   bcrit   = self%Bcrit/relDens(i+1) ! half-sturation constant TODDO: replace with mechanistic par
-   bcrit   = bcrit * exp((al1(i)-0.5d0)*lmsize(j))  ! constant affinity induces scaling in half-saturation constant
-   gross   = detect*Temp_dep(i) * grazrate(dl2, Imax(i), bcrit, preyT) ! grazing rate
-
-  ! update all flux stores
-!   graz(i) = graz(i) + gross
-   graz(i) = gross  
-   ratf    = preyT/bcrit
-   argA    = Temp_dep(i)*Imax(i)* exp(-ratf) * detect
-   dlpp(i) = dB_dl * argA /bcrit
-   dg_dl(i)= -(al1(i)-0.5d0)*ratf * argA  ! derivative through half-saturation
-
+! affinity contains depes on food type (gel), consumer density, Temp, size(swimming)
+   affin   = relDens(i+1)/self%Bcrit * detect *Temp_dep(i)* exp(0.5d0*lmsize(i))
    do j = 1, 1+i  ! calc total available prey biomass first
 
-     mGP     = gross* preyc(j)*mass(i)/(preyT+1e-5) ! grazing mortality of prey
-     mGrz(j) = mGrz(j) + mGP
-!    mGrz0(j)= mGrz0(j)+ mGP*exp(-((self%l0-lopt(i))**2-dl**2)/(2*sigma2(j))) ! offspring mortality
+ksat(j)=Imact(j)/affin
 
+     preyE      = preyc(j)* mass(j) ! effective prey mass after integration over selection kernel  
+     eargA      = exp(-affin * preyT/Imact(j))
+
+! grazing rate (partial gross 2ndary production) of consumer i on prey j
+     grss(i,j)  = Imact(j) * (1.0d0-eargA) * preyc(j)/(preyT+1E-5)
+     gross      = gross   + grss(i,j) * mass(j)
+     mGrz(j)    = mGrz(j) + grss(i,j) * mass(i)
   ! update size gradient stores
-     dlp(j)  = dlp(j)  - 3*dl*i13sig * mGP          ! size match to prey 
-!   if (abs(dg_dB * dB_dl) .gt. 1.) write (*,'(A,4(F12.5))') 'dlpp=',dg_dB , dB_dl ,preyE,gross
-!   if (abs(dlopt(i)* 3*dl*i13sig * dg_dB) .gt. 2.) write (*,'(A,2(I2),7(F12.5))') 'lpp=',i,j,dlpp(i),gross,dg_dB,dl,dlopt(i)* 3*dl*i13sig,lmsize(j), lopt(i)
+     dg_dly(j)  = dg_dly(j)  - 3*(lmsize(j)-lopt(i)) * grss(i,j)* mass(i) ! size match to prey 
+
+! affinity term; degree of food limitation (aff=0: g=Imax   aff=Imax: no food)
+     aff        = affin*preyE * eargA  
+! derivative with respect to prey mass
+     dp_dB      = (grss(i,j)*(preyT-preyE)/preyc(j)+aff)/(preyT+1E-5)
+! production derivative with respect to consumer size
+     dp_dl      = dp_dl + dp_dB*2*sig23(j)*(lmsize(j)-lopt(i))* dlopt(i)
+     dp_dl      = dp_dl + (grss(i,j)*mass(j)-aff)*di_dl(j) + 0.5*aff
+!!! derivative with respect to consumer size (through optimal prey size dependency)
    end do
+! update all flux stores
+!   graz(i) = graz(i) + gross
+   graz(i)     = gross 
+   dprod_dl(i) = dp_dl
   end do
 
 !  loop over dynamic ctenophore populations 
   do i = 1, 2
-
+! secondary production  
+! physiological/starvation status affects yield (Reeve1989)
+!   yfac    = 1.0d0/(1.0d0+0*starv)
+   yfac    = 1.0d0
+   prod    = self%yield * yfac * graz(i)
+!   prod    = 0.0d0
 !
 ! ----------  mortalities  -------------------
 !
-! integration result with Gaussian size distribution (cf. effective prey biomass)
-!   pS      = exp(-(self%l0+1.0d0-lmsize(i))**2/rS)*srS
-   rS      = 1.0d0 + 3. * sigma2(i)  ! "life-span"=1 : width of life-stage dependent mortality
-   srS     = 1.0d0/sqrt(rS)
-   eS      = exp(-((self%lA-lmsize(i))**2)/rS)*srS !lcrit self%lAlavg
-
 !  how far way are juveniles from maturity?
 !       physiological/starvation mortality 
-! physiological/starvation status affects yield (Reeve1989)
-! secondary production  
-!   yfac    = 1.0d0/(1.0d0+0*starv)
-   yfac    = 1.0d0
-   Prod    = self%yield * yfac * graz(i)
 ! life-stage dependent mortality 
-   argA    = (Prod-mort_R)/(2*self%mR+1e-4)
-!    argA   = (Prod-mort_R)/(self%mR+1E-4)
+   argA    = (prod-mort_R)/(2*self%mR+1e-4)
+!    argA   = (prod-mort_R)/(self%mR+1E-4)
    starv   = exp(-argA)!self%yield *
 
    mort_S0 = mS0 *starv 
+   eS      = sig13(i) * exp(-sig23(i)*(self%lA-lmsize(i))**2) !lcrit self%lAlavg
    mort_S  = mort_S0 * (1.0d0-eS)
 !    if (abs(mort_S) .gt. 13.5) write (*,'(A,1(I2),4(F12.4))') 'mS=',i,mort_S,mort_S0,eS,starv
 
 ! mortality due to parasites maximal at newly hetched larvae (Hirota1974 ,Greve)
-   pS      = exp(-(self%lstarv -lmsize(i))**2/rS)*srS
+!   pS      = sig13(i) * exp(-sig23(i)*(self%lstarv -lmsize(i))**2)
+!   pS      = exp(-sig23(i)*(self%lstarv -lmsize(i))**2)
+!   pS      = (lmsize(i)-lavg)
+!   if (ps .lt. 0.0d0) ps = 0.0d0
+!   pS      = exp(lmsize(i)-self%lA)/(exp(lmsize(i))+self%lA))
+   pS      = 1.0d0/(1.0d0+exp((self%lA-lmsize(i))/lavg))
+!   pS      = exp(5*lmsize(i))/(exp(5*lmsize(i))+exp(5.0d0))
 ! life-stage dependent mortality due to parasites
 ! fraction of large "meso"zooplakton as suitable parasite host 
-!   f_tc    = exp(-(self%lA-lmsize(3))**2/rS)
-   f_tc    = 1.0d0!mass(i)/(mass(i)+0.1d0)
-!   fLc     = exp(-(loptA(i)-lmsize(3))**2/(1*sigma2(3)))
-   fLc     = exp(-(loptA(i)-lmsize(3))**2/rS)
-   fLc     = fLc * Temp_dep(3) * f_tc 
-!   fLc     = fLc* exp(-(0.5-lmsize(3))**2/(2*sigma2(3)))
-   m_host  = mass(i)+fLc*mass(3) + fLc*0.*var(ib)%B_Det
+   fLc     = exp(-(loptA(i)-lmsize(3))**2)
+   m_host  = mass(i)+fLc*mass(3) !Temp_dep(3) * *exp(0.5*(lmsize(i)-lavg-lopt(i)))+ fLc*0.*var(ib)%B_Det
 
 !   bcrit   = self%Bcrit/relDens(i+1) ! half-sturation constant TODDO: replace with mechanistic par
    bcrit   = self%Bcrit/relDens(i+1)
 
 !   mort_P  = self%mP * (starv+pS) *m_host * var(ib)%B_Det/(1+0*relDens(i+1)) * Temp_dep(i) 
-   mort_P  = self%mP * (starv*0+1.+pS) *m_host * var(ib)%Parasite * Temp_dep(i) *bcrit 
+   mort_P  = self%mP * Temp_dep(3) *(1.0d0+pS) *m_host * fLc * var(ib)%Parasite 
+ !*bcrit 
 !* exp(-1*sBDet/250.0d0)!var(ib)%B_Det
 
 ! temperature dependent losses, with surface-to-volume scaling
@@ -673,7 +663,7 @@ _FABM_LOOP_BEGIN_
 !   mort_T0 = mort_T0 * (var(ib)%Wind/6.25d0)**self%W_turb_exp  ! long-term mean 6.25m/s
 !   mort_T  = mort_T0 * exp((lavg-lmsize(i))*0.5) 
 !   mort_T  = mort_T0 * (exp(self%lA*0.5-lmsize(i)*0.5)+ exp(lmsize(i)*0.5))
-   eS0     = exp(-((self%lA-lmsize(i))**2)/rS)
+   eS0     = sig13(i)* exp(-sig23(i)*(self%lA-lmsize(i))**2)
 !   mort_T0 = mort_T0 * (1.0d0 + starv) * exp(-2*dlopt(i)) 
    mort_T  = mort_T0 * (1.0d0 - eS0) 
 !   mort_T  = mort_T0  
@@ -691,7 +681,7 @@ _FABM_LOOP_BEGIN_
 !   call self%errfunc(argA, errf) ! TODO: replace by more accurate err-function
 ! relative fraction of adults 
    fA      = 0.5d0*(1.0d0 - errf) 
-!   if (abs(fA) .gt. 1.) write (*,'(A,1(I2),5(F12.5))') 'fA=',i,lmsize(i),sig(i) ,argA,errf, fA 
+   if (fa .lt. 0.0 .or. abs(fA) .gt. 1.) write (*,'(A,1(I2),5(F12.5))') 'fA=',i,lmsize(i),sig(i) ,argA,errf, fA 
 
 ! size derivative of adult fraction
 !   dfA_dl= sqrt(2.d0*3.1415)/sig(i) * eargA
@@ -704,14 +694,14 @@ _FABM_LOOP_BEGIN_
 
 ! fraction of adult secondary production allocated to recruitment
 !   fR    = fS * yfac
-  fR      = Temp_dep(i)
+   fR      =  0.5d0*Temp_dep(i)
 !   fR      = 0.5d0
 ! rate at which adults spawn new eggs
-   recruit = fA * fR * Prod
+   recruit = fA * fR * prod
 
 ! somatic growth : TODO: temperature dependency
-   somgrwth    = Prod - recruit - mort_R  ! can become negative which is OK
-   if(somgrwth .lt. 0.0d0 .and. lmsize(i) .lt. lavg ) somgrwth = 0.0d0 !exception: small organsisms; TODO: release?
+   somgrwth    = prod - recruit - mort_R  ! can become negative which is OK
+!   if(somgrwth .lt. 0.0d0 .and. lmsize(i) .lt. lavg ) somgrwth = 0.0d0 !exception: small organsisms; TODO: release?
 
 ! offspring mortality and long-term consequences; TODO: include realisic lag
 ! vulnerability proportional to stage duration (~ inverse temperature; food already in mort_S0 )
@@ -722,40 +712,42 @@ _FABM_LOOP_BEGIN_
 !   mort_AJ =  fe
 
 !  sum of all mortality rates
-   mort_sum= mort_R + mort_S + mGrz(i) + mort_P + mort_T
-!    if (abs(mort_sum) .gt. 2.5) write (*,'(A,1(I2),4(F12.5))') 'mort=',i, mort_sum ,lmsize(i), mort_R ,mort_S
+!   mort_sum= mort_R + mort_S + mGrz(i) + mort_P + mort_T
+   mort_sum= mort_R + mort_S  + mGrz(i)+ mort_P
+!write (*,'(A,1(I2),6(F12.5))') 'mort=',i, mort_sum ,mort_R , mort_S , mGrz(i) , mort_P , mort_T
+ !   if (abs(mort_sum) .gt. -0.5) write (*,'(A,1(I2),8(F12.5))') 'mort=',i, mort_sum ,lmsize(i),   fLc , Temp_dep(3), exp(-sig23(1)*(loptA(1)-lmsize(3))**2),mGrz(i),mort_P,sig23(1)
 !
 ! ----------  stage and size dynamics  -------------------
 !
    if (self%SizeDynOn) then
 ! egg production related part of size dynamics 
-   init_dl = (self%l0 - lm_adult) * recruit
+     init_dl = (self%l0 - lm_adult) * recruit
 !     init_dl = (self%l0 - lmsize(i)) * recruit 
-!    if (abs(init_dl) .gt. 200.) write (*,'(A,1(I2),5(F12.5))') 'init=',i, init_dl ,recruit,fA , fR , Prod
+!    if (abs(init_dl) .gt. 200.) write (*,'(A,1(I2),5(F12.5))') 'init=',i, init_dl ,recruit,fA , fR , prod
  
 ! somatic growth related part of size dynamics 
      som_dl  = somgrwth/3
 
 ! marginal size shift due to selective grazing at neutral kernel width
 !   shifts prey distribution away from l_opt_pred, thus to lower mortality
-     graz_dl = -sigma2(i) * dlp(i)
+     graz_dl = -sigma2(i) * dg_dly(i)
 
 !  marginal size shift due to senescence
-     sen_dl  = sigma2(i) * mort_S0 * eS * 2* (self%lA-lmsize(i))/rS 
+     sen_dl  = sigma2(i) * mort_S0 * eS * 2*sig23(i)* (self%lA-lmsize(i))
 
 !  marginal size shift due to respiration and turbulence (same scaling exponent)
 !      turb_dl  = sigma2(i) * mort_T * 0.5
 !    turb_dl  = sigma2(i) * mort_T0 * 0.5 * (exp(self%lA*0.5-lmsize(i)*0.5)- exp(lmsize(i)*0.5))
 !    turb_dl  = sigma2(i) * mort_T0 * exp(-lmsize(i))
-     turb_dl  = sigma2(i) * mort_T0 * eS0 *2* (self%lA-lmsize(i))/rS
+     turb_dl  = sigma2(i) * mort_T0 * eS0 *2*sig23(i)* (self%lA-lmsize(i))
 !   mort_T  = mort_T0 * (exp((self%lA-lmsize(i))*0.5)+ exp(lmsize(i)*0.5))
-     resp_dl  = sigma2(i) * mort_R * 0.5
+     resp_dl  = sigma2(i) * mort_R * 0.5*(1+dlopt(i))
 
 !  marginal size shift due to density dependent mortality (parasites)
-     paras_dl = -sigma2(i) * mort_P*pS/(starv*0+1.+pS+1.0E-4) *2 * (self%lA-lmsize(i))/rS !/(0*f_tc+pS+0*starv)
+!     paras_dl = -sigma2(i) * mort_P *2*sig23(i)* (self%lA-lmsize(i))!/(0*f_tc+pS+0*starv)*pS/(starv*0+1.+pS+1.0E-4)
+     paras_dl = -sigma2(i) * mort_P/(1.0+pS) *pS*pS/lavg * exp((self%lA-lmsize(i))/lavg)
 
-     prod_dl  = sigma2(i) * (Prod * al1(i) + self%yield*yfac*(dlpp(i)+dg_dl(i)))
-!   if (abs(prod_dl) .gt. 1.) write (*,'(A,4(F12.5))') 'pdl=', prod_dl,sigma2(i),Prod * al1(i),self%yield*yfac*dlpp(i)
+     prod_dl  = sigma2(i) * self%yield*yfac * dprod_dl(i)
 
 !  sum of productivity related size selective forces
      sum_dl  = init_dl + som_dl + prod_dl + resp_dl 
@@ -780,9 +772,10 @@ _FABM_LOOP_BEGIN_
      sum_dl  = 0.0d0
    endif
  
-!   if (abs(sum_dl) .gt. 10. .and. ib .eq. 1) write (*,'(A,2(I2),5(F12.5))') 'dl=',i,ib,sum_dl , init_dl , som_dl , prod_dl,lmsize(i)
-!   if (abs(Prod - mort_sum) .gt. 10. .and. ib .eq. 1) write (*,'(A,2(I2),6(F12.5))') 'dB=',i,ib,Prod , mort_sum,mort_S,mort_T,mort_P,mass(i)*1E3
-!write (0,'(A,1(I2),3(F12.5))') 'i=',i,Prod,mort_sum,sum_dl
+!   if (abs(sum_dl) .gt. 10. .and. ib .eq. 1) 
+!write (*,'(A,1(I2),4(F12.5))') 'dl=',i,mGrz(i) , prod , prod_dl, lmsize(i)
+!   if (abs(prod - mort_sum) .gt. 10. .and. ib .eq. 1) write (*,'(A,2(I2),6(F12.5))') 'dB=',i,ib,prod , mort_sum,mort_S,mort_T,mort_P,mass(i)*1E3
+!write (0,'(A,1(I2),3(F12.5))') 'i=',i,prod,mort_sum,sum_dl
 !write (0,'(A)',advance='no') ''
 
 !#S__RHS
@@ -790,7 +783,7 @@ _FABM_LOOP_BEGIN_
 !---------- RHS for each state variable ----------
    if (i .eq. 1) then ! Beroe
 ! --- dynamics of Beroe biomass
-    rhsv%B_Be = (Prod - mort_sum) * var(ib)%B_Be + self%immigr
+    rhsv%B_Be = (prod - mort_sum) * var(ib)%B_Be + self%immigr
 ! --- dynamics of Beroe mean log size
 !    rhsv%l_Be = sum_dl+ self%immigr*(self%l0-lmsize(1))lcrit
     rhsv%l_Be = sum_dl 
@@ -798,23 +791,23 @@ _FABM_LOOP_BEGIN_
    ! Export diagnostic variables
     if (ib.eq.1) then
 
-  _SET_DIAGNOSTIC_(self%id_prod_Be, Prod)                   !step_integrated secondary production rate Beroe
+  _SET_DIAGNOSTIC_(self%id_prod_Be, prod)                   !step_integrated secondary production rate Beroe
   _SET_DIAGNOSTIC_(self%id_Mort_Be, mort_sum)               !step_integrated mortality rate of Beroe
   _SET_DIAGNOSTIC_(self%id_fA_Be, fA)                       !step_integrated relative propotion adults Beroe
-  _SET_DIAGNOSTIC_(self%id_Imax_Be, Imax(1))                !step_integrated maximum ingestion rate adult Beroe
-  _SET_DIAGNOSTIC_(self%id_al_Im, fLc)                   !al1(ib)step_integrated size scaling expoentent Imax 
+  _SET_DIAGNOSTIC_(self%id_Imax_Be, Imax(1))        !step_integrated maximum ingestion rate adult Beroe
+  _SET_DIAGNOSTIC_(self%id_al_Im, fLc)              !step_integrated size scaling expoentent Imax 
 
     endif
 
    else  !  P.Pileus
 ! --- dynamics of P.Pileus biomass
-    rhsv%B_Pp = (Prod - mort_sum) * var(ib)%B_Pp + self%immigr
+    rhsv%B_Pp = (prod - mort_sum) * var(ib)%B_Pp + self%immigr
 ! --- dynamics of P.Pileus mean log size
 !    rhsv%l_Pp = sum_dl + self%immigr*(lcrit-lmsize(i))
     rhsv%l_Pp = sum_dl 
    ! Export diagnostic variables
     if (ib.eq.1) then
-  _SET_DIAGNOSTIC_(self%id_prod_Pp, Prod)                   !step_integrated secondary production rate P pileus
+  _SET_DIAGNOSTIC_(self%id_prod_Pp, prod)                   !step_integrated secondary production rate P pileus
   _SET_DIAGNOSTIC_(self%id_Mort_Pp, mort_sum)               !step_integrated mortality rate of P pileus
   _SET_DIAGNOSTIC_(self%id_fA_Pp, fA)                       !step_integrated relative propotion adults P pileus
   _SET_DIAGNOSTIC_(self%id_Imax_Pp, Imax(2))                !step_integrated maximum ingestion rate adult Beroe
@@ -824,12 +817,12 @@ _FABM_LOOP_BEGIN_
   _SET_DIAGNOSTIC_(self%id_init_dl, init_dl)                !step_integrated marginal size shift due to egg production
   _SET_DIAGNOSTIC_(self%id_graz_dl, graz_dl)                !step_integrated marginal size shift due to selective grazing
   _SET_DIAGNOSTIC_(self%id_sen_dl, sen_dl)                  !step_integrated marginal size shift due to starvation 
-  _SET_DIAGNOSTIC_(self%id_turb_dl, turb_dl)                  !step_integrated marginal size shift due to physical damage 
+  _SET_DIAGNOSTIC_(self%id_turb_dl, ksat(3))                  !step_integrated marginal size shift due to physical damage 
   _SET_DIAGNOSTIC_(self%id_prod_dl, prod_dl)                !step_integrated marginal size shift due to production 
   _SET_DIAGNOSTIC_(self%id_resp_dl, resp_dl)                !step_integrated marginal size shift due to respiration 
   _SET_DIAGNOSTIC_(self%id_paras_dl, paras_dl)              !step_integrated marginal size shift due to parasitism 
-  _SET_DIAGNOSTIC_(self%id_dl_prey, dlpp(i))                !step_integrated size difference to prey 
-  _SET_DIAGNOSTIC_(self%id_dl_pred, dlp(i))                 !step_integrated size difference to pred 
+  _SET_DIAGNOSTIC_(self%id_dl_prey, dg_dly(i))                !step_integrated size difference to prey 
+  _SET_DIAGNOSTIC_(self%id_dl_pred, dprod_dl(i))                 !step_integrated size difference to pred 
   _SET_DIAGNOSTIC_(self%id_mort_P, mort_P)                  !step_integrated density dependent mortality - parasites
   _SET_DIAGNOSTIC_(self%id_mort_S, mort_S)                  !step_integrated physiological adult mortality rate
   _SET_DIAGNOSTIC_(self%id_mort_R, mort_R)                  !step_integrated temperature dependent mortality
@@ -853,11 +846,11 @@ _FABM_LOOP_BEGIN_
 !  rhsv%B_Det=  self%mS * mass_sum - self%rDet * Temp_dep(3) * var(ib)%B_Det
 !  if (mass_sum .gt. 200.0d0) mass_sum = 200.0d0
 ! first the detritus change, as detrivory influences parasites
-  sBDet     =   mass_sum - 0.5*Temp_dep(1) * var(ib)%B_Det
+  sBDet     =   mass_sum - Temp_dep(3) * var(ib)%B_Det
 
   rhsv%B_Det    = self%rDet * sBDet  ! 0.4444 mean of f_T 1962-2002 for Q10=2.5
 !  rhsv%Parasite = self%rParasite*(var(ib)%B_Det*Temp_dep(3) - var(ib)%Parasite*2)
-  rhsv%Parasite = self%rParasite*(var(ib)%B_Det*Temp_dep(3) - 0.5d0*var(ib)%Parasite/(0.001d0+Temp_dep(2)))
+  rhsv%Parasite = self%rParasite*(Temp_dep(3)*(var(ib)%B_Det+100*(mass(2)+mass(1))) - var(ib)%Parasite)
 ! + 0.0*Temp_dep(3)
 ! ------------------------------------------------------------------------------
 !#S_ODE
@@ -884,14 +877,6 @@ _FABM_LOOP_BEGIN_
 
    grazkinetics = 1.0d0-exp(-preye/bcrit)
    end function grazkinetics
-
-! ------------------------------------------------------------------------------
-! effective prey after integration over selection kernel  (Wirtz, MEPS 2014)
-  pure real(rk) function prey_eff(dl2, prey)
-   implicit none
-   real(rk), intent(in)      :: dl2, prey
-   prey_eff     = prey*sqrt(i13sig) * exp(-dl2*i13sig)
-   end function prey_eff
 
 ! ------------------------------------------------------------------------------
 ! effective prey after integration over selection kernel  (Wirtz, MEPS 2014)
