@@ -389,7 +389,7 @@ end subroutine initialize
   real(rk), dimension(3,3):: grss
   real(rk) :: dl0, dl, dl2, bcrit, prey, preyE, preyT, mGP, fLc, aS=2.0
   real(rk) :: fR, fA, dfA_dl, lm_adult, al, lprey, lcrit, lavg,aff, dp_dB
-  real(rk) :: gross, prod, dg_dB, dp_dl, mS0, mT0, ratf
+  real(rk) :: gross, prod, dg_dB, dp_dl, mS0, mT0, ratf, mpagr
   integer  :: ib, ic, i, j
 !  real(rk) :: inflow=2E-1, Adorm=2E-3
 
@@ -416,7 +416,7 @@ if(self%mT .lt. -0.001d0) then
 else
    mT0 = self%mT
 endif
-
+mpagr = 5E-3
 
 ! ! self%mAJ = self%mR
 
@@ -497,7 +497,7 @@ _FABM_LOOP_BEGIN_
    ! re-gauge log size to µm-scale used in Wirtz JPR,2012     log(1E3/80)=2.5
    !    converts from log(µm) to log(mm) but accounts for much lower C-density  
 !    lesdr     = 0.0d0
-    if (.false.) then
+    if (.true.) then
 ! correction to prevent unrealistic Imax-size dependency for juveniles (see Fig.4 Wirtz JPR 2013)
       argA      = lmsize(i)/lavg
       efp       = exp(argA)
@@ -522,7 +522,7 @@ _FABM_LOOP_BEGIN_
     dal_dl     = 0.41d0 * (1.0 - dlopt(i))
     di0_dl(i)  = (al-3) + dlopt(i)*(2-al) + dal_dl*(1.0d0 - loptm + lesdr)
 
-    if (.false.) then
+    if (.true.) then
       dll       = ( (1.0d0+argA)*(efp*efp+1.0d0) - (efp+efn)*(argA*efp+1.0d0))/(efp+efn)**2
       di0_dl(i) = di0_dl(i)* dll
     endif
@@ -639,13 +639,13 @@ ksat(j)=Imact(j)/affin
 ! life-stage dependent mortality due to parasites
 ! fraction of large "meso"zooplakton as suitable parasite host 
    fLc     = exp(-(loptA(i)-lmsize(3))**2)
-   m_host  = mass(i)+fLc*mass(3) !Temp_dep(3) * *exp(0.5*(lmsize(i)-lavg-lopt(i)))+ fLc*0.*var(ib)%B_Det
+   m_host  = mass(i)+mpagr*fLc *var(ib)%B_Det+0*fLc*mass(3) !Temp_dep(3)fLc* * *exp(0.5*(lmsize(i)-lavg-lopt(i)))
 
 !   bcrit   = self%Bcrit/relDens(i+1) ! half-sturation constant TODDO: replace with mechanistic par
    bcrit   = self%Bcrit/relDens(i+1)
 
 !   mort_P  = self%mP * (starv+pS) *m_host * var(ib)%B_Det/(1+0*relDens(i+1)) * Temp_dep(i) 
-   mort_P  = self%mP * Temp_dep(3) *(1.0d0+pS) *m_host * fLc * var(ib)%Parasite 
+   mort_P  = self%mP * Temp_dep(3) *(1.0d0+pS) *m_host  * var(ib)%Parasite 
  !*bcrit 
 !* exp(-1*sBDet/250.0d0)!var(ib)%B_Det
 
@@ -843,14 +843,18 @@ ksat(j)=Imact(j)/affin
   end do
 ! common varibales:
 ! most simple detritus pool turnover dynamics 
-!  rhsv%B_Det=  self%mS * mass_sum - self%rDet * Temp_dep(3) * var(ib)%B_Det
-!  if (mass_sum .gt. 200.0d0) mass_sum = 200.0d0
 ! first the detritus change, as detrivory influences parasites
-  sBDet     =   mass_sum - Temp_dep(3) * var(ib)%B_Det
+  mass_sum  = var(ib)%Wind + mass(2) + mass(1) +mass(3)!+var(ib)%Parasite
+!  mass_sum  =  self%Bcrit
+!  if (mass_sum .gt. 400.0) mass_sum = 400.0d0
+  sBDet     = mass_sum - Temp_dep(1) * var(ib)%B_Det
+  m_host    = mass(2) + mass(1) + self%W_turb_exp * (mass(2)*mass(3))
+!+ self%W_turb_exp*mass(3)
+!+0*self%W_turb_exp**2 *mass_sum !Temp_dep(3) * *exp(0.5*(lmsize(i)-lavg-lopt(i)))+ fLc*0.*var(ib)%B_Det
 
-  rhsv%B_Det    = self%rDet * sBDet  ! 0.4444 mean of f_T 1962-2002 for Q10=2.5
+  rhsv%B_Det    = self%rDet * sBDet  ! 0.444 mean of f_T 1962-2002 for Q10=2.5
 !  rhsv%Parasite = self%rParasite*(var(ib)%B_Det*Temp_dep(3) - var(ib)%Parasite*2)
-  rhsv%Parasite = self%rParasite*(Temp_dep(3)*(var(ib)%B_Det+100*(mass(2)+mass(1))) - var(ib)%Parasite)
+  rhsv%Parasite = self%rParasite*(Temp_dep(3)* mpagr * var(ib)%B_Det*(mass(2)+mass(1)+var(ib)%Parasite) -var(ib)%Parasite) !1.0d0/(0.44+Temp_dep(3))*
 ! + 0.0*Temp_dep(3)
 ! ------------------------------------------------------------------------------
 !#S_ODE
