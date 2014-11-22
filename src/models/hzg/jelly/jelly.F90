@@ -550,8 +550,8 @@ _FABM_LOOP_BEGIN_
 ! set accumulating stores to zero
 !    graz(i)   = 0.0d0
   end do
-  mass_sum  = var(ib)%PhyMass + 0*var(ib)%B_Det
-  mass_sum  = mass_sum + (2*12.d0+0*self%mpara1 *var(ib)%B_Det)/(0.2+Temp_dep(2))
+!  mass_sum  = 0*var(ib)%PhyMass + 0*var(ib)%B_Det
+  mass_sum  = 0.11*var(ib)%B_Det/(0.11+Temp_dep(2))
 !  mass_sum  = 0.*var(ib)%B_Det
   do j = 1, 3
     dg_dly(j) = 0.0d0
@@ -566,25 +566,27 @@ _FABM_LOOP_BEGIN_
 ! first the detritus change, as detrivory influences parasites
 !  rhsv%Parasite = self%rParasite*(var(ib)%B_Det*Temp_dep(3) - var(ib)%Parasite*2)
 ! Parasite dynamics for each population
-  sr           = self%rParasite*paras(j)*self%mpara1 *var(ib)%B_Det
-  sr           = 120*sr/(120.0+sr)
-!*(1.0d0-exp(-self%mpara1 *var(ib)%B_Det))
+!*(1.0d0-exp(-self%mpara1 *var(ib)%B_Det))Temp_dep(3)*
 ! ---------- calculate RHS  -------------------
-  rhsv%B_Det   = self%rDet * (mass_sum - Temp_dep(3)*var(ib)%B_Det)  
+  rhsv%B_Det   = self%rDet * (mass_sum - 0.35*var(ib)%B_Det)  
 !  rhsv%ParasPp = sr*m_host(2)*(var(ib)%ParasPp+0.0) - bcrit * var(ib)%ParasPp!*1E-4
   do j = 1, 2 ! loop over parasites
-    fLc(j)    = sig13(i) *exp(-(lopt(j)-lmsize(3))**2)
-    m_host(j) = mass(j)+self%mpara1*var(ib)%B_Det+0*fLc(j)*mass(3)
+!    fLc(j)    = sig13(i) *exp(-(lopt(j)-lmsize(3))**2)
+    fLc(j)    = exp(-(lopt(j)-lmsize(3))**2)
+    m_host(j) = mass(j)+self%mpara1*var(ib)%B_Det+fLc(j)*mass(3)
 !    if (m_host(j) .gt. 120 ) write (*,'(A,1(I2),4(F14.3))') 'mhost=',j, m_host(j) , mass(j),1*self%mpara1*var(ib)%B_Det,fLc(j)*mass(3)
-    if (paras(j) .lt. 0.0  )  write (*,'(A,1(I2),5(F14.3))') 'paras=',j, paras(j),sr,m_host(j),self%mpara2*paras(j)/(Temp_dep(3)*m_host(j)),Temp_dep(3)
+!    if (paras(j) .lt. 1.1  )  write (*,'(A,1(I2),5(F14.3))') 'paras=',j, paras(j),sr*1E3,m_host(j),m_host(j)+var(ib)%B_Det,self%mpara2/(Temp_dep(3)*Temp_dep(3))
 !    if (m_host(j) .gt. 120 )m_host(j)=120.0d0  
 !    bcrit    = self%mpara1**2 * m_host(j) * var(ib)%B_Det
 !    bcrit    = m_host(j)
 !    rpara(j)  = sr*m_host(j)*paras(j)* *Temp_dep(3)(Temp_dep(3)-self%mpara2*paras(j)/(Temp_dep(3)*m_host(j)))paras(j)
-    rpara(j)  = sr* (m_host(j)-self%mpara2/(Temp_dep(3)*Temp_dep(3)*self%mpara1 *var(ib)%B_Det))!
-
+  sr          = self%rParasite*paras(j)
+  bcrit       = 1.0d0/(1.0d0+exp(10*(Temp_dep(3)-0.5)))
+!  rpara(j)    = sr* (m_host(j)-self%mpara2*bcrit*paras(j)/var(ib)%B_Det) !
+  rpara(j)    = sr* (m_host(j)-self%mpara2*bcrit*paras(j)/var(ib)%B_Det) !
+!    if (paras(j) .lt. 1E-2  ) paras(j)=1E-2 *Temp_dep(3)Temp_dep(3)*
 !-0.0*self%rParasite*(paras(j)-self%mpara2)/
-!   if (rpara(j) .gt. 1 ) write (*,'(A,1(I2),4(F14.3))') 'rp=',j,paras(j),rpara(j),bcrit,sr
+!  if (paras(j) .gt. 1E5 .or.  paras(j) .lt. 1E-5) write (*,'(A,1(I2),5(F14.3))') 'rp=',j,paras(j)*1E3,rpara(j)*1E3,sr,6E-3*(m_host(j)+var(ib)%B_Det),self%mpara2/(Temp_dep(3)*Temp_dep(3))
   end do
 
   rhsv%ParasPp = rpara(2)!*1E-4
@@ -671,7 +673,7 @@ _FABM_LOOP_BEGIN_
 !   mort_P  = self%mP * Temp_dep(3)**2 *(1.0d0+pS) * (fLc(i)*var(ib)%B_Det*1E-3)**2 
 !   bcrit   = m_host(i)*paras(i)
    bcrit   = paras(i)
-   mort_P  = self%mP * Temp_dep(3) *(1.0d0+pS) *bcrit/(1.0d0+2E-6 * bcrit)
+   mort_P  = self%mP * Temp_dep(3) *(1.0d0+pS) *bcrit !/(1.0d0+2E-6 * bcrit)
 ! if (mort_P .gt. 3.0d0 ) write (*,'(A,1(I2),3(F14.3))') 'mp=',i,paras(i),m_host(i),mort_P
 !  if (mort_P .gt. 3.0d0 ) mort_P=5.0d0
 
