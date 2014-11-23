@@ -568,7 +568,7 @@ _FABM_LOOP_BEGIN_
 ! Parasite dynamics for each population
 !*(1.0d0-exp(-self%mpara1 *var(ib)%B_Det))Temp_dep(3)*
 ! ---------- calculate RHS  -------------------
-  rhsv%B_Det   = self%rDet * (mass_sum - 0.35*var(ib)%B_Det)  
+  rhsv%B_Det   = self%rDet * (mass_sum - 0.5*var(ib)%B_Det)  
 !  rhsv%ParasPp = sr*m_host(2)*(var(ib)%ParasPp+0.0) - bcrit * var(ib)%ParasPp!*1E-4
   do j = 1, 2 ! loop over parasites
 !    fLc(j)    = sig13(i) *exp(-(lopt(j)-lmsize(3))**2)
@@ -673,13 +673,13 @@ _FABM_LOOP_BEGIN_
 !   mort_P  = self%mP * Temp_dep(3)**2 *(1.0d0+pS) * (fLc(i)*var(ib)%B_Det*1E-3)**2 
 !   bcrit   = m_host(i)*paras(i)
    bcrit   = paras(i)
-   mort_P  = self%mP * Temp_dep(3) *(1.0d0+pS) *bcrit !/(1.0d0+2E-6 * bcrit)
+   mort_P  = self%mP * Temp_dep(3) *(1.0d0+pS) *bcrit ! * 4.0d0/(4.0d0+self%mP * bcrit)
 ! if (mort_P .gt. 3.0d0 ) write (*,'(A,1(I2),3(F14.3))') 'mp=',i,paras(i),m_host(i),mort_P
 !  if (mort_P .gt. 3.0d0 ) mort_P=5.0d0
 
 ! temperature dependent losses, with surface-to-volume scaling
 !   mort_R  = self%mR * Temp_dep(i) * exp(-0.5*(lmsize(i)-lavg))
-   mort_R  = self%mR * Temp_dep(i) * exp(-0.5*(lmsize(i)-lavg+lopt(i)))
+   mort_R  = self%mR * Temp_dep(i) !* exp(-0.5*(lmsize(i)-lavg+lopt(i)))
 
 ! physical damage (turbulence); can be avoided by active swimming
    mort_T0 = mT0 * starv 
@@ -756,7 +756,7 @@ _FABM_LOOP_BEGIN_
 !    turb_dl  = sigma2(i) * mort_T0 * exp(-lmsize(i))
      turb_dl  = sigma2(i) * mort_T0 * eS0 *2*sig23(i)* (self%lA-lmsize(i))
 !   mort_T  = mort_T0 * (exp((self%lA-lmsize(i))*0.5)+ exp(lmsize(i)*0.5))
-     resp_dl  = sigma2(i) * mort_R * 0.5*(1+dlopt(i))
+     resp_dl  = sigma2(i) * mort_R * 0.5*(1+0*dlopt(i))
 
 !  marginal size shift due to density dependent mortality (parasites)
 !     paras_dl = -sigma2(i) * mort_P *2*sig23(i)* (self%lA-lmsize(i))!/(0*f_tc+pS+0*starv)*pS/(starv*0+1.+pS+1.0E-4)
