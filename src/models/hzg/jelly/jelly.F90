@@ -400,8 +400,8 @@ end subroutine initialize
   real(rk), dimension(3) :: loptA, preyc, paras, fLc, m_host,rpara
   real(rk), dimension(3,3):: grss
   real(rk) :: dl0, dl, dl2, bcrit, prey, preyE, preyT, mGP, aS=2.0
-  real(rk) :: fR, fA, dfA_dl, lm_adult, al, lprey, lcrit, lavg,aff, dp_dB
-  real(rk) :: gross, prod, dg_dB, dp_dl, mS0, mT0, ratf, mpagr
+  real(rk) :: fR, fA, dfA_dl, lm_adult, al, lprey, lavg,aff, dp_dB
+  real(rk) :: gross, prod, dg_dB, dp_dl, mS0, mT0, ratf
   integer  :: ib, ic, i, j
 !  real(rk) :: inflow=2E-1, Adorm=2E-3
 
@@ -428,7 +428,6 @@ if(self%mT .lt. -0.001d0) then
 else
    mT0 = self%mT
 endif
-mpagr = 5E-3
 
 ! ! self%mAJ = self%mR
 
@@ -551,7 +550,7 @@ _FABM_LOOP_BEGIN_
 !    graz(i)   = 0.0d0
   end do
 !  mass_sum  = 0*var(ib)%PhyMass + 0*var(ib)%B_Det
-  mass_sum  = 0.11*var(ib)%B_Det/(0.11+Temp_dep(2))
+  mass_sum  = 0.12*var(ib)%B_Det/(0.12+Temp_dep(2))
 !  mass_sum  = 0.*var(ib)%B_Det
   do j = 1, 3
     dg_dly(j) = 0.0d0
@@ -573,7 +572,9 @@ _FABM_LOOP_BEGIN_
   do j = 1, 2 ! loop over parasites
 !    fLc(j)    = sig13(i) *exp(-(lopt(j)-lmsize(3))**2)
     fLc(j)    = exp(-(lopt(j)-lmsize(3))**2)
+!    fLc(j)    = 1.0d0
     m_host(j) = mass(j)+self%mpara1*var(ib)%B_Det+fLc(j)*mass(3)
+!    m_host(j) = mass(1)+mass(2)+self%mpara1*var(ib)%B_Det+fLc(j)*mass(3)
 !    if (m_host(j) .gt. 120 ) write (*,'(A,1(I2),4(F14.3))') 'mhost=',j, m_host(j) , mass(j),1*self%mpara1*var(ib)%B_Det,fLc(j)*mass(3)
 !    if (paras(j) .lt. 1.1  )  write (*,'(A,1(I2),5(F14.3))') 'paras=',j, paras(j),sr*1E3,m_host(j),m_host(j)+var(ib)%B_Det,self%mpara2/(Temp_dep(3)*Temp_dep(3))
 !    if (m_host(j) .gt. 120 )m_host(j)=120.0d0  
@@ -627,7 +628,10 @@ _FABM_LOOP_BEGIN_
      gross      = gross   + grss(i,j) * mass(j)
      mGrz(j)    = mGrz(j) + grss(i,j) * mass(i)
 ! update size gradient stores
-     dg_dly(j)  = dg_dly(j)  - 3*(lmsize(j)-lopt(i)) * grss(i,j)* mass(i) ! size match to prey 
+! size match to selective predation kernel 
+     dl      = lmsize(j) - lopt(i)     ! size match to prey
+! derivative of selection kernelexp(-1.5d0*(dl**2))*
+     dg_dly(j)  = dg_dly(j) - dl*  grss(i,j)* mass(i) 
 
 ! affinity term; degree of food limitation (aff=0: g=Imax   aff=Imax: no food)
      aff        = affin*preyE * eargA  
@@ -662,7 +666,7 @@ _FABM_LOOP_BEGIN_
    starv   = exp(-argA)!self%yield *
 
    mort_S0 = mS0 *starv 
-   eS      = sig13(i) * exp(-sig23(i)*(self%lA-lmsize(i))**2) !lcrit self%lAlavg
+   eS      = sig13(i) * exp(-sig23(i)*(self%lA-lmsize(i))**2) 
    mort_S  = mort_S0 * (1.0d0-eS)
 !    if (abs(mort_S) .gt. 13.5) write (*,'(A,1(I2),4(F12.4))') 'mS=',i,mort_S,mort_S0,eS,starv
 
@@ -679,7 +683,7 @@ _FABM_LOOP_BEGIN_
 
 ! temperature dependent losses, with surface-to-volume scaling
 !   mort_R  = self%mR * Temp_dep(i) * exp(-0.5*(lmsize(i)-lavg))
-   mort_R  = self%mR * Temp_dep(i) !* exp(-0.5*(lmsize(i)-lavg+lopt(i)))
+   mort_R  = self%mR * Temp_dep(i) * exp(-0.5*lmsize(i)+lavg-lopt(i))!)
 
 ! physical damage (turbulence); can be avoided by active swimming
    mort_T0 = mT0 * starv 
@@ -756,7 +760,7 @@ _FABM_LOOP_BEGIN_
 !    turb_dl  = sigma2(i) * mort_T0 * exp(-lmsize(i))
      turb_dl  = sigma2(i) * mort_T0 * eS0 *2*sig23(i)* (self%lA-lmsize(i))
 !   mort_T  = mort_T0 * (exp((self%lA-lmsize(i))*0.5)+ exp(lmsize(i)*0.5))
-     resp_dl  = sigma2(i) * mort_R * 0.5*(1+0*dlopt(i))
+     resp_dl  = sigma2(i) * mort_R * 0.5*(1+2*dlopt(i))
 
 !  marginal size shift due to density dependent mortality (parasites)
 !     paras_dl = -sigma2(i) * mort_P *2*sig23(i)* (self%lA-lmsize(i))!/(0*f_tc+pS+0*starv)*pS/(starv*0+1.+pS+1.0E-4)
@@ -794,9 +798,8 @@ _FABM_LOOP_BEGIN_
 !---------- RHS for each state variable ----------
    if (i .eq. 1) then ! Beroe
 ! --- dynamics of Beroe biomass
-    rhsv%B_Be = (prod - mort_sum) * var(ib)%B_Be + self%immigr
+    rhsv%B_Be = (prod - mort_sum - self%m_predBe* var(ib)%B_Be) * var(ib)%B_Be + self%immigr
 ! --- dynamics of Beroe mean log size
-!    rhsv%l_Be = sum_dl+ self%immigr*(self%l0-lmsize(1))lcrit
     rhsv%l_Be = sum_dl 
 
    ! Export diagnostic variables
@@ -814,9 +817,9 @@ _FABM_LOOP_BEGIN_
 ! --- dynamics of P.Pileus biomass
     rhsv%B_Pp = (prod - mort_sum) * var(ib)%B_Pp + self%immigr
 ! --- dynamics of P.Pileus mean log size
-!    rhsv%l_Pp = sum_dl + self%immigr*(lcrit-lmsize(i))
     rhsv%l_Pp = sum_dl 
-   ! Export diagnostic variables
+
+! Export diagnostic variables
     if (ib.eq.1) then
   _SET_DIAGNOSTIC_(self%id_prod_Pp, prod)                   !step_integrated secondary production rate P pileus
   _SET_DIAGNOSTIC_(self%id_Mort_Pp, mort_sum)               !step_integrated mortality rate of P pileus
