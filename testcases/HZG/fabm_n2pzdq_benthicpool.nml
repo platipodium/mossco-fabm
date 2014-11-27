@@ -1,8 +1,8 @@
 &fabm_nml 
 models = 'hzg_n2pzdq','hzg_benthic_pool','hzg_benthic_pool' 
 / 
-&hzg_n2pzdq 
 
+&hzg_n2pzdq 
 DIN_initial = 90 
 DIP_initial = 4 
 phyC_initial = 2 
@@ -44,47 +44,38 @@ zexcdetfr = 0.75
 k_detN = 1 
 k_detP = 1 
 / 
-&hzg_benthic_pool 
 
-pelagic_nutrient_variable = 'hzg_n2pzdq_nut_N' 
-pelagic_detritus_variable = 'hzg_n2pzdq_det_N' 
-det_ben_initial = 0.01 
-nut_ben_initial = 10 
-const_nut = 10 
-const_det = 10 
-g_max = 1 
-K = 0.2 
-h_const = 0.01 
-remin_max = 0 
-k_remin = 1 
-nut_loss_max = 0.001 
-nut_pel_influx = 0.03 
-k_loss = 1 
-v_d = 0.05 
-d_ben = 0.1 
-diff = 5e-04 
-do_sat_remin = .false. 
-do_nut_loss = .true. 
-/ 
 &hzg_benthic_pool 
-
-pelagic_nutrient_variable = 'hzg_n2pzdq_nut_P' 
-pelagic_detritus_variable = 'hzg_n2pzdq_det_P' 
-det_ben_initial = 0.01 
-nut_ben_initial = 1 
-const_nut = 10 
-const_det = 10 
-g_max = 1 
-K = 0.2 
-h_const = 0.01 
-remin_max = 0.3 
-k_remin = 1 
-nut_loss_max = 0.03 
-nut_pel_influx = 0 
-k_loss = 1 
-v_d = 0.05 
-d_ben = 0.1 
-diff = 5e-04 
-do_sat_remin = .false. 
-do_nut_loss = .false. 
+   SVname = 'benN' 
+   pelagic_nutrient_variable = 'hzg_n2pzdq_nut_N' 
+   pelagic_detritus_variable = 'hzg_n2pzdq_det_N' 
+   det_ben_initial = 160 
+   nut_ben_initial = 160 
+   const_nut = 10 
+   const_det = 10 
+   remin_const = 0.01 
+   remin_max = 0 
+   k_remin = 1 
+   v_d = 0.5 
+   d_ben = 0.2 
+   diff = 5e-04 
+   do_sat_remin = .false. 
 / 
+
+&hzg_benthic_pool 
+   SVname = 'benP' 
+   pelagic_nutrient_variable = 'hzg_n2pzdq_nut_P' 
+   pelagic_detritus_variable = 'hzg_n2pzdq_det_P' 
+   det_ben_initial = 10 
+   nut_ben_initial = 10 
+   const_nut = 10 
+   const_det = 10 
+   remin_const = 0.01 
+   remin_max = 0.3 
+   k_remin = 1 
+   v_d = 0.5 
+   d_ben = 0.2 
+   diff = 5e-04 
+   do_sat_remin = .false. 
+/ 
+
