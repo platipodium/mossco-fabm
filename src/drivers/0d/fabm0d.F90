@@ -366,8 +366,8 @@
    ! Check whether all dependencies of biogeochemical models have now been fulfilled.
    call fabm_check_ready(model)
 
-   call init_output(output_format,output_file,start)
-   call do_output(output_format,0)
+   ! Update time and all time-dependent inputs.
+   call start_time_step(0_timestepkind)
 
    ! Allow the model to compute all diagnostics, so output for initial time contains sensible values.
    allocate(rhs(size(cc,1),0:1))
