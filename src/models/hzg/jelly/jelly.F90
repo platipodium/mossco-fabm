@@ -512,7 +512,7 @@ _FABM_LOOP_BEGIN_
    ! re-gauge log size to µm-scale used in Wirtz JPR,2012     log(1E3/80)=2.5
    !    converts from log(µm) to log(mm) but accounts for much lower C-density  
 !    lesdr     = 0.0d0
-    if (.true.) then
+    if (.false.) then
 ! correction to prevent unrealistic Imax-size dependency for juveniles (see Fig.4 Wirtz JPR 2013)
       argA      = lmsize(i)/lavg
       efp       = exp(argA)
@@ -537,7 +537,7 @@ _FABM_LOOP_BEGIN_
     dal_dl     = 0.41d0 * (1.0 - dlopt(i))
     di0_dl(i)  = (al-3) + dlopt(i)*(2-al) + dal_dl*(1.0d0 - loptm + lesdr)
 
-    if (.true.) then
+    if (.false.) then
       dll       = ( (1.0d0+argA)*(efp*efp+1.0d0) - (efp+efn)*(argA*efp+1.0d0))/(efp+efn)**2
       di0_dl(i) = di0_dl(i)* dll
     endif
@@ -550,7 +550,7 @@ _FABM_LOOP_BEGIN_
 !    graz(i)   = 0.0d0
   end do
 !  mass_sum  = 0*var(ib)%PhyMass + 0*var(ib)%B_Det
-  mass_sum  = 0.12*var(ib)%B_Det/(0.12+Temp_dep(2))
+  mass_sum  = self%mpara1*var(ib)%B_Det/(self%mpara1+Temp_dep(2))
 !  mass_sum  = 0.*var(ib)%B_Det
   do j = 1, 3
     dg_dly(j) = 0.0d0
@@ -563,42 +563,27 @@ _FABM_LOOP_BEGIN_
 
 ! common variable: most simple detritus pool turnover dynamics 
 ! first the detritus change, as detrivory influences parasites
-!  rhsv%Parasite = self%rParasite*(var(ib)%B_Det*Temp_dep(3) - var(ib)%Parasite*2)
-! Parasite dynamics for each population
-!*(1.0d0-exp(-self%mpara1 *var(ib)%B_Det))Temp_dep(3)*
 ! ---------- calculate RHS  -------------------
   rhsv%B_Det   = self%rDet * (mass_sum - 0.5*var(ib)%B_Det)  
-!  rhsv%ParasPp = sr*m_host(2)*(var(ib)%ParasPp+0.0) - bcrit * var(ib)%ParasPp!*1E-4
+
+! Parasite dynamics for each population
   do j = 1, 2 ! loop over parasites
 !    fLc(j)    = sig13(i) *exp(-(lopt(j)-lmsize(3))**2)
-    fLc(j)    = exp(-(lopt(j)-lmsize(3))**2)
-!    fLc(j)    = 1.0d0
-    m_host(j) = mass(j)+self%mpara1*var(ib)%B_Det+fLc(j)*mass(3)
-!    m_host(j) = mass(1)+mass(2)+self%mpara1*var(ib)%B_Det+fLc(j)*mass(3)
-!    if (m_host(j) .gt. 120 ) write (*,'(A,1(I2),4(F14.3))') 'mhost=',j, m_host(j) , mass(j),1*self%mpara1*var(ib)%B_Det,fLc(j)*mass(3)
-!    if (paras(j) .lt. 1.1  )  write (*,'(A,1(I2),5(F14.3))') 'paras=',j, paras(j),sr*1E3,m_host(j),m_host(j)+var(ib)%B_Det,self%mpara2/(Temp_dep(3)*Temp_dep(3))
-!    if (m_host(j) .gt. 120 )m_host(j)=120.0d0  
-!    bcrit    = self%mpara1**2 * m_host(j) * var(ib)%B_Det
-!    bcrit    = m_host(j)
-!    rpara(j)  = sr*m_host(j)*paras(j)* *Temp_dep(3)(Temp_dep(3)-self%mpara2*paras(j)/(Temp_dep(3)*m_host(j)))paras(j)
-  sr          = self%rParasite*paras(j)
-  bcrit       = 1.0d0/(1.0d0+exp(10*(Temp_dep(3)-0.5)))
-!  rpara(j)    = sr* (m_host(j)-self%mpara2*bcrit*paras(j)/var(ib)%B_Det) !
-  rpara(j)    = sr* (m_host(j)-self%mpara2*bcrit*paras(j)/var(ib)%B_Det) !
-!    if (paras(j) .lt. 1E-2  ) paras(j)=1E-2 *Temp_dep(3)Temp_dep(3)*
-!-0.0*self%rParasite*(paras(j)-self%mpara2)/
-!  if (paras(j) .gt. 1E5 .or.  paras(j) .lt. 1E-5) write (*,'(A,1(I2),5(F14.3))') 'rp=',j,paras(j)*1E3,rpara(j)*1E3,sr,6E-3*(m_host(j)+var(ib)%B_Det),self%mpara2/(Temp_dep(3)*Temp_dep(3))
+    fLc(j)    = exp(-sig23(i)*(lopt(j)-lmsize(3))**2)
+!    m_host(j) = mass(j)+self%mpara1*var(ib)%B_Det+fLc(j)*mass(3)sig23(i) *
+    m_host(j) = mass(j) + fLc(j)*mass(3)
+    sr        = self%rParasite*paras(j)
+    bcrit     = 1.0d0/(1.0d0 + exp((Temp_dep(3)-0.5)/(0.75*self%mpara1)))
+    rpara(j)  = sr* (m_host(j)/self%mpara2 - self%mpara2*bcrit*paras(j)/var(ib)%B_Det) 
   end do
 
-  rhsv%ParasPp = rpara(2)!*1E-4
   rhsv%ParasBe = rpara(1)
+  rhsv%ParasPp = rpara(2)
 
 ! ----------  loop over all trophic interactions  -------------------
 !
 !  loop over (ctenophore) predators
   do i = 1, 2
-! + 0.0*Temp_dep(3)
-!  loop over prey populations:  1: Beroe 2: Ppileus 3: Cops
    dp_dl   = 0.0d0
    preyT   = 0.0d0
    gross   = 0.0d0
@@ -611,12 +596,14 @@ _FABM_LOOP_BEGIN_
 ! contribution to consumer size scaling in Imax 
      di_dl(j)= di0_dl(i) + 3*dl*dlopt(i)
 !     preyc(j)= prey_effc(dl2)  ! effective prey mass after integration over selection kernel
-!     if (i.eq.1 .and. j.eq.1 ) preyc(j)= preyc(j)*  exp(1*(self%l0-lopt(i))/sig(i)) ! reduce cannibalism in Beroe (Hosia2011)     
-!     if (i.eq.1 .and. j.eq.1 ) preyc(j)= preyc(j)* 0. ! reduce cannibalism in Beroe (Hosia2011)     
+!     if (i.eq.1 .and. j.eq.1 )preyc(j)= preyc(j)* 0! reduce cannibalism in Beroe (Hosia2011)     
      preyT   = preyT + preyc(j)* mass(j)  ! effective prey mass after integration over selection kernel
    end do
+
 ! affinity contains depes on food type (gel), consumer density, Temp, size(swimming)
    affin   = relDens(i+1)/self%Bcrit * detect *Temp_dep(i)* exp(0.5d0*lmsize(i))
+
+!  loop over prey populations:  1: Beroe 2: Ppileus 3: Cops
    do j = 1, 1+i  ! calc total available prey biomass first
 
      ksat(j)    = Imact(j)/affin
@@ -655,7 +642,6 @@ _FABM_LOOP_BEGIN_
 !   yfac    = 1.0d0/(1.0d0+0*starv)
    yfac    = 1.0d0
    prod    = self%yield * yfac * graz(i)
-!   prod    = 0.0d0
 !
 ! ----------  mortalities  -------------------
 !
@@ -675,8 +661,8 @@ _FABM_LOOP_BEGIN_
 ! life-stage dependent mortality due to parasites
 ! fraction of large "meso"zooplakton as suitable parasite host 
 !   mort_P  = self%mP * Temp_dep(3)**2 *(1.0d0+pS) * (fLc(i)*var(ib)%B_Det*1E-3)**2 
-!   bcrit   = m_host(i)*paras(i)
    bcrit   = paras(i)
+!   bcrit   = 0.55*(paras(i) + fLc(i)*paras(2))
    mort_P  = self%mP * Temp_dep(3) *(1.0d0+pS) *bcrit ! * 4.0d0/(4.0d0+self%mP * bcrit)
 ! if (mort_P .gt. 3.0d0 ) write (*,'(A,1(I2),3(F14.3))') 'mp=',i,paras(i),m_host(i),mort_P
 !  if (mort_P .gt. 3.0d0 ) mort_P=5.0d0
@@ -720,15 +706,9 @@ _FABM_LOOP_BEGIN_
 
 ! somatic growth : TODO: temperature dependency
    somgrwth    = prod - recruit - mort_R  ! can become negative which is OK
-!   if(somgrwth .lt. 0.0d0 .and. lmsize(i) .lt. lavg ) somgrwth = 0.0d0 !exception: small organsisms; TODO: release?
 
 ! offspring mortality and long-term consequences; TODO: include realisic lag
 ! vulnerability proportional to stage duration (~ inverse temperature; food already in mort_S0 )
-!   argA    = (mort_J-recruit)/self%mR
-!   if (argA .gt. 10) argA = 10.0  ! to prevent numerical overflow 
-!   fdejuv  = exp(argA-0)
-!   fe      = self%mAJ * fdejuv/((fdejuv+1.0d0)*(Temp_dep(i)/f_tc+1.d0))
-!   mort_AJ =  fe
 
 !  sum of all mortality rates
 !   mort_sum= mort_R + mort_S + mGrz(i) + mort_P + mort_T
@@ -771,16 +751,17 @@ _FABM_LOOP_BEGIN_
 !  sum of productivity related size selective forces
      sum_dl  = init_dl + som_dl + prod_dl + resp_dl 
 
+     if (.false.) then
 ! boundary condition of offspring production and adaptive size shift
-
-     argA    = (self%l0-lmsize(i))/(sqrt(2.d0)*sig(i))
-     min_dl  = -recruit * exp(argA**2) * sig(i) / sqrt(2.d0*3.1415)
-     if (sum_dl .lt. min_dl ) then 
-       bound_dl = min_dl-sum_dl
-     else
-       bound_dl = 0.0
+      argA    = (self%l0-lmsize(i))/(sqrt(2.d0)*sig(i))
+      min_dl  = -recruit * exp(argA**2) * sig(i) / sqrt(2.d0*3.1415)
+      if (sum_dl .lt. min_dl ) then 
+        bound_dl = min_dl-sum_dl
+      else
+        bound_dl = 0.0
+      endif
+      sum_dl  = sum_dl + bound_dl
      endif
-     sum_dl  = sum_dl + bound_dl
 !  immigration  of mature individuals only
 !     sum_dl  = sum_dl + self%immigr*(self%lA+2-lmsize(i))/var(ib)%B_Be
 
