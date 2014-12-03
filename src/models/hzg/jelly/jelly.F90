@@ -389,7 +389,7 @@ end subroutine initialize
   real(rk) :: mort_S, mort_S0,mort_SJ, mort_R, mort_R0, mort_T0, mort_G
   real(rk) :: mort_J, mort_AJ, mort_P, mort_T, mort_sum, mass_sum
   real(rk) :: errf, eargA, argA, aa, pS, eS, eS0, al0,alr, yfac, affin
-  real(rk) :: Imaxr, lesdr, efn, efp, dll,loptm, sBDet, detect, sr
+  real(rk) :: Imaxr, lesdr, efn, efp, dll,loptm, sBDet, detect, sr, ft
   real(rk) :: somgrwth, recruit,lco, mGBe, f_tc, starv, dal_dl, min_dl, bound_dl
   real(rk) :: prod_dl, sum_dl, resp_dl,paras_dl, turb_dl
   real(rk) :: graz_dl, som_dl, init_dl, sen_dl
@@ -400,7 +400,7 @@ end subroutine initialize
   real(rk), dimension(3) :: loptA, preyc, paras, fLc, m_host,rpara
   real(rk), dimension(3,3):: grss
   real(rk) :: dl0, dl, dl2, bcrit, prey, preyE, preyT, mGP, aS=2.0
-  real(rk) :: fR, fA, dfA_dl, lm_adult, al, lprey, lavg,aff, dp_dB
+  real(rk) :: fR, fA, dfA_dl, lm_adult, al, lprey, lavg, lavgp,aff, dp_dB
   real(rk) :: gross, prod, dg_dB, dp_dl, mS0, mT0, ratf
   integer  :: ib, ic, i, j
 !  real(rk) :: inflow=2E-1, Adorm=2E-3
@@ -478,7 +478,9 @@ _FABM_LOOP_BEGIN_
   sigma2(3) = 0.8d0         ! log-size variance of mesozooplakton
   mass(1)   = var(ib)%B_Be  ! biomass concentration
   mass(2)   = var(ib)%B_Pp
-  mass(3)   = var(ib)%Cop 
+!  mass(3)   = var(ib)%Cop 
+  mass(3)   = 1.5*var(ib)%Cop  ! global correction for too low prey/cop biomass
+  if ( mass(3) .gt. 3*self%Bcrit) mass(3)=3*self%Bcrit ! avoid parasitic overshoot at very high cop density
   paras(1)  = var(ib)%ParasBe
   paras(2)  = var(ib)%ParasPp
 
@@ -490,7 +492,7 @@ _FABM_LOOP_BEGIN_
 !  loptm(3)  = lopt(3)
 
   Imax(3)   = 1.0d0
-  Temp_dep(3) = f_temp(2.5d0, var(ib)%Temp, 0.0d0)
+  Temp_dep(3) = f_temp(3.d0, var(ib)%Temp, 0.0d0)
 
 ! re-gauge coefficient to apply  Imax-scaling of Wirtz JPR,2012 
 !    log(1E3/80) converts from log(micro-m) to log(mm) but accounts for much lower C-density
@@ -550,7 +552,9 @@ _FABM_LOOP_BEGIN_
 !    graz(i)   = 0.0d0
   end do
 !  mass_sum  = 0*var(ib)%PhyMass + 0*var(ib)%B_Det
-  mass_sum  = self%mpara1*var(ib)%B_Det/(self%mpara1+Temp_dep(2))
+  ft        = self%mpara1/(self%mpara1+Temp_dep(2))
+!  ft        = exp(-Temp_dep(2)/self%mpara1);
+  mass_sum  = ft * var(ib)%B_Det
 !  mass_sum  = 0.*var(ib)%B_Det
   do j = 1, 3
     dg_dly(j) = 0.0d0
@@ -564,17 +568,18 @@ _FABM_LOOP_BEGIN_
 ! common variable: most simple detritus pool turnover dynamics 
 ! first the detritus change, as detrivory influences parasites
 ! ---------- calculate RHS  -------------------
-  rhsv%B_Det   = self%rDet * (mass_sum - 0.5*var(ib)%B_Det)  
+  rhsv%B_Det   = self%rDet * (mass_sum - 0.5*var(ib)%B_Det)  ! 
 
 ! Parasite dynamics for each population
   do j = 1, 2 ! loop over parasites
 !    fLc(j)    = sig13(i) *exp(-(lopt(j)-lmsize(3))**2)
-    fLc(j)    = exp(-sig23(i)*(lopt(j)-lmsize(3))**2)
+    fLc(j)    = exp(-sig23(i) * (loptA(j)-lmsize(3))**2)
 !    m_host(j) = mass(j)+self%mpara1*var(ib)%B_Det+fLc(j)*mass(3)sig23(i) *
-    m_host(j) = mass(j) + fLc(j)*mass(3)
-    sr        = self%rParasite*paras(j)
-    bcrit     = 1.0d0/(1.0d0 + exp((Temp_dep(3)-0.5)/(0.75*self%mpara1)))
-    rpara(j)  = sr* (m_host(j)/self%mpara2 - self%mpara2*bcrit*paras(j)/var(ib)%B_Det) 
+    m_host(j) = 1*mass(j) + fLc(j) * mass(3)
+    sr        = self%rParasite * paras(j)
+!    bcrit     = 1.0d0/(1.0d0 + exp((Temp_dep(3)-0.5)/(1.d0*self%mpara1)))
+    bcrit     = e_temp(var(ib)%Temp,self%Tc)  !
+    rpara(j)  = sr * (m_host(j)/self%mpara2 - self%mpara2*bcrit*paras(j)/var(ib)%B_Det) -self%mP*Temp_dep(3)*paras(j)**2
   end do
 
   rhsv%ParasBe = rpara(1)
@@ -657,15 +662,17 @@ _FABM_LOOP_BEGIN_
 !    if (abs(mort_S) .gt. 13.5) write (*,'(A,1(I2),4(F12.4))') 'mS=',i,mort_S,mort_S0,eS,starv
 
 ! mortality due to parasites maximal at newly hetched larvae (Hirota1974 ,Greve)
-   pS      = 1.0d0/(1.0d0+exp((self%lA-lmsize(i))/lavg))
+   lavgp=0.3d0
+   pS      = 1.0d0/(1.0d0+exp((self%lA-lmsize(i))/lavgp))
 ! life-stage dependent mortality due to parasites
 ! fraction of large "meso"zooplakton as suitable parasite host 
 !   mort_P  = self%mP * Temp_dep(3)**2 *(1.0d0+pS) * (fLc(i)*var(ib)%B_Det*1E-3)**2 
-   bcrit   = paras(i)
+   bcrit   = paras(i)/(1.0d0+paras(i)/5E14)
+!  bcrit   = paras(i)
 !   bcrit   = 0.55*(paras(i) + fLc(i)*paras(2))
-   mort_P  = self%mP * Temp_dep(3) *(1.0d0+pS) *bcrit ! * 4.0d0/(4.0d0+self%mP * bcrit)
+   mort_P  = self%mP * Temp_dep(2) *(1.0d0+pS) *bcrit ! * 4.0d0/(4.0d0+self%mP * bcrit)
 ! if (mort_P .gt. 3.0d0 ) write (*,'(A,1(I2),3(F14.3))') 'mp=',i,paras(i),m_host(i),mort_P
-!  if (mort_P .gt. 3.0d0 ) mort_P=5.0d0
+!  if (mort_P .gt. 0.50d0 ) mort_P=0.50d0
 
 ! temperature dependent losses, with surface-to-volume scaling
 !   mort_R  = self%mR * Temp_dep(i) * exp(-0.5*(lmsize(i)-lavg))
@@ -744,7 +751,7 @@ _FABM_LOOP_BEGIN_
 
 !  marginal size shift due to density dependent mortality (parasites)
 !     paras_dl = -sigma2(i) * mort_P *2*sig23(i)* (self%lA-lmsize(i))!/(0*f_tc+pS+0*starv)*pS/(starv*0+1.+pS+1.0E-4)
-     paras_dl = -sigma2(i) * mort_P/(1.0+pS) *pS*pS/lavg * exp((self%lA-lmsize(i))/lavg)
+     paras_dl = -sigma2(i) * mort_P/(1.0d0+pS) *pS*pS/lavgp * exp((self%lA-lmsize(i))/lavgp)
 
      prod_dl  = sigma2(i) * self%yield*yfac * dprod_dl(i)
 
@@ -779,7 +786,9 @@ _FABM_LOOP_BEGIN_
 !---------- RHS for each state variable ----------
    if (i .eq. 1) then ! Beroe
 ! --- dynamics of Beroe biomass
-    rhsv%B_Be = (prod - mort_sum - self%m_predBe* var(ib)%B_Be) * var(ib)%B_Be + self%immigr
+! quadratic mortality of Beroe to emulate top-down closure
+    ft        = self%m_predBe* var(ib)%B_Be ! 0.44**2/
+    rhsv%B_Be = (prod - mort_sum - ft)* var(ib)%B_Be + Temp_dep(1)*self%immigr
 ! --- dynamics of Beroe mean log size
     rhsv%l_Be = sum_dl 
 
@@ -821,7 +830,7 @@ _FABM_LOOP_BEGIN_
   _SET_DIAGNOSTIC_(self%id_mort_S, mort_S)                  !step_integrated physiological adult mortality rate
   _SET_DIAGNOSTIC_(self%id_mort_R, mort_R)                  !step_integrated temperature dependent mortality
   _SET_DIAGNOSTIC_(self%id_mort_G, mGrz(i))                  !step_integrated top-predation
-  _SET_DIAGNOSTIC_(self%id_mort_J, mort_J)                  !step_integrated juvenile mortality
+  _SET_DIAGNOSTIC_(self%id_mort_J, Temp_dep(3))                  !step_integrated juvenile mortality
   _SET_DIAGNOSTIC_(self%id_mort_T, mort_T)                !step_integrated damaging effect of turbulence 
   _SET_DIAGNOSTIC_(self%id_somgrowth, somgrwth)             !step_integrated somatic growth rate 
   _SET_DIAGNOSTIC_(self%id_recruit, preyc(3))                !recruitstep_integrated egg production rate 
@@ -887,6 +896,15 @@ _FABM_LOOP_BEGIN_
    f_temp  = 1.0d0/(exp(-(T-20.0d0)*0.1*log(q10))+ exp(-exp(1+q10)*(T-T_c)*0.1) )
 
    end function f_temp
+
+! ------------------------------------------------------------------------------
+  pure real(rk) function e_temp(T,T_c)
+   implicit none
+   real(rk), intent(in)      :: T,T_c
+
+   e_temp  = 1.0d0/(1.0d0+ exp(0.5*T-T_c) )
+
+   end function e_temp
 
 ! ------------------------------------------------------------------------------
 subroutine mixing(self,Dil,Conci,Volo,Conco, dConci, dConco)
