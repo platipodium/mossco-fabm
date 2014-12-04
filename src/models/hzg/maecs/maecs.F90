@@ -585,6 +585,7 @@ end if
 call self%register_dependency(self%id_temp,standard_variables%temperature)
 call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
 call self%register_horizontal_dependency(self%id_zmax,standard_variables%bottom_depth)
+call self%register_global_dependency(self%id_doy,standard_variables%number_of_days_since_start_of_the_year)
 
 ! extra line included from parser var init_incl 
 call maecs_init_stoichvars(self)
@@ -624,7 +625,8 @@ end subroutine initialize
    class(type_hzg_maecs),intent(in)          :: self 
    _DECLARE_ARGUMENTS_GET_EXTINCTION_
    
-   real(rk) :: p,d,z,kw,zmax,atminfr
+   real(rk) :: p,d,z,kw,zmax,doy,fz,ft,A,B,L,fz1,fz2
+   real(rk), PARAMETER ::  Pi = 3.1415927_rk
    
    ! Enter spatial loops (if any)
    _LOOP_BEGIN_
@@ -638,18 +640,41 @@ end subroutine initialize
     z=0.0_rk 
    end if
    
-   if (self%kwFzmaxMeth .eq. 0) then
-     !constant bg attenuation
-     kw=self%a_water
-   else if (self%kwFzmaxMeth .eq. 1) then
+   !fz parameters
+   fz1=0.5_rk 
+   fz2=10.0_rk 
+   
+   !default: fz=ft=1
+   fz=1.0_rk 
+   ft=1.0_rk 
+     
+   !if (self%kwFzmaxMeth .eq. 0) then
+     !constant bg attenuation. Do nothing   
+   if (self%kwFzmaxMeth .eq. 1) then
     _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
-    !exponential convergence to the 10% of 'self%a_water' with depth
-    kw=self%a_water*(self%a_minfr + (1-self%a_minfr)*exp(-zmax/10.0))
+    !f(z) exponential convergence to the 10% of 'self%a_water' with depth
+    fz=self%a_minfr + (1-self%a_minfr)*exp(-zmax/10.0)
    else if (self%kwFzmaxMeth .eq. 2) then
     _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
-    !sigmoidal function of depth with an upper plateau (100%) at 0-10 m and a lower (10%) for 30+
-    kw=self%a_water*(self%a_minfr+(1-self%a_minfr)*(1-1/(1+exp(-zmax*0.5+10))))
+    !f(z)=sigmoidal function of depth with an upper plateau (100%) at 0-10 m and a lower (10%) for 30+
+    fz=self%a_minfr+(1-self%a_minfr)*(1-1/(1+exp(-zmax*fz1+fz2)))
+   else if (self%kwFzmaxMeth .eq. 3) then
+    
+    _GET_GLOBAL_ (self%id_doy,doy) !day of year
+    _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
+    
+    !f(t)=sinusoidal function of day of year with minimum occuring during summer
+    !parameters below were fitted by J.Maerz using the scanfish data from the German Bight
+    A=8.036
+    B=9.78
+    L=102.42
+    ft= 0.05*(A*sin(2*T*Pi/365 +2*L*Pi/365)+B)
+    
+    !f(z)=sigmoidal function of depth with an upper plateau (100%) at 0-10 m and a lower (10%) for 30+
+    fz=self%a_minfr+(1-self%a_minfr)*(1-1/(1+exp(-zmax*0.5+10)))
    end if
+   
+   kw=self%a_water*fz*ft
    
    !write (*,'(A,2(F5.2))') 'zmax,kw:',zmax,kw 
    
