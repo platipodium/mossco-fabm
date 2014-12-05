@@ -11,12 +11,11 @@
 ! This is the core module of FABM, serving as the "glue layer" between a
 ! physical host model (e.g., a general circulation model), and one or more
 ! specific biogeochemical models. A physical host model will call the interfaces
-! of this module to access biogeochemistry. Specific biogeochemical models must
-! be referenced in this module to be available in FABM. Locations where
-! specific biogeochemical models may be referenced are indicated by
-! ADD\_NEW\_MODEL\_HERE strings in the code comments.
+! of this module to access biogeochemistry.
 !
-! For more information, see the documentation at /doc/documentation.pdf.
+! For more information, see the documentation at http://fabm.net/wiki.
+!
+! To add new biogeochemical models, edit fabm_library.F90.
 !
 ! !USES:
    use fabm_standard_variables,only: type_bulk_standard_variable, type_horizontal_standard_variable, &
@@ -202,6 +201,7 @@
       real(rk),allocatable _DIMENSION_GLOBAL_HORIZONTAL_        :: zero_hz
       integer                                                   :: domain_size(_FABM_DIMENSION_COUNT_)
       integer                                                   :: horizontal_domain_size(_FABM_DIMENSION_COUNT_HZ_)
+      integer,allocatable,dimension(:)                          :: zero_bulk_indices,zero_surface_indices,zero_bottom_indices
    contains
       procedure :: link_bulk_data_by_variable => fabm_link_bulk_data_by_variable
       procedure :: link_bulk_data_by_id   => fabm_link_bulk_data_by_id
@@ -435,9 +435,9 @@
 
          ! Ask the factory to create the model.
          call factory%create(trim(models(i)),childmodel)
-
          if (.not.associated(childmodel)) call fatal_error('fabm_create_model_from_file', &
             '"'//trim(models(i))//'" is not a valid model name.')
+         childmodel%user_created = .true.
 
          call log_message('Initializing biogeochemical model "'//trim(instancename)//'"...')
          call model%root%add_child(childmodel,instancename,configunit=file_unit)
@@ -737,6 +737,22 @@
 
    ! Allocate scratch memory for horizontal variables.
    allocate(self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(n))
+
+   ! Create lists of scratch variables that require zeroing before calling biogeochemical models.
+   link => self%links_postcoupling%first
+   do while (associated(link))
+      select case (link%target%domain)
+         case (domain_bulk)
+            call copy_write_indices(link%target%sms_list,         self%zero_bulk_indices)
+            call copy_write_indices(link%target%bottom_flux_list, self%zero_bottom_indices)
+            call copy_write_indices(link%target%surface_flux_list,self%zero_surface_indices)
+         case (domain_bottom)
+            call copy_write_indices(link%target%sms_list,self%zero_bottom_indices)
+         case (domain_surface)
+            call copy_write_indices(link%target%sms_list,self%zero_surface_indices)
+      end select
+      link => link%next
+   end do
 
 #ifdef _FABM_MASK_
    allocate(self%environment%prefetch_mask _INDEX_SLICE_)
@@ -1507,7 +1523,7 @@
 #if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_>0
    do i=1,size(self%domain_size)
       if (size(dat,i)/=self%domain_size(i)) then
-         call fatal_error('fabm_link_bulk_data_by_variable','dimensions of FABM domain and provided array do not match.')
+         call fatal_error('fabm_link_bulk_data_by_variable','dimensions of FABM domain and provided array do not match for variable '//trim(variable%name)//'.')
       end if
    end do
 #endif
@@ -1544,7 +1560,7 @@
 #if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_>0
    do i=1,size(self%domain_size)
       if (size(dat,i)/=self%domain_size(i)) then
-         call fatal_error('fabm_link_bulk_data','dimensions of FABM domain and provided array do not match.')
+         call fatal_error('fabm_link_bulk_data','dimensions of FABM domain and provided array do not match for variable '//trim(id%variable%name)//'.')
       end if
    end do
 #endif
@@ -1646,7 +1662,7 @@
 #if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_HZ_>0
    do i=1,size(self%horizontal_domain_size)
       if (size(dat,i)/=self%horizontal_domain_size(i)) then
-         call fatal_error('fabm_link_horizontal_data','dimensions of FABM domain and provided array do not match.')
+         call fatal_error('fabm_link_horizontal_data','dimensions of FABM domain and provided array do not match for variable '//trim(variable%name)//'.')
       end if
    end do
 #endif
@@ -1683,7 +1699,7 @@
 #if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_HZ_>0
    do i=1,size(self%horizontal_domain_size)
       if (size(dat,i)/=self%horizontal_domain_size(i)) then
-         call fatal_error('fabm_link_horizontal_data','dimensions of FABM domain and provided array do not match.')
+         call fatal_error('fabm_link_horizontal_data','dimensions of FABM domain and provided array do not match for variable '//trim(id%variable%name)//'.')
       end if
    end do
 #endif
@@ -2019,13 +2035,11 @@
 
    ! Initialize scratch variables that will hold source-sink terms to zero,
    ! because they will be incremented.
-   do i=1,size(self%state_variables)
-      do j=1,size(self%state_variables(i)%sms_indices)
-         k = self%state_variables(i)%sms_indices(j)
-         _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
-            self%environment%scratch _INDEX_SLICE_PLUS_1_(k) = 0.0_rk
-         _CONCURRENT_LOOP_END_
-      end do
+   do i=1,size(self%zero_bulk_indices)
+      j = self%zero_bulk_indices(i)
+      _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
+         self%environment%scratch _INDEX_SLICE_PLUS_1_(j) = 0.0_rk
+      _CONCURRENT_LOOP_END_
    end do
 
    node => self%models%first
@@ -2456,21 +2470,11 @@ end subroutine internal_check_horizontal_state
 
       ! Initialize scratch variables that will hold surface-attached source-sink terms
       ! or bulk surface fluxes to zero, because they will be incremented.
-      do i=1,size(self%state_variables)
-         do j=1,size(self%state_variables(i)%surface_flux_indices)
-            k = self%state_variables(i)%surface_flux_indices(j)
-            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-               self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k) = 0.0_rk
-            _CONCURRENT_HORIZONTAL_LOOP_END_
-         end do
-      end do
-      do i=1,size(self%surface_state_variables)
-         do j=1,size(self%surface_state_variables(i)%sms_indices)
-            k = self%surface_state_variables(i)%sms_indices(j)
-            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-               self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k) = 0.0_rk
-            _CONCURRENT_HORIZONTAL_LOOP_END_
-         end do
+      do i=1,size(self%zero_surface_indices)
+         j = self%zero_surface_indices(i)
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+            self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = 0.0_rk
+         _CONCURRENT_HORIZONTAL_LOOP_END_
       end do
 
 #ifndef _FULL_DOMAIN_IN_SLICE_
@@ -2493,7 +2497,7 @@ end subroutine internal_check_horizontal_state
 
          ! Copy newly written diagnostics to prefetch
          do i=1,size(node%model%reused_diag_hz)
-            if (node%model%reused_diag_hz(k)%source==source_do_surface.or.node%model%reused_diag_hz(k)%source==source_unknown) then
+            if (node%model%reused_diag_hz(i)%source==source_do_surface.or.node%model%reused_diag_hz(i)%source==source_unknown) then
                j = node%model%reused_diag_hz(i)%read_index
                k = node%model%reused_diag_hz(i)%write_index
                _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
@@ -2576,21 +2580,11 @@ end subroutine internal_check_horizontal_state
 
    ! Initialize scratch variables that will hold bottom-attached source-sink terms
    ! or bulk bottom fluxes to zero, because they will be incremented.
-   do i=1,size(self%state_variables)
-      do j=1,size(self%state_variables(i)%bottom_flux_indices)
-         k = self%state_variables(i)%bottom_flux_indices(j)
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-            self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k) = 0.0_rk
-         _CONCURRENT_HORIZONTAL_LOOP_END_
-      end do
-   end do
-   do i=1,size(self%bottom_state_variables)
-      do j=1,size(self%bottom_state_variables(i)%sms_indices)
-         k = self%bottom_state_variables(i)%sms_indices(j)
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
-            self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k) = 0.0_rk
-         _CONCURRENT_HORIZONTAL_LOOP_END_
-      end do
+   do i=1,size(self%zero_bottom_indices)
+      j = self%zero_bottom_indices(i)
+      _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
+         self%environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = 0.0_rk
+      _CONCURRENT_HORIZONTAL_LOOP_END_
    end do
 
 #ifndef _FULL_DOMAIN_IN_SLICE_
@@ -2613,7 +2607,7 @@ end subroutine internal_check_horizontal_state
 
       ! Copy newly written diagnostics to prefetch
       do i=1,size(node%model%reused_diag_hz)
-         if (node%model%reused_diag_hz(k)%source==source_do_bottom.or.node%model%reused_diag_hz(k)%source==source_unknown) then
+         if (node%model%reused_diag_hz(i)%source==source_do_bottom.or.node%model%reused_diag_hz(i)%source==source_unknown) then
             j = node%model%reused_diag_hz(i)%read_index
             k = node%model%reused_diag_hz(i)%write_index
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
@@ -2711,7 +2705,7 @@ end subroutine internal_check_horizontal_state
 
       ! Copy newly written diagnostics to prefetch
       do i=1,size(node%model%reused_diag_hz)
-         if (node%model%reused_diag_hz(k)%source==source_do_bottom.or.node%model%reused_diag_hz(k)%source==source_unknown) then
+         if (node%model%reused_diag_hz(i)%source==source_do_bottom.or.node%model%reused_diag_hz(i)%source==source_unknown) then
             j = node%model%reused_diag_hz(i)%read_index
             k = node%model%reused_diag_hz(i)%write_index
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%environment)
@@ -3142,8 +3136,9 @@ subroutine copy_write_indices(source,target)
    type (type_link_list),intent(in) :: source
    integer,allocatable              :: target(:)
 
-   integer                  :: n
+   integer                  :: n,nold
    type (type_link),pointer :: link
+   integer,allocatable      :: old(:)
 
    n = 0
    link => source%first
@@ -3152,9 +3147,19 @@ subroutine copy_write_indices(source,target)
       link => link%next
    end do
 
-   allocate(target(n))
+   if (allocated(target)) then
+      nold = size(target)
+      allocate(old(nold))
+      old(:) = target
+      deallocate(target)
+   else
+      nold = 0
+   end if
 
-   n = 0
+   allocate(target(nold+n))
+   if (allocated(old)) target(1:nold) = old
+
+   n = nold
    link => source%first
    do while (associated(link))
       if (.not.link%target%write_indices%is_empty()) then
@@ -3350,6 +3355,24 @@ subroutine create_readable_variable_registry(self)
    allocate(self%environment%data_scalar(nread_scalar))
 end subroutine create_readable_variable_registry
 
+function variable_from_data_index(self,index,domain) result(variable)
+   class (type_model),intent(inout),target :: self
+   integer,           intent(in)           :: index,domain
+   type (type_internal_variable),pointer   :: variable
+
+   type (type_link), pointer :: link
+
+   nullify(variable)
+   link => self%links_postcoupling%first
+   do while (associated(link))
+      if (link%target%read_indices%value==index .and. iand(link%target%domain,domain)/=0) then
+         variable => link%target
+         return
+      end if   
+      link => link%next
+   end do
+end function variable_from_data_index
+
 subroutine filter_readable_variable_registry(self)
    class (type_model),intent(inout),target :: self
 
@@ -3428,7 +3451,7 @@ subroutine classify_variables(self)
    ncons = 0
    aggregate_variable => self%root%first_aggregate_variable
    do while (associated(aggregate_variable))
-      ncons = ncons + 1
+      if (aggregate_variable%standard_variable%conserved) ncons = ncons + 1
       aggregate_variable => aggregate_variable%next
    end do
    allocate(self%conserved_quantities(ncons))
@@ -3440,39 +3463,40 @@ subroutine classify_variables(self)
    ncons = 0
    aggregate_variable => self%root%first_aggregate_variable
    do while (associated(aggregate_variable))
-      ncons = ncons + 1
-      consvar => self%conserved_quantities(ncons)
-      consvar%standard_variable = aggregate_variable%standard_variable
-      consvar%name = trim(consvar%standard_variable%name)
-      consvar%units = trim(consvar%standard_variable%units)
-      consvar%long_name = trim(consvar%standard_variable%name)
-      consvar%path = trim(consvar%standard_variable%name)
-      consvar%aggregate_variable => aggregate_variable
+      if (aggregate_variable%standard_variable%conserved) then
+         ncons = ncons + 1
+         consvar => self%conserved_quantities(ncons)
+         consvar%standard_variable = aggregate_variable%standard_variable
+         consvar%name = trim(consvar%standard_variable%name)
+         consvar%units = trim(consvar%standard_variable%units)
+         consvar%long_name = trim(consvar%standard_variable%name)
+         consvar%path = trim(consvar%standard_variable%name)
+         consvar%aggregate_variable => aggregate_variable
 
-      ! Get read index of the variable that will keep the total of conserved quantity in bulk domain.
-      ! If this variable is a diagnostic, add the source model and any dependencies to the call list
-      ! for conserved quantity calculations.
-      object => self%root%find_object(trim(aggregate_variable%standard_variable%name))
-      if (.not.associated(object)) call driver%fatal_error('classify_variables', &
-         'BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//' was not created')
-      call object%read_indices%append(consvar%index)
-      if (.not.object%write_indices%is_empty()) call find_dependencies(object%owner,self%conserved_quantity_call_list)
+         ! Get read index of the variable that will keep the total of conserved quantity in bulk domain.
+         ! If this variable is a diagnostic, add the source model and any dependencies to the call list
+         ! for conserved quantity calculations.
+         object => self%root%find_object(trim(aggregate_variable%standard_variable%name))
+         if (.not.associated(object)) call driver%fatal_error('classify_variables', &
+            'BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//' was not created')
+         call object%read_indices%append(consvar%index)
+         if (.not.object%write_indices%is_empty()) call find_dependencies(object%owner,self%conserved_quantity_call_list)
 
-      ! Store pointer to total of conserved quantity at surface + bottom.
-      object => self%root%find_object(trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
-      if (.not.associated(object)) call driver%fatal_error('classify_variables', &
-         'BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//'_at_interfaces was not created')
-      call object%read_indices%append(consvar%horizontal_index)
+         ! Store pointer to total of conserved quantity at surface + bottom.
+         object => self%root%find_object(trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
+         if (.not.associated(object)) call driver%fatal_error('classify_variables', &
+            'BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//'_at_interfaces was not created')
+         call object%read_indices%append(consvar%horizontal_index)
 
-      ! Store pointer to model that computes total of conserved quantity at surface + bottom, so we can force recomputation.
-      model => self%root%find_model(trim(aggregate_variable%standard_variable%name)//'_at_interfaces_calculator')
-      if (associated(model)) then
-         select type (model)
-            class is (type_horizontal_weighted_sum)
-               consvar%horizontal_sum => model
-         end select
+         ! Store pointer to model that computes total of conserved quantity at surface + bottom, so we can force recomputation.
+         model => self%root%find_model(trim(aggregate_variable%standard_variable%name)//'_at_interfaces_calculator')
+         if (associated(model)) then
+            select type (model)
+               class is (type_horizontal_weighted_sum)
+                  consvar%horizontal_sum => model
+            end select
+         end if
       end if
-
       aggregate_variable => aggregate_variable%next
    end do
 

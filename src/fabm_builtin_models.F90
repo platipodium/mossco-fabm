@@ -2,12 +2,20 @@
 
 module fabm_builtin_models
    use fabm_types
+   use fabm_standard_variables
 
    implicit none
 
    private
 
    public type_weighted_sum,type_horizontal_weighted_sum,type_simple_depth_integral
+
+   type,extends(type_base_model_factory) :: type_factory
+      contains
+      procedure :: create
+   end type
+
+   type (type_factory),save,target,public :: builtin_factory
 
    type type_component
       character(len=attribute_length) :: name   = ''
@@ -66,7 +74,33 @@ module fabm_builtin_models
       procedure :: do         => simple_depth_integral_do
    end type
 
-contains
+   type,extends(type_base_model) :: type_bulk_constant
+      type (type_diagnostic_variable_id) :: id_constant
+   contains
+      procedure :: initialize => bulk_constant_initialize
+   end type
+
+   type,extends(type_base_model) :: type_horizontal_constant
+      type (type_horizontal_diagnostic_variable_id) :: id_constant
+   contains
+      procedure :: initialize => horizontal_constant_initialize
+   end type
+
+   contains
+
+
+   subroutine create(self,name,model)
+      class (type_factory),intent(in) :: self
+      character(*),        intent(in) :: name
+      class (type_base_model),pointer :: model
+
+      select case (name)
+         case ('bulk_constant');       allocate(type_bulk_constant::model)
+         case ('horizontal_constant'); allocate(type_horizontal_constant::model)
+         ! Add new examples models here
+      end select
+
+   end subroutine
 
    function weighted_sum_add_to_parent(self,parent,name,create_for_one) result(sum_used)
       class (type_weighted_sum),intent(inout),target :: self
@@ -109,7 +143,7 @@ contains
       do while (associated(component))
          i = i + 1
          write (temp,'(i0)') i
-         call self%register_dependency(component%id,'term'//trim(temp))
+         call self%register_dependency(component%id,'term'//trim(temp),self%output_units,'term '//trim(temp))
          call self%request_coupling(component%id,trim(component%name))
          component => component%next
       end do
@@ -223,7 +257,7 @@ contains
       do while (associated(component))
          i = i + 1
          write (temp,'(i0)') i
-         call self%register_dependency(component%id,'term'//trim(temp))
+         call self%register_dependency(component%id,'term'//trim(temp),self%output_units,'term '//trim(temp))
          call self%request_coupling(component%id,trim(component%name))
          component => component%next
       end do
@@ -302,7 +336,7 @@ contains
    subroutine simple_depth_integral_initialize(self,configunit)
       class (type_simple_depth_integral),intent(inout),target :: self
       integer,                           intent(in)           :: configunit
-      call self%register_dependency(self%id_input,'source')
+      call self%register_dependency(self%id_input,'source','','source')
       if (.not.self%average) call self%register_dependency(self%id_depth,standard_variables%bottom_depth)
       call self%register_diagnostic_variable(self%id_output,'result','','result')
    end subroutine
@@ -321,6 +355,42 @@ contains
          end if
          _SET_HORIZONTAL_DIAGNOSTIC_(self%id_output,value)
       _HORIZONTAL_LOOP_END_
+   end subroutine
+
+   subroutine bulk_constant_initialize(self,configunit)
+      class (type_bulk_constant),intent(inout),target :: self
+      integer,                   intent(in)           :: configunit
+
+      character(len=attribute_length) :: standard_name
+      real(rk)                        :: value
+
+      call self%get_parameter(standard_name,'standard_name','','standard name')
+      call self%get_parameter(value,'value','','value')
+      if (standard_name/='') then
+         call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
+            output=output_none, standard_variable=type_bulk_standard_variable(name=standard_name))
+      else
+         call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
+            output=output_none)
+      end if
+   end subroutine
+
+   subroutine horizontal_constant_initialize(self,configunit)
+      class (type_horizontal_constant),intent(inout),target :: self
+      integer,                         intent(in)           :: configunit
+
+      character(len=attribute_length) :: standard_name
+      real(rk)                        :: value
+
+      call self%get_parameter(standard_name,'standard_name','','standard name')
+      call self%get_parameter(value,'value','','value')
+      if (standard_name/='') then
+         call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
+            output=output_none, standard_variable=type_horizontal_standard_variable(name=standard_name))
+      else
+         call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
+            output=output_none)
+      end if
    end subroutine
 
 end module fabm_builtin_models

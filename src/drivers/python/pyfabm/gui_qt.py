@@ -1,5 +1,11 @@
+import sys
 import pyfabm
-from PySide import QtCore,QtGui
+
+try:
+    from PySide import QtCore,QtGui
+except ImportError:
+    print 'Unable to load PySide. Is it installed?'
+    sys.exit(1)
 
 class Delegate(QtGui.QStyledItemDelegate):
     def __init__(self,parent=None):
@@ -13,6 +19,10 @@ class Delegate(QtGui.QStyledItemDelegate):
                 widget = QtGui.QComboBox(parent)
                 widget.addItems(options)
                 return widget
+            elif isinstance(data.value,float):
+                widget = ScientificDoubleEditor(parent)
+                if data.units: widget.setSuffix(u' %s' % data.units_unicode)
+                return widget
         return QtGui.QStyledItemDelegate.createEditor(self,parent,option,index)
     def setEditorData(self,editor,index):
         if isinstance(editor,QtGui.QComboBox):
@@ -22,6 +32,10 @@ class Delegate(QtGui.QStyledItemDelegate):
                 if options is not None:
                     editor.setCurrentIndex(list(options).index(data.value))
                     return
+        elif isinstance(editor,ScientificDoubleEditor):
+            data = index.internalPointer().object
+            editor.setValue(data.value)
+            return
         return QtGui.QStyledItemDelegate.setEditorData(self,editor,index)
     def setModelData(self,editor,model,index):
         if isinstance(editor,QtGui.QComboBox):
@@ -32,6 +46,9 @@ class Delegate(QtGui.QStyledItemDelegate):
                     i = editor.currentIndex()
                     model.setData(index,options[i],QtCore.Qt.EditRole)
                     return
+        elif isinstance(editor,ScientificDoubleEditor):
+            model.setData(index,editor.value(),QtCore.Qt.EditRole)
+            return
         return QtGui.QStyledItemDelegate.setModelData(self,editor,model,index)
 
 class Entry(object):
@@ -75,6 +92,13 @@ class Entry(object):
             entry = Entry(variable,pathcomps[-1])
             parent.addChild(entry)
 
+class Submodel:
+    def __init__(self,long_name):
+        self.units = None
+        self.units_unicode = None
+        self.value = None
+        self.long_name = long_name
+
 class ItemModel(QtCore.QAbstractItemModel):
     def __init__(self,model,parent):
         QtCore.QAbstractItemModel.__init__(self,parent)
@@ -92,20 +116,21 @@ class ItemModel(QtCore.QAbstractItemModel):
         root.addChild(env)
 
         # For all models, create an object that returns appropriate metadata.
-        class Submodel:
-            def __init__(self,long_name):
-                self.units = None
-                self.units_unicode = None
-                self.value = None
-                self.long_name = long_name
         def processNode(n,path=()):
-            childprefix = path
-            if isinstance(n.object,basestring) and path:
-                if path[-1] in ('parameters','initialization','environment','coupling'):
-                    childprefix = path[:-1]
-                else:
-                    n.object = Submodel(self.model.getModelLongName('/'.join(path)))
-            for child in n.children: processNode(child,childprefix+(child.name,))
+            for i in range(len(n.children)-1,-1,-1):
+                child = n.children[i]
+                childpath = path + (child.name,)
+                if isinstance(child.object,basestring):
+                    if childpath[-1] in ('parameters','initialization','environment','coupling'):
+                        childpath = childpath[:-1]
+                    else:
+                        submodel = self.model.getSubModel('/'.join(childpath))
+                        if submodel.user_created:
+                            child.object = Submodel(submodel.long_name)
+                        else:
+                            n.removeChild(i)
+                            child = None
+                if child is not None: processNode(child,childpath)
         processNode(root)
 
         if self.root is not None:
@@ -180,10 +205,14 @@ class ItemModel(QtCore.QAbstractItemModel):
         if role==QtCore.Qt.DisplayRole:
             if index.column()==0:
                 return entry.name if isinstance(data,basestring) else data.long_name
-            if not isinstance(data,basestring):
+            if not isinstance(data,(basestring,Submodel)):
                 if index.column()==1:
                     value = data.value
-                    if not isinstance(value,bool): return value
+                    if not isinstance(value,bool):
+                        if data.units:
+                            return u'%s %s' % (value,data.units_unicode)
+                        else:
+                            return unicode(value)
                 elif index.column()==2 and data.units:
                     return data.units_unicode
                 elif index.column()==3:
@@ -191,8 +220,8 @@ class ItemModel(QtCore.QAbstractItemModel):
         elif role==QtCore.Qt.ToolTipRole and index.parent().isValid():
            if not isinstance(data,basestring): return data.long_path
         elif role==QtCore.Qt.EditRole:
-           if not isinstance(data,basestring):
-              print data.getOptions()
+           if not isinstance(data,(basestring,Submodel)):
+              #print data.getOptions()
               return data.getValue()
         elif role==QtCore.Qt.FontRole and index.column()==1:
             if isinstance(data,pyfabm.Parameter) and data.value!=data.default:
@@ -217,7 +246,7 @@ class ItemModel(QtCore.QAbstractItemModel):
         if not index.isValid(): return flags
         if index.column()==1:
             entry = index.internalPointer().object
-            if not isinstance(entry,basestring):
+            if not isinstance(entry,(basestring,Submodel)):
                 if isinstance(entry.value,bool):
                     flags |= QtCore.Qt.ItemIsUserCheckable
                 else:
@@ -227,3 +256,136 @@ class ItemModel(QtCore.QAbstractItemModel):
     def headerData(self,section,orientation,role):
         if orientation==QtCore.Qt.Horizontal and role==QtCore.Qt.DisplayRole and section>=0 and section<4:
             return ('name','value','units','symbol')[section]
+
+class TreeView(QtGui.QTreeView):
+    def __init__(self,model,parent):
+        QtGui.QTreeView.__init__(self,parent)
+        itemmodel = pyfabm.gui_qt.ItemModel(model,parent)
+        self.setItemDelegate(Delegate(parent))
+        self.setModel(itemmodel)
+        self.setUniformRowHeights(True)
+        self.expandAll()
+        def onTreeViewContextMenu(pos):
+            index = self.indexAt(pos)
+            if index.isValid() and index.column()==1:
+                data = index.internalPointer().object
+                if isinstance(data,pyfabm.Parameter) and data.value!=data.default and data.default is not None:
+                    def reset():
+                        data.reset()
+                        itemmodel.rebuild()
+                    contextMenu = QtGui.QMenu(self)
+                    default = data.default
+                    if data.units: default = u'%s %s' % (data.default,data.units_unicode)
+                    contextMenu.addAction(u'Reset to default: %s' % default,reset)
+                    contextMenu.exec_(self.mapToGlobal(pos))
+        self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(onTreeViewContextMenu)
+        for i in range(3): self.resizeColumnToContents(i)
+
+# From xmlstore (GOTM-GUI)
+
+class ScientificDoubleValidator(QtGui.QValidator):
+    """Qt validator for floating point values
+    Less strict than the standard QDoubleValidator, in the sense that is
+    also accepts values in scientific format (e.g. 1.2e6)
+    Also has properties 'minimum' and 'maximum', used for validation and
+    fix-up.
+    """
+    def __init__(self,parent=None):
+        QtGui.QValidator.__init__(self,parent)
+        self.minimum = None
+        self.maximum = None
+        self.suffix = ''
+
+    def validate(self,input,pos):
+        assert isinstance(input,basestring),'input argument is not a string (old PyQt4 API?)'
+
+        # Check for suffix (if ok, cut it off for further value checking)
+        if not input.endswith(self.suffix): return (QtGui.QValidator.Invalid,input,pos)
+        vallength = len(input)-len(self.suffix)
+
+        # Check for invalid characters
+        rx = QtCore.QRegExp('[^\d\-+eE,.]')
+        if rx.indexIn(input[:vallength])!=-1: return (QtGui.QValidator.Invalid,input,pos)
+        
+        # Check if we can convert it into a floating point value
+        try:
+            v = float(input[:vallength])
+        except ValueError:
+            return (QtGui.QValidator.Intermediate,input,pos)
+
+        # Check for minimum and maximum.
+        if self.minimum is not None and v<self.minimum: return (QtGui.QValidator.Intermediate,input,pos)
+        if self.maximum is not None and v>self.maximum: return (QtGui.QValidator.Intermediate,input,pos)
+        
+        return (QtGui.QValidator.Acceptable,input,pos)
+
+    def fixup(self,input):
+        assert isinstance(input,basestring),'input argument is not a string (old PyQt4 API?)'
+        if not input.endswith(self.suffix): return input
+
+        try:
+            v = float(input[:len(input)-len(self.suffix)])
+        except ValueError:
+            return input
+
+        if self.minimum is not None and v<self.minimum: input = u'%s%s' % (self.minimum,self.suffix)
+        if self.maximum is not None and v>self.maximum: input = u'%s%s' % (self.maximum,self.suffix)
+        print u'"%s"' % input
+        return input
+
+    def setSuffix(self,suffix):
+        self.suffix = suffix
+
+class ScientificDoubleEditor(QtGui.QLineEdit):
+    """Editor for a floating point value.
+    """
+    def __init__(self,parent):
+        QtGui.QLineEdit.__init__(self,parent)
+
+        self.curvalidator = ScientificDoubleValidator(self)
+        self.setValidator(self.curvalidator)
+        self.suffix = ''
+        #self.editingFinished.connect(self.onPropertyEditingFinished)
+
+    def setSuffix(self,suffix):
+        value = self.value()
+        self.suffix = suffix
+        self.curvalidator.setSuffix(suffix)
+        self.setValue(value)
+
+    def value(self):
+        text = self.text()
+        text = text[:len(text)-len(self.suffix)]
+        if text=='': return 0
+        return float(text)
+
+    def setValue(self,value,format=None):
+        if value is None:
+            strvalue = ''
+        else:  
+            if format is None:
+                strvalue = unicode(value)
+            else:
+                strvalue = format % value
+        self.setText(u'%s%s' % (strvalue,self.suffix))
+
+    def focusInEvent(self,e):
+        QtGui.QLineEdit.focusInEvent(self,e)
+        self.selectAll()
+
+    def selectAll(self):
+        QtGui.QLineEdit.setSelection(self,0,len(self.text())-len(self.suffix))
+
+    def setMinimum(self,minimum):
+        self.curvalidator.minimum = minimum
+
+    def setMaximum(self,maximum):
+        self.curvalidator.maximum = maximum
+
+    def interpretText(self):
+        if not self.hasAcceptableInput():
+            text = self.text()
+            textnew = self.curvalidator.fixup(text)
+            if textnew is None: textnew = text
+            self.setText(textnew)

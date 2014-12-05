@@ -123,8 +123,9 @@
       ! Re-create original models
       node => model%root%children%first
       do while (associated(node))
-         if (node%model%type_name/='') then
+         if (node%model%user_created) then
             call factory%create(node%model%type_name,childmodel)
+            childmodel%user_created = .true.
             call newmodel%root%add_child(childmodel,node%model%name,node%model%long_name,configunit=-1)
          end if
          node => node%next
@@ -242,11 +243,7 @@
       call copy_to_c_string(property%units,    units)
       call copy_to_c_string(property%long_name,long_name)
       typecode = property%typecode()
-      if (property%has_default) then
-         has_default = 1
-      else
-         has_default = 0
-      end if
+      has_default = logical2int(property%has_default)
    end subroutine
 
    subroutine get_dependency_metadata(index,length,name,units) bind(c)
@@ -361,11 +358,12 @@
       call copy_to_c_string(variable%long_name,long_name)
    end subroutine get_variable_metadata_ptr
 
-   subroutine get_model_metadata(name,length,long_name) bind(c)
+   subroutine get_model_metadata(name,length,long_name,user_created) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_model_metadata
       character(kind=c_char),intent(in), target :: name(*)
       integer(c_int),        intent(in), value  :: length
       character(kind=c_char),intent(out)        :: long_name(length)
+      integer(c_int),        intent(out)        :: user_created
 
       character(len=attribute_length),pointer   :: pname
       class (type_base_model),        pointer   :: found_model
@@ -374,6 +372,7 @@
       found_model => model%root%find_model(pname(:index(pname,C_NULL_CHAR)-1))
       if (.not.associated(found_model)) call driver%fatal_error('get_model_metadata','model "'//pname(:index(pname,C_NULL_CHAR)-1)//'" not found.')
       call copy_to_c_string(found_model%long_name,long_name)
+      user_created = logical2int(found_model%user_created)
    end subroutine
 
    subroutine link_dependency_data(index,value) bind(c)
@@ -418,7 +417,10 @@
       real(c_double),target,intent(in) :: pelagic_rates_(*)
 
       real(c_double),pointer :: pelagic_rates(:)
+      real(rk)               :: ext
 
+      call fabm_get_light_extinction(model,ext)
+      call fabm_get_light(model)
       call c_f_pointer(c_loc(pelagic_rates_),pelagic_rates, &
         (/size(model%state_variables)+size(model%surface_state_variables)+size(model%bottom_state_variables)/))
       pelagic_rates = 0.0_rk
@@ -488,7 +490,7 @@
       property => model%root%parameters%get_property(index)
       select type (property)
       class is (type_real_property)
-         if (default/=0) then
+         if (int2logical(default)) then
             value = property%default
          else
             value = property%value
@@ -521,7 +523,7 @@
       property => model%root%parameters%get_property(index)
       select type (property)
       class is (type_integer_property)
-         if (default/=0) then
+         if (int2logical(default)) then
             value = property%default
          else
             value = property%value
@@ -539,7 +541,7 @@
       character(len=attribute_length),pointer :: pname
 
       call c_f_pointer(c_loc(name), pname)
-      call forced_parameters%set_logical(pname(:index(pname,C_NULL_CHAR)-1),value/=0)
+      call forced_parameters%set_logical(pname(:index(pname,C_NULL_CHAR)-1),int2logical(value))
 
       ! Re-initialize the model using updated parameter values
       call reinitialize()
@@ -554,11 +556,10 @@
       property => model%root%parameters%get_property(index)
       select type (property)
       class is (type_logical_property)
-         value = 0
-         if (default/=0) then
-            if (property%default) value = 1
+         if (int2logical(default)) then
+            value = logical2int(property%default)
          else
-            if (property%value) value = 1
+            value = logical2int(property%value)
          end if
       class default
          call driver%fatal_error('get_logical_parameter','not a logical variable')
@@ -589,7 +590,7 @@
       property => model%root%parameters%get_property(index)
       select type (property)
       class is (type_string_property)
-         if (default/=0) then
+         if (int2logical(default)) then
             call copy_to_c_string(property%default, value)
          else
             call copy_to_c_string(property%value, value)
@@ -624,6 +625,22 @@
       end do
       cstring(n+1) = C_NULL_CHAR
    end subroutine
+
+   function logical2int(value) result(ivalue)
+      logical,intent(in) :: value
+      integer            :: ivalue
+      if (value) then
+         ivalue = 1
+      else
+         ivalue = 0
+      end if
+   end function
+
+   function int2logical(ivalue) result(value)
+      integer,intent(in) :: ivalue
+      logical            :: value
+      value = ivalue/=0
+   end function
 
    end module fabm_python
 

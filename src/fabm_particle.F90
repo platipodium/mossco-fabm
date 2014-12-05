@@ -45,8 +45,10 @@ module fabm_particle
    end type
 
    type type_model_id
-      type (type_model_reference),pointer :: reference => null()
-      type (type_state_variable_id),allocatable :: state(:)
+      type (type_model_reference),pointer               :: reference => null()
+      type (type_state_variable_id),        allocatable :: state(:)
+      type (type_bottom_state_variable_id), allocatable :: bottom_state(:)
+      type (type_surface_state_variable_id),allocatable :: surface_state(:)
    end type
 
    type type_coupling_from_model
@@ -54,6 +56,7 @@ module fabm_particle
       character(attribute_length)             :: slave = ''
       type (type_model_reference),    pointer :: model_reference => null()
       type (type_bulk_standard_variable)      :: standard_variable
+      integer                                 :: domain
       type (type_coupling_from_model),pointer :: next => null()
    end type
 
@@ -162,6 +165,14 @@ module fabm_particle
       coupling%standard_variable = master_variable
       coupling%model_reference => master_model%reference
       coupling%next => self%first_model_coupling
+      select type (slave_variable)
+         class is (type_dependency_id)
+            coupling%domain = domain_bulk
+         class is (type_horizontal_dependency_id)
+            coupling%domain = domain_horizontal
+         class default
+            call self%fatal_error('request_coupling_to_model_sn','Provided variable id must be of type type_dependency_id or type_horizontal_dependency_id.')
+      end select
       self%first_model_coupling => coupling
    end subroutine request_coupling_to_model_sn
 
@@ -189,7 +200,13 @@ module fabm_particle
          reference => reference%next
       end do
 
-      call build_state_id_list(self)
+      reference => self%first_model_reference
+      do while (associated(reference))
+         call build_state_id_list(self,reference,domain_bulk)
+         call build_state_id_list(self,reference,domain_surface)
+         call build_state_id_list(self,reference,domain_bottom)
+         reference => reference%next
+      end do
 
       ! Resolve all couplings to variables in specific other models.
       coupling => self%first_model_coupling
@@ -198,48 +215,71 @@ module fabm_particle
             call self%couplings%set_string(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(coupling%master))
          else
             aggregate_variable => get_aggregate_variable(coupling%model_reference%model,coupling%standard_variable)
-            aggregate_variable%bulk_required = .true.
-            call self%couplings%set_string(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name))
+            select case (coupling%domain)
+               case (domain_bulk)
+                  aggregate_variable%bulk_required = .true.
+                  call self%couplings%set_string(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name))
+               case (domain_horizontal)
+                  aggregate_variable%horizontal_required = .true.
+                  call self%couplings%set_string(trim(coupling%slave),trim(coupling%model_reference%model%get_path())//'/'//trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
+            end select
          end if
          coupling => coupling%next
       end do
    end subroutine before_coupling
 
-   subroutine build_state_id_list(self)
+   subroutine build_state_id_list(self,reference,domain)
       class (type_particle_model),intent(inout) :: self
+      type (type_model_reference),intent(inout) :: reference
+      integer,                    intent(in)    :: domain
 
-      type (type_model_reference),pointer :: reference
       type (type_link),           pointer :: link
       integer                             :: n
       character(len=10)                   :: strindex
 
-      reference => self%first_model_reference
-      do while (associated(reference))
-         ! Count number of state variables in target model.
-         n = 0
-         link => reference%model%links%first
-         do while (associated(link))
-            if (link%target%domain==domain_bulk.and.link%original%presence==presence_internal.and..not.link%original%state_indices%is_empty()) n = n + 1
-            link => link%next
-         end do
+      ! Count number of state variables in target model.
+      n = 0
+      link => reference%model%links%first
+      do while (associated(link))
+         if (index(link%name,'/')==0.and.link%target%domain==domain.and.link%original%presence==presence_internal &
+             .and.(.not.link%original%state_indices%is_empty().or.link%original%fake_state_variable)) n = n + 1
+         link => link%next
+      end do
 
-         ! Allocate array to hold state variable identifiers.
-         allocate(reference%id%state(n))
+      ! Allocate array to hold state variable identifiers.
+      select case (domain)
+         case (domain_bulk)
+            allocate(reference%id%state(n))
+         case (domain_bottom)
+            allocate(reference%id%bottom_state(n))
+         case (domain_surface)
+            allocate(reference%id%surface_state(n))
+      end select
 
-         ! Connect target state variables to identifiers in model reference.
-         n = 0
-         link => reference%model%links%first
-         do while (associated(link))
-            if (link%target%domain==domain_bulk.and.link%original%presence==presence_internal.and..not.link%original%state_indices%is_empty()) then
-               n = n + 1
-               write (strindex,'(i0)') n
-               call self%register_state_dependency(reference%id%state(n),trim(reference%name)//'_state'//trim(strindex),link%target%units,trim(reference%name)//' state variable '//trim(strindex))
-               call self%request_coupling_to_model(reference%id%state(n),reference%id,link%name)
-            end if
-            link => link%next
-         end do
-
-         reference => reference%next
+      ! Connect target state variables to identifiers in model reference.
+      n = 0
+      link => reference%model%links%first
+      do while (associated(link))
+         if (index(link%name,'/')==0.and.link%target%domain==domain.and.link%original%presence==presence_internal &
+             .and.(.not.link%original%state_indices%is_empty().or.link%original%fake_state_variable)) then
+            n = n + 1
+            write (strindex,'(i0)') n
+            select case (domain)
+               case (domain_bulk)
+                  call self%register_state_dependency(reference%id%state(n),trim(reference%name)//'_state'//trim(strindex), &
+                     link%target%units,trim(reference%name)//' state variable '//trim(strindex))
+                  call self%request_coupling_to_model(reference%id%state(n),reference%id,link%name)
+               case (domain_bottom)
+                  call self%register_state_dependency(reference%id%bottom_state(n),trim(reference%name)//'_bottom_state'//trim(strindex), &
+                     link%target%units,trim(reference%name)//' bottom state variable '//trim(strindex))
+                  call self%request_coupling_to_model(reference%id%bottom_state(n),reference%id,link%name)
+               case (domain_surface)
+                  call self%register_state_dependency(reference%id%surface_state(n),trim(reference%name)//'_surface_state'//trim(strindex), &
+                     link%target%units,trim(reference%name)//' surface state variable '//trim(strindex))
+                  call self%request_coupling_to_model(reference%id%surface_state(n),reference%id,link%name)
+            end select
+         end if
+         link => link%next
       end do
 
    end subroutine build_state_id_list
