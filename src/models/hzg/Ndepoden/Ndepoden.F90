@@ -34,8 +34,9 @@
       type (type_dependency_id)            :: id_depth, id_temp!,id_peldenit_dep !id_totNpel
       type (type_horizontal_dependency_id) :: id_deporate_dep!, id_denitrate_dep ! id_intpeldenit_dep, id_totNpel
 !     Model parameters:
-      real(rk) :: Ntot0,Ndef0,const_det,rq10,T_ref,PON_denit,denit,depocoef
+      real(rk) :: Ntot0,Ndef0,const_det,rq10,T_ref,PON_denit,denit,depocoef,depoconst
       logical  :: use_det,NdepodenitON,Ndef_dyn
+      integer  :: depometh
       
       !     Model procedures
       contains
@@ -73,10 +74,10 @@
 ! !LOCAL VARIABLES:
    character(len=64)         :: pelagic_detritus_variable='',pelagic_nutrient_variable=''
    logical                   :: NdepodenitON=.true., Ndef_dyn=.true.
-   real(rk)                  :: Ntot0=100.,Ndef0=5.,const_det=10.,rq10=2.,T_ref=288.,PON_denit=5.,denit=0.024,depocoef=4.0
-   
+   real(rk)                  :: Ntot0=100.,Ndef0=5.,const_det=10.,rq10=2.,T_ref=288.,PON_denit=5.,denit=0.024,depocoef=4.0,depoconst=0.1
+   integer                   :: depometh=1
    real(rk), parameter :: secs_pr_day = 86400.
-   namelist /hzg_Ndepoden/  pelagic_detritus_variable,pelagic_nutrient_variable,Ntot0,Ndef0,NdepodenitON,const_det,rq10,T_ref,PON_denit,denit,depocoef
+   namelist /hzg_Ndepoden/  pelagic_detritus_variable,pelagic_nutrient_variable,Ntot0,Ndef0,NdepodenitON,const_det,rq10,T_ref,PON_denit,denit,depocoef,depoconst,depometh
                                     
 !EOP
 !-----------------------------------------------------------------------
@@ -96,6 +97,8 @@
    call self%get_parameter(self%PON_denit,       'PON_denit',      default=PON_denit)
    call self%get_parameter(self%denit,          'denit',         default=denit, scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%depocoef,       'depocoef',      default=depocoef)
+   call self%get_parameter(self%depoconst,       'depoconst',      default=depoconst, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%depometh,       'depometh',      default=depometh)
    
    ! Register link to external pelagic detritus  pool, if specified
    self%use_det = pelagic_detritus_variable/=''
@@ -153,8 +156,8 @@
 
 
 !-----------------------------------------------------------------------
-! Nitrogen defficiency, Ndef calculated as a 0-D dynamic variable 
-! 
+! Denitirifiation at the bottom layer,
+! keep Nitrogen defficiency, Ndef calculated as a 0-D dynamic variable 
    subroutine do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
 !
 ! !INPUT PARAMETERS:
@@ -192,21 +195,23 @@
         _SET_BOTTOM_EXCHANGE_(self%id_nut_pel,-denitrate)
      end if 
      
+     !if (self%depofromdenit) then
      ! Calculate N-defficiency as a dynamic state variable, where Ndef/dt= denitrate-deporate
      !we know the denitrate, we need to retrieve the deporate:
+     !!! THIS DOESN'T WORK PROPERLY IN GETM, AS THE DO_SURFACE IS CALLED AFTER DO_BOTTOM, 
+     !!! SO THE DEPORATE IS NOT UPDATED FOR THE CURRENT LATERAL NODE.
      _GET_HORIZONTAL_(self%id_deporate_dep, deporate) !mmol/m2/d
      
      ! water column integrated denitrification rate
      !retreiving the integrated values of dependencies is not supported yet
      !_GET_HORIZONTAL_(self%id_intpeldenit_dep,peldenit_vertint) !mmol/m2/d
      !denitrate_verint=0.0_rk !mmol/m2/d
-     
      !this should work too, but somehow it doesn't:
      !denitrate_vertint= vertical_dependency_integral(self%id_peldenit_dep)
      
      ! difference give the rate of change in Ndef
      _SET_ODE_BEN_(self%id_Ndef, denitrate - deporate/secs_pr_day)!mmol/m2/s
-
+     !end if
    end if 
 
 #if DEBUG   
@@ -228,8 +233,8 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: atmospheric deposition through pelagic-surface exchanges 
-!
+! atmospheric deposition through pelagic-surface exchanges 
+! 
 ! !INTERFACE:
    subroutine do_surface(self,_ARGUMENTS_DO_SURFACE_)
 !
@@ -238,7 +243,7 @@
    _DECLARE_ARGUMENTS_DO_SURFACE_
 !
 ! !LOCAL VARIABLES:
-   real(rk)                   :: Ndef,totN,det_pel,rhs_nutpel,f_T,temp
+   real(rk)                   :: Ndef,totN,det_pel,deporate,f_T,temp
    real(rk), parameter        :: secs_pr_day = 86400.
 !EOP
 !-----------------------------------------------------------------------
@@ -249,38 +254,41 @@
     ! if needed, calculate the N-deposition rate
     if (self%NdepodenitON) then
      
-     !find the N deficit
-     if (self%Ndef_dyn) then
-       ! as  a dynamicaly calculated variable
-       _GET_HORIZONTAL_(self%id_Ndef,Ndef) ! predator density - benthic
-     else 
-       ! as the difference between the initial state and the current state
-       !_GET_(self%id_totNpel, totN)  ! water temperature
-       !Ndef=self%totNini-totN
-     end if
-     
      _GET_(self%id_temp, temp) !is this surface temperature? do we really need the surface temperature?
      !temp=15.0d0
      f_T=f_temp(self,temp + 273.d0)
-
-     rhs_nutpel=deposit(self,f_T,Ndef)  
+     
+     if (self%depometh .eq. 1) then
+       deporate=self%depoconst
+     else if (self%depometh .eq. 2) then
+       !find the N deficit
+       ! as  a dynamicaly calculated variable
+       _GET_HORIZONTAL_(self%id_Ndef,Ndef) 
+       deporate=deposit(self,f_T,Ndef)   
+     else if (self%depometh .eq. 3) then
+         ! as the difference between the initial state and the current state
+         !_GET_(self%id_totNpel, totN)  ! water temperature
+         !Ndef=self%totNini-totN  
+     end if
+     
+       
 
 #if DEBUG     
-     write (*,'(A,4(F10.5))') '(@do_surface) temp,f_T,Ndef,depo.rate: ', temp,f_T,Ndef,rhs_nutpel*secs_pr_day
+     write (*,'(A,4(F10.5))') '(@do_surface) temp,f_T,Ndef,depo.rate: ', temp,f_T,Ndef,deporate*secs_pr_day
 #endif
 
-   else
-      rhs_nutpel = 0.0_rk
-   endif 
+     else
+        deporate = 0.0_rk
+     endif 
 
     
-   ! Set the surface flux of the pelagic nutrient variable
-   if (self%use_det) then
-     _SET_SURFACE_EXCHANGE_(self%id_nut_pel,rhs_nutpel)
-   end if 
+     ! Set the surface flux of the pelagic nutrient variable
+     if (self%use_det) then
+       _SET_SURFACE_EXCHANGE_(self%id_nut_pel,deporate)
+     end if 
 
-   ! save deposition rate as a diagnostic
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_deporate,rhs_nutpel*secs_pr_day) !mmol/m2/d
+     ! save deposition rate as a diagnostic
+     _SET_HORIZONTAL_DIAGNOSTIC_(self%id_deporate,deporate*secs_pr_day) !mmol/m2/d
 
 
    ! Leave spatial loops over the horizontal domain (if any).
@@ -309,31 +317,32 @@
 !BOC
    ! Enter spatial loops (if any)
    _LOOP_BEGIN_
+  
+!  !applies pelagic denitrification
+!     !to check whether it really loops over the spatial domain
+!     _GET_(self%id_depth,depth)  !CHECK THIS        
+!     
+!     if (self%NdepodenitON) then
+!       
+!       !use the dynamic pelagic detritus concentrations or some constant
+!       if (self%use_det) then
+!         _GET_(self%id_det_pel,det_pel)      ! detritus concentration - pelagic
+!       else
+!         det_pel = self%const_det            ! no coupling - constant pelagic detritus concentration
+!       end if
+!       
+!       _GET_(self%id_temp, temp)
+!       f_T=f_temp(self,temp + 273.d0)
+!       
+!       rhs_detpel=denitrify(self,det_pel,f_T)
 
-    !to check whether it really loops over the spatial domain
-    _GET_(self%id_depth,depth)  !CHECK THIS        
-    
-    if (self%NdepodenitON) then
-      
-      !use the dynamic pelagic detritus concentrations or some constant
-      if (self%use_det) then
-        _GET_(self%id_det_pel,det_pel)      ! detritus concentration - pelagic
-      else
-        det_pel = self%const_det            ! no coupling - constant pelagic detritus concentration
-      end if
-      
-      _GET_(self%id_temp, temp)
-      f_T=f_temp(self,temp + 273.d0)
-      
-      rhs_detpel=denitrify(self,det_pel,f_T)
+! !#if DEBUG       
+!       write (*,'(A,5(F10.5))') '(@do) z,temp,f_T, det_pel,denit.rate:',depth, temp,f_T, det_pel, rhs_detpel*secs_pr_day
+! !#endif
 
-!#if DEBUG       
-      write (*,'(A,5(F10.5))') '(@do) z,temp,f_T, det_pel,denit.rate:',depth, temp,f_T, det_pel, rhs_detpel*secs_pr_day
-!#endif
-
-    else
-      rhs_detpel = 0.0_rk
-    endif 
+!     else
+!       rhs_detpel = 0.0_rk
+!     endif 
     
     !set the exchange rate 
     !_SET_ODE_(self%id_det_pel,-rhs_detpel)
@@ -358,7 +367,8 @@ pure real(rk) function denitrify(self,det_pel,f_T)
    !original code from Kai:
    !denitrate = self%denit * 4 * sens%f_T * (1.0d0 - exp(-det%N/self%PON_denit)) * det%N
 
-   denitrify = self%denit * 4 * f_T * (1.0d0 - exp(-det_pel/self%PON_denit)) * det_pel
+   !denitrify = self%denit * 4 * f_T * (1.0d0 - exp(-det_pel/self%PON_denit)) * det_pel
+   denitrify = self%denit * 4 * f_T * (1.0d0 - exp(-det_pel/self%PON_denit)) * det_pel*det_pel
  end function denitrify
  !-----------------------------------------------------------------------
  
