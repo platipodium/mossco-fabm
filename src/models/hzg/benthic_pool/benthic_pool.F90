@@ -135,7 +135,7 @@ diff,v_d,d_ben,const_nut,const_det,remin_const,remin_max,k_remin,do_sat_remin!,g
    call self%register_diagnostic_variable(self%id_ddiff,'nutdif','mmol/m**2/d',  'nut_diff_flux',                  &
                      output=output_time_step_averaged)
    call self%register_diagnostic_variable(self%id_dremin,'detrem','mmol/m**2/d',  'det_remin_rate',                 &
-                     output=output_time_step_averaged)
+                     output=output_instantaneous) !output_time_step_averaged)
    call self%register_diagnostic_variable(self%id_drhsdet,'ddet','mmol/m**2/d',  'det_RHS',                          &
                      output=output_time_step_averaged)
    call self%register_diagnostic_variable(self%id_drhsnut,'dnut','mmol/m**2/d',  'nut_RHS',                          &

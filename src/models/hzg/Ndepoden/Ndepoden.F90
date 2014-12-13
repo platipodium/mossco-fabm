@@ -33,10 +33,11 @@
       type (type_horizontal_diagnostic_variable_id)   :: id_dNdef, id_deporate,id_denitrate
       type (type_dependency_id)            :: id_depth, id_temp!,id_peldenit_dep !id_totNpel
       type (type_horizontal_dependency_id) :: id_deporate_dep!, id_denitrate_dep ! id_intpeldenit_dep, id_totNpel
+      type (type_horizontal_dependency_id) :: id_bendetrem
 !     Model parameters:
       real(rk) :: Ntot0,Ndef0,const_det,rq10,T_ref,PON_denit,denit,depocoef,depoconst
       logical  :: use_det,NdepodenitON,Ndef_dyn
-      integer  :: depometh
+      integer  :: depometh,denitmeth
       
       !     Model procedures
       contains
@@ -72,12 +73,12 @@
 !  Original author(s): Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-   character(len=64)         :: pelagic_detritus_variable='',pelagic_nutrient_variable=''
+   character(len=64)         :: pelagic_detritus_variable='',pelagic_nutrient_variable='',benthic_detrem_variable=''
    logical                   :: NdepodenitON=.true., Ndef_dyn=.true.
    real(rk)                  :: Ntot0=100.,Ndef0=5.,const_det=10.,rq10=2.,T_ref=288.,PON_denit=5.,denit=0.024,depocoef=4.0,depoconst=0.1
-   integer                   :: depometh=1
+   integer                   :: depometh=1, denitmeth=1
    real(rk), parameter :: secs_pr_day = 86400.
-   namelist /hzg_Ndepoden/  pelagic_detritus_variable,pelagic_nutrient_variable,Ntot0,Ndef0,NdepodenitON,const_det,rq10,T_ref,PON_denit,denit,depocoef,depoconst,depometh
+   namelist /hzg_Ndepoden/  pelagic_detritus_variable,pelagic_nutrient_variable,benthic_detrem_variable,Ntot0,Ndef0,NdepodenitON,const_det,rq10,T_ref,PON_denit,denit,denitmeth,depocoef,depoconst,depometh
                                     
 !EOP
 !-----------------------------------------------------------------------
@@ -99,29 +100,34 @@
    call self%get_parameter(self%depocoef,       'depocoef',      default=depocoef)
    call self%get_parameter(self%depoconst,       'depoconst',      default=depoconst, scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%depometh,       'depometh',      default=depometh)
+   call self%get_parameter(self%denitmeth,       'denitmeth',      default=denitmeth)
    
+   ! if (self%NdepodenitON) 
    ! Register link to external pelagic detritus  pool, if specified
    self%use_det = pelagic_detritus_variable/=''
    if (self%use_det) call self%register_state_dependency(self%id_det_pel,pelagic_detritus_variable)    
-   if (self%NdepodenitON) call self%register_state_dependency(self%id_nut_pel,pelagic_nutrient_variable)
+   
+   call self%register_state_dependency(self%id_nut_pel,pelagic_nutrient_variable)
    
    
    ! Register state variables
    !? NOTE the benthic=.true. argument, which specifies the variable is benthic.
-   call self%register_bottom_state_variable(self%id_Ndef,'Ndef','mmol/m**2','N deficit', &
-                                          Ndef0,minimum=0.0_rk)
+   call self%register_bottom_state_variable(self%id_Ndef,'Ndef','mmol/m**2',& 
+					  'N deficit', Ndef0,minimum=0.0_rk)
+   
    
    !Register diagnostic variables:
+   call self%register_horizontal_diagnostic_variable(self%id_dNdef,   'dNdef','mmol/m**2/d', & 
+				  'change in N deficit', output=output_time_step_averaged)
+				  
+   call self%register_horizontal_diagnostic_variable (self%id_deporate, 'deporate','mmol/m**2/d', & 
+				  'surface deposition rate', output=output_time_step_averaged) 
    
-   call self%register_horizontal_diagnostic_variable (self%id_dNdef, 'dNdef','mmol/m**3/d', 'change in N deficit', &
-                                          output=output_time_step_averaged) 
+   call self%register_horizontal_diagnostic_variable(self%id_denitrate,   'denitrate','mmol/m**2/d', & 
+				  'bottom denitrification rate', output=output_time_step_averaged) 
    
-   call self%register_horizontal_diagnostic_variable (self%id_deporate, 'deporate','mmol/m**3/d', 'surface deposition rate', &
-                                          output=output_time_step_averaged) 
+    
    
-   call self%register_horizontal_diagnostic_variable(self%id_denitrate,   'denitrate','mmol/m**2/d', 'bottom denitrification rate', &
-                                          output=output_time_step_averaged) 
-                                          
    !call self%register_diagnostic_variable(self%id_peldenit,   'denitrate','mmol/m**3/d', 'bulk pelagic denitrification rate', &
    !                                       output=output_time_step_averaged) 
    
@@ -133,6 +139,11 @@
 
    ! in order to be able to calculate the dNdef=total(denitrate)-deporate, we need to 
    call self%register_horizontal_dependency(self%id_deporate_dep,'deporate') !,required=.false.
+   
+   if (self%denitmeth .eq. 3) then
+   call self%register_horizontal_dependency(self%id_bendetrem,benthic_detrem_variable) !,'hzg_benthic_pool01_detrem' required=.false.
+   end if
+   
    !call self%register_horizontal_dependency(self%id_denitrate_dep,'hzg_Ndepoden_denitrate') !,required=.false.
    
    !register the bulk pelagic denitrification as a bulk dependency
@@ -167,7 +178,7 @@
 !
 ! !LOCAL VARIABLES:
    real(rk)                   :: deporate, denitrate !_vertint
-   real(rk)                   :: temp, f_T, det_pel
+   real(rk)                   :: temp, f_T, det_pel,bendetrem
    real(rk), parameter        :: secs_pr_day = 86400.
 !EOP
 !-----------------------------------------------------------------------
@@ -175,20 +186,31 @@
    ! Enter spatial loops over the horizontal domain (if any).
    _HORIZONTAL_LOOP_BEGIN_
     
-
+   !if do Denitrification at the bottom
    if (self%NdepodenitON) then
-          
-     !Denitrification at the bottom
+     
+     _GET_(self%id_temp, temp)
+     f_T=f_temp(self,temp + 273.d0)
+     
+     !pelagic detritus concentration will be required for all methods
      if (self%use_det) then
        _GET_(self%id_det_pel,det_pel)      ! detritus concentration at the bottom (?)
      else
        det_pel = self%const_det            ! no coupling - constant pelagic detritus concentration
      end if
       
-     _GET_(self%id_temp, temp)
-     f_T=f_temp(self,temp + 273.d0)
-      
-     denitrate=denitrify(self,det_pel,f_T) !mmol/m2/s
+     
+     
+     if (self%denitmeth .eq. 1) then
+       denitrate = self%denit * 4 * f_T * (1.0d0 - exp(-det_pel/self%PON_denit)) * det_pel
+     else if (self%denitmeth .eq. 2) then
+       !denitrate=denitrify(self,det_pel,f_T) !mmol/m2/s
+       denitrate = self%denit * 4 * f_T * (1.0d0 - exp(-det_pel/self%PON_denit)) * det_pel*det_pel
+     else if (self%denitmeth .eq. 3) then
+       _GET_HORIZONTAL_(self%id_bendetrem, bendetrem) !mmolN/m2/d
+       denitrate=bendetrem/secs_pr_day   *6.625       * 1         * 0.116
+		 !mmolN/m2/d *d/s        * molC/molN  * molO/molC * molNdenitrified/molOconsumed (Seitzinger & Giblin,1996)       
+     end if 
      
      ! Set the surface flux of the pelagic nutrient variable, if coupled
      if (self%use_det) then
