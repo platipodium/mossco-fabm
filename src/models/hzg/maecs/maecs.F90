@@ -27,6 +27,7 @@ type,extends(type_maecs_base_model),public :: type_hzg_maecs
  contains
   procedure :: initialize 
   procedure :: do => maecs_do
+  procedure :: do_surface => maecs_do_surface
   procedure :: get_light_extinction
   procedure :: get_vertical_movement=>maecs_get_vertical_movement
 end type type_hzg_maecs
@@ -586,6 +587,11 @@ call self%register_dependency(self%id_temp,standard_variables%temperature)
 call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
 call self%register_horizontal_dependency(self%id_zmax,standard_variables%bottom_depth)
 call self%register_global_dependency(self%id_doy,standard_variables%number_of_days_since_start_of_the_year)
+
+!call self%register_dependency(self%id_totnutN,standard_variables%total_nitrogen)
+call self%register_dependency(self%id_totnutN,standard_variables%temperature)
+call self%register_dependency(self%id_totnutN_vertmean,vertical_mean(self%id_totnutN))
+call self%register_diagnostic_variable(self%id_totnutN_vertmean_diag, 'totnutN_vertmean','mmol-N/m**2','vertical mean total dissolved Nitrogen')
 
 ! extra line included from parser var init_incl 
 call maecs_init_stoichvars(self)

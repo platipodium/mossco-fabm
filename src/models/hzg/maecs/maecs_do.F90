@@ -573,3 +573,18 @@ _FABM_LOOP_BEGIN_
 _FABM_LOOP_END_
   
 end subroutine maecs_get_vertical_movement
+
+subroutine maecs_do_surface(self,_ARGUMENTS_DO_SURFACE_)
+
+   class (type_hzg_maecs), intent(in) :: self
+   _DECLARE_ARGUMENTS_DO_SURFACE_
+
+   real(rk) :: totnutN
+
+   _HORIZONTAL_LOOP_BEGIN_
+      _GET_HORIZONTAL_(self%id_totnutN_vertmean,totnutN)
+      _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totnutN_vertmean_diag,totnutN)
+   _HORIZONTAL_LOOP_END_
+
+end subroutine maecs_do_surface
+   
