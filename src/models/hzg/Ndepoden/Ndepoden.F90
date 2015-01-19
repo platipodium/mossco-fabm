@@ -178,7 +178,7 @@
 !
 ! !LOCAL VARIABLES:
    real(rk)                   :: deporate, denitrate !_vertint
-   real(rk)                   :: temp, f_T, det_pel,bendetrem
+   real(rk)                   :: temp, f_T, det_pel,nut_pel,bendetrem,denitrilim
    real(rk), parameter        :: secs_pr_day = 86400.
 !EOP
 !-----------------------------------------------------------------------
@@ -209,7 +209,15 @@
      else if (self%denitmeth .eq. 3) then
        _GET_HORIZONTAL_(self%id_bendetrem, bendetrem) !mmolN/m2/d
        denitrate=bendetrem/secs_pr_day   *6.625       * 1         * 0.116
-		 !mmolN/m2/d *d/s        * molC/molN  * molO/molC * molNdenitrified/molOconsumed (Seitzinger & Giblin,1996)       
+		 !mmolN/m2/d *d/s        * molC/molN  * molO/molC * molNdenitrified/molOconsumed (Seitzinger & Giblin,1996) 
+     else if (self%denitmeth .eq. 4) then
+       _GET_(self%id_nut_pel,nut_pel)      ! detritus concentration at the bottom (?)
+       !this is how omexdia calculates:
+       !Denitrilim = (1.0_rk-oxy/(oxy+self%kinO2denit)) * NO3/(no3+self%ksNO3denit)
+       !Denitrific = (self%rFast * fdet + self%rSlow * sdet)*Denitrilim*Rescale        ! Denitrification
+       denitrilim = (1.0d0 - exp(-det_pel/self%PON_denit)) * nut_pel/(nut_pel+self%PON_denit)
+       denitrate= bendetrem/secs_pr_day   *6.625       * 1         * 0.116 * denitrilim
+                  !mmolN/m2/d *d/s        * molC/molN  * molO/molC * molNdenitrified/molOconsumed (Seitzinger & Giblin,1996) 
      end if 
      
      ! Set the surface flux of the pelagic nutrient variable, if coupled
