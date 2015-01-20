@@ -34,9 +34,9 @@ type (type_maecs_nutindex) :: nutind
 !!----------------------------------------------------------------------
 ! standard fabm model types
 type (type_state_variable_id)        :: id_RNit,id_nutN,id_nutP,id_nutS,id_phyC,id_phyN,id_phyP,id_phyS,id_zooC,id_detC,id_detN,id_detP,id_detS,id_domC,id_domN,id_domP,id_Rub,id_chl
-type (type_dependency_id)            :: id_temp,id_par,id_totnutN
-type (type_horizontal_dependency_id) :: id_zmax,id_totnutN_vertmean
-type (type_horizontal_diagnostic_variable_id) :: id_totnutN_vertmean_diag
+type (type_dependency_id)            :: id_temp,id_par,id_totC,id_totN,id_totP,id_totS
+type (type_horizontal_dependency_id) :: id_zmax,id_totC_vertmean,id_totN_vertmean,id_totP_vertmean,id_totS_vertmean
+type (type_horizontal_diagnostic_variable_id) :: id_totC_vertmean_diag,id_totN_vertmean_diag,id_totP_vertmean_diag,id_totS_vertmean_diag
 type (type_global_dependency_id)     :: id_doy
 type (type_diagnostic_variable_id)   :: id_chl2C, id_fracR, id_fracT, id_Theta, id_fracNU, id_QN, id_QP, id_aVN, id_aVP, id_aVSi, id_faN, id_faP, id_faSi, id_rQSi, id_tmp, id_fac1, id_fac2, id_fac3, id_fac4, id_fac5, id_dPAR, id_phyUR, id_phyELR, id_phyALR, id_phyGLR, id_vsinkr
 real(rk) ::  RNit_initial, nutN_initial, nutP_initial, nutS_initial, phyC_initial, phyN_initial, phyP_initial, phyS_initial, zooC_initial, detC_initial, detN_initial, detP_initial, detS_initial, domC_initial, domN_initial, domP_initial, frac_Rub_ini, frac_chl_ini

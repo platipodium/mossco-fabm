@@ -476,6 +476,15 @@ call self%register_state_variable(self%id_domN,  'domN','mmol-N/m**3','Dissolved
    domN_initial, minimum=_ZERO_, no_river_dilution=.true. )
 call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_domN)
 
+!register vertical-mean total carbon
+call self%register_dependency(self%id_totC,standard_variables%total_carbon)
+call self%register_dependency(self%id_totC_vertmean,vertical_mean(self%id_totC))
+call self%register_diagnostic_variable(self%id_totC_vertmean_diag, 'totC_vertmean','mmol-C/m**3','vertical mean total carbon')
+!register vertical-mean total nitrogen
+call self%register_dependency(self%id_totN,standard_variables%total_nitrogen)
+call self%register_dependency(self%id_totN_vertmean,vertical_mean(self%id_totN))
+call self%register_diagnostic_variable(self%id_totN_vertmean_diag, 'totN_vertmean','mmol-N/m**3','vertical mean total nitrogen')
+
 if (RubiscoOn) then
     Rub = frac_Rub_ini * phyC_initial  ! trait times biomass
     call self%register_state_variable(self%id_Rub,   'Rub','-','Rub-C_concentration Rub', &
@@ -501,6 +510,12 @@ if (PhosphorusOn) then
     call self%register_state_variable(self%id_domP,  'domP','mmol-P/m**3','Dissolved Organic Phosphorus', &
        domP_initial, minimum=_ZERO_, no_river_dilution=.true. )
     call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_domP)
+    
+    !register vertical-mean total phosphorus
+    call self%register_dependency(self%id_totP,standard_variables%total_phosphorus)
+    call self%register_dependency(self%id_totP_vertmean,vertical_mean(self%id_totP))
+    call self%register_diagnostic_variable(self%id_totP_vertmean_diag, 'totP_vertmean','mmol-N/m**3','vertical mean total phosphorus')
+
 end if
 
 if (SiliconOn) then
@@ -513,6 +528,12 @@ if (SiliconOn) then
     call self%register_state_variable(self%id_detS,  'detS','mmol-Si/m**3','Detritus Silico', &
        detS_initial, minimum=_ZERO_, no_river_dilution=detritus_no_river_dilution )
     call self%add_to_aggregate_variable(standard_variables%total_silicate,self%id_detS)
+    
+    !register vertical-mean total silicate
+    call self%register_dependency(self%id_totS,standard_variables%total_silicate)
+    call self%register_dependency(self%id_totS_vertmean,vertical_mean(self%id_totS))
+    call self%register_diagnostic_variable(self%id_totS_vertmean_diag, 'totS_vertmean','mmol-N/m**3','vertical mean total silicate')
+
 end if
 
 if (GrazingOn) then
@@ -587,11 +608,6 @@ call self%register_dependency(self%id_temp,standard_variables%temperature)
 call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
 call self%register_horizontal_dependency(self%id_zmax,standard_variables%bottom_depth)
 call self%register_global_dependency(self%id_doy,standard_variables%number_of_days_since_start_of_the_year)
-
-call self%register_dependency(self%id_totnutN,standard_variables%total_nitrogen)
-!call self%register_dependency(self%id_totnutN,standard_variables%temperature)
-call self%register_dependency(self%id_totnutN_vertmean,vertical_mean(self%id_totnutN))
-call self%register_diagnostic_variable(self%id_totnutN_vertmean_diag, 'totnutN_vertmean','mmol-N/m**2','vertical mean total dissolved Nitrogen')
 
 ! extra line included from parser var init_incl 
 call maecs_init_stoichvars(self)

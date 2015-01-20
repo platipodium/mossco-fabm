@@ -579,11 +579,21 @@ subroutine maecs_do_surface(self,_ARGUMENTS_DO_SURFACE_)
    class (type_hzg_maecs), intent(in) :: self
    _DECLARE_ARGUMENTS_DO_SURFACE_
 
-   real(rk) :: totnutN
+   real(rk) :: tot_vm_N,tot_vm_P,tot_vm_S
 
    _HORIZONTAL_LOOP_BEGIN_
-      _GET_HORIZONTAL_(self%id_totnutN_vertmean,totnutN)
-      _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totnutN_vertmean_diag,totnutN)
+      _GET_HORIZONTAL_(self%id_totN_vertmean,tot_vm_N)
+      _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totN_vertmean_diag,tot_vm_N)
+      _GET_HORIZONTAL_(self%id_totC_vertmean,tot_vm_C)
+      _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totC_vertmean_diag,tot_vm_C)
+      if (self%PhosphorusOn) then
+         _GET_HORIZONTAL_(self%id_totP_vertmean,tot_vm_P)
+         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totP_vertmean_diag,tot_vm_P)
+      end if
+      if (self%SiliconOn) then
+         _GET_HORIZONTAL_(self%id_totS_vertmean,tot_vm_S)
+         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totS_vertmean_diag,tot_vm_S)
+      end if
    _HORIZONTAL_LOOP_END_
 
 end subroutine maecs_do_surface
