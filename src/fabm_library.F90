@@ -12,19 +12,21 @@
    use fabm_types, only: type_base_model_factory, type_base_model, factory
 
    use fabm_builtin_models
-   !use aed_models
-   !use bb_model_library
+!  Add additional external modules containing models or model factories here
+!  please in alphabetically order
+   use aed_models
+   use bb_model_library
    use examples_model_library
+   use fabm_metu_mnemiopsis
+   use fabm_pml_carbonate
+   use fabm_klimacampus_phy_feedback
+   use fabm_hzg_omexdia_p
+   use fabm_msi_ergom1
    use gotm_model_library
    use iow_model_library
-   !use niva_model_library
-   !use fabm_metu_mnemiopsis
-   !use fabm_pml_carbonate
-   !use au_prey_predator
-   !use fabm_klimacampus_phy_feedback
-   use fabm_hzg_omexdia_p   
-   !use fabm_msi_ergom1
-   ! Add additional external modules containing models or model factories here
+   use niva_model_library
+   use pclake_model_library
+   use au_pclake_model_library
    use fabm_iow_spm_old
    use fabm_hzg_maecs
    use fabm_hzg_jelly
@@ -32,6 +34,7 @@
    use fabm_hzg_benthic_pool
    use fabm_hzg_omexdia_p_mpb
    use fabm_hzg_Ndepoden
+
    implicit none
 
    private
@@ -53,14 +56,15 @@
          allocate(type_model_factory::factory)
 
          call factory%add(builtin_factory)
-         ! call factory%add(aed_model_factory)
-         ! call factory%add(bb_model_factory)
+         call factory%add(aed_model_factory)
+         call factory%add(bb_model_factory)
          call factory%add(examples_model_factory)
          call factory%add(gotm_model_factory)
          call factory%add(iow_model_factory)
-         ! call factory%add(niva_model_factory)
+         call factory%add(niva_model_factory)
          ! Add new additional model factories here
-
+         call factory%add(pclake_model_factory)
+         call factory%add(au_pclake_model_factory)
       end if
    end subroutine
 !-----------------------------------------------------------------------
@@ -83,11 +87,11 @@
 
       select case (name)
          !case ('au_prey_predator');          allocate(type_au_prey_predator::model)
-         !case ('metu_mnemiopsis');           allocate(type_metu_mnemiopsis::model)
-         !case ('pml_carbonate');             allocate(type_pml_carbonate::model)
-         !case ('klimacampus_phy_feedback');  allocate(type_klimacampus_phy_feedback::model)
+         case ('metu_mnemiopsis');           allocate(type_metu_mnemiopsis::model)
+         case ('pml_carbonate');             allocate(type_pml_carbonate::model)
+         case ('klimacampus_phy_feedback');  allocate(type_klimacampus_phy_feedback::model)
          case ('hzg_omexdia_p');             allocate(type_hzg_omexdia_p::model)
-         !case ('msi_ergom1');                allocate(type_msi_ergom1::model) 
+         case ('msi_ergom1');                allocate(type_msi_ergom1::model)
          ! Add additional individual models here
          case ('iow_spm_old');                   allocate(type_iow_spm_old::model)
          case ('hzg_maecs');                 allocate(type_hzg_maecs::model)

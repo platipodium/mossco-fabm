@@ -588,8 +588,8 @@ call self%register_dependency(self%id_par,standard_variables%downwelling_photosy
 call self%register_horizontal_dependency(self%id_zmax,standard_variables%bottom_depth)
 call self%register_global_dependency(self%id_doy,standard_variables%number_of_days_since_start_of_the_year)
 
-!call self%register_dependency(self%id_totnutN,standard_variables%total_nitrogen)
-call self%register_dependency(self%id_totnutN,standard_variables%temperature)
+call self%register_dependency(self%id_totnutN,standard_variables%total_nitrogen)
+!call self%register_dependency(self%id_totnutN,standard_variables%temperature)
 call self%register_dependency(self%id_totnutN_vertmean,vertical_mean(self%id_totnutN))
 call self%register_diagnostic_variable(self%id_totnutN_vertmean_diag, 'totnutN_vertmean','mmol-N/m**2','vertical mean total dissolved Nitrogen')
 
