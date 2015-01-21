@@ -572,7 +572,7 @@ endif
 !***!
 !  sr      = 0.1*exp(-(self%lA-lmsize(3))**2/(2*sigma2(3))) * 
   sr      = 1*exp(-(self%lA-lmsize(3))**2/(2*sigma2(3))) * mass3
-  sr      = sr + 2.*exp(-(self%lA-lmsize(3)*2)**2/(2*sigma2(3))) * var(ib)%B_Det
+!  sr      = sr + 2.*exp(-(self%lA-lmsize(3)*2)**2/(2*sigma2(3))) * var(ib)%B_Det
   detect  = (mass(1)+mass(2)+sr)/self%mDisturb !*exp(lmsize(i)-lopt(i))
 !  detect  = (mass(1)+mass(2)+exp(-1.5d0*(self%lA-0.)**2)*var(ib)%B_Det)/self%mDisturb !*exp(lmsize(i)-lopt(i))
 !   detect  = 2.0d0/(1.0d0+exp(detect))
