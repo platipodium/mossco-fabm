@@ -504,7 +504,7 @@ endif
 ! set coefficient vectors over prey populations:  1: Beroe 2: Ppileus  3: Cops
   lmsize(1) = var(ib)%l_Be  ! mean body size of population
   lmsize(2) = var(ib)%l_Pp  ! 
-  lmsize(3) = -0.8d0        ! small copepods dominate. ! TODO: include as forcing 
+  lmsize(3) = -0.6d0        ! small copepods dominate. ! TODO: include as forcing 
   sigma2(3) = 0.8d0         ! log-size variance of mesozooplakton
   mass(1)   = var(ib)%B_Be  ! biomass concentration
   mass(2)   = var(ib)%B_Pp
@@ -553,7 +553,7 @@ endif
 !  lopt(3)  = (-2.0-self%l0)/(self%lA-self%l0)
 !  loptm(3)  = lopt(3)
 !  Imax(3)   = 1.0d0
-  Temp_dep(3) = f_temp(self%Q10+0.0d0, tempp, 0.0d0)
+  Temp_dep(3) = f_temp(self%Q10+1.0d0, tempp, 0.0d0)
 
 ! re-gauge coefficient to apply  Imax-scaling of Wirtz JPR,2012 
 !    log(1E3/80) converts from log(micro-m) to log(mm) but accounts for much lower C-density
@@ -570,8 +570,8 @@ endif
 !  if(mass3 .gt. 175.) mass3 = 175.0d0
 
 !***!
-!  sr      = 0.1*exp(-(self%lA-lmsize(3))**2/(2*sigma2(3))) * 
-  sr      = 1*exp(-(self%lA-lmsize(3))**2/(2*sigma2(3))) * mass3
+!  sr      = 0.*exp(-(lmsize(1)-lmsize(3))**2/(2*sigma2(3))) * mass3
+  sr      = 1.*exp(-(self%lA-lmsize(3))**2/(2*sigma2(3))) * mass3
 !  sr      = sr + 2.*exp(-(self%lA-lmsize(3)*2)**2/(2*sigma2(3))) * var(ib)%B_Det
   detect  = (mass(1)+mass(2)+sr)/self%mDisturb !*exp(lmsize(i)-lopt(i))
 !  detect  = (mass(1)+mass(2)+exp(-1.5d0*(self%lA-0.)**2)*var(ib)%B_Det)/self%mDisturb !*exp(lmsize(i)-lopt(i))
@@ -644,8 +644,8 @@ endif
 
 ! Dekinga2007/Kraan2008: 16 (1970) - 56 (2005) gAFDW/m2 Wadden Sea
 ! representtive for entire SNS :Heip1992  /16m *0.5 -> 1000 mgC/m3 
-  mass_sum= (mben + 1*var(ib)%B_Det) 
-  mass_sum= (mass_sum+ mass(1)+ mass(2)+ mass3 + var(ib)%Phy )*exp(ft-1)
+  mass_sum= (0*mben + 1000.0 + 1*var(ib)%B_Det) 
+  mass_sum= (mass_sum+ mass(1)+ mass(2)+ mass3 + var(ib)%Phy )*exp(-ft2)!*exp(ft-1)
 !  mass_sum= mass_sum  + 1*var(ib)%Phy !5*self%fTDmort*
 !   starv    = exp(ft-argA)!self%yield *
 
@@ -674,7 +674,7 @@ endif
     m_host(i) = mass(i) + fLc(i)*mass3
 !    m_host(i) = mass(1) +mass(2) + fLc(i)*mass3
 
-    sr        = self%rParasite !* paras(i)
+    sr        = self%rParasite * paras(i)
 ! quadratic parasite mortality 
     ft2       = var(ib)%B_Det/self%m_pcap
     bcrit     = Temp_dep(3) *m_host(i)/self%m_pcap * ft2
@@ -723,7 +723,7 @@ endif
 !   bcrit   = fLc(i)*var(ib)%B_Det
 !   bcrit   = 0.55*(paras(i) + fLc(i)*paras(2))
 !***!
-   mort_P(i)  = self%mP * Temp_dep(i) *(no_age+pS(i)) *bcrit ! * 4.0d0/(4.0d0+self%mP * bcrit)
+   mort_P(i)  = self%mP * Temp_dep(3) *(no_age+pS(i)) *bcrit ! * 4.0d0/(4.0d0+self%mP * bcrit)
 ! if (mort_P(i) .gt. 3.0d0 ) write (*,'(A,1(I2),3(F14.3))') 'mp=',i,paras(i),m_host(i),mort_P(i)
 
 ! affinity contains depes on food type (gel), consumer density, Temp, size(swimming)
@@ -732,7 +732,7 @@ endif
 !   sr      = 0.5*affin * preyTa / (self%mR*Temp_dep(i)*exp(-0.5*lmsize(i)))
 ! temperature dependent loss, with surface-to-volume scaling
 !   mort_R  = self%mR * Temp_dep(i) * exp(-0.5*lmsize(i)+lavg-0*lopt(i))!)
-   sr = f_temp(self%Q10+0.*loptA(i), tempp, self%Tc)
+   sr = f_temp(self%Q10+0.+ 0.*loptA(i), tempp, self%Tc)
 !   mort_R0(i) = self%mR * Temp_dep(i) * exp(-0.5*lmsize(i)+0*loptA(i))!)
    mort_R0(i) = self%mR * sr * exp(-0.5*lmsize(i)-0.*loptA(i))!)
 
@@ -801,7 +801,8 @@ endif
 !   argA   = (prod-exp(-1.0)*self%mR)/(mort_R(i)+exp(-1.0)*self%mR)
    ft       = self%fTDmort/(self%fTDmort+Temp_dep(i))
    arg2     = argA
-   starv    = exp(ft-argA)!self%yield *
+!   starv    = exp(ft-argA)!self%yield *
+   starv    = exp(-Temp_dep(i)-argA)!self%yield *
 
    mort_S0  = self%mS * starv !*exp(-lopt(i))
 !   eS      = 0*sig13(i)* exp(-sig23(i)*(self%lA-lmsize(i))**2) 
@@ -825,7 +826,7 @@ endif
 !   call self%errfunc(argA, errf) ! TODO: replace by more accurate err-function
 ! relative fraction of adults 
    fA       = 0.5d0*(1.0d0 - errf) 
-   if (fa .lt. 0.0 .or. abs(fA) .gt. 1.) write (*,'(A,1(I2),5(F12.5))') 'fA=',i,lmsize(i),sig(i) ,argA,errf, fA 
+!   if (fa .lt. 0.0 .or. abs(fA) .gt. 1.) write (*,'(A,1(I2),5(F12.5))') 'fA=',i,lmsize(i),sig(i) ,argA,errf, fA 
 
 ! size derivative of adult fraction
 !   dfA_dl= sqrt(2.d0*3.1415)/sig(i) * eargA
@@ -890,7 +891,7 @@ endif
 !  sum of productivity related size selective forces
      sum_dl   = init_dl + som_dl + prod_dl + resp_dl 
 !***!
-     if (.true.) then
+     if (.false.) then
 ! boundary condition of offspring production and adaptive size shift
       argA     = (self%l0-lmsize(i))/(sqrt(2.d0)*sig(i))
       min_dl   = -recruit * exp(argA**2) * sig(i) / sqrt(2.d0*3.1415)
