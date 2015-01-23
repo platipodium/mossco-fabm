@@ -80,10 +80,10 @@ logical  :: out = .true.
   _GET_(self%id_domC, dom%C)  ! Dissolved Organic Carbon in mmol-C/m**3
   _GET_(self%id_domN, dom%N)  ! Dissolved Organic Nitrogen in mmol-N/m**3
 if (self%RubiscoOn) then
-      _GET_(self%id_Rub, phy%Rub)  ! Rub-C_concentration in -
+      _GET_(self%id_Rub, phy%Rub)  ! fraction of Rubisco in -
 end if
 if (self%PhotoacclimOn) then
-      _GET_(self%id_chl, phy%chl)  ! chl-a_concentration in mg-Chla/mmol-C
+      _GET_(self%id_chl, phy%chl)  ! Chl:C ratio in mg-Chla/mmol-C
 end if
 if (self%PhosphorusOn) then
       _GET_(self%id_nutP, nut%P)  ! Dissolved Inorganic Phosphorus DIP in mmol-P/m**3
@@ -110,10 +110,10 @@ end if
 !phy%Rub = Rub
 !phy%chl = chl
 ! Retrieve current environmental conditions.
-!#S_GED
+!S_GED
   _GET_(self%id_temp, env%temp)  ! water temperature
   _GET_(self%id_par, env%par)  ! light photosynthetically active radiation
-!#E_GED
+!E_GED  ! list outcommented due to different usage of zmax and doy (see light extinction)
 
 
 ! @ingroup main
@@ -443,38 +443,37 @@ end if
 !________________________________________________________________________________
 ! set diag variables, mostly from PrimProd module
 
-!#define _REPLNAN_(X) X !changes back to original code
+!define _REPLNAN_(X) X !changes back to original code
 #define _REPLNAN_(X) nan_num(X)
 
 if (self%DebugDiagOn) then
 !#S_DIA
-  _SET_DIAGNOSTIC_(self%id_chl2C, _REPLNAN_((phy%theta*phy%rel_chloropl/12))) ! gchl-a/gC: chl-a/chloroplast-C * chloroplast-C/phy-molC * 1molC/12gC) 
-  _SET_DIAGNOSTIC_(self%id_fracR, _REPLNAN_(phy%frac%Rub))             !average 
-  _SET_DIAGNOSTIC_(self%id_fracT, _REPLNAN_(phy%frac%theta))           !average 
-  _SET_DIAGNOSTIC_(self%id_Theta, _REPLNAN_(phy%theta))                !average
-  _SET_DIAGNOSTIC_(self%id_fracNU, _REPLNAN_(phy%frac%NutUpt))         !average
-  _SET_DIAGNOSTIC_(self%id_QN, _REPLNAN_(phy%Q%N))                     !average 
-  _SET_DIAGNOSTIC_(self%id_QP, _REPLNAN_(phy%Q%P))                     !average 
-  _SET_DIAGNOSTIC_(self%id_aVN, _REPLNAN_(acclim%aV%N))                !average 
-  _SET_DIAGNOSTIC_(self%id_aVP, _REPLNAN_(acclim%aV%P))                !average 
-  _SET_DIAGNOSTIC_(self%id_aVSi, _REPLNAN_(acclim%aV%Si))             !average 
-  _SET_DIAGNOSTIC_(self%id_faN, _REPLNAN_(acclim%fA%N))                !average 
-  _SET_DIAGNOSTIC_(self%id_faP, _REPLNAN_(acclim%fA%P))                !average 
-  _SET_DIAGNOSTIC_(self%id_faSi, _REPLNAN_(acclim%fA%Si))              !average 
-  _SET_DIAGNOSTIC_(self%id_rQSi, _REPLNAN_(phy%relQ%Si))               !average 
-  _SET_DIAGNOSTIC_(self%id_tmp, _REPLNAN_(acclim%tmp))                 !average 
-  !_SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC)) !average. dchl/dt due to dPhyC/dt
-  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(dRchl_phyC_dt))   !average
-  _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(acclim%dRchl_dfracR * acclim%dfracR_dt))     !average. change in chl due to change in Rubisco
-  _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%dRchl_dtheta * acclim%dtheta_dt))     !average. change in chl due to change in theta
-  _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(acclim%fac1))     !average dtheta_dt due to flex_theta
-  _SET_DIAGNOSTIC_(self%id_fac5, _REPLNAN_(acclim%fac2))     !average dtheta_dt due to grad_theta
-  _SET_DIAGNOSTIC_(self%id_dPAR, _REPLNAN_(env%par))                   !average 
-  _SET_DIAGNOSTIC_(self%id_phyUR, _REPLNAN_(uptake%C))                 !average net phyto growth
-  _SET_DIAGNOSTIC_(self%id_phyELR, _REPLNAN_(-exud%C))                 !average phyC exudation loss rate
-  _SET_DIAGNOSTIC_(self%id_phyALR, _REPLNAN_(-aggreg_rate))            !average phyC aggregation loss rate 
-  _SET_DIAGNOSTIC_(self%id_phyGLR, _REPLNAN_(-graz_rate/phy%reg%C))        !average phyC grazing loss rate
-  _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(exp(-self%sink_phys*phy%relQ%N*phy%relQ%P))) !average relative sinking velocity
+  _SET_DIAGNOSTIC_(self%id_chl2C, _REPLNAN_(phy%theta*phy%rel_chloropl/12)) !average chlorophyll:carbon ratio 
+  _SET_DIAGNOSTIC_(self%id_fracR, _REPLNAN_(phy%frac%Rub))   !average Rubisco fract
+  _SET_DIAGNOSTIC_(self%id_fracT, _REPLNAN_(phy%frac%theta)) !average LHC fract
+  _SET_DIAGNOSTIC_(self%id_Theta, _REPLNAN_(phy%theta))      !average Theta
+  _SET_DIAGNOSTIC_(self%id_fracNU, _REPLNAN_(phy%frac%NutUpt)) !average Nut
+  _SET_DIAGNOSTIC_(self%id_QN, _REPLNAN_(phy%Q%N))           !average N:C ratio
+  _SET_DIAGNOSTIC_(self%id_QP, _REPLNAN_(phy%Q%P))           !average P:C ratio
+  _SET_DIAGNOSTIC_(self%id_aVN, _REPLNAN_(acclim%aV%N))      !average N-uptake activity
+  _SET_DIAGNOSTIC_(self%id_aVP, _REPLNAN_(acclim%aV%P))      !average P-uptake activity
+  _SET_DIAGNOSTIC_(self%id_aVSi, _REPLNAN_(acclim%aV%Si))    !average Si-uptake activity
+  _SET_DIAGNOSTIC_(self%id_faN, _REPLNAN_(acclim%fA%N))      !average N-uptake affinity allocation
+  _SET_DIAGNOSTIC_(self%id_faP, _REPLNAN_(acclim%fA%P))      !average P-uptake affinity allocation
+  _SET_DIAGNOSTIC_(self%id_faSi, _REPLNAN_(acclim%fA%Si))    !average Si-uptake affinity allocation
+  _SET_DIAGNOSTIC_(self%id_rQSi, _REPLNAN_(phy%relQ%Si))     !average Relative Si-Quota
+  _SET_DIAGNOSTIC_(self%id_tmp, _REPLNAN_(acclim%tmp))       !average Temporary diagnostic
+  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(dRchl_phyC_dt))   !average Auxiliary diagnostic 
+  _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(acclim%dRchl_dfracR*acclim%dfracR_dt)) !average Auxiliary diagnostic
+  _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%dRchl_dtheta*acclim%dtheta_dt)) !average Auxiliary diagnostic
+  _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(acclim%fac1))     !average dtheta
+  _SET_DIAGNOSTIC_(self%id_fac5, _REPLNAN_(acclim%fac2))     !average dtheta
+  _SET_DIAGNOSTIC_(self%id_dPAR, _REPLNAN_(env%par))         !average Photosynthetically Active Radiation
+  _SET_DIAGNOSTIC_(self%id_phyUR, _REPLNAN_(uptake%C))       !average Phytoplankton C Uptake Rate
+  _SET_DIAGNOSTIC_(self%id_phyELR, _REPLNAN_(-exud%C))       !average Phytoplankton Exudation Loss Rate
+  _SET_DIAGNOSTIC_(self%id_phyALR, _REPLNAN_(-aggreg_rate))  !average Phytoplankton Aggregation Loss Rate
+  _SET_DIAGNOSTIC_(self%id_phyGLR, _REPLNAN_(-graz_rate/phy%reg%C)) !average Phytoplankton Grazing Loss Rate
+  _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(exp(-self%sink_phys*phy%relQ%N*phy%relQ%P))) !average Relative Sinking Velocity
 !#E_DIA
 end if
 !write (*,'(A,3(F11.5))') 'RN,depo,denit=',env%RNit,deporate,denitrate
