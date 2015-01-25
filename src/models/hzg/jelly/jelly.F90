@@ -644,7 +644,7 @@ endif
 
 ! Dekinga2007/Kraan2008: 16 (1970) - 56 (2005) gAFDW/m2 Wadden Sea
 ! representtive for entire SNS :Heip1992  /16m *0.5 -> 1000 mgC/m3 
-  mass_sum= (0*mben + 1000.0 + 1*var(ib)%B_Det) 
+  mass_sum= (1*mben + 000.0 + 1*var(ib)%B_Det) 
   mass_sum= (mass_sum+ mass(1)+ mass(2)+ mass3 + var(ib)%Phy )*exp(-ft2)!*exp(ft-1)
 !  mass_sum= mass_sum  + 1*var(ib)%Phy !5*self%fTDmort*
 !   starv    = exp(ft-argA)!self%yield *
@@ -839,7 +839,7 @@ endif
 
 ! fraction of adult secondary production allocated to recruitment
 !***!
-   fR       = 0.5d0*Temp_dep(i)
+   fR       = 0.75d0*Temp_dep(i)
   
 ! rate at which adults spawn new eggs
    recruit  = fA * fR * prod
@@ -891,7 +891,7 @@ endif
 !  sum of productivity related size selective forces
      sum_dl   = init_dl + som_dl + prod_dl + resp_dl 
 !***!
-     if (.false.) then
+     if (.true.) then
 ! boundary condition of offspring production and adaptive size shift
       argA     = (self%l0-lmsize(i))/(sqrt(2.d0)*sig(i))
       min_dl   = -recruit * exp(argA**2) * sig(i) / sqrt(2.d0*3.1415)
