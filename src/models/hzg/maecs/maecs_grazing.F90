@@ -66,7 +66,7 @@ subroutine grazing_losses(zoo,resC,Q_prey,lossZNut,lossZDet,mswitch)
   lossZNut%C     = resC  ! [d^{-1}]
 ! -------------- assuming homeostasis for zooplankton relaxation towards Redfield ratio
 !                 nitrogen excretion (urea or ammonia)
-   lossZNut%N     = lossZNut%C*zoo%Q%N + zoo%yield * zoo%feeding * ( Q_prey%N - zoo%Q%N ) ! [molN/molC d^{-1}]
+  lossZNut%N     = lossZNut%C*zoo%Q%N + zoo%yield * zoo%feeding * ( Q_prey%N - zoo%Q%N ) ! [molN/molC d^{-1}]
 ! lossZNut%N     = zoo%yield * zoo%feeding * ( Q_prey%N - zoo%Q%N ) ! [molN/molC d^{-1}]
 !  lossZNut%N  = lossZNut%C *  zoo%Q%N + excess_N_graz ! includes basal excretion
 

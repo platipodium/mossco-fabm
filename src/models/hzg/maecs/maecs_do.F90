@@ -63,6 +63,16 @@ real(rk) :: secs_pr_day = 86400.0_rk
 real(rk) :: aggreg_rate ! aggregation among phytoplankton and between phytoplankton & detritus [d^{-1}]    
 logical  :: out = .true.
 !   if(36000.eq.secondsofday .and. mod(julianday,1).eq.0 .and. outn) out=.true.    
+real(rk) :: sdet, pdet, po4, no3
+real(rk) :: det_prod, N_sdet
+real(rk) :: radsP,Oxicminlim,Denitrilim,Anoxiclim,Rescale,rP
+real(rk),parameter :: relaxO2=0.04_rk
+real(rk),parameter :: T0 = 288.15_rk ! reference Temperature fixed to 15 degC
+real(rk),parameter :: Q10b = 1.5_rk
+real(rk) :: CprodF,CprodS,CprodEPS,Cprod,Nprod,Pprod
+real(rk) :: AnoxicMin,Denitrific,OxicMin,Nitri,OduDepo,OduOx,pDepo
+real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto,faeces
+
 #define _KAI_ 0
 #define _MARKUS_ 1
 ! #define UNIT / 86400
@@ -98,6 +108,12 @@ if (self%SiliconOn) then
 end if
 if (self%GrazingOn) then
       _GET_(self%id_zooC, zoo%C)  ! Zooplankton Carbon in mmol-C/m**3
+end if
+if (self%BioOxyOn) then
+      _GET_(self%id_fdet, env%fdet)  ! fast detritus C in mmolC/m**3
+      _GET_(self%id_nh3, env%nh3)  ! dissolved ammonium in mmolN/m**3
+      _GET_(self%id_oxy, env%oxy)  ! dissolved oxygen in mmolO2/m**3
+      _GET_(self%id_odu, env%odu)  ! dissolved reduced substances in mmolO2/m**3
 end if
 if (self%NResOn) then
       _GET_(self%id_RNit, env%RNit)  ! N-reservoir in mmol-N/m**3
@@ -231,7 +247,6 @@ endif
 
 
 ! right hand side of ODE (rhs)    
-!  #define UNIT /self%secs_pr_day
 !__________________________________________________________________________
 !
 ! PHYTOPLANKTON C
@@ -310,9 +325,11 @@ end if
 !________________________________________________________________________________
 !
 !  --- DETRITUS C
-rhsv%detC   =  floppZ%C             * zoo%C   &
+det_prod    = floppZ%C              * zoo%C   &
              + aggreg_rate          * phy%C   &
-             + zoo_mort             * zoo%C   &
+             + zoo_mort             * zoo%C   
+
+rhsv%detC   = det_prod                        &
              - self%dil             * det%C   &             
              - degradT              * det%C                
 
@@ -406,6 +423,87 @@ if (self%SiliconOn) then
 
 end if 
 
+!---------- RHS for BGC/diagensis model part ----------
+! Fortran 2003 version of OMEXDIA+P biogeochemical model
+! The OMEXDIA+P+MPB model is based on the OMEXDIA model (see Soetard et al. 1996a)
+! P-cycle is added by kai wirtz
+
+if (self%BioOxyOn) then
+
+! ---------- temperature    TODO: retrieve from existing temp variables 
+   temp_kelvin = 273.15_rk + temp
+   E_a    = 0.1_rk*log(Q10b)*T0*(T0+10.0_rk);
+   f_T    = 1.0_rk*exp(-E_a*(1.0_rk/temp_kelvin - 1.0_rk/T0))
+
+! ---------- manages overlapping state variables 
+   no3    = smooth_small(nut%N - env%nh3,  self%small)
+   sdet   = smooth_small(det%C - env%fdet, self%small)
+   N_sdet = smooth_small(det%N - env%fdet*self%NCrFdet, self%small)
+! ---------- remineralisation limitations 
+   Oxicminlim = env%oxy/(env%oxy+self%ksO2oxic+relaxO2*(env%nh3+env%odu))              
+   Denitrilim = (1.0_rk-env%oxy/(env%oxy+self%kinO2denit)) * no3/(no3+self%ksNO3denit)
+   Anoxiclim  = (1.0_rk-env%oxy/(env%oxy+self%kinO2anox)) * (1.0_rk-no3/(no3+self%kinNO3anox))
+   Rescale    = 1.0_rk/(Oxicminlim+Denitrilim+Anoxiclim)
+
+   CprodF = self%rFast * env%fdet
+   CprodS = self%rSlow * sdet 
+
+   Cprod  = CprodF + CprodS 
+
+   Nprod  = CprodF * self%NCrFdet + self%rSlow * N_sdet
+
+! extra-omexdia P -dynamics not needed in MAECS 
+!if (self%PhosphorusOn) then
+! PO4-adsorption ceases when critical capacity is reached
+! [FeS] approximated by ODU
+!   po4    = nut%P
+!   radsP  = self%PAds * self%rSlow * (po4*max(env%odu,self%PAdsODU))
+!   rP     = self%rFast * (1.0_rk - Oxicminlim)
+!   Pprod  = rP * pdet
+!endif
+
+! Oxic mineralisation, denitrification, anoxic mineralisation
+! then the mineralisation rates
+   OxicMin    = Cprod*Oxicminlim*Rescale        ! oxic mineralisation
+   Denitrific = Cprod*Denitrilim*Rescale        ! Denitrification
+   AnoxicMin  = Cprod*Anoxiclim *Rescale        ! anoxic mineralisation
+
+! reoxidation and ODU deposition
+   Nitri      = f_T * self%rnit   * env%nh3 * env%oxy/(env%oxy + self%ksO2nitri &
+                  + relaxO2*(env%fdet + env%odu))
+   OduOx      = f_T * self%rODUox * env%odu * env%oxy/(env%oxy + self%ksO2oduox &
+                  + relaxO2*(env%nh3 + env%fdet))
+
+!  pDepo      = min(1.0_rk,0.233_rk*(wDepo)**0.336_rk )
+   pDepo      = 0.0_rk
+   OduDepo    = AnoxicMin * pDepo 
+
+!  dynamics of fdet ~ fast detritus C
+  rhsv%fdet = (det_prod - f_T * CprodF) - self%dil * env%fdet            
+
+!  dynamics of sdet ~ slow detritus C
+!  rhsv%sdet = -f_T * CprodS 
+!  dynamics of env%oxy ~ dissolved oxygen
+  rhsv%oxy = -OxicMin - 2.0_rk* Nitri - OduOx &
+             - lossZ%C * zoo%C + uptake%C * phy%C  &
+              +  self%dil * (self%oxy_initial - env%oxy)
+
+!  dynamics of odu ~ dissolved reduced substances
+  rhsv%odu = (AnoxicMin - OduOx - OduDepo) 
+!  dynamics of no3 ~ dissolved nitrate
+!!  rhsv%no3 = (-0.8_rk*Denitrific + Nitri - uptNO3) 
+!  dynamics of nh3 ~ dissolved ammonium
+  rhsv%nh3 = f_T * Nprod - Nitri + lossZ%N * zoo%C       &   !/ (1.0_rk + self%NH3Ads)
+              + (exud%N - env%nh3/(nut%N+self%small) * uptake%N) * phy%C &
+              + self%dil * (self%nh3_initial - env%nh3) 
+
+!  dynamics of pdet ~ detritus-P
+!    rhsv%pdet = (radsP - f_T * Pprod) 
+!  dynamics of po4 ~ dissolved phosphate
+!  rhsv%po4 = (f_T * Pprod - radsP) 
+end if
+
+
 !#S_ODE
 !---------- ODE for each state variable ----------
   _SET_ODE_(self%id_nutN, rhsv%nutN UNIT)
@@ -434,6 +532,12 @@ if (self%SiliconOn) then
 end if
 if (self%GrazingOn) then
       _SET_ODE_(self%id_zooC, rhsv%zooC UNIT)
+end if
+if (self%BioOxyOn) then
+      _SET_ODE_(self%id_fdet, rhsv%fdet UNIT)
+      _SET_ODE_(self%id_nh3, rhsv%nh3 UNIT)
+      _SET_ODE_(self%id_oxy, rhsv%oxy UNIT)
+      _SET_ODE_(self%id_odu, rhsv%odu UNIT)
 end if
 if (self%NResOn) then
       _SET_ODE_(self%id_RNit, rhsv%RNit UNIT)
@@ -474,6 +578,9 @@ if (self%DebugDiagOn) then
   _SET_DIAGNOSTIC_(self%id_phyALR, _REPLNAN_(-aggreg_rate))  !average Phytoplankton Aggregation Loss Rate
   _SET_DIAGNOSTIC_(self%id_phyGLR, _REPLNAN_(-graz_rate/phy%reg%C)) !average Phytoplankton Grazing Loss Rate
   _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(exp(-self%sink_phys*phy%relQ%N*phy%relQ%P))) !average Relative Sinking Velocity
+  _SET_DIAGNOSTIC_(self%id_sdet, _REPLNAN_(sdet))            !average Refractory detritus 
+  _SET_DIAGNOSTIC_(self%id_no3, _REPLNAN_(no3))              !average Nitrate
+  _SET_DIAGNOSTIC_(self%id_Denitr, _REPLNAN_(0.8*Denitrific)) !average Denitrification rate
 !#E_DIA
 end if
 !write (*,'(A,3(F11.5))') 'RN,depo,denit=',env%RNit,deporate,denitrate

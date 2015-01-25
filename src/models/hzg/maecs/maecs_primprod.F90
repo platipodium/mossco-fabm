@@ -38,7 +38,7 @@ real(rk) :: dmu_dfracR, dmu_dtheta  ! [...]
 real(rk) :: grad_theta , grad_fracR ! [...]
 real(rk) :: flex_theta , flex_fracR ! [...]
 real(rk) :: dfV_dfracR , dfV_dtheta
-real(rk) :: grossC, lossC, Pmaxc
+real(rk) :: grossC, Pmaxc
 real(rk) :: dbal_dv, dmu_daV_tot
 real(rk) :: e_N0, e_N
 real(rk) :: syn_act, hh
@@ -266,15 +266,15 @@ end do
 !if (self%SiliconOn) uptake%Si=uptake%Si + 0.5*sens%upt_pot%Si
 
 !> @fn maecs_primprod::photosynthesis()
-!> 8. calculate lossC=f(uptake\%N), phy\%gpp=grossC-lossC, uptake\%C=grossC-lossC
+!> 8. calculate phy%resp=f(uptake\%N), phy\%gpp=grossC-phy%resp, uptake\%C=grossC-phy%resp
 ! ---  respiration due to N assimilation --------------------------------------
-lossC     = self%zeta_CN * uptake%N                           ! [d^{-1}]
+phy%resp     = self%zeta_CN * uptake%N                           ! [d^{-1}]
 
 ! --- relative growth rate RGR: gross production - exudation - uptake respiration --  
 phy%gpp   = grossC
 !phy%gpp   = fac_colim
-uptake%C  = grossC - lossC     !* (1.0d0- self%exud_phy) ![d^{-1}]
-!write (*,'(A,6(F10.4))') 'upC ',phy%frac%Rub , Pmaxc, sens%upt_pot%C,grossC,lossC,  uptake%C
+uptake%C  = grossC - phy%resp     !* (1.0d0- self%exud_phy) ![d^{-1}]
+!write (*,'(A,6(F10.4))') 'upC ',phy%frac%Rub , Pmaxc, sens%upt_pot%C,grossC,phy%resp,  uptake%C
 
 ! --- photoacclimation and photosynthesis ------------------------------------            
 !     differential coupling between pigment synthesis and costs due to N-uptake     
