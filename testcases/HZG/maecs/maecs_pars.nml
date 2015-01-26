@@ -1,23 +1,23 @@
 !-------------------------------------------------------------------------------
-! MAECS parameters
+! MAECS parameters "median"
 !-------------------------------------------------------------------------------
-! P_max            [float, unit = d^{-1}] $P_\mathrm{max}$
+! P_max            [float, unit = d^{-1}] $P_\mathrm{max}$ *12 29 3 
 !                    maximum potential photosynthetic rate
 ! alpha            [float, unit = m2 mol-C/(muE g-CHL)] $\alpha$
-!                    specific light adsorption by chloroplasts
+!                    specific light adsorption by chloroplasts *0.07 0.4 3
 ! sigma            [float] $\sigma$
 !                    Q-dependency of Rubisco activity/chloroplast ratio
-! theta_LHC        [float, unit = mgChl mmolC^{-1}] $\theta_\mathrm{C}$
-!                    Chlorophylla-to-C ratio of LHC
+! theta_LHC        [float, unit = mgChl mmolC^{-1}] $\theta_\mathrm{C}$ *2. 3. 2
+!                    chlorophyll a-to-C ratio of LHC
 ! rel_chloropl_min [float, unit = mol-C/mol-C]
 !                    chloroplast-C to phy-C ratio
-! QN_phy_0         [float, unit = mol-N/mol-C] $Q_{\mathrm{N}0}$
+! QN_phy_0         [float, unit = mol-N/mol-C] $Q_{\mathrm{N}0}$ *0.01 0.05 2
 !                    subsistence N-quota
-! QN_phy_max       [float, unit = mol-N/mol-C] $Q_\mathrm{N}^\mathrm{ref}$
+! QN_phy_max       [float, unit = mol-N/mol-C] $Q_\mathrm{N}^\mathrm{ref}$ *0.2 0.5 3
 !                    maximum N-quota
-! V_NC_max         [float, unit = mol-N/(mol-C d)] $V_\mathrm{max,N}^0$
+! V_NC_max         [float, unit = mmol-N/(m3 d)] $V_\mathrm{max,N}^0$ *1.2 1.8 2
 !                    maximum N uptake rate
-! AffN             [float, unit = m3/(mmol-C d)] $A_\mathrm{N}^0$
+! AffN             [float, unit = m3/(mmol-N d)] $A_\mathrm{N}^0$ *0.3 0.8 2
 !                    N-Affinity
 ! zeta_CN          [float, unit = mol-C/mol-N] $\zeta_\mathrm{CN}$
 !                    respiratory costs of N-synthesis/NO3-reduction
@@ -25,32 +25,38 @@
 !                    P-stoichiometry of active compounds(-> P costs)
 ! exud_phy         [float]
 !                    phytoplankton exudation per production
-! QP_phy_0         [float, unit = mol-P/mol-C] $Q_{\mathrm{P}0}$ #PhosphorusOn
+! QP_phy_0         [float, unit = mol-P/mol-C] $Q_{\mathrm{P}0}$ *0.00 0.0008 2 #PhosphorusOn
 !                    subsistence P-quota
-! QP_phy_max       [float, unit = mol-P/mol-C] $Q_\mathrm{P}^\mathrm{ref}$ #PhosphorusOn
+! QP_phy_max       [float, unit = mol-P/mol-C] $Q_\mathrm{P}^\mathrm{ref}$ *0.009 0.055 3 #PhosphorusOn
 !                    subsistence P-quota
-! V_PC_max         [float, unit = mol-P/(mol-C d)] $V_\mathrm{max,P}^0$ #PhosphorusOn
+! V_PC_max         [float, unit = mol-P/(mol-C d)] $V_\mathrm{max,P}^0$ *0.08 0.36 3 #PhosphorusOn
 !                    maximum P uptake rate
-! AffP             [float, unit = m3/(mmol-C d)] $A_\mathrm{P}^0$ ~0.1 1.0 3 #PhosphorusOn
+! AffP             [float, unit = m3/(mmol-C d)] $A_\mathrm{P}^0$ *0.04 0.16 2 #PhosphorusOn
 !                    P-Affinity
 ! QSi_phy_0        [float, unit = mol-Si/mol-C] $Q_{\mathrm{Si}0}$ #SiliconOn
 !                    subsistence Si-quota
-! QSi_phy_max      [float, unit = mol-Si/mol-C] $Q_\mathrm{Si}^\mathrm{ref}$ #SiliconOn
+! QSi_phy_max      [float, unit = mol-Si/mol-C] $Q_\mathrm{Si}^\mathrm{ref}$ *0.04 0.08 4 #SiliconOn
 !                    subsistence Si-quota
-! V_SiC_max        [float, unit = mol-Si/(mol-C d)] $V_\mathrm{max,Si}^0$ #SiliconOn
+! V_SiC_max        [float, unit = mol-Si/(mol-C d)] $V_\mathrm{max,Si}^0$ *0.08 0.3 4  #SiliconOn
 !                    maximum Si-uptake rate
 ! AffSi            [float, unit = m3/(mmol-C d)] $A_\mathrm{Si}^0$ #SiliconOn
 !                    Si-Affinity
-! syn_nut          [float] $1/h$
-!                    synchrony n_queue in nutrient quota limitation
-! adap_rub         [float] $\delta_R$ #RubiscoOn
+! syn_nut          [float, unit = ] $1/h$ *-20.0 -7. 4
+!                    synchrony nqueue in nutrient quota limitation
+! adap_rub         [float, unit = ] $\delta_R$  #PhotoacclimOn
 !                    adap_rub
-! adap_theta       [float] $\delta_\theta$ #PhotoacclimOn
+! adap_theta       [float, unit = ] $\delta_\theta$ #PhotoacclimOn
 !                    adap_theta
 ! tau_regV         [float] $\Delta t_\mathrm{v}$
-!                    tau_regV
-! phi_agg          [float, unit = m^6 mmolN^{-2} d^{-1}]
+!                    tau-regV
+! disease          [float, unit = d^{-1}]
+!                    parasites/disease mortality rate
+! phi_agg          [float, unit = m^6 mmol-N^{-2} d^{-1}]
 !                    quadratic aggregation rate
+! agg_doc          [float, unit = m^-3 mmol-C]
+!                    DOC multiplier in coagulation term
+! sink_phys        [float, unit = ]
+!                    sinking sensitivity on physiological status
 ! vS_phy           [float, unit = m d^{-1}]
 !                    sinking velocity for phytoplankton
 ! vS_det           [float, unit = m d^{-1}]
@@ -59,45 +65,54 @@
 !                    hydrolysis rate
 ! remin            [float, unit = d^{-1}]
 !                    pelagic remineralisation
-! Ae_all           [float, unit = ...]
-!                    Activation energy
-! T_ref            [float, unit = degC]
-!                    reference temperature
+! denit            [float, unit = d^{-1}]
+!                    DIN removal by denitrification  
+! PON_denit        [float, unit = mmol-N/m3 ]
+!                    critical PON for denitrification  
+! Q10              [float, unit = ]
+!                    Q10 factor
+! T_ref            [float, unit = K]
+!                    reference Kelvin temperature
 ! NutOrder         [float, unit = serial order number N:P:Si]
 !                    element order of recursive scheme. lower digit: synchrony element   
 !-------------------------------------------------------------------------------
 
 &maecs_pars
-   P_max = 12.0,
-   alpha = 0.12,
-   sigma = 0.0,
-   theta_LHC = 1.2,
-   rel_chloropl_min = 0.01,
-   QN_phy_0 = 0.045,
-   QN_phy_max = 0.24,
-   V_NC_max = 0.3,
-   AffN = 0.1,
-   zeta_CN = 2.3,
-   zstoich_PN = 3.8,
-   exud_phy = 0.0,
-   QP_phy_0 = 0.0,
-   QP_phy_max = 0.02,
-   V_PC_max = 0.03,
-   AffP = 0.07,
+ P_max = 18.0, 
+ alpha = 0.22, 
+ sigma = 0.0,
+ theta_LHC = 2.5, 
+ rel_chloropl_min = 0.01,
+ QN_phy_0 = 0.035, 
+ QN_phy_max = 0.380, 
+ V_NC_max = 1.50, 
+ AffN = 0.50, 
+ zeta_CN = 2.3,
+ zstoich_PN = 0.,
+ exud_phy = 0.,
+ QP_phy_0 = 0.00, 
+ QP_phy_max = 0.030, 
+ V_PC_max = 0.20, 
+ AffP = 0.06, 
    QSi_phy_0 = 0.0,
-   QSi_phy_max = 0.1,
-   V_SiC_max = 0.02,
-   AffSi = 0.05,
-   syn_nut = 2.0,
+ QSi_phy_max = 0.045, 
+ V_SiC_max = 0.10, 
+ AffSi = 0.10, 
+ syn_nut = -12.0000, 
    adap_rub = 1.0,
    adap_theta = 1.0,
    tau_regV = 99.0,
-   phi_agg = 5E-4,
-   vS_phy = 5E-2,
-   vS_det = 2.,
-   hydrol = 0.03,
-   remin = 0.03,
-   Ae_all = 4500.0,
+   disease = 0 
+   phi_agg = 2E-4,
+   agg_doc = 0.1 
+   sink_phys = 4 
+   vS_phy = 0E-2,
+   vS_det = 0.,
+   hydrol = 0.05,
+   remin = 0.05,
+   denit = 0 
+   PON_denit = 5 
+   Q10 = 2 
    T_ref = 288.0,
    NutOrder = 123.1,
 /

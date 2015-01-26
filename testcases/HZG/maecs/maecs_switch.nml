@@ -11,20 +11,16 @@
 !                  resolve Silicon cycle
 ! GrazingOn      [bool]
 !                  use Zooplankton grazing
-! BioCarbochemOn [bool]
-!                  use geochemistry module
 ! BioOxyOn       [bool]
-!                  use oxygen from other FABM model
+!                  use oxygen&ODU from OMEXDIA
 ! DebugDiagOn    [bool]
 !                  output of all diagnostics
 ! ChemostatOn    [bool]
 !                  use Chemostat mode 
-! UptakeLock     [bool]
-!                  use same allocation for all uptake systems (Smith2008)
-! NResOn = .true.[bool]
+! NResOn         [bool]
 !                  use long-term N-reservoir
-! kwFzmaxMeth = 2 [int]
-!                  method to describe backgorund attenuation. 0:constant,1:f(d),exponential, 2:f(d),sigmoidal 
+! kwFzmaxMeth    [integer]
+!                  background extinction method
 ! detritus_no_river_dilution [bool]
 !                  use riverine det import
 ! plankton_no_river_dilution [bool]
@@ -35,15 +31,13 @@
    RubiscoOn = .true.,
    PhotoacclimOn = .true.,
    PhosphorusOn = .true.,
-   SiliconOn = .true.,
-   GrazingOn = .false.,
-   BioCarboChemOn = .false.,
-   BioOxyOn = .false.,
+   SiliconOn = .false., 
+   GrazingOn = .true.,
+   BioOxyOn = .true.,
    DebugDiagOn = .true.,
    ChemostatOn = .false.,
-   UptakeLock = .false.,
-   NResOn = .true., 
-   kwFzmaxMeth = 2,
+   NResOn = .false.,
+   kwFzmaxMeth = 0,
    detritus_no_river_dilution=.false.,
    plankton_no_river_dilution=.true.,
 /
