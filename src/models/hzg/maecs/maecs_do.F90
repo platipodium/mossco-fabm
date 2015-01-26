@@ -64,7 +64,7 @@ real(rk) :: aggreg_rate ! aggregation among phytoplankton and between phytoplank
 logical  :: out = .true.
 !   if(36000.eq.secondsofday .and. mod(julianday,1).eq.0 .and. outn) out=.true.    
 real(rk) :: sdet, pdet, po4, no3
-real(rk) :: det_prod, N_sdet
+real(rk) :: det_prod, N_sdet, nh3f
 real(rk) :: radsP,Oxicminlim,Denitrilim,Anoxiclim,Rescale,rP
 real(rk),parameter :: relaxO2=0.04_rk
 real(rk),parameter :: T0 = 288.15_rk ! reference Temperature fixed to 15 degC
@@ -431,9 +431,7 @@ end if
 if (self%BioOxyOn) then
 
 ! ---------- temperature    TODO: retrieve from existing temp variables 
-   temp_kelvin = 273.15_rk + temp
-   E_a    = 0.1_rk*log(Q10b)*T0*(T0+10.0_rk);
-   f_T    = 1.0_rk*exp(-E_a*(1.0_rk/temp_kelvin - 1.0_rk/T0))
+   f_T    = sens%f_T
 
 ! ---------- manages overlapping state variables 
    no3    = smooth_small(nut%N - env%nh3,  self%small)
@@ -479,23 +477,27 @@ if (self%BioOxyOn) then
    OduDepo    = AnoxicMin * pDepo 
 
 !  dynamics of fdet ~ fast detritus C
-  rhsv%fdet = (det_prod - f_T * CprodF) - self%dil * env%fdet            
+  rhsv%fdet   = (0.8d0*det_prod - f_T * CprodF) - self%dil * env%fdet            
 
 !  dynamics of sdet ~ slow detritus C
 !  rhsv%sdet = -f_T * CprodS 
 !  dynamics of env%oxy ~ dissolved oxygen
-  rhsv%oxy = -OxicMin - 2.0_rk* Nitri - OduOx &
-             - lossZ%C * zoo%C + uptake%C * phy%C  &
-              +  self%dil * (self%oxy_initial - env%oxy)
+  rhsv%oxy    = - OxicMin - 2.0_rk* Nitri - OduOx &
+                - lossZ%C * zoo%C + uptake%C * phy%C  &
+                + self%dil * (self%oxy_initial - env%oxy)
 
 !  dynamics of odu ~ dissolved reduced substances
-  rhsv%odu = (AnoxicMin - OduOx - OduDepo) 
+  rhsv%odu    = (AnoxicMin - OduOx - OduDepo) 
 !  dynamics of no3 ~ dissolved nitrate
 !!  rhsv%no3 = (-0.8_rk*Denitrific + Nitri - uptNO3) 
+! preference for NH3 in DIN-uptake of autotrophs
+  nh3f        = 1.0d0 - exp(-5*env%nh3/(nut%N+self%small))
 !  dynamics of nh3 ~ dissolved ammonium
-  rhsv%nh3 = f_T * Nprod - Nitri + lossZ%N * zoo%C       &   !/ (1.0_rk + self%NH3Ads)
-              + (exud%N - env%nh3/(nut%N+self%small) * uptake%N) * phy%C &
-              + self%dil * (self%nh3_initial - env%nh3) 
+  rhsv%nh3    = f_T * Nprod - Nitri + lossZ%N * zoo%C  & !/ (1.0_rk + self%NH3Ads)
+               + (exud%N - nh3f*uptake%N) * phy%C &!env%nh3/(nut%N+self%small) *
+               + self%dil * (self%nh3_initial - env%nh3) 
+
+  rhsv%nutN   = rhsv%nutN - 0.8d0 * Denitrific
 
 !  dynamics of pdet ~ detritus-P
 !    rhsv%pdet = (radsP - f_T * Pprod) 
