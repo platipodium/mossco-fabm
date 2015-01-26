@@ -1,0 +1,19 @@
+!-------------------------------------------------------------------------------
+!  - external dependencies (forcing)
+!-------------------------------------------------------------------------------
+temp	^oC 	dependency temperature water temperature
+par	muE/m2s dependency downwelling_photosynthetic_radiative_flux par
+doy	-	global_dependency number_of_days_since_start_of_the_year
+totC	mmol-C/m**3 dependency total_carbon
+totC_vertmean	mmol-C/m**3 horizontal_dependency vertical_mean(self%id_totC)
+totN	mmol-N/m**3 dependency total_carbon
+totN_vertmean	mmol-N/m**3 horizontal_dependency vertical_mean(self%id_totN)
+totP	mmol-P/m**3 dependency total_phosphorus #PhosphorusOn
+totP_vertmean	mmol-P/m**3 horizontal_dependency vertical_mean(self%id_totP) #PhosphorusOn
+totS	mmol-N/m**3 dependency total_silicate #SiliconOn
+totS_vertmean	mmol-Si/m**3 horizontal_dependency vertical_mean(self%id_totS) #SiliconOn
+totC_vertmean_diag mmol-C/m**3 horizontal_diagnostic_variable 'totC_vertmean','mmol-C/m**3','vertical_mean_total_carbon'
+totN_vertmean_diag mmol-N/m**3 horizontal_diagnostic_variable 'totN_vertmean','mmol-C/m**3','vertical_mean_total_nitrogen'
+totP_vertmean_diag mmol-P/m**3 horizontal_diagnostic_variable 'totP_vertmean','mmol-C/m**3','vertical_mean_total_phosphorus' #PhosphorusOn
+totS_vertmean_diag mmol-Si/m**3 horizontal_diagnostic_variable 'totS_vertmean','mmol-C/m**3','vertical_mean_total_silicate' #SiliconOn
+zmax	m	horizontal_dependency bottom_depth

@@ -1,0 +1,10 @@
+!-----------------------------------------------------------------
+!  - derived parameters in MAECS 
+!-----------------------------------------------------------------
+K_QN_phy - - self%QN_phy_max-self%QN_phy_0 inverse parameters to avoid divisions
+iK_QN	- - 1.0d0/self%K_QN_phy
+iK_QP	- - 1.0d0/(self%QP_phy_max-self%QP_phy_0)
+itheta_max - - 1.0d0/self%theta_LHC
+aver_QN_phy - - 5.0d-1*(self%QN_phy_max-self%QN_phy_0)
+aver_QP_phy - - 5.0d-1*(self%QP_phy_max-self%QP_phy_0)
+small_finite - - sqrt(self%small) small boundary depending on numerical resolution

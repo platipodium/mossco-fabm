@@ -1,0 +1,32 @@
+!-------------------------------------------------------------------------------
+!  - diagnostic variables
+!-------------------------------------------------------------------------------
+chl2C	gCHL/m**3 average phy%theta*phy%rel_chloropl/12 chlorophyll:carbon ratio = chl-a/chloroplast-C * chloroplast-C/phy-molC * 1molC/12gC
+fracR	- average phy%frac%Rub Rubisco fract. allocation
+fracT	- average phy%frac%theta LHC fract. allocation      
+Theta	- average phy%theta Theta
+fracNU	- average phy%frac%NutUpt Nut. Uptake fract. allocation
+QN	- average phy%Q%N N:C ratio
+QP	- average phy%Q%P P:C ratio
+aVN	- average acclim%aV%N N-uptake activity
+aVP	- average acclim%aV%P P-uptake activity
+aVSi	- average acclim%aV%Si Si-uptake activity
+faN	- average acclim%fA%N N-uptake affinity allocation
+faP	- average acclim%fA%P P-uptake affinity allocation
+faSi	- average acclim%fA%Si Si-uptake affinity allocation
+rQSi	- average phy%relQ%Si Relative Si-Quota
+tmp	- average acclim%tmp Temporary diagnostic
+fac1	- average dRchl_phyC_dt Auxiliary diagnostic 
+fac2	- average acclim%dRchl_dfracR*acclim%dfracR_dt Auxiliary diagnostic
+fac3	- average acclim%dRchl_dtheta*acclim%dtheta_dt Auxiliary diagnostic
+fac4	- average acclim%fac1 dtheta_dt due to flex_theta
+fac5	- average acclim%fac2 dtheta_dt due to grad_theta
+dPAR	W/m**2 average env%par Photosynthetically Active Radiation
+phyUR	1/d average uptake%C Phytoplankton C Uptake Rate
+phyELR	1/d average -exud%C Phytoplankton Exudation Loss Rate
+phyALR	1/d average -aggreg_rate Phytoplankton Aggregation Loss Rate
+phyGLR	1/d average -graz_rate/phy%reg%C Phytoplankton Grazing Loss Rate
+vsinkr	- average exp(-self%sink_phys*phy%relQ%N*phy%relQ%P) Relative Sinking Velocity
+sdet	mmol-C/m**3 average sdet Refractory detritus 
+no3	mmol-N/m**3 average no3 Nitrate
+Denitr	mmol-N/m**3/d average 0.8*Denitrific Denitrification rate
