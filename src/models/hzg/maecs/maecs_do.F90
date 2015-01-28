@@ -93,7 +93,7 @@ if (self%RubiscoOn) then
       _GET_(self%id_Rub, phy%Rub)  ! fraction of Rubisco in -
 end if
 if (self%PhotoacclimOn) then
-      _GET_(self%id_chl, phy%chl)  ! Chl:C ratio in mg-Chla/mmol-C
+      _GET_(self%id_chl, phy%chl)  ! Chl in mg-Chla/mmol-C
 end if
 if (self%PhosphorusOn) then
       _GET_(self%id_nutP, nut%P)  ! Dissolved Inorganic Phosphorus DIP in mmol-P/m**3
@@ -126,10 +126,14 @@ end if
 !phy%Rub = Rub
 !phy%chl = chl
 ! Retrieve current environmental conditions.
+
+
 !S_GED
   _GET_(self%id_temp, env%temp)  ! water temperature
   _GET_(self%id_par, env%par)  ! light photosynthetically active radiation
 !E_GED  ! list outcommented due to different usage of zmax and doy (see light extinction)
+
+! write (*,'(A,2(F10.3))') 'par/T:',env%par,env%temp
 
 
 ! @ingroup main
@@ -569,7 +573,7 @@ if (self%DebugDiagOn) then
   _SET_DIAGNOSTIC_(self%id_faSi, _REPLNAN_(acclim%fA%Si))    !average Si-uptake affinity allocation
   _SET_DIAGNOSTIC_(self%id_rQSi, _REPLNAN_(phy%relQ%Si))     !average Relative Si-Quota
   _SET_DIAGNOSTIC_(self%id_tmp, _REPLNAN_(acclim%tmp))       !average Temporary diagnostic
-  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(dRchl_phyC_dt))   !average Auxiliary diagnostic 
+  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(self%ex_airsea* (250.0 - env%oxy) ))   !average Auxiliary diagnostic dRchl_phyC_dt
   _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(acclim%dRchl_dfracR*acclim%dfracR_dt)) !average Auxiliary diagnostic
   _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%dRchl_dtheta*acclim%dtheta_dt)) !average Auxiliary diagnostic
   _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(acclim%fac1))     !average dtheta
@@ -663,6 +667,10 @@ _FABM_LOOP_BEGIN_
    _SET_VERTICAL_MOVEMENT_(self%id_detC,-1.0_rk*self%vS_det/secs_pr_day)
    _SET_VERTICAL_MOVEMENT_(self%id_detN,-1.0_rk*self%vs_det/secs_pr_day)
 
+   if (self%BioOxyOn) then
+      _SET_VERTICAL_MOVEMENT_(self%id_fdet,-1.0_rk*self%vs_det/secs_pr_day)
+   end if
+
    _SET_VERTICAL_MOVEMENT_(self%id_phyN,vsink)
    _SET_VERTICAL_MOVEMENT_(self%id_phyC,vsink)
    if (self%PhosphorusOn) then
@@ -687,7 +695,7 @@ subroutine maecs_do_surface(self,_ARGUMENTS_DO_SURFACE_)
    class (type_hzg_maecs), intent(in) :: self
    _DECLARE_ARGUMENTS_DO_SURFACE_
 
-   real(rk) :: tot_vm_N,tot_vm_P,tot_vm_S
+   real(rk) :: tot_vm_N,tot_vm_P,tot_vm_S, O2flux,O2air,oxy
 
    _HORIZONTAL_LOOP_BEGIN_
       _GET_HORIZONTAL_(self%id_totN_vertmean,tot_vm_N)
@@ -697,12 +705,38 @@ subroutine maecs_do_surface(self,_ARGUMENTS_DO_SURFACE_)
       if (self%PhosphorusOn) then
          _GET_HORIZONTAL_(self%id_totP_vertmean,tot_vm_P)
          _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totP_vertmean_diag,tot_vm_P)
+! --- atmospheric deposition of PO4
+         _SET_SURFACE_EXCHANGE_(self%id_nutP, self%P_depo UNIT)
       end if
       if (self%SiliconOn) then
          _GET_HORIZONTAL_(self%id_totS_vertmean,tot_vm_S)
          _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totS_vertmean_diag,tot_vm_S)
       end if
+
+! --- wet and dry deposition of NO3 
+      _SET_SURFACE_EXCHANGE_(self%id_nutN, self%N_depo UNIT)
+
+! --- oxygen flux between sea water and air -----
+      if (self%BioOxyOn) then
+! O2 flux across the boundary layer
+! O2air is the saturation concentration of O2
+! airsea_ex is the average diffusivity coefficient (m2/sec) divided by the thickness of the boundary layer.
+! for O2 in mmol m-3, the rate of exchange in mmol m-2 s-1).
+! Positive values imply a flux into the water, negative: out of the water. 
+         O2air = 250.0d0
+!        _GET_HORIZONTAL_(self%id_O2air, O2air)! boundary layer dissolved oxygen in mmolO2/m**3
+        _GET_(self%id_oxy, oxy)   ! sea water dissolved oxygen in mmolO2/m**3
+
+        O2flux  = self%ex_airsea * (O2air - oxy)!
+        _SET_SURFACE_EXCHANGE_(self%id_oxy, O2flux )
+        _SET_HORIZONTAL_DIAGNOSTIC_(self%id_O2flux_diag, O2flux) ! converts mmol/m2.s to mmol/m2.d
+      endif
+
    _HORIZONTAL_LOOP_END_
 
 end subroutine maecs_do_surface
-   
+! potential entries in maecs_deps.lst;but might work only using GOTM-input scheme
+! O2air	mmol-C/m**3 horizontal_dependency O2air surface_molecular_oxygen_partial_pressure_difference_between_sea_water_and_air #BioOxyOn
+!N2air	mmol-C/m**3 horizontal_dependency N2air mole_concentration_of_atomic_nitrogen_in_air  
+!N2flux	mmol-N/m**2/d horizontal_diagnostic_variable  'N2flux','mmol-N/m**2/d','nitrogen_flux_between_sea_water_and_air' 
+  
