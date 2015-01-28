@@ -36,7 +36,7 @@
 ! frac_Rub_ini    [float, unit = -] #RubiscoOn
 !                   initial fraction of Rubisco
 ! frac_chl_ini    [float, unit = mg-Chla/mmol-C] #PhotoacclimOn
-!                   initial Chl:C ratio
+!                   initial Chl
 ! fdet_initial [float, unit = mmolC/m**3] EE #BioOxyOn
 !       fast detritus C
 ! nh3_initial  [float, unit = mmolN/m**3] EE #BioOxyOn
@@ -48,10 +48,10 @@
 !-------------------------------------------------------------------------
 
 &maecs_init
- nutN_initial = 150, 
- nutP_initial =  12, 
- nutS_initial = 20, 
-   zooC_initial = 0.2,
+ nutN_initial = 160, 
+ nutP_initial =  5, 
+ nutS_initial = 120, 
+   zooC_initial = 0.02,
    phyC_initial = 10,
    phyN_initial = 0.8,
    phyP_initial = 0.06,
@@ -67,8 +67,8 @@
    frac_Rub_ini = 0.4,
    frac_chl_ini = 0.3,
    fdet_initial = 0.0
-   nh3_initial  = 50.
-   oxy_initial  = 250.
+   nh3_initial  = 120.
+   oxy_initial  = 120.
    odu_initial  = 0.
 /
 

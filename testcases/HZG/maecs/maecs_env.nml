@@ -13,8 +13,14 @@
 !            photosynthetically active fraction of light
 ! small    [float]
 !            lower limit for denominator in ratios; small_finite=sqrt(small)
-! dil      [float]
+! dil      [float, unit = 1/d]
 !            dilution of all concentrations except dissolved inorganics
+! ex_airsea [float, unit = m/s] #BioOxyOn
+!            diffusivity coefficient (m2/s) divided by boundary layer thickness
+! N_depo    [float, unit = mmol-N/m2.d]        
+!            DIN deposition rate 0.5  6-21mg/m2.d Grieken2007 - 
+! P_depo    [float, unit = mmol-P/m2.d]        
+!            DIP deposition rate 
 !-------------------------------------------------------------------------------
 
 &maecs_env
@@ -25,5 +31,8 @@
    frac_PAR = 1.0,
    small = 1e-04,
    dil = 0.0, 
+   ex_airsea = 5.0E1, 
+   N_depo = 0.5,
+   P_depo = 0.5,
 /
 

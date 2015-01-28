@@ -13,7 +13,8 @@ totP_vertmean	mmol-P/m**3 horizontal_dependency vertical_mean(self%id_totP) #Pho
 totS	mmol-N/m**3 dependency total_silicate #SiliconOn
 totS_vertmean	mmol-Si/m**3 horizontal_dependency vertical_mean(self%id_totS) #SiliconOn
 totC_vertmean_diag mmol-C/m**3 horizontal_diagnostic_variable 'totC_vertmean','mmol-C/m**3','vertical_mean_total_carbon'
-totN_vertmean_diag mmol-N/m**3 horizontal_diagnostic_variable 'totN_vertmean','mmol-C/m**3','vertical_mean_total_nitrogen'
-totP_vertmean_diag mmol-P/m**3 horizontal_diagnostic_variable 'totP_vertmean','mmol-C/m**3','vertical_mean_total_phosphorus' #PhosphorusOn
-totS_vertmean_diag mmol-Si/m**3 horizontal_diagnostic_variable 'totS_vertmean','mmol-C/m**3','vertical_mean_total_silicate' #SiliconOn
+totN_vertmean_diag mmol-N/m**3 horizontal_diagnostic_variable 'totN_vertmean','mmol-N/m**3','vertical_mean_total_nitrogen'
+totP_vertmean_diag mmol-P/m**3 horizontal_diagnostic_variable 'totP_vertmean','mmol-P/m**3','vertical_mean_total_phosphorus' #PhosphorusOn
+totS_vertmean_diag mmol-Si/m**3 horizontal_diagnostic_variable 'totS_vertmean','mmol-Si/m**3','vertical_mean_total_silicate' #SiliconOn
 zmax	m	horizontal_dependency bottom_depth
+O2flux_diag	mmol-O2/m**2/d horizontal_diagnostic_variable  'O2flux','mmol-O2/m**2/d','oxygen_flux_between_sea_water_and_air' #BioOxyOn

@@ -51,7 +51,7 @@ char FabmDepVarName[NAML]= {"standard_variables%"}; /* prefix of the variable na
 				/*  standard_variables\%*/
 				
 char dirn_nml[NAML] = "";	/* directory where all the nml files  reside ./*/
-char dirn_f90[3*NAML] = "/home/wirtz/tools/mossco/fabm/src/models/hzg/maecs/";	/* directory where all the input sources (model.F90,...) reside ./
+char dirn_f90[3*NAML] = "/home/wirtz/mossco/fabm/src/models/hzg/maecs/";	/* directory where all the input sources (model.F90,...) reside ./
 //char dirn_f90[3*NAML] = "/home/onur/opt/src/fabm-code/src/models/hzg/maecs/";	/* directory where all the input sources (model.F90,...) reside ./*/
 char indent0[NAML] = "";	/* indentation in declaration part */ 
 char init_incl[3*NAML] = "call maecs_init_stoichvars(self)"; /* line included in init routine*/
@@ -87,7 +87,7 @@ char parname[MI][MAXP][NAML],snameshort[MAXP][NAML],snameshort2[MAXP][NAML],
 char sc[99], tmpstr[NAML];
 int nmltype[MI],partype[MI][MAXP],nump[MI],ChemSpec[MAXP], ni0,nis,nelements;
 
-// cp maecs_do_gen.F90 $MSRC/maecs_do.F90; cp maecs_types_gen.F90 $MSRC/maecs_types.F90; cp maecs_gen.F90 $MSRC/maecs.F90
+// cp maecs_do_gen.F90 maecs/maecs_do.F90; cp maecs_types_gen.F90 maecs/maecs_types.F90; cp maecs_gen.F90 maecs/maecs.F90
  
 /* printf("argn=%d\t",argn);printf("argv=%s\t",argv[1]);
 if (argn>=2)   strcpy(simfile,argv[1]); else  exit(0);
@@ -876,7 +876,7 @@ for(pjs=-1;pjs<nump[nis];pjs++)
 //   fprintf(sp,"%scall self%cregister_dependency(self%cid_%s,varname_%s%s)\n",'%','%',
 //       if(partypen[ni][pj][0]=='h' && strstr(parname[ni][pj],"tot")!=NULL )
        strcpy(line2,FabmDepVarName),strcpy(line,partypen[ni][pj]);      
-       if(strstr(parname[ni][pj],"vertmean")!=NULL )
+       if(strstr(parname[ni][pj],"vertmean") || strstr(parname[ni][pj],"flux")!=NULL )
          {
 	 strcpy(line2,"");
          if(strstr(parname[ni][pj],"diag")==NULL)  strcpy(line,"dependency");
