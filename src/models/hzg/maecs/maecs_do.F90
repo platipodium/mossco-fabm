@@ -573,7 +573,7 @@ if (self%DebugDiagOn) then
   _SET_DIAGNOSTIC_(self%id_faSi, _REPLNAN_(acclim%fA%Si))    !average Si-uptake affinity allocation
   _SET_DIAGNOSTIC_(self%id_rQSi, _REPLNAN_(phy%relQ%Si))     !average Relative Si-Quota
   _SET_DIAGNOSTIC_(self%id_tmp, _REPLNAN_(acclim%tmp))       !average Temporary diagnostic
-  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(self%ex_airsea* (250.0 - env%oxy) ))   !average Auxiliary diagnostic dRchl_phyC_dt
+  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(dRchl_phyC_dt))   !average Auxiliary diagnostic 
   _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(acclim%dRchl_dfracR*acclim%dfracR_dt)) !average Auxiliary diagnostic
   _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%dRchl_dtheta*acclim%dtheta_dt)) !average Auxiliary diagnostic
   _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(acclim%fac1))     !average dtheta
@@ -695,7 +695,7 @@ subroutine maecs_do_surface(self,_ARGUMENTS_DO_SURFACE_)
    class (type_hzg_maecs), intent(in) :: self
    _DECLARE_ARGUMENTS_DO_SURFACE_
 
-   real(rk) :: tot_vm_N,tot_vm_P,tot_vm_S, O2flux,O2air,oxy
+   real(rk) :: tot_vm_N,tot_vm_P,tot_vm_S, O2flux,O2airbl,oxy
 
    _HORIZONTAL_LOOP_BEGIN_
       _GET_HORIZONTAL_(self%id_totN_vertmean,tot_vm_N)
@@ -719,15 +719,15 @@ subroutine maecs_do_surface(self,_ARGUMENTS_DO_SURFACE_)
 ! --- oxygen flux between sea water and air -----
       if (self%BioOxyOn) then
 ! O2 flux across the boundary layer
-! O2air is the saturation concentration of O2
+! O2airbl is the saturation concentration of O2
 ! airsea_ex is the average diffusivity coefficient (m2/sec) divided by the thickness of the boundary layer.
 ! for O2 in mmol m-3, the rate of exchange in mmol m-2 s-1).
 ! Positive values imply a flux into the water, negative: out of the water. 
-         O2air = 250.0d0
-!        _GET_HORIZONTAL_(self%id_O2air, O2air)! boundary layer dissolved oxygen in mmolO2/m**3
+         O2airbl = self%O2_sat
+!        _GET_HORIZONTAL_(self%id_O2airbl, O2airbl)! boundary layer dissolved oxygen in mmolO2/m**3
         _GET_(self%id_oxy, oxy)   ! sea water dissolved oxygen in mmolO2/m**3
 
-        O2flux  = self%ex_airsea * (O2air - oxy)!
+        O2flux  = self%ex_airsea * (O2airbl - oxy)!
         _SET_SURFACE_EXCHANGE_(self%id_oxy, O2flux )
         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_O2flux_diag, O2flux) ! converts mmol/m2.s to mmol/m2.d
       endif
@@ -736,7 +736,7 @@ subroutine maecs_do_surface(self,_ARGUMENTS_DO_SURFACE_)
 
 end subroutine maecs_do_surface
 ! potential entries in maecs_deps.lst;but might work only using GOTM-input scheme
-! O2air	mmol-C/m**3 horizontal_dependency O2air surface_molecular_oxygen_partial_pressure_difference_between_sea_water_and_air #BioOxyOn
+! O2airbl	mmol-C/m**3 horizontal_dependency O2airbl surface_molecular_oxygen_partial_pressure_difference_between_sea_water_and_air #BioOxyOn
 !N2air	mmol-C/m**3 horizontal_dependency N2air mole_concentration_of_atomic_nitrogen_in_air  
 !N2flux	mmol-N/m**2/d horizontal_diagnostic_variable  'N2flux','mmol-N/m**2/d','nitrogen_flux_between_sea_water_and_air' 
   

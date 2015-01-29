@@ -135,9 +135,10 @@ contains
 !> \describepar{frac\_PAR     , \mathrm{frac_PAR}     , photosynthetically active fraction of light, 1.0 }
 !> \describepar{small        , \mathrm{small}        , lower limit for denominator in ratios; small_finite=sqrt(small), 1e-04 }
 !> \describepar{dil          , \mathrm{dil}          , dilution of all concentrations except dissolved inorganics, 0.0 1/d}
-!> \describepar{ex\_airsea    , \mathrm{ex_airsea}    , diffusivity coefficient (m2/s) divided by boundary layer thickness, 5.0E1 m/s}
-!> \describepar{N\_depo       , \mathrm{N_depo}       , DIN deposition rate 0.5  6-21mg/m2.d Grieken2007 - , 0.5 mmol-N/m2.d}
-!> \describepar{P\_depo       , \mathrm{P_depo}       , DIP deposition rate , 0.5 mmol-P/m2.d}
+!> \describepar{ex\_airsea    , \mathrm{ex_airsea}    , diffusivity coefficient (m2/s) divided by boundary layer thickness, 7e-4 m/s}
+!> \describepar{O2\_sat       , \mathrm{O2_sat}       , oxygen concentration in air-sea boundary layer, 300. mmol-O2/m2.d}
+!> \describepar{N\_depo       , \mathrm{N_depo}       , DIN deposition rate 0.5  6-21mg/m2.d Grieken2007 - , 1.8 mmol-N/m2.d}
+!> \describepar{P\_depo       , \mathrm{P_depo}       , DIP deposition rate , 0.1 mmol-P/m2.d}
 !> \describepar{rFast        , \mathrm{rFast}        , decay rate fast decay det., 0.07 1/d}
 !> \describepar{rSlow        , \mathrm{rSlow}        , decay rate slow decay det., 0.001 1/d}
 !> \describepar{NCrFdet      , \mathrm{NCrFdet}      , NC ratio fast decay det., 0.15 molN/molC}
@@ -241,6 +242,7 @@ real(rk)  :: frac_PAR     ! photosynthetically active fraction of light
 real(rk)  :: small        ! lower limit for denominator in ratios; small_finite=sqrt(small)
 real(rk)  :: dil          ! dilution of all concentrations except dissolved inorganics
 real(rk)  :: ex_airsea    ! diffusivity coefficient (m2/s) divided by boundary layer thickness
+real(rk)  :: O2_sat       ! oxygen concentration in air-sea boundary layer
 real(rk)  :: N_depo       ! DIN deposition rate 0.5  6-21mg/m2.d Grieken2007 - 
 real(rk)  :: P_depo       ! DIP deposition rate 
 !!------- Parameters from nml-list maecs_omex ------- 
@@ -298,7 +300,8 @@ namelist /maecs_graz/ &
   mort_zoo
 
 namelist /maecs_env/ &
-  a_water, a_minfr, a_spm, a_chl, frac_PAR, small, dil, ex_airsea, N_depo, P_depo
+  a_water, a_minfr, a_spm, a_chl, frac_PAR, small, dil, ex_airsea, O2_sat, N_depo, &
+  P_depo
 
 namelist /maecs_omex/ &
   rFast, rSlow, NCrFdet, NCrSdet, PAds, PAdsODU, NH3Ads, rnit, ksO2nitri, rODUox, &
@@ -377,9 +380,10 @@ a_chl        = 0.002_rk           ! m**3/m.mgChl
 frac_PAR     = 1.0_rk             ! 
 small        = 1e-04_rk           ! 
 dil          = 0.0_rk             ! 1/d
-ex_airsea    = 5.0E1_rk           ! m/s
-N_depo       = 0.5_rk             ! mmol-N/m2.d
-P_depo       = 0.5_rk             ! mmol-P/m2.d
+ex_airsea    = 7e-4_rk            ! m/s
+O2_sat       = 300._rk            ! mmol-O2/m2.d
+N_depo       = 1.8_rk             ! mmol-N/m2.d
+P_depo       = 0.1_rk             ! mmol-P/m2.d
 rFast        = 0.07_rk            ! 1/d
 rSlow        = 0.001_rk           ! 1/d
 NCrFdet      = 0.15_rk            ! molN/molC
@@ -524,6 +528,7 @@ call self%get_parameter(self%N_depo       ,'N_depo',        default=N_depo)
 call self%get_parameter(self%P_depo       ,'P_depo',        default=P_depo)
 if (BioOxyOn) then
     call self%get_parameter(self%ex_airsea    ,'ex_airsea',     default=ex_airsea)
+    call self%get_parameter(self%O2_sat       ,'O2_sat',        default=O2_sat)
 end if
 
 !!------- model parameters from nml-list maecs_omex ------- 
