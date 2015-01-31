@@ -57,7 +57,8 @@ real(rk) :: graz_rate   ! carbon-specific grazing rate                          
 real(rk) :: zoo_respC   ! temperature dependent carbon respiration rate  [mmolC m^{-3} d^{-1}]
 real(rk) :: zoo_mort
 real(rk) :: denitrate   ! pelagic N-loss by denitrification, emulating benthic pool and suboxic micro-environments
-real(rk) :: deporate    ! pelagic, "volumetric" deposition, slowly refueling N-losses 
+real(rk) :: deporate    ! pelagic, "volumetric" deposition, slowly refueling N-losses
+real(rk) :: qualPOM, ddegN     !  POM quality -> degradation
 real(rk) :: secs_pr_day = 86400.0_rk
 ! --- AGGREGATION 
 real(rk) :: aggreg_rate ! aggregation among phytoplankton and between phytoplankton & detritus [d^{-1}]    
@@ -187,7 +188,6 @@ call calc_sensitivities(self,sens,phy,env,nut,acclim)
 ! --- ALGAL GROWTH and EXUDATION RATES, physiological trait dynamics ----------------
 call photosynthesis(self,sens,phy,uptake,exud,acclim)
 
-
 ! ----------------       grazing        -------------------------------------------
 if (self%GrazingOn) then
   call grazing(self%g_max * sens%f_T,self%k_grazC,phy%C,graz_rate)
@@ -222,9 +222,16 @@ aggreg_rate = self%phi_agg * (1.0_rk - exp(-self%agg_doc*dom%C)) * (phy%N + det%
 !aggreg_rate = aggreg_rate * exp(-4*phy%rel_phys ) 
 
 ! ------------------------------------------------------------------
+!  ---  POM quality, relative to max N-quota of phytoplankton
+qualPOM     = det%N /(det%C + self%small_finite)  * self%iK_QN
+! TODO: analogue for DOM
+  
 !  ---  hydrolysis & remineralisation rate (temp dependent)
-degradT     = self%hydrol * sens%f_T
+degradT     = self%hydrol * sens%f_T * qualPOM
 reminT      = self%remin  * sens%f_T
+
+!  ---  hydrolysis depends on quality, here propto DetN/DetC
+ddegN       = self%hydrol * sens%f_T * smooth_small(1.0d0 - qualPOM, self%small_finite)
 
 !_____________________________________________________________________________
 !
@@ -344,7 +351,7 @@ rhsv%detN   = floppZ%N              * zoo%C   &
              + aggreg_rate          * phy%N   &
              - self%dil             * det%N   &
              + zoo_mort             * zoo%N   & 
-             - degradT              * det%N   &
+             - (degradT + ddegN)    * det%N   &
              - denitrate
   
 !________________________________________________________________________________
@@ -358,7 +365,7 @@ rhsv%domC   = exud%C                * phy%C   &
 !
 !  --- DON
 rhsv%domN   = exud%N                * phy%C   &
-             + degradT              * det%N   &
+             + (degradT + ddegN)    * det%N   &
              - self%dil             * dom%N   &         
              - reminT               * dom%N
 !________________________________________________________________________________
@@ -447,7 +454,7 @@ if (self%BioOxyOn) then
    Anoxiclim  = (1.0_rk-env%oxy/(env%oxy+self%kinO2anox)) * (1.0_rk-no3/(no3+self%kinNO3anox))
    Rescale    = 1.0_rk/(Oxicminlim+Denitrilim+Anoxiclim)
 
-   CprodF = self%rFast * env%fdet
+   CprodF = self%rFast * env%fdet ! * qualPOM
    CprodS = self%rSlow * sdet 
 
    Cprod  = CprodF + CprodS 
