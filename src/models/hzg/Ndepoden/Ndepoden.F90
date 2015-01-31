@@ -30,12 +30,12 @@
       type (type_bottom_state_variable_id) :: id_Ndef
       type (type_state_variable_id)        :: id_det_pel, id_nut_pel      
 !      type (type_diagnostic_variable_id)   :: id_peldenit
-      type (type_horizontal_diagnostic_variable_id)   :: id_dNdef, id_deporate,id_denitrate
+      type (type_horizontal_diagnostic_variable_id)   :: id_dNdef, id_deporate,id_denitrate, id_denitrilim
       type (type_dependency_id)            :: id_depth, id_temp!,id_peldenit_dep !id_totNpel
       type (type_horizontal_dependency_id) :: id_deporate_dep!, id_denitrate_dep ! id_intpeldenit_dep, id_totNpel
       type (type_horizontal_dependency_id) :: id_bendetrem
 !     Model parameters:
-      real(rk) :: Ntot0,Ndef0,const_det,rq10,T_ref,PON_denit,denit,depocoef,depoconst
+      real(rk) :: Ntot0,Ndef0,const_det,rq10,T_ref,K_det,K_nut,denit,depocoef,depoconst
       logical  :: use_det,NdepodenitON,Ndef_dyn
       integer  :: depometh,denitmeth
       
@@ -75,10 +75,10 @@
 ! !LOCAL VARIABLES:
    character(len=64)         :: pelagic_detritus_variable='',pelagic_nutrient_variable='',benthic_detrem_variable=''
    logical                   :: NdepodenitON=.true., Ndef_dyn=.true.
-   real(rk)                  :: Ntot0=100.,Ndef0=5.,const_det=10.,rq10=2.,T_ref=288.,PON_denit=5.,denit=0.024,depocoef=4.0,depoconst=0.1
+   real(rk)                  :: Ntot0=100.,Ndef0=5.,const_det=10.,rq10=2.,T_ref=288.,K_det=3.,K_nut=5.,denit=0.024,depocoef=4.0,depoconst=0.1
    integer                   :: depometh=1, denitmeth=1
    real(rk), parameter :: secs_pr_day = 86400.
-   namelist /hzg_Ndepoden/  pelagic_detritus_variable,pelagic_nutrient_variable,benthic_detrem_variable,Ntot0,Ndef0,NdepodenitON,const_det,rq10,T_ref,PON_denit,denit,denitmeth,depocoef,depoconst,depometh
+   namelist /hzg_Ndepoden/  pelagic_detritus_variable,pelagic_nutrient_variable,benthic_detrem_variable,Ntot0,Ndef0,NdepodenitON,const_det,rq10,T_ref,K_det,K_nut,denit,denitmeth,depocoef,depoconst,depometh
                                     
 !EOP
 !-----------------------------------------------------------------------
@@ -95,7 +95,8 @@
    call self%get_parameter(self%const_det,      'const_det',     default=const_det)
    call self%get_parameter(self%rq10,           'rq10',          default=rq10)
    call self%get_parameter(self%T_ref,          'T_ref',          default=T_ref)
-   call self%get_parameter(self%PON_denit,       'PON_denit',      default=PON_denit)
+   call self%get_parameter(self%K_det,       'K_det',      default=K_det)
+   call self%get_parameter(self%K_nut,       'K_nut',      default=K_nut)
    call self%get_parameter(self%denit,          'denit',         default=denit, scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%depocoef,       'depocoef',      default=depocoef)
    call self%get_parameter(self%depoconst,       'depoconst',      default=depoconst, scale_factor=1.0_rk/secs_pr_day)
@@ -126,7 +127,9 @@
    call self%register_horizontal_diagnostic_variable(self%id_denitrate,   'denitrate','mmol/m**2/d', & 
 				  'bottom denitrification rate', output=output_time_step_averaged) 
    
-    
+   call self%register_horizontal_diagnostic_variable(self%id_denitrilim,   'denitrilim','-', & 
+				  'denitrification limitation', output=output_time_step_averaged) 
+				  
    
    !call self%register_diagnostic_variable(self%id_peldenit,   'denitrate','mmol/m**3/d', 'bulk pelagic denitrification rate', &
    !                                       output=output_time_step_averaged) 
@@ -136,11 +139,10 @@
    ! call self%register_dependency(self%id_totNpel,standard_variables%total_nitrogen)
    call self%register_dependency(self%id_temp,standard_variables%temperature)
    call self%register_dependency(self%id_depth,standard_variables%depth) !for implementing the nut_influx
-
    ! in order to be able to calculate the dNdef=total(denitrate)-deporate, we need to 
    call self%register_horizontal_dependency(self%id_deporate_dep,'deporate') !,required=.false.
    
-   if (self%denitmeth .eq. 3) then
+   if (self%denitmeth .eq. 3 .or. self%denitmeth .eq. 4) then
    call self%register_horizontal_dependency(self%id_bendetrem,benthic_detrem_variable) !,'hzg_benthic_pool01_detrem' required=.false.
    end if
    
@@ -202,22 +204,24 @@
      
      
      if (self%denitmeth .eq. 1) then
-       denitrate = self%denit * 4 * f_T * (1.0d0 - exp(-det_pel/self%PON_denit)) * det_pel
+       denitrate = self%denit * 4 * f_T * (1.0d0 - exp(-det_pel/self%K_det)) * det_pel
      else if (self%denitmeth .eq. 2) then
        !denitrate=denitrify(self,det_pel,f_T) !mmol/m2/s
-       denitrate = self%denit * 4 * f_T * (1.0d0 - exp(-det_pel/self%PON_denit)) * det_pel*det_pel
+       denitrate = self%denit * 4 * f_T * (1.0d0 - exp(-det_pel/self%K_det)) * det_pel*det_pel
      else if (self%denitmeth .eq. 3) then
        _GET_HORIZONTAL_(self%id_bendetrem, bendetrem) !mmolN/m2/d
        denitrate=bendetrem/secs_pr_day   *6.625       * 1         * 0.116
-		 !mmolN/m2/d *d/s        * molC/molN  * molO/molC * molNdenitrified/molOconsumed (Seitzinger & Giblin,1996) 
+		 !mmolN/m2/d *d/s        * molC/molN  * molO/molC * molNdenitrified/molOconsumed (Seitzinger & Giblin,1996)
+	!write(*,'(A,2(F16.14 ))')'bendetrem,denitrilim,denitrate:',bendetrem, denitrate	 
      else if (self%denitmeth .eq. 4) then
+       _GET_HORIZONTAL_(self%id_bendetrem, bendetrem) !mmolN/m2/d
        _GET_(self%id_nut_pel,nut_pel)      ! detritus concentration at the bottom (?)
        !this is how omexdia calculates:
        !Denitrilim = (1.0_rk-oxy/(oxy+self%kinO2denit)) * NO3/(no3+self%ksNO3denit)
        !Denitrific = (self%rFast * fdet + self%rSlow * sdet)*Denitrilim*Rescale        ! Denitrification
-       denitrilim = (1.0d0 - exp(-det_pel/self%PON_denit)) * nut_pel/(nut_pel+self%PON_denit)
-       denitrate= bendetrem/secs_pr_day   *6.625       * 1         * 0.116 * denitrilim
-                  !mmolN/m2/d *d/s        * molC/molN  * molO/molC * molNdenitrified/molOconsumed (Seitzinger & Giblin,1996) 
+       denitrilim = (1.0d0 - exp(-det_pel/self%K_det)) * nut_pel/(nut_pel+self%K_nut)
+       denitrate= denitrilim*bendetrem/secs_pr_day   *6.625       * 1         * 0.116
+       !write(*,'(A,2(F16.14))')'bendetrem,denitrilim,denitrate:',bendetrem,denitrilim, denitrate
      end if 
      
      ! Set the surface flux of the pelagic nutrient variable, if coupled
@@ -250,6 +254,7 @@
    
    ! Export diagnostic variables
    
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_denitrilim,denitrilim) 
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_denitrate,denitrate*secs_pr_day) !mmol/m2/d
   
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_dNdef,denitrate*secs_pr_day - deporate) !mmol/m2/d
@@ -395,10 +400,10 @@ pure real(rk) function denitrify(self,det_pel,f_T)
    real(rk), intent(in) :: det_pel,f_T
    
    !original code from Kai:
-   !denitrate = self%denit * 4 * sens%f_T * (1.0d0 - exp(-det%N/self%PON_denit)) * det%N
+   !denitrate = self%denit * 4 * sens%f_T * (1.0d0 - exp(-det%N/self%K_det)) * det%N
 
-   !denitrify = self%denit * 4 * f_T * (1.0d0 - exp(-det_pel/self%PON_denit)) * det_pel
-   denitrify = self%denit * 4 * f_T * (1.0d0 - exp(-det_pel/self%PON_denit)) * det_pel*det_pel
+   !denitrify = self%denit * 4 * f_T * (1.0d0 - exp(-det_pel/self%K_det)) * det_pel
+   denitrify = self%denit * 4 * f_T * (1.0d0 - exp(-det_pel/self%K_det)) * det_pel*det_pel
  end function denitrify
  !-----------------------------------------------------------------------
  

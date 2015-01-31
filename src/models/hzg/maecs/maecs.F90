@@ -791,7 +791,7 @@ end subroutine initialize
    
    !fz parameters
    fz1=0.5_rk 
-   fz2=10.0_rk 
+   fz2=11.0_rk 
    
    !default: fz=ft=1
    fz=1.0_rk 
@@ -802,7 +802,7 @@ end subroutine initialize
    if (self%kwFzmaxMeth .eq. 1) then
     _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
     !f(z) exponential convergence to the 10% of 'self%a_water' with depth
-    fz=self%a_minfr + (1-self%a_minfr)*exp(-zmax/10.0)
+    fz=self%a_minfr + (1-self%a_minfr)*exp(-zmax/11.0)
    else if (self%kwFzmaxMeth .eq. 2) then
     _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
     !f(z)=sigmoidal function of depth with an upper plateau (100%) at 0-10 m and a lower (10%) for 30+
@@ -817,15 +817,18 @@ end subroutine initialize
     A=8.036
     B=9.78
     L=102.42
-    ft= 0.05*(A*sin(2*T*Pi/365 +2*L*Pi/365)+B)
+    ft= 0.05*(A*sin(2.0*doy*Pi/365.0 +2.0*L*Pi/365.0)+B)
+    !write (*,'(A, F7.6)') 'ft term: ',0.05*(A*sin(2.0*doy*Pi/365.0 +2.0*L*Pi/365.0)+B)
     
     !f(z)=sigmoidal function of depth with an upper plateau (100%) at 0-10 m and a lower (10%) for 30+
-    fz=self%a_minfr+(1-self%a_minfr)*(1-1/(1+exp(-zmax*0.5+10)))
+    fz=self%a_minfr+(1.0-self%a_minfr)*(1.0-1.0/(1.0+exp(-zmax*0.5+10)))
+    
+    !write (*,'(A, F7.6)') 'fz term: ',(1.0-self%a_minfr)*(1.0-1.0/(1.0+exp(-zmax*0.5+10))) 
+     
    end if
    
    kw=self%a_water*fz*ft
-   
-   !write (*,'(A,2(F5.2))') 'zmax,kw:',zmax,kw 
+   !write (*,'(A, 2(F5.2), I4, 3(F5.2))') 'zmax,t,meth,fz,ft,kw: ',zmax,doy,self%kwFzmaxMeth,fz,ft,kw
    
    ! Attenuation as a result of background turbidity and self-shading of phytoplankton.
    _SET_EXTINCTION_(kw + self%a_spm*(p+d+z))
