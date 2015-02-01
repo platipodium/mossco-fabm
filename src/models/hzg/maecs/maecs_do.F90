@@ -59,6 +59,7 @@ real(rk) :: zoo_mort
 real(rk) :: denitrate   ! pelagic N-loss by denitrification, emulating benthic pool and suboxic micro-environments
 real(rk) :: deporate    ! pelagic, "volumetric" deposition, slowly refueling N-losses
 real(rk) :: qualPOM, ddegN     !  POM quality -> degradation
+real(rk) :: qualDOM, dremN     !  DOM quality -> degradation
 real(rk) :: secs_pr_day = 86400.0_rk
 ! --- AGGREGATION 
 real(rk) :: aggreg_rate ! aggregation among phytoplankton and between phytoplankton & detritus [d^{-1}]    
@@ -219,25 +220,12 @@ end if
 
 aggreg_rate = self%phi_agg * (1.0_rk - exp(-self%agg_doc*dom%C)) * (phy%N + det%N) 
 !         vS * exp(-4*phys_status )                ! [d^{-1}] 
-!aggreg_rate = aggreg_rate * exp(-4*phy%rel_phys ) 
-
-! ------------------------------------------------------------------
-!  ---  POM quality, relative to max N-quota of phytoplankton
-qualPOM     = det%N /(det%C + self%small_finite)  * self%iK_QN
-! TODO: analogue for DOM
-  
-!  ---  hydrolysis & remineralisation rate (temp dependent)
-degradT     = self%hydrol * sens%f_T * qualPOM
-reminT      = self%remin  * sens%f_T
-
-!  ---  hydrolysis depends on quality, here propto DetN/DetC
-ddegN       = self%hydrol * sens%f_T * smooth_small(1.0d0 - qualPOM, self%small_finite)
+!aggreg_rate = aggreg_rate * exp(-4*phy%rel_phys ) TODO: DOM quality as proxy for TEP
 
 !_____________________________________________________________________________
 !
 !      turnover of long-term N-reservoir (denitrification + wet N-deposition)
 if (self%NResOn) then
-
 !pelagic N-loss by denitrification, emulating benthic pool and suboxic micro-environments
  denitrate = self%denit * 4 * sens%f_T * (1.0d0 - exp(-det%N/self%PON_denit)) * det%N
 
@@ -333,6 +321,22 @@ if (self%GrazingOn) then
 else
    rhsv%zooC      = 0.0_rk
 end if 
+
+! ------------------------------------------------------------------
+!  ---  POM quality, relative to max N-quota of phytoplankton
+qualPOM     = det%N /(det%C + self%small_finite)  * self%iK_QN
+qualDOM     = dom%N /(dom%C + self%small_finite)  * self%iK_QN
+! TODO: analogue for DOM
+  
+!  ---  hydrolysis & remineralisation rate (temp dependent)
+degradT     = self%hydrol * sens%f_T * qualPOM
+reminT      = self%remin  * sens%f_T * qualDOM
+
+!  ---  hydrolysis & remineralisation depend on quality, here propto N/C quota of OM
+!  acceleration: rate difference for N-pool
+ddegN       = self%hydrol * sens%f_T * smooth_small(1.0d0 - qualPOM, self%small_finite)
+dremN       = self%remin * sens%f_T * smooth_small(1.0d0 - qualDOM, self%small_finite)
+
 !________________________________________________________________________________
 !
 !  --- DETRITUS C
@@ -357,17 +361,19 @@ rhsv%detN   = floppZ%N              * zoo%C   &
 !________________________________________________________________________________
 !
 !  --- DOC
+ Cprod      = reminT                * dom%C
 rhsv%domC   = exud%C                * phy%C   & 
              + degradT              * det%C   &
              - self%dil             * dom%C   &        
-             - reminT               * dom%C 
+             - Cprod 
 !________________________________________________________________________________
 !
 !  --- DON
+Nprod       = (reminT + dremN)    * dom%N
 rhsv%domN   = exud%N                * phy%C   &
              + (degradT + ddegN)    * det%N   &
              - self%dil             * dom%N   &         
-             - reminT               * dom%N
+             - Nprod
 !________________________________________________________________________________
 !
 ! DIC
@@ -383,7 +389,7 @@ rhsv%domN   = exud%N                * phy%C   &
 !
 !  --- DIN
 rhsv%nutN   = -uptake%N            * phy%C    &
-             + reminT              * dom%N    &
+             + Nprod                          &
              + lossZ%N             * zoo%C    &
              + self%dil * (self%nutN_initial - nut%N) &
              + deporate
@@ -401,7 +407,7 @@ if (self%PhosphorusOn) then
               + aggreg_rate          * phy%P    &
               - self%dil             * det%P    &         
               + zoo_mort             * zoo%P    & 
-              - degradT              * det%P
+              - degradT              * det%P    !TODO quality enhances P remin
   !  --- DOP
    rhsv%domP = exud%P                * phy%C    &
               + degradT              * det%P    &
@@ -454,12 +460,10 @@ if (self%BioOxyOn) then
    Anoxiclim  = (1.0_rk-env%oxy/(env%oxy+self%kinO2anox)) * (1.0_rk-no3/(no3+self%kinNO3anox))
    Rescale    = 1.0_rk/(Oxicminlim+Denitrilim+Anoxiclim)
 
-   CprodF = self%rFast * env%fdet ! * qualPOM
-   CprodS = self%rSlow * sdet 
-
-   Cprod  = CprodF + CprodS 
-
-   Nprod  = CprodF * self%NCrFdet + self%rSlow * N_sdet
+!   CprodF = self%rFast * env%fdet ! * qualPOM
+!   CprodS = self%rSlow * sdet 
+!   Cprod  = CprodF + CprodS 
+!   Nprod  = CprodF * self%NCrFdet + self%rSlow * N_sdet
 
 ! extra-omexdia P -dynamics not needed in MAECS 
 !if (self%PhosphorusOn) then
@@ -479,16 +483,18 @@ if (self%BioOxyOn) then
 
 ! reoxidation and ODU deposition
    Nitri      = f_T * self%rnit   * env%nh3 * env%oxy/(env%oxy + self%ksO2nitri &
-                  + relaxO2*(env%fdet + env%odu))
+                  + relaxO2*(dom%C + env%odu))
+!                  + relaxO2*(env%fdet + env%odu))
    OduOx      = f_T * self%rODUox * env%odu * env%oxy/(env%oxy + self%ksO2oduox &
-                  + relaxO2*(env%nh3 + env%fdet))
+                  + relaxO2*(env%nh3 + dom%C))
+!                  + relaxO2*(env%nh3 + env%fdet))
 
 !  pDepo      = min(1.0_rk,0.233_rk*(wDepo)**0.336_rk )
    pDepo      = 0.0_rk
    OduDepo    = AnoxicMin * pDepo 
 
 !  dynamics of fdet ~ fast detritus C
-  rhsv%fdet   = (0.8d0*det_prod - f_T * CprodF) - self%dil * env%fdet            
+  rhsv%fdet   = 0 !(0.8d0*det_prod - f_T * CprodF) - self%dil * env%fdet            
 
 !  dynamics of sdet ~ slow detritus C
 !  rhsv%sdet = -f_T * CprodS 
@@ -504,7 +510,7 @@ if (self%BioOxyOn) then
 ! preference for NH3 in DIN-uptake of autotrophs
   nh3f        = 1.0d0 - exp(-5*env%nh3/(nut%N+self%small))
 !  dynamics of nh3 ~ dissolved ammonium
-  rhsv%nh3    = f_T * Nprod - Nitri + lossZ%N * zoo%C  & !/ (1.0_rk + self%NH3Ads)
+  rhsv%nh3    = Nprod - Nitri + lossZ%N * zoo%C  & !/ (1.0_rk + self%NH3Ads)
                + (exud%N - nh3f*uptake%N) * phy%C &!env%nh3/(nut%N+self%small) *
                + self%dil * (self%nh3_initial - env%nh3) 
 
