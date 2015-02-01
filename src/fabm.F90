@@ -344,10 +344,8 @@
    contains
 
    subroutine fabm_initialize_library()
-      logical, save :: initialized = .false.
-
       ! Do nothing if already initialized.
-      if (initialized) return
+      if (associated(factory)) return
 
       ! If needed, create default object for communication (e.g., logging, error reporting) with host.
       if (.not.associated(driver)) allocate(type_base_driver::driver)
@@ -356,9 +354,8 @@
       call initialize_standard_variables()
 
       ! Create the model factory.
-      call fabm_create_model_factory()
-
-      initialized = .true.
+      factory => fabm_model_factory
+      call factory%initialize()
    end subroutine fabm_initialize_library
 
 !-----------------------------------------------------------------------
@@ -439,9 +436,9 @@
             '"'//trim(models(i))//'" is not a valid model name.')
          childmodel%user_created = .true.
 
-         call log_message('Initializing biogeochemical model "'//trim(instancename)//'"...')
+         call log_message('Initializing '//trim(instancename)//'...')
          call model%root%add_child(childmodel,instancename,configunit=file_unit)
-         call log_message('model "'//trim(instancename)//'" initialized successfully.')
+         call log_message( '   initialization succeeded.')
       end if
    end do
 
@@ -2046,7 +2043,7 @@
    do while (associated(node))
       call node%model%do(_ARGUMENTS_ND_IN_)
 
-      ! Copy newly written diagnostics to prefetch
+      ! Copy newly written diagnostics to prefetch so consecutive models can use it.
       do i=1,size(node%model%reused_diag)
          if (node%model%reused_diag(i)%source==source_do) then
             j = node%model%reused_diag(i)%read_index
@@ -2803,6 +2800,7 @@ end subroutine internal_check_horizontal_state
 !
 ! !LOCAL PARAMETERS:
    type (type_model_list_node), pointer :: node
+   integer                              :: i,j,k
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -2817,6 +2815,19 @@ end subroutine internal_check_horizontal_state
    node => self%extinction_call_list%first
    do while (associated(node))
       call node%model%do(_ARGUMENTS_ND_IN_)
+
+      ! Copy newly written diagnostics to prefetch so consecutive models can use it.
+      do i=1,size(node%model%reused_diag)
+         if (node%model%reused_diag(i)%source==source_do) then
+            j = node%model%reused_diag(i)%read_index
+            k = node%model%reused_diag(i)%write_index
+            _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
+               self%environment%prefetch _INDEX_SLICE_PLUS_1_(j) = self%environment%scratch _INDEX_SLICE_PLUS_1_(k)
+            _CONCURRENT_LOOP_END_
+         end if
+      end do
+
+      ! Move to next model
       node => node%next
    end do
 
@@ -2959,7 +2970,7 @@ end subroutine internal_check_horizontal_state
 !EOP
 !
    type (type_model_list_node), pointer :: node
-   integer :: i
+   integer :: i,j,k
 !-----------------------------------------------------------------------
 !BOC
    call prefetch(self%environment _ARG_LOCATION_ND_)
@@ -2967,6 +2978,19 @@ end subroutine internal_check_horizontal_state
    node => self%conserved_quantity_call_list%first
    do while (associated(node))
       call node%model%do(_ARGUMENTS_ND_IN_)
+
+      ! Copy newly written diagnostics to prefetch so consecutive models can use it.
+      do i=1,size(node%model%reused_diag)
+         if (node%model%reused_diag(i)%source==source_do) then
+            j = node%model%reused_diag(i)%read_index
+            k = node%model%reused_diag(i)%write_index
+            _CONCURRENT_LOOP_BEGIN_EX_(self%environment)
+               self%environment%prefetch _INDEX_SLICE_PLUS_1_(j) = self%environment%scratch _INDEX_SLICE_PLUS_1_(k)
+            _CONCURRENT_LOOP_END_
+         end if
+      end do
+
+      ! Move to next model
       node => node%next
    end do
 
@@ -3209,13 +3233,10 @@ function create_external_bulk_id_for_standard_name(self,standard_variable) resul
    link => self%root%links%first
    do while (associated(link))
       if (associated(link%target%standard_variable)) then
-         select type (variable=>link%target%standard_variable)
-            class is (type_bulk_standard_variable)
-               if (variable%compare(standard_variable)) then
-                  id = create_external_bulk_id(link%target)
-                  return
-               end if
-         end select
+         if (standard_variable%compare(link%target%standard_variable)) then
+            id = create_external_bulk_id(link%target)
+            return
+         end if
       end if
       link => link%next
    end do
@@ -3231,13 +3252,10 @@ function create_external_horizontal_id_for_standard_name(self,standard_variable)
    link => self%root%links%first
    do while (associated(link))
       if (associated(link%target%standard_variable)) then
-         select type (variable=>link%target%standard_variable)
-            class is (type_horizontal_standard_variable)
-               if (variable%compare(standard_variable)) then
-                  id = create_external_horizontal_id(link%target)
-                  return
-               end if
-         end select
+         if (standard_variable%compare(link%target%standard_variable)) then
+            id = create_external_horizontal_id(link%target)
+            return
+         end if
       end if
       link => link%next
    end do
@@ -3253,13 +3271,10 @@ function create_external_scalar_id_for_standard_name(self,standard_variable) res
    link => self%root%links%first
    do while (associated(link))
       if (associated(link%target%standard_variable)) then
-         select type (variable=>link%target%standard_variable)
-            class is (type_global_standard_variable)
-               if (variable%compare(standard_variable)) then
-                  id = create_external_scalar_id(link%target)
-                  return
-               end if
-         end select
+         if (standard_variable%compare(link%target%standard_variable)) then
+            id = create_external_scalar_id(link%target)
+            return
+         end if
       end if
       link => link%next
    end do

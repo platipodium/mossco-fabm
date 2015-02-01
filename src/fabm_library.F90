@@ -9,16 +9,17 @@
    module fabm_library
 !
 ! !USES:
-   use fabm_types, only: type_base_model_factory, type_base_model, factory
+   use fabm_types, only: type_base_model_factory, type_base_model
 
    use fabm_builtin_models
+
 !  Add additional external modules containing models or model factories here
 !  please in alphabetically order
    use aed_models
+   use au_prey_predator
    use bb_model_library
    use examples_model_library
    use fabm_metu_mnemiopsis
-   use fabm_pml_carbonate
    use fabm_klimacampus_phy_feedback
    use fabm_hzg_omexdia_p
    use fabm_msi_ergom1
@@ -26,7 +27,9 @@
    use iow_model_library
    use niva_model_library
    use pclake_model_library
+   use pml_model_library
    use au_pclake_model_library
+!our models:
    use fabm_iow_spm_old
    use fabm_hzg_maecs
    use fabm_hzg_jelly
@@ -39,34 +42,38 @@
 
    private
 
-   public :: fabm_create_model_factory
-
-   type,extends(type_base_model_factory) :: type_model_factory
+   type,extends(type_base_model_factory) :: type_factory
       contains
       procedure :: create
+      procedure :: initialize
    end type
+
+   type (type_factory),save,target,public :: fabm_model_factory
 
 !EOP
 !-----------------------------------------------------------------------
 
-   contains
+contains
 
-   subroutine fabm_create_model_factory()
-      if (.not.associated(factory)) then
-         allocate(type_model_factory::factory)
+   subroutine initialize(self)
+      class (type_factory), intent(inout) :: self
 
-         call factory%add(builtin_factory)
-         call factory%add(aed_model_factory)
-         call factory%add(bb_model_factory)
-         call factory%add(examples_model_factory)
-         call factory%add(gotm_model_factory)
-         call factory%add(iow_model_factory)
-         call factory%add(niva_model_factory)
-         ! Add new additional model factories here
-         call factory%add(pclake_model_factory)
-         call factory%add(au_pclake_model_factory)
-      end if
-   end subroutine
+      call self%add(builtin_factory)
+      call self%add(aed_model_factory)
+      call self%add(bb_model_factory,'bb')
+      call self%add(examples_model_factory,'examples')
+      call self%add(gotm_model_factory,'gotm')
+      call self%add(iow_model_factory)
+      call self%add(niva_model_factory)
+      call self%add(pclake_model_factory)
+      call self%add(pml_model_factory,'pml')
+      call self%add(au_pclake_model_factory)
+      ! Add additional model factories here
+
+      ! Go through default initializaton steps. This also allows new added child model factories to initialize.
+      call self%type_base_model_factory%initialize()
+   end subroutine initialize
+
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -76,9 +83,9 @@
    subroutine create(self,name,model)
 !
 ! !INPUT PARAMETERS:
-      class (type_model_factory),intent(in) :: self
-      character(*),              intent(in) :: name
-      class (type_base_model),pointer       :: model
+      class (type_factory),intent(in) :: self
+      character(*),        intent(in) :: name
+      class (type_base_model),pointer :: model
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -86,27 +93,19 @@
       nullify(model)
 
       select case (name)
-         !case ('au_prey_predator');          allocate(type_au_prey_predator::model)
+         case ('au_prey_predator');          allocate(type_au_prey_predator::model)
          case ('metu_mnemiopsis');           allocate(type_metu_mnemiopsis::model)
-         case ('pml_carbonate');             allocate(type_pml_carbonate::model)
          case ('klimacampus_phy_feedback');  allocate(type_klimacampus_phy_feedback::model)
          case ('hzg_omexdia_p');             allocate(type_hzg_omexdia_p::model)
          case ('msi_ergom1');                allocate(type_msi_ergom1::model)
          ! Add additional individual models here
-         case ('iow_spm_old');                   allocate(type_iow_spm_old::model)
-         case ('hzg_maecs');                 allocate(type_hzg_maecs::model)
-         case ('hzg_jelly');                 allocate(type_hzg_jelly::model)
-         case ('hzg_n2pzdq');          allocate(type_hzg_n2pzdq::model)
-         case ('hzg_benthic_pool');   allocate(type_hzg_benthic_pool::model)
-         case ('hzg_Ndepoden');   allocate(type_hzg_Ndepoden::model)
-         case ('hzg_omexdia_p_mpb');             allocate(type_hzg_omexdia_p_mpb::model)
          case default
             call self%type_base_model_factory%create(name,model)
       end select
 
       ! Store name that was used to create this model, so we can re-create it in the future.
       if (associated(model)) model%type_name = name
-   end subroutine
+   end subroutine create
 !EOC
 
 !-----------------------------------------------------------------------

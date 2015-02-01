@@ -14,6 +14,7 @@ module fabm_config_types
    contains
       procedure (node_dump),deferred :: dump
       procedure                      :: set_path => node_set_path
+      procedure                      :: finalize => node_finalize
    end type
 
    abstract interface
@@ -61,6 +62,7 @@ module fabm_config_types
       procedure :: flatten        => dictionary_flatten
       procedure :: reset_accessed => dictionary_reset_accessed
       procedure :: set_path       => dictionary_set_path
+      procedure :: finalize       => dictionary_finalize
    end type
 
    type type_error
@@ -68,6 +70,10 @@ module fabm_config_types
    end type
 
 contains
+
+   subroutine node_finalize(self)
+      class (type_node),intent(inout) :: self
+   end subroutine
 
    subroutine dictionary_reset_accessed(self)
       class (type_dictionary),intent(in) :: self
@@ -101,7 +107,7 @@ contains
    subroutine dictionary_set(self,key,value)
       class (type_dictionary),intent(inout) :: self
       character(len=*),       intent(in)    :: key
-      class(type_node),target               :: value
+      class(type_node),pointer              :: value
 
       type (type_key_value_pair),pointer :: pair
 
@@ -121,6 +127,8 @@ contains
             ! Append a new pair.
             allocate(pair%next)
             pair => pair%next
+         else
+            deallocate(pair%value)
          end if
       end if
 
@@ -132,9 +140,13 @@ contains
    subroutine dictionary_set_string(self,key,value)
       class (type_dictionary),intent(inout) :: self
       character(len=*),       intent(in)    :: key,value
-      type (type_scalar),pointer :: node
-      allocate(node)
-      node%string = value
+
+      class (type_scalar),pointer :: scalar_node
+      class (type_node),  pointer :: node
+
+      allocate(scalar_node)
+      scalar_node%string = value
+      node => scalar_node
       call self%set(key,node)
    end subroutine
 
@@ -384,5 +396,21 @@ contains
          end if
       end if
    end function
+
+   subroutine dictionary_finalize(self)
+      class (type_dictionary),intent(inout) :: self
+
+      type (type_key_value_pair),pointer :: pair, next
+
+      pair => self%first
+      do while (associated(pair))
+         next => pair%next
+         call pair%value%finalize()
+         deallocate(pair%value)
+         deallocate(pair)
+         pair => next
+      end do
+      nullify(self%first)
+   end subroutine dictionary_finalize
 
 end module fabm_config_types

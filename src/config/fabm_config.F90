@@ -187,12 +187,14 @@ contains
             end select
             pair => pair%next
          end do
+         call parametermap%finalize()
       end if
 
       ! Add the model to its parent.
-      call log_message('Initializing biogeochemical model "'//trim(instancename)//'" (type "'//trim(modelname)//'")...')
+      call log_message('Initializing '//trim(instancename)//'...')
+      call log_message('   model type: '//trim(modelname))
       call parent%add_child(model,instancename,long_name,configunit=-1)
-      call log_message('model "'//trim(instancename)//'" initialized successfully.')
+      call log_message('   initialization succeeded.')
 
       ! Check for parameters requested by the model, but not present in the configuration file.
       if (require_all_parameters.and.associated(model%parameters%missing%first)) &
@@ -218,7 +220,7 @@ contains
             select type (value=>pair%value)
                class is (type_scalar)
                   ! Register couplings at the root level, so they override whatever the models themselves request.
-                  call parent%request_coupling(trim(instancename)//'/'//trim(pair%key),trim(value%string))
+                  call parent%couplings%set_string(trim(instancename)//'/'//trim(pair%key),trim(value%string))
                class is (type_node)
                   call fatal_error('create_model_from_dictionary','The value of '//trim(value%path)// &
                      ' must be a string, not a nested dictionary.')
@@ -261,6 +263,7 @@ contains
       !   end if
       !   link => link%next
       !end do
+      call initialized_set%finalize()
 
       model%check_conservation = node%get_logical('check_conservation',default=check_conservation,error=config_error)
       if (associated(config_error)) call fatal_error('create_model_from_dictionary',config_error%message)
