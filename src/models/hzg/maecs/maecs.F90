@@ -719,6 +719,14 @@ call self%register_dependency(self%id_totN,standard_variables%total_carbon)
 call self%register_dependency(self%id_totN_vertmean,vertical_mean(self%id_totN))
 call self%register_horizontal_diagnostic_variable(self%id_totC_vertmean_diag,'totC_vertmean','mmol-C/m**3','vertical_mean_total_carbon')
 call self%register_horizontal_diagnostic_variable(self%id_totN_vertmean_diag,'totN_vertmean','mmol-N/m**3','vertical_mean_total_nitrogen')
+
+!vertical means of diagnostics:
+call self%register_diagnostic_variable(self%id_GPPR,'GPPR','mmolC/m**3/d',  'gross primary production',           &
+  output=output_time_step_averaged)
+call self%register_dependency(self%id_GPPR_dep,'GPPR')
+call self%register_dependency(self%id_GPPR_vertmean,vertical_mean(self%id_GPPR_dep)) !
+call self%register_horizontal_diagnostic_variable(self%id_GPPR_vertmean_diag,'GPPR_vertmean','mmol-C/m**2/d','vertical_mean_GPPR')
+
 call self%register_horizontal_dependency(self%id_zmax,standard_variables%bottom_depth)
 if (PhosphorusOn) then
     call self%register_dependency(self%id_totP,standard_variables%total_phosphorus)

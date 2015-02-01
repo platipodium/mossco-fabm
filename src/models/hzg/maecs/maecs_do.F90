@@ -600,6 +600,7 @@ if (self%DebugDiagOn) then
   _SET_DIAGNOSTIC_(self%id_sdet, _REPLNAN_(sdet))            !average Refractory detritus 
   _SET_DIAGNOSTIC_(self%id_no3, _REPLNAN_(no3))              !average Nitrate
   _SET_DIAGNOSTIC_(self%id_Denitr, _REPLNAN_(0.8*Denitrific)) !average Denitrification rate
+  _SET_DIAGNOSTIC_(self%id_GPPR, _REPLNAN_(phy%gpp*phy%C)) !average Denitrification rate
 !#E_DIA
 end if
 !write (*,'(A,3(F11.5))') 'RN,depo,denit=',env%RNit,deporate,denitrate
@@ -715,6 +716,11 @@ subroutine maecs_do_surface(self,_ARGUMENTS_DO_SURFACE_)
       _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totN_vertmean_diag,tot_vm_N)
       _GET_HORIZONTAL_(self%id_totC_vertmean,tot_vm_C)
       _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totC_vertmean_diag,tot_vm_C)
+      _GET_HORIZONTAL_(self%id_GPPR_vertmean,tot_vm_GPPR)
+      _SET_HORIZONTAL_DIAGNOSTIC_(self%id_GPPR_vertmean_diag,tot_vm_GPPR)
+      !_GET_HORIZONTAL_(self%id_NPP_vertmean,tot_vm_NPP)
+      !_SET_HORIZONTAL_DIAGNOSTIC_(self%id_NPP_vertmean_diag,tot_vm_NPP)
+      
       if (self%PhosphorusOn) then
          _GET_HORIZONTAL_(self%id_totP_vertmean,tot_vm_P)
          _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totP_vertmean_diag,tot_vm_P)
