@@ -99,6 +99,13 @@ contains
          case ('hzg_omexdia_p');             allocate(type_hzg_omexdia_p::model)
          case ('msi_ergom1');                allocate(type_msi_ergom1::model)
          ! Add additional individual models here
+         case ('iow_spm_old');                   allocate(type_iow_spm_old::model)
+         case ('hzg_maecs');                 allocate(type_hzg_maecs::model)
+         case ('hzg_jelly');                 allocate(type_hzg_jelly::model)
+         case ('hzg_n2pzdq');          allocate(type_hzg_n2pzdq::model)
+         case ('hzg_benthic_pool');   allocate(type_hzg_benthic_pool::model)
+         case ('hzg_Ndepoden');   allocate(type_hzg_Ndepoden::model)
+         case ('hzg_omexdia_p_mpb');             allocate(type_hzg_omexdia_p_mpb::model)
          case default
             call self%type_base_model_factory%create(name,model)
       end select
