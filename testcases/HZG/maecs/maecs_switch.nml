@@ -14,7 +14,9 @@
 ! BioOxyOn       [bool]
 !                  use oxygen&ODU from OMEXDIA
 ! DebugDiagOn    [bool]
-!                  output of all diagnostics
+!                  output of debugging (2ndary) diagnostics
+! DiagOn         [bool]
+!                  output of major analysis diagnostics
 ! ChemostatOn    [bool]
 !                  use Chemostat mode 
 ! NResOn         [bool]
@@ -35,6 +37,7 @@
    GrazingOn = .true.,
    BioOxyOn = .true.,
    DebugDiagOn = .true.,
+   DiagOn = .true.,
    ChemostatOn = .false.,
    NResOn = .false.,
    kwFzmaxMeth = 0,

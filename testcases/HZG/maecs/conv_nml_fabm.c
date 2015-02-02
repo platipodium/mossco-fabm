@@ -68,7 +68,7 @@ char env_add[3*NAML] = "";	/* additional variable as member of the env structure
 int eoi,pi,pj,pjs,sws,ni,nj,d,np,nl,ss,i,pv,nmli=0,out=1,tti,nls,swi[MI][MAXP],
   setvel[MI][MAXP],setvel_n[MI][MAXP],trait[MAXP],found_rhs[MAXP],found_rate[MI][MAXP],pc;
 unsigned long dind;
-char line[256],line2[256],*lr,c,*cp,*cp1,*cp2,*cp3,tabs[2][6]={"    ",""};
+char line[2*256],line2[2*256],*lr,c,*cp,*cp1,*cp2,*cp3,tabs[2][6]={"    ",""};
 FILE *sp,*sp1,*sp3,*sp2,*spv[3],*spt;
 char keys[5][4]={"RHS","ODE","GET"};
 // char traitpre[5]="phy%";/* structure name for functional group variables */
@@ -732,7 +732,7 @@ for(ni=0;ni<nir;ni++)
     if(swi[ni][pj]==pjs)
       {
       if(sws==0 && pjs>=0 && ni!=ni0)
-         fprintf(sp,"if (%s) then\n",swin[ni][pj]), sws=1; 
+         fprintf(sp,"if (self%c%s) then\n",'%',swin[ni][pj]), sws=1; 
       sprintf(line,"%s",parname[ni][pj]);/*,parvals[ni][pj]*/
       strcpy(line2, fil(sc,line,13) );
       strcat(line,line2);
@@ -770,7 +770,7 @@ for(pjs=-1;pjs<nump[nis];pjs++)
       sl[pj]= ' '; if(strlen(snameshort2[pj])<7) sl[pj]='\t';
         
       if(sws==0 && pjs>=0)
-        fprintf(sp,"\nif (%s) then\n",swin[ni][pj]), sws=1;
+        fprintf(sp,"\nif (self%c%s) then\n",'%',swin[ni][pj]), sws=1;
       
       if(pjs>=0 &&out) printf("%s\t%s %s\t %d\n",swin[ni][pj],snameshort[pj],snameshort2[pj],trait[pj]);
      
@@ -872,19 +872,23 @@ for(pjs=-1;pjs<nump[nis];pjs++)
      if(swi[ni][pj]==pjs)
        {      
        if(sws==0 && pjs>=0)
-         fprintf(sp,"if (%s) then\n",swin[ni][pj]), sws=1;
+         fprintf(sp,"if (self%c%s) then\n",'%',swin[ni][pj]), sws=1;
 //   fprintf(sp,"%scall self%cregister_dependency(self%cid_%s,varname_%s%s)\n",'%','%',
 //       if(partypen[ni][pj][0]=='h' && strstr(parname[ni][pj],"tot")!=NULL )
-       strcpy(line2,FabmDepVarName),strcpy(line,partypen[ni][pj]);      
-       if(strstr(parname[ni][pj],"vertmean") || strstr(parname[ni][pj],"flux")!=NULL )
+       strcpy(line2,FabmDepVarName);
+       strcpy(line,partypen[ni][pj]);  
+       if(strstr(parname[ni][pj],"vert") || strstr(parname[ni][pj],"flux") || strstr(parname[ni][pj],"dep")!=NULL )
          {
 	 strcpy(line2,"");
          if(strstr(parname[ni][pj],"diag")==NULL)  strcpy(line,"dependency");
 	 }
-
-       fprintf(sp,"%s%scall self%cregister_%s(self%cid_%s,%s%s)\n",indent0,tabs[(pjs<0)],'%',line,'%',parname[ni][pj],line2,pmapstring[ni][pj]);
+       strcat(line2,pmapstring[ni][pj]);
+       if(strstr(partypen[ni][pj],"horizontal_diagnostic")!=NULL) strcat(line2,", output=output_time_step_averaged");
+       
+       fprintf(sp,"%s%scall self%cregister_%s(self%cid_%s,%s)\n",indent0,tabs[(pjs<0)],'%',line,'%',parname[ni][pj],line2);
          
-       if(out) printf(" reg dep(self%cid_%s,varname_%s) \t switch=%d %d %d\n",'%',parname[ni][pj],pmapstring[ni][pj] ,swi[ni][pj],sws,pjs);
+      if(out) printf("line2= %s\n",line2);
+      if(out) printf(" reg dep(self%cid_%s,varname_%s) \t switch=%d %d %d\n",'%',parname[ni][pj],pmapstring[ni][pj] ,swi[ni][pj],sws,pjs);
 //    }   else     {printf("\n** ERROR: external forcing %s not found !!!\n now exit...\n",'%',parname[ni][pj]);exit(0);}
        } // if(swi[ni][pj]
      if( pj==nump[ni]-1 && sws==1) fprintf(sp,"end if\n");

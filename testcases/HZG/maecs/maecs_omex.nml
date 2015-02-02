@@ -1,20 +1,10 @@
 !-------------------------------------------------------------------------------
 ! hzg_omexdia_p --- FABM/F03 version of OMEXDIA+P biogeochemical model
 !-------------------------------------------------------------------------------
-! rFast      [float, unit = 1/d] #BioOxyOn
-!             decay rate fast decay det.
-! rSlow      [float, unit = 1/d] #BioOxyOn
-!             decay rate slow decay det.
-! NCrFdet    [float, unit = molN/molC] #BioOxyOn
-!             NC ratio fast decay det.
-! NCrSdet    [float, unit = molN/molC] #BioOxyOn
-!             NC ratio slow decay det.
 ! PAds       [float, unit = ] #BioOxyOn
 !             Adsorption coeff phosphorus
 ! PAdsODU    [float, unit = ] #BioOxyOn
 !             PO4-Fe dissolution threshold in terms of [FeS]/ODU
-! NH3Ads     [float, unit = ] #BioOxyOn
-!             Adsorption coeff ammonium
 ! rnit       [float, unit = 1/d] #BioOxyOn
 !             Max nitrification rate
 ! ksO2nitri  [float, unit = umolO2/m3] #BioOxyOn
@@ -36,13 +26,8 @@
 !-------------------------------------------------------------------------------
 
 &maecs_omex
-rFast          = 0.07
-rSlow          = 0.001
-NCrFdet        = 0.15 
-NCrSdet        = 0.04
 PAds           = 0.3
 PAdsODU        = 12.
-NH3Ads         = 0.0
 rnit           = 20.
 ksO2nitri      = 20.
 rODUox         = 20.
