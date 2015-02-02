@@ -1,6 +1,8 @@
 !-------------------------------------------------------------------------------
 !  - diagnostic variables
 !-------------------------------------------------------------------------------
+GPPR	mmolC/m**3/d average phy%gpp*phy%C gross primary production
+Denitr	mmol-N/m**3/d average 0.8*Denitrific denitrification rate
 chl2C	gCHL/m**3 average phy%theta*phy%rel_chloropl/12 chlorophyll:carbon ratio = chl-a/chloroplast-C * chloroplast-C/phy-molC * 1molC/12gC
 fracR	- average phy%frac%Rub Rubisco fract. allocation
 fracT	- average phy%frac%theta LHC fract. allocation      
@@ -27,6 +29,6 @@ phyELR	1/d average -exud%C Phytoplankton Exudation Loss Rate
 phyALR	1/d average -aggreg_rate Phytoplankton Aggregation Loss Rate
 phyGLR	1/d average -graz_rate/phy%reg%C Phytoplankton Grazing Loss Rate
 vsinkr	- average exp(-self%sink_phys*phy%relQ%N*phy%relQ%P) Relative Sinking Velocity
-sdet	mmol-C/m**3 average sdet Refractory detritus 
+qualPOM	- average qualPOM Quality of POM 
+qualDOM	- average qualDOM Quality of DOM 
 no3	mmol-N/m**3 average no3 Nitrate
-Denitr	mmol-N/m**3/d average 0.8*Denitrific Denitrification rate
