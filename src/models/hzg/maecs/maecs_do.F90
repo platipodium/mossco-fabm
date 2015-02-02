@@ -65,8 +65,8 @@ real(rk) :: secs_pr_day = 86400.0_rk
 real(rk) :: aggreg_rate ! aggregation among phytoplankton and between phytoplankton & detritus [d^{-1}]    
 logical  :: out = .true.
 !   if(36000.eq.secondsofday .and. mod(julianday,1).eq.0 .and. outn) out=.true.    
-real(rk) :: sdet, pdet, po4, no3
-real(rk) :: det_prod, N_sdet, nh3f
+real(rk) :: pdet, no3
+real(rk) :: det_prod, nh3f
 real(rk) :: radsP,Oxicminlim,Denitrilim,Anoxiclim,Rescale,rP
 real(rk),parameter :: relaxO2=0.04_rk
 real(rk),parameter :: T0 = 288.15_rk ! reference Temperature fixed to 15 degC
@@ -112,7 +112,6 @@ if (self%GrazingOn) then
       _GET_(self%id_zooC, zoo%C)  ! Zooplankton Carbon in mmol-C/m**3
 end if
 if (self%BioOxyOn) then
-      _GET_(self%id_fdet, env%fdet)  ! fast detritus C in mmolC/m**3
       _GET_(self%id_nh3, env%nh3)  ! dissolved ammonium in mmolN/m**3
       _GET_(self%id_oxy, env%oxy)  ! dissolved oxygen in mmolO2/m**3
       _GET_(self%id_odu, env%odu)  ! dissolved reduced substances in mmolO2/m**3
@@ -452,18 +451,11 @@ if (self%BioOxyOn) then
 
 ! ---------- manages overlapping state variables 
    no3    = smooth_small(nut%N - env%nh3,  self%small)
-   sdet   = smooth_small(det%C - env%fdet, self%small)
-   N_sdet = smooth_small(det%N - env%fdet*self%NCrFdet, self%small)
 ! ---------- remineralisation limitations 
    Oxicminlim = env%oxy/(env%oxy+self%ksO2oxic+relaxO2*(env%nh3+env%odu))              
    Denitrilim = (1.0_rk-env%oxy/(env%oxy+self%kinO2denit)) * no3/(no3+self%ksNO3denit)
    Anoxiclim  = (1.0_rk-env%oxy/(env%oxy+self%kinO2anox)) * (1.0_rk-no3/(no3+self%kinNO3anox))
    Rescale    = 1.0_rk/(Oxicminlim+Denitrilim+Anoxiclim)
-
-!   CprodF = self%rFast * env%fdet ! * qualPOM
-!   CprodS = self%rSlow * sdet 
-!   Cprod  = CprodF + CprodS 
-!   Nprod  = CprodF * self%NCrFdet + self%rSlow * N_sdet
 
 ! extra-omexdia P -dynamics not needed in MAECS 
 !if (self%PhosphorusOn) then
@@ -484,20 +476,13 @@ if (self%BioOxyOn) then
 ! reoxidation and ODU deposition
    Nitri      = f_T * self%rnit   * env%nh3 * env%oxy/(env%oxy + self%ksO2nitri &
                   + relaxO2*(dom%C + env%odu))
-!                  + relaxO2*(env%fdet + env%odu))
    OduOx      = f_T * self%rODUox * env%odu * env%oxy/(env%oxy + self%ksO2oduox &
                   + relaxO2*(env%nh3 + dom%C))
-!                  + relaxO2*(env%nh3 + env%fdet))
 
 !  pDepo      = min(1.0_rk,0.233_rk*(wDepo)**0.336_rk )
    pDepo      = 0.0_rk
    OduDepo    = AnoxicMin * pDepo 
 
-!  dynamics of fdet ~ fast detritus C
-  rhsv%fdet   = 0 !(0.8d0*det_prod - f_T * CprodF) - self%dil * env%fdet            
-
-!  dynamics of sdet ~ slow detritus C
-!  rhsv%sdet = -f_T * CprodS 
 !  dynamics of env%oxy ~ dissolved oxygen
   rhsv%oxy    = - OxicMin - 2.0_rk* Nitri - OduOx &
                 - lossZ%C * zoo%C + uptake%C * phy%C  &
@@ -553,7 +538,6 @@ if (self%GrazingOn) then
       _SET_ODE_(self%id_zooC, rhsv%zooC UNIT)
 end if
 if (self%BioOxyOn) then
-      _SET_ODE_(self%id_fdet, rhsv%fdet UNIT)
       _SET_ODE_(self%id_nh3, rhsv%nh3 UNIT)
       _SET_ODE_(self%id_oxy, rhsv%oxy UNIT)
       _SET_ODE_(self%id_odu, rhsv%odu UNIT)
@@ -571,6 +555,8 @@ end if
 
 if (self%DebugDiagOn) then
 !#S_DIA
+  _SET_DIAGNOSTIC_(self%id_GPPR, _REPLNAN_(phy%gpp*phy%C))   !average gross primary production
+  _SET_DIAGNOSTIC_(self%id_Denitr, _REPLNAN_(0.8*Denitrific)) !average denitrification rate
   _SET_DIAGNOSTIC_(self%id_chl2C, _REPLNAN_(phy%theta*phy%rel_chloropl/12)) !average chlorophyll:carbon ratio 
   _SET_DIAGNOSTIC_(self%id_fracR, _REPLNAN_(phy%frac%Rub))   !average Rubisco fract
   _SET_DIAGNOSTIC_(self%id_fracT, _REPLNAN_(phy%frac%theta)) !average LHC fract
@@ -597,10 +583,9 @@ if (self%DebugDiagOn) then
   _SET_DIAGNOSTIC_(self%id_phyALR, _REPLNAN_(-aggreg_rate))  !average Phytoplankton Aggregation Loss Rate
   _SET_DIAGNOSTIC_(self%id_phyGLR, _REPLNAN_(-graz_rate/phy%reg%C)) !average Phytoplankton Grazing Loss Rate
   _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(exp(-self%sink_phys*phy%relQ%N*phy%relQ%P))) !average Relative Sinking Velocity
-  _SET_DIAGNOSTIC_(self%id_sdet, _REPLNAN_(sdet))            !average Refractory detritus 
+  _SET_DIAGNOSTIC_(self%id_qualPOM, _REPLNAN_(qualPOM))      !average Quality of POM 
+  _SET_DIAGNOSTIC_(self%id_qualDOM, _REPLNAN_(qualDOM))      !average Quality of DOM 
   _SET_DIAGNOSTIC_(self%id_no3, _REPLNAN_(no3))              !average Nitrate
-  _SET_DIAGNOSTIC_(self%id_Denitr, _REPLNAN_(0.8*Denitrific)) !average Denitrification rate
-  _SET_DIAGNOSTIC_(self%id_GPPR, _REPLNAN_(phy%gpp*phy%C)) !average Denitrification rate
 !#E_DIA
 end if
 !write (*,'(A,3(F11.5))') 'RN,depo,denit=',env%RNit,deporate,denitrate
@@ -680,11 +665,6 @@ _FABM_LOOP_BEGIN_
    !set the rates
    _SET_VERTICAL_MOVEMENT_(self%id_detC,-1.0_rk*self%vS_det/secs_pr_day)
    _SET_VERTICAL_MOVEMENT_(self%id_detN,-1.0_rk*self%vs_det/secs_pr_day)
-
-   if (self%BioOxyOn) then
-      _SET_VERTICAL_MOVEMENT_(self%id_fdet,-1.0_rk*self%vs_det/secs_pr_day)
-   end if
-
    _SET_VERTICAL_MOVEMENT_(self%id_phyN,vsink)
    _SET_VERTICAL_MOVEMENT_(self%id_phyC,vsink)
    if (self%PhosphorusOn) then
@@ -709,27 +689,31 @@ subroutine maecs_do_surface(self,_ARGUMENTS_DO_SURFACE_)
    class (type_hzg_maecs), intent(in) :: self
    _DECLARE_ARGUMENTS_DO_SURFACE_
 
-   real(rk) :: tot_vm_N,tot_vm_P,tot_vm_S, O2flux,O2airbl,oxy
+   real(rk) :: tot_vm_N,tot_vm_P,tot_vm_S, O2flux,O2airbl,oxy,tot_vm_GPPR,tot_vm_Denitr
 
    _HORIZONTAL_LOOP_BEGIN_
-      _GET_HORIZONTAL_(self%id_totN_vertmean,tot_vm_N)
-      _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totN_vertmean_diag,tot_vm_N)
-      _GET_HORIZONTAL_(self%id_totC_vertmean,tot_vm_C)
-      _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totC_vertmean_diag,tot_vm_C)
-      _GET_HORIZONTAL_(self%id_GPPR_vertmean,tot_vm_GPPR)
-      _SET_HORIZONTAL_DIAGNOSTIC_(self%id_GPPR_vertmean_diag,tot_vm_GPPR)
-      !_GET_HORIZONTAL_(self%id_NPP_vertmean,tot_vm_NPP)
-      !_SET_HORIZONTAL_DIAGNOSTIC_(self%id_NPP_vertmean_diag,tot_vm_NPP)
-      
+      _GET_HORIZONTAL_(self%id_totN_vertint,tot_vm_N)
+      _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totN_vertint_diag,tot_vm_N)
+      _GET_HORIZONTAL_(self%id_totC_vertint,tot_vm_C)
+      _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totC_vertint_diag,tot_vm_C)
+      if (self%DiagOn) then
+        _GET_HORIZONTAL_(self%id_GPPR_vertint,tot_vm_GPPR)
+        _SET_HORIZONTAL_DIAGNOSTIC_(self%id_GPPR_vertint_diag,tot_vm_GPPR)
+      end if
+      if (self%BioOxyOn) then
+        _GET_HORIZONTAL_(self%id_Denitr_vertint,tot_vm_Denitr)
+        _SET_HORIZONTAL_DIAGNOSTIC_(self%id_Denitr_vertint_diag, tot_vm_Denitr)
+      end if
+     
       if (self%PhosphorusOn) then
-         _GET_HORIZONTAL_(self%id_totP_vertmean,tot_vm_P)
-         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totP_vertmean_diag,tot_vm_P)
+         _GET_HORIZONTAL_(self%id_totP_vertint,tot_vm_P)
+         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totP_vertint_diag,tot_vm_P)
 ! --- atmospheric deposition of PO4
          _SET_SURFACE_EXCHANGE_(self%id_nutP, self%P_depo UNIT)
       end if
       if (self%SiliconOn) then
-         _GET_HORIZONTAL_(self%id_totS_vertmean,tot_vm_S)
-         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totS_vertmean_diag,tot_vm_S)
+         _GET_HORIZONTAL_(self%id_totS_vertint,tot_vm_S)
+         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totS_vertint_diag,tot_vm_S)
       end if
 
 ! --- wet and dry deposition of NO3 
