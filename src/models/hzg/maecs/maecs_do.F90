@@ -71,7 +71,7 @@ real(rk) :: radsP,Oxicminlim,Denitrilim,Anoxiclim,Rescale,rP
 real(rk),parameter :: relaxO2=0.04_rk
 real(rk),parameter :: T0 = 288.15_rk ! reference Temperature fixed to 15 degC
 real(rk),parameter :: Q10b = 1.5_rk
-real(rk) :: CprodF,CprodS,CprodEPS,Cprod,Nprod,Pprod
+real(rk) :: Cprod, Nprod, Pprod
 real(rk) :: AnoxicMin,Denitrific,OxicMin,Nitri,OduDepo,OduOx,pDepo
 real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto,faeces
 
@@ -335,9 +335,9 @@ reminT      = self%remin  * sens%f_T * qualDOM
 !  ---  hydrolysis & remineralisation depend on quality, here propto N/C quota of OM
 !  acceleration: rate difference for N-pool
 ddegN       = self%hydrol * sens%f_T * smooth_small(1.0d0 - qualPOM, self%small_finite)
-!ddegP       = self%ddegN       
+ddegP       = self%remNP * ddegN       
 dremN       = self%remin * sens%f_T * smooth_small(1.0d0 - qualDOM, self%small_finite)
-
+dremP       = self%remNP * dremN
 !________________________________________________________________________________
 !
 !  --- DETRITUS C
@@ -408,15 +408,16 @@ if (self%PhosphorusOn) then
               + aggreg_rate          * phy%P    &
               - self%dil             * det%P    &         
               + zoo_mort             * zoo%P    & 
-              - degradT              * det%P    !TODO quality enhances P remin
+              - (degradT + ddegP)    * det%P    ! quality enhances P remin
   !  --- DOP
+   Pprod     = (reminT + dremP)      * dom%P
    rhsv%domP = exud%P                * phy%C    &
-              + degradT              * det%P    &
+              + (degradT + ddegP)    * det%P    &
               - self%dil             * dom%P    &              
-              - reminT               * dom%P
+              - Pprod
   !  --- DIP
    rhsv%nutP = - uptake%P            * phy%C    & 
-              + reminT               * dom%P    & 
+              + Pprod                           & 
               + lossZ%P              * zoo%C    &
               + self%dil * (self%nutP_initial - nut%P)
 end if 
