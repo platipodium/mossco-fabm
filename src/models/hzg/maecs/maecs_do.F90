@@ -72,7 +72,7 @@ real(rk),parameter :: relaxO2=0.04_rk
 real(rk),parameter :: T0 = 288.15_rk ! reference Temperature fixed to 15 degC
 real(rk),parameter :: Q10b = 1.5_rk
 real(rk) :: Cprod, Nprod, Pprod
-real(rk) :: AnoxicMin,Denitrific,OxicMin,Nitri,OduDepo,OduOx,pDepo
+real(rk) :: AnoxicMin,Denitrific,OxicMin,Nitri,OduDepo,OduOx,pDepo, Anammox
 real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto,faeces
 
 #define _KAI_ 0
@@ -494,15 +494,20 @@ if (self%BioOxyOn) then
 !  dynamics of odu ~ dissolved reduced substances
   rhsv%odu    = (AnoxicMin - OduOx - OduDepo) 
 !  dynamics of no3 ~ dissolved nitrate
-!!  rhsv%no3 = (-0.8_rk*Denitrific + Nitri - uptNO3) 
+!!  rhsv%no3 = (-0.8_rk*Denitrific + Nitri - uptNO3)
+
+! Anammox: NH3 oxidation by nitrite, here related to NO3
+  Anammox    = self%kanammox * Anoxiclim *Rescale * env%nh3 * no3/(no3+self%ksNO3denit)
+
 ! preference for NH3 in DIN-uptake of autotrophs
   nh3f        = 1.0d0 - exp(-5*env%nh3/(nut%N+self%small))
 !  dynamics of nh3 ~ dissolved ammonium
   rhsv%nh3    = Nprod - Nitri + lossZ%N * zoo%C  & !/ (1.0_rk + self%NH3Ads)
                + (exud%N - nh3f*uptake%N) * phy%C &!env%nh3/(nut%N+self%small) *
-               + self%dil * (self%nh3_initial - env%nh3) 
+               + self%dil * (self%nh3_initial - env%nh3) &
+               - Anammox
 
-  rhsv%nutN   = rhsv%nutN - 0.8d0 * Denitrific
+  rhsv%nutN   = rhsv%nutN - 0.8d0 * Denitrific - Anammox
 
 !  dynamics of pdet ~ detritus-P
 !    rhsv%pdet = (radsP - f_T * Pprod) 
