@@ -23,6 +23,8 @@
 !             half-sat NO3 inhib anoxic min
 ! kinO2anox  [float, unit = mmolO2/m3] #BioOxyOn
 !             half-sat O2 inhib anoxic min
+! kanammox  [float, unit = 1/d] #BioOxyOn
+!             anammox rate
 !-------------------------------------------------------------------------------
 
 &maecs_omex
@@ -37,5 +39,6 @@ ksNO3denit     = 30.
 kinO2denit     = 1.
 kinNO3anox     = 1.
 kinO2anox      = 1.
+kanammox       = 0.
 /
 

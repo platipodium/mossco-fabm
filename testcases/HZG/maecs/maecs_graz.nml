@@ -21,8 +21,8 @@
    const_NC_zoo = 0.3,
    const_PC_zoo = 0.025,
    g_max = 1.,
-   k_grazC = 5.0,
+   k_grazC = 4.0,
    yield_zoo = 0.35,
-   basal_resp_zoo = 0.05,
-   mort_zoo = 0.1,
+   basal_resp_zoo = 0.04,
+   mort_zoo = 0.04,
 /

@@ -4,23 +4,23 @@
 temp	^oC 	dependency temperature water temperature
 par	muE/m2s dependency downwelling_photosynthetic_radiative_flux par
 doy	-	global_dependency number_of_days_since_start_of_the_year
-totC	mmol-C/m**3 dependency total_carbon
-totC_vertint	mmol-C/m**2 horizontal_dependency vertical_integral(self%id_totC)
-totN	mmol-N/m**3 dependency total_carbon
-totN_vertint	mmol-N/m**2 horizontal_dependency vertical_integral(self%id_totN)
+totC	mmol-C/m**3 dependency total_carbon #DebugDiagOn
+totC_vertint	mmol-C/m**2 horizontal_dependency vertical_integral(self%id_totC) #DebugDiagOn
+totN	mmol-N/m**3 dependency total_carbon #DebugDiagOn
+totN_vertint	mmol-N/m**2 horizontal_dependency vertical_integral(self%id_totN) #DebugDiagOn
 GPPR_dep	mmol-C/m**3/d dependency 'GPPR' #DiagOn
 GPPR_vertint	mmol-C/m**2/d horizontal_dependency vertical_integral(self%id_GPPR_dep) #DiagOn
 GPPR_vertint_diag mmol-C/m**2/d horizontal_diagnostic_variable 'GPPR_vertint','mmol-C/m**2/d','vertical_integral_gross_primary_production' #DiagOn
 Denitr_dep	mmol-N/m**3/d dependency 'Denitr' #BioOxyOn
 Denitr_vertint	mmol-N/m**2/d horizontal_dependency vertical_integral(self%id_Denitr_dep) #BioOxyOn
 Denitr_vertint_diag mmol-N/m**2/d horizontal_diagnostic_variable 'Denitr_vertint','mmol-N/m**2/d','vertical_integral_gross_primary_production' #BioOxyOn
-totP	mmol-P/m**3 dependency total_phosphorus #PhosphorusOn
-totP_vertint	mmol-P/m**3 horizontal_dependency vertical_integral(self%id_totP) #PhosphorusOn
-totS	mmol-N/m**3 dependency total_silicate #SiliconOn
-totS_vertint	mmol-Si/m**2 horizontal_dependency vertical_integral(self%id_totS) #SiliconOn
-totC_vertint_diag mmol-C/m**2 horizontal_diagnostic_variable 'totC_vertint','mmol-C/m**2','vertical_integral_total_carbon'
-totN_vertint_diag mmol-N/m**2 horizontal_diagnostic_variable 'totN_vertint','mmol-N/m**2','vertical_integral_total_nitrogen'
-totP_vertint_diag mmol-P/m**2 horizontal_diagnostic_variable 'totP_vertint','mmol-P/m**2','vertical_integral_total_phosphorus' #PhosphorusOn
-totS_vertint_diag mmol-Si/m**2 horizontal_diagnostic_variable 'totS_vertint','mmol-Si/m**2','vertical_integral_total_silicate' #SiliconOn
+totP	mmol-P/m**3 dependency total_phosphorus  #DebugDiagOn
+totP_vertint	mmol-P/m**3 horizontal_dependency vertical_integral(self%id_totP)  #DebugDiagOn
+totS	mmol-N/m**3 dependency total_silicate  #DebugDiagOn
+totS_vertint	mmol-Si/m**2 horizontal_dependency vertical_integral(self%id_totS) #DebugDiagOn
+totC_vertint_diag mmol-C/m**2 horizontal_diagnostic_variable 'totC_vertint','mmol-C/m**2','vertical_integral_total_carbon'  #DebugDiagOn
+totN_vertint_diag mmol-N/m**2 horizontal_diagnostic_variable 'totN_vertint','mmol-N/m**2','vertical_integral_total_nitrogen' #DebugDiagOn
+totP_vertint_diag mmol-P/m**2 horizontal_diagnostic_variable 'totP_vertint','mmol-P/m**2','vertical_integral_total_phosphorus'  #DebugDiagOn
+totS_vertint_diag mmol-Si/m**2 horizontal_diagnostic_variable 'totS_vertint','mmol-Si/m**2','vertical_integral_total_silicate'  #DebugDiagOn
 zmax	m	horizontal_dependency bottom_depth
 O2flux_diag	mmol-O2/m**2/d horizontal_diagnostic_variable  'O2flux','mmol-O2/m**2/d','oxygen_flux_between_sea_water_and_air' #BioOxyOn
