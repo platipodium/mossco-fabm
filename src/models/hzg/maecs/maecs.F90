@@ -79,6 +79,7 @@ contains
 !> \describepar{Rub          , \mathrm{frac_Rub_ini}\mathrm{phyC_initial}, trait x biomass}
 !> \describepar{frac\_chl\_ini , \mathrm{frac_chl_ini} , Chl, 0.3 mg-Chla/mmol-C}
 !> \describepar{chl          , \mathrm{frac_chl_ini}\mathrm{phyC_initial}, trait x biomass}
+!> \describepar{fdet\_initial , \mathrm{fdet_initial} , fast detritus C, 0.0 mmolC/m**3}
 !> \describepar{nh3\_initial  , \mathrm{nh3_initial}  , dissolved ammonium, 120. mmolN/m**3}
 !> \describepar{oxy\_initial  , \mathrm{oxy_initial}  , dissolved oxygen, 120. mmolO2/m**3}
 !> \describepar{odu\_initial  , \mathrm{odu_initial}  , dissolved reduced substances, 0. mmolO2/m**3}
@@ -86,7 +87,7 @@ contains
 !> \describepar{P\_max        , P_\mathrm{max}        , maximum potential photosynthetic rate, 18.0 d^{-1}}
 !> \describepar{alpha        , \alpha        , specific light adsorption by chloroplasts *0.07 0.4 3, 0.22 m2 mol-C/(muE g-CHL)}
 !> \describepar{sigma        , \sigma        , Q-dependency of Rubisco activity/chloroplast ratio, 0.0 }
-!> \describepar{theta\_LHC    , \theta_\mathrm{C}    , chlorophyll a-to-C ratio of LHC, 2.5 mgChl mmolC^{-1}}
+!> \describepar{theta\_LHC    , \theta_\mathrm{C}    , chlorophyll a-to-C ratio of LHC, 2. mgChl mmolC^{-1}}
 !> \describepar{rel\_chloropl\_min , \mathrm{rel_chloropl_min} , chloroplast-C to phy-C ratio, 0.01 mol-C/mol-C}
 !> \describepar{QN\_phy\_0     , Q_{\mathrm{N}0}     , subsistence N-quota, 0.035 mol-N/mol-C}
 !> \describepar{QN\_phy\_max   , Q_\mathrm{N}^\mathrm{ref}   , maximum N-quota, 0.380 mol-N/mol-C}
@@ -111,11 +112,12 @@ contains
 !> \describepar{phi\_agg      , \mathrm{phi_agg}      , quadratic aggregation rate, 5E-4 m^6 mmol-N^{-2} d^{-1}}
 !> \describepar{agg\_doc      , \mathrm{agg_doc}      , DOC multiplier in coagulation term, 0.1 m^-3 mmol-C}
 !> \describepar{sink\_phys    , \mathrm{sink_phys}    , sinking sensitivity on physiological status, 4 }
-!> \describepar{vS\_phy       , \mathrm{vS_phy}       , sinking velocity for phytoplankton, 50E-2 m d^{-1}}
-!> \describepar{vS\_det       , \mathrm{vS_det}       , sinking velocity for detritus, 3. m d^{-1}}
+!> \describepar{vS\_phy       , \mathrm{vS_phy}       , sinking velocity for phytoplankton, 0.8 m d^{-1}}
+!> \describepar{vS\_det       , \mathrm{vS_det}       , sinking velocity for detritus, 2.0 m d^{-1}}
 !> \describepar{hydrol       , \mathrm{hydrol}       , hydrolysis rate, 0.05 d^{-1}}
 !> \describepar{remin        , \mathrm{remin}        , pelagic remineralisation, 0.05 d^{-1}}
-!> \describepar{denit        , \mathrm{denit}        , DIN removal by denitrification  , 0 d^{-1}}
+!> \describepar{denit        , \mathrm{denit}        , DIN removal by denitrification , 0 d^{-1}}
+!> \describepar{remNP        , \mathrm{remNP}        , relative P-stoichiometry in preferential (high N) remin, 0.0 }
 !> \describepar{PON\_denit    , \mathrm{PON_denit}    , critical PON for denitrification  , 5 mmol-N/m3 }
 !> \describepar{Q10          , \mathrm{Q10}          , Q10 factor, 2 }
 !> \describepar{T\_ref        , \mathrm{T_ref}        , reference Kelvin temperature, 288.0 K}
@@ -149,6 +151,7 @@ contains
 !> \describepar{kinO2denit   , \mathrm{kinO2denit}   , half-sat O2 inhib denitrif, 1. mmolO2/m3}
 !> \describepar{kinNO3anox   , \mathrm{kinNO3anox}   , half-sat NO3 inhib anoxic min, 1. mmolNO3/m3}
 !> \describepar{kinO2anox    , \mathrm{kinO2anox}    , half-sat O2 inhib anoxic min, 1. mmolO2/m3}
+!> \describepar{kanammox     , \mathrm{kanammox}     , anammox rate, 0. 1/d}
 subroutine initialize(self, configunit)
 
 class (type_hzg_maecs), intent(inout), target :: self
@@ -177,6 +180,7 @@ real(rk)  :: frac_Rub_ini ! fraction of Rubisco
 real(rk)  :: Rub  ! trait times biomass
 real(rk)  :: frac_chl_ini ! Chl
 real(rk)  :: chl  ! trait times biomass
+real(rk)  :: fdet_initial ! fast detritus C
 real(rk)  :: nh3_initial  ! dissolved ammonium
 real(rk)  :: oxy_initial  ! dissolved oxygen
 real(rk)  :: odu_initial  ! dissolved reduced substances
@@ -213,7 +217,8 @@ real(rk)  :: vS_phy       ! sinking velocity for phytoplankton
 real(rk)  :: vS_det       ! sinking velocity for detritus
 real(rk)  :: hydrol       ! hydrolysis rate
 real(rk)  :: remin        ! pelagic remineralisation
-real(rk)  :: denit        ! DIN removal by denitrification  
+real(rk)  :: denit        ! DIN removal by denitrification 
+real(rk)  :: remNP        ! relative P-stoichiometry in preferential (high N) remin
 real(rk)  :: PON_denit    ! critical PON for denitrification  
 real(rk)  :: Q10          ! Q10 factor
 real(rk)  :: T_ref        ! reference Kelvin temperature
@@ -250,6 +255,7 @@ real(rk)  :: ksNO3denit   ! half-sat NO3 in denitrif
 real(rk)  :: kinO2denit   ! half-sat O2 inhib denitrif
 real(rk)  :: kinNO3anox   ! half-sat NO3 inhib anoxic min
 real(rk)  :: kinO2anox    ! half-sat O2 inhib anoxic min
+real(rk)  :: kanammox     ! anammox rate
 !!------- Switches for configuring model structure -------
 logical   :: RubiscoOn    ! use Rubisco- here in C-units
 logical   :: PhotoacclimOn ! use Photoacclimation
@@ -257,8 +263,8 @@ logical   :: PhosphorusOn ! resolve Phosphorus cycle
 logical   :: SiliconOn    ! resolve Silicon cycle
 logical   :: GrazingOn    ! use Zooplankton grazing
 logical   :: BioOxyOn     ! use oxygen&ODU from OMEXDIA
-logical   :: DebugDiagOn  ! output of debugging (2ndary) diagnostics
 logical   :: DiagOn       ! output of major analysis diagnostics
+logical   :: DebugDiagOn  ! output of all diagnostics
 logical   :: ChemostatOn  ! use Chemostat mode 
 logical   :: NResOn       ! use long-term N-reservoir
 integer   :: kwFzmaxMeth  ! background extinction method
@@ -267,22 +273,22 @@ logical   :: plankton_no_river_dilution ! use riverine det import
 
 namelist /maecs_switch/ &
   RubiscoOn, PhotoacclimOn, PhosphorusOn, SiliconOn, GrazingOn, BioOxyOn, &
-  DebugDiagOn, DiagOn, ChemostatOn, NResOn, kwFzmaxMeth, detritus_no_river_dilution, &
+  DiagOn, DebugDiagOn, ChemostatOn, NResOn, kwFzmaxMeth, detritus_no_river_dilution, &
   plankton_no_river_dilution
 
 namelist /maecs_init/ &
   nutN_initial, nutP_initial, nutS_initial, phyC_initial, phyN_initial, &
   phyP_initial, phyS_initial, zooC_initial, detC_initial, detN_initial, &
   detP_initial, detS_initial, domC_initial, domN_initial, domP_initial, &
-  RNit_initial, frac_Rub_ini, frac_chl_ini, nh3_initial, oxy_initial, &
-  odu_initial
+  RNit_initial, frac_Rub_ini, frac_chl_ini, fdet_initial, nh3_initial, &
+  oxy_initial, odu_initial
 
 namelist /maecs_pars/ &
   P_max, alpha, sigma, theta_LHC, rel_chloropl_min, QN_phy_0, QN_phy_max, &
   V_NC_max, AffN, zeta_CN, zstoich_PN, exud_phy, QP_phy_0, QP_phy_max, V_PC_max, &
   AffP, QSi_phy_0, QSi_phy_max, V_SiC_max, AffSi, syn_nut, adap_rub, adap_theta, &
   tau_regV, disease, phi_agg, agg_doc, sink_phys, vS_phy, vS_det, hydrol, remin, &
-  denit, PON_denit, Q10, T_ref, NutOrder
+  denit, remNP, PON_denit, Q10, T_ref, NutOrder
 
 namelist /maecs_graz/ &
   const_NC_zoo, const_PC_zoo, g_max, k_grazC, yield_zoo, basal_resp_zoo, &
@@ -294,7 +300,7 @@ namelist /maecs_env/ &
 
 namelist /maecs_omex/ &
   PAds, PAdsODU, rnit, ksO2nitri, rODUox, ksO2oduox, ksO2oxic, ksNO3denit, &
-  kinO2denit, kinNO3anox, kinO2anox
+  kinO2denit, kinNO3anox, kinO2anox, kanammox
 
 nutN_initial = 160_rk             ! mmol-N/m**3
 nutP_initial = 5_rk               ! mmol-P/m**3
@@ -314,13 +320,14 @@ domP_initial = 0.001_rk           ! mmol-P/m**3
 RNit_initial = 0._rk              ! mmol-N/m**3
 frac_Rub_ini = 0.4_rk             ! -
 frac_chl_ini = 0.3_rk             ! mg-Chla/mmol-C
+fdet_initial = 0.0_rk             ! mmolC/m**3
 nh3_initial  = 120._rk            ! mmolN/m**3
 oxy_initial  = 120._rk            ! mmolO2/m**3
 odu_initial  = 0._rk              ! mmolO2/m**3
 P_max        = 18.0_rk            ! d^{-1}
 alpha        = 0.22_rk            ! m2 mol-C/(muE g-CHL)
 sigma        = 0.0_rk             ! 
-theta_LHC    = 2.5_rk             ! mgChl mmolC^{-1}
+theta_LHC    = 2._rk              ! mgChl mmolC^{-1}
 rel_chloropl_min = 0.01_rk            ! mol-C/mol-C
 QN_phy_0     = 0.035_rk           ! mol-N/mol-C
 QN_phy_max   = 0.380_rk           ! mol-N/mol-C
@@ -345,11 +352,12 @@ disease      = 0_rk               ! d^{-1}
 phi_agg      = 5E-4_rk            ! m^6 mmol-N^{-2} d^{-1}
 agg_doc      = 0.1_rk             ! m^-3 mmol-C
 sink_phys    = 4_rk               ! 
-vS_phy       = 50E-2_rk           ! m d^{-1}
-vS_det       = 3._rk              ! m d^{-1}
+vS_phy       = 0.8_rk             ! m d^{-1}
+vS_det       = 2.0_rk             ! m d^{-1}
 hydrol       = 0.05_rk            ! d^{-1}
 remin        = 0.05_rk            ! d^{-1}
 denit        = 0_rk               ! d^{-1}
+remNP        = 0.0_rk             ! 
 PON_denit    = 5_rk               ! mmol-N/m3 
 Q10          = 2_rk               ! 
 T_ref        = 288.0_rk           ! K
@@ -383,6 +391,7 @@ ksNO3denit   = 30._rk             ! mmolNO3/m3
 kinO2denit   = 1._rk              ! mmolO2/m3
 kinNO3anox   = 1._rk              ! mmolNO3/m3
 kinO2anox    = 1._rk              ! mmolO2/m3
+kanammox     = 0._rk              ! 1/d
 
 
 !--------- read namelists --------- 
@@ -410,8 +419,8 @@ call self%get_parameter(self%PhosphorusOn,  'PhosphorusOn',  default=PhosphorusO
 call self%get_parameter(self%SiliconOn,     'SiliconOn',     default=SiliconOn)
 call self%get_parameter(self%GrazingOn,     'GrazingOn',     default=GrazingOn)
 call self%get_parameter(self%BioOxyOn,      'BioOxyOn',      default=BioOxyOn)
-call self%get_parameter(self%DebugDiagOn,   'DebugDiagOn',   default=DebugDiagOn)
 call self%get_parameter(self%DiagOn,        'DiagOn',        default=DiagOn)
+call self%get_parameter(self%DebugDiagOn,   'DebugDiagOn',   default=DebugDiagOn)
 call self%get_parameter(self%ChemostatOn,   'ChemostatOn',   default=ChemostatOn)
 call self%get_parameter(self%NResOn,        'NResOn',        default=NResOn)
 call self%get_parameter(self%kwFzmaxMeth,   'kwFzmaxMeth',   default=kwFzmaxMeth)
@@ -436,6 +445,7 @@ call self%get_parameter(self%domN_initial ,'domN_initial',  default=domN_initial
     call self%get_parameter(self%phyS_initial ,'phyS_initial',  default=phyS_initial)
     call self%get_parameter(self%detS_initial ,'detS_initial',  default=detS_initial)
     call self%get_parameter(self%zooC_initial ,'zooC_initial',  default=zooC_initial)
+    call self%get_parameter(self%fdet_initial ,'fdet_initial',  default=fdet_initial)
     call self%get_parameter(self%nh3_initial  ,'nh3_initial',   default=nh3_initial)
     call self%get_parameter(self%oxy_initial  ,'oxy_initial',   default=oxy_initial)
     call self%get_parameter(self%odu_initial  ,'odu_initial',   default=odu_initial)
@@ -465,6 +475,7 @@ call self%get_parameter(self%vS_det       ,'vS_det',        default=vS_det)
 call self%get_parameter(self%hydrol       ,'hydrol',        default=hydrol)
 call self%get_parameter(self%remin        ,'remin',         default=remin)
 call self%get_parameter(self%denit        ,'denit',         default=denit)
+call self%get_parameter(self%remNP        ,'remNP',         default=remNP)
 call self%get_parameter(self%PON_denit    ,'PON_denit',     default=PON_denit)
 call self%get_parameter(self%Q10          ,'Q10',           default=Q10)
 call self%get_parameter(self%T_ref        ,'T_ref',         default=T_ref)
@@ -527,6 +538,7 @@ if (self%BioOxyOn) then
     call self%get_parameter(self%kinO2denit   ,'kinO2denit',    default=kinO2denit)
     call self%get_parameter(self%kinNO3anox   ,'kinNO3anox',    default=kinNO3anox)
     call self%get_parameter(self%kinO2anox    ,'kinO2anox',     default=kinO2anox)
+    call self%get_parameter(self%kanammox     ,'kanammox',      default=kanammox)
 end if
 
 !!------- derived parameters  ------- 
@@ -610,6 +622,8 @@ if (self%GrazingOn) then
 end if
 
 if (self%BioOxyOn) then
+    call self%register_state_variable(self%id_fdet,  'fdet','mmolC/m**3','fast detritus C fdet', &
+       fdet_initial, minimum=_ZERO_, no_river_dilution=.true. , vertical_movement=vS_det/secs_pr_day)
     call self%register_state_variable(self%id_nh3,   'nh3','mmolN/m**3','dissolved ammonium nh3', &
        nh3_initial, minimum=_ZERO_, no_river_dilution=.true. )
     call self%register_state_variable(self%id_oxy,   'oxy','mmolO2/m**3','dissolved oxygen oxy', &
@@ -693,23 +707,7 @@ end if
 call self%register_dependency(self%id_temp,standard_variables%temperature)
 call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
 call self%register_global_dependency(self%id_doy,standard_variables%number_of_days_since_start_of_the_year)
-call self%register_dependency(self%id_totC,standard_variables%total_carbon)
-call self%register_dependency(self%id_totC_vertint,vertical_integral(self%id_totC))
-call self%register_dependency(self%id_totN,standard_variables%total_carbon)
-call self%register_dependency(self%id_totN_vertint,vertical_integral(self%id_totN))
-call self%register_horizontal_diagnostic_variable(self%id_totC_vertint_diag,'totC_vertint','mmol-C/m**2','vertical_integral_total_carbon', output=output_time_step_averaged)
-call self%register_horizontal_diagnostic_variable(self%id_totN_vertint_diag,'totN_vertint','mmol-N/m**2','vertical_integral_total_nitrogen', output=output_time_step_averaged)
 call self%register_horizontal_dependency(self%id_zmax,standard_variables%bottom_depth)
-if (self%PhosphorusOn) then
-    call self%register_dependency(self%id_totP,standard_variables%total_phosphorus)
-    call self%register_dependency(self%id_totP_vertint,vertical_integral(self%id_totP))
-    call self%register_horizontal_diagnostic_variable(self%id_totP_vertint_diag,'totP_vertint','mmol-P/m**2','vertical_integral_total_phosphorus', output=output_time_step_averaged)
-end if
-if (self%SiliconOn) then
-    call self%register_dependency(self%id_totS,standard_variables%total_silicate)
-    call self%register_dependency(self%id_totS_vertint,vertical_integral(self%id_totS))
-    call self%register_horizontal_diagnostic_variable(self%id_totS_vertint_diag,'totS_vertint','mmol-Si/m**2','vertical_integral_total_silicate', output=output_time_step_averaged)
-end if
 if (self%BioOxyOn) then
     call self%register_dependency(self%id_Denitr_dep,'Denitr')
     call self%register_dependency(self%id_Denitr_vertint,vertical_integral(self%id_Denitr_dep))
@@ -720,6 +718,20 @@ if (self%DiagOn) then
     call self%register_dependency(self%id_GPPR_dep,'GPPR')
     call self%register_dependency(self%id_GPPR_vertint,vertical_integral(self%id_GPPR_dep))
     call self%register_horizontal_diagnostic_variable(self%id_GPPR_vertint_diag,'GPPR_vertint','mmol-C/m**2/d','vertical_integral_gross_primary_production', output=output_time_step_averaged)
+end if
+if (self%DebugDiagOn) then
+    call self%register_dependency(self%id_totC,standard_variables%total_carbon)
+    call self%register_dependency(self%id_totC_vertint,vertical_integral(self%id_totC))
+    call self%register_dependency(self%id_totN,standard_variables%total_carbon)
+    call self%register_dependency(self%id_totN_vertint,vertical_integral(self%id_totN))
+    call self%register_dependency(self%id_totP,standard_variables%total_phosphorus)
+    call self%register_dependency(self%id_totP_vertint,vertical_integral(self%id_totP))
+    call self%register_dependency(self%id_totS,standard_variables%total_silicate)
+    call self%register_dependency(self%id_totS_vertint,vertical_integral(self%id_totS))
+    call self%register_horizontal_diagnostic_variable(self%id_totC_vertint_diag,'totC_vertint','mmol-C/m**2','vertical_integral_total_carbon', output=output_time_step_averaged)
+    call self%register_horizontal_diagnostic_variable(self%id_totN_vertint_diag,'totN_vertint','mmol-N/m**2','vertical_integral_total_nitrogen', output=output_time_step_averaged)
+    call self%register_horizontal_diagnostic_variable(self%id_totP_vertint_diag,'totP_vertint','mmol-P/m**2','vertical_integral_total_phosphorus', output=output_time_step_averaged)
+    call self%register_horizontal_diagnostic_variable(self%id_totS_vertint_diag,'totS_vertint','mmol-Si/m**2','vertical_integral_total_silicate', output=output_time_step_averaged)
 end if
 
 ! extra line included from parser var init_incl 

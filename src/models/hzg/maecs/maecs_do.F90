@@ -58,8 +58,8 @@ real(rk) :: zoo_respC   ! temperature dependent carbon respiration rate  [mmolC 
 real(rk) :: zoo_mort
 real(rk) :: denitrate   ! pelagic N-loss by denitrification, emulating benthic pool and suboxic micro-environments
 real(rk) :: deporate    ! pelagic, "volumetric" deposition, slowly refueling N-losses
-real(rk) :: qualPOM, ddegN     !  POM quality -> degradation
-real(rk) :: qualDOM, dremN     !  DOM quality -> degradation
+real(rk) :: qualPOM, ddegN, ddegP     !  POM quality -> degradation
+real(rk) :: qualDOM, dremN, dremP     !  DOM quality -> degradation
 real(rk) :: secs_pr_day = 86400.0_rk
 ! --- AGGREGATION 
 real(rk) :: aggreg_rate ! aggregation among phytoplankton and between phytoplankton & detritus [d^{-1}]    
@@ -112,6 +112,7 @@ if (self%GrazingOn) then
       _GET_(self%id_zooC, zoo%C)  ! Zooplankton Carbon in mmol-C/m**3
 end if
 if (self%BioOxyOn) then
+      _GET_(self%id_fdet, env%fdet)  ! fast detritus C in mmolC/m**3
       _GET_(self%id_nh3, env%nh3)  ! dissolved ammonium in mmolN/m**3
       _GET_(self%id_oxy, env%oxy)  ! dissolved oxygen in mmolO2/m**3
       _GET_(self%id_odu, env%odu)  ! dissolved reduced substances in mmolO2/m**3
@@ -334,6 +335,7 @@ reminT      = self%remin  * sens%f_T * qualDOM
 !  ---  hydrolysis & remineralisation depend on quality, here propto N/C quota of OM
 !  acceleration: rate difference for N-pool
 ddegN       = self%hydrol * sens%f_T * smooth_small(1.0d0 - qualPOM, self%small_finite)
+!ddegP       = self%ddegN       
 dremN       = self%remin * sens%f_T * smooth_small(1.0d0 - qualDOM, self%small_finite)
 
 !________________________________________________________________________________
@@ -538,6 +540,7 @@ if (self%GrazingOn) then
       _SET_ODE_(self%id_zooC, rhsv%zooC UNIT)
 end if
 if (self%BioOxyOn) then
+      _SET_ODE_(self%id_fdet, rhsv%fdet UNIT)
       _SET_ODE_(self%id_nh3, rhsv%nh3 UNIT)
       _SET_ODE_(self%id_oxy, rhsv%oxy UNIT)
       _SET_ODE_(self%id_odu, rhsv%odu UNIT)
