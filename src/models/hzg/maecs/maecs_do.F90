@@ -460,15 +460,17 @@ if (self%BioOxyOn) then
    Anoxiclim  = (1.0_rk-env%oxy/(env%oxy+self%kinO2anox)) * (1.0_rk-no3/(no3+self%kinNO3anox))
    Rescale    = 1.0_rk/(Oxicminlim+Denitrilim+Anoxiclim)
 
-! extra-omexdia P -dynamics not needed in MAECS 
-!if (self%PhosphorusOn) then
+! extra-omexdia P -dynamics  
+  if (self%PhosphorusOn) then
 ! PO4-adsorption ceases when critical capacity is reached
 ! [FeS] approximated by ODU
 !   po4    = nut%P
-!   radsP  = self%PAds * self%rSlow * (po4*max(env%odu,self%PAdsODU))
+   radsP      = self%PAds * degradT * nut%P * max(env%odu,self%PAdsODU)
+   rhsv%nutP  = rhsv%nutP - radsP
+   rhsv%detP  = rhsv%detP + radsP
 !   rP     = self%rFast * (1.0_rk - Oxicminlim)
 !   Pprod  = rP * pdet
-!endif
+endif
 
 ! Oxic mineralisation, denitrification, anoxic mineralisation
 ! then the mineralisation rates
