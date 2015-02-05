@@ -619,6 +619,13 @@ if (self%GrazingOn) then
     call self%register_state_variable(self%id_zooC,  'zooC','mmol-C/m**3','Zooplankton Carbon zooC', &
        zooC_initial, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution )
     call self%add_to_aggregate_variable(standard_variables%total_carbon,self%id_zooC)
+    
+    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_zooC,scale_factor=const_NC_zoo)
+    if (self%PhosphorusOn) then
+     call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_zooC,scale_factor=const_PC_zoo)
+    end if
+    
+    
 end if
 
 if (self%BioOxyOn) then
