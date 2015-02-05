@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
 ! hzg_omexdia_p --- FABM/F03 version of OMEXDIA+P biogeochemical model
 !-------------------------------------------------------------------------------
-! PAds       [float, unit = ] #BioOxyOn
+! rPAds      [float, unit = ] #BioOxyOn
 !             Adsorption coeff phosphorus
 ! PAdsODU    [float, unit = ] #BioOxyOn
 !             PO4-Fe dissolution threshold in terms of [FeS]/ODU
@@ -23,22 +23,22 @@
 !             half-sat NO3 inhib anoxic min
 ! kinO2anox  [float, unit = mmolO2/m3] #BioOxyOn
 !             half-sat O2 inhib anoxic min
-! kanammox  [float, unit = 1/d] #BioOxyOn
+! rAnammox  [float, unit = 1/d] #BioOxyOn
 !             anammox rate
 !-------------------------------------------------------------------------------
 
 &maecs_omex
-PAds           = 0.3
-PAdsODU        = 12.
-rnit           = 20.
-ksO2nitri      = 20.
-rODUox         = 20.
-ksO2oduox      = 1.
-ksO2oxic       = 3. 
-ksNO3denit     = 30.
-kinO2denit     = 1.
-kinNO3anox     = 1.
-kinO2anox      = 1.
-kanammox       = 0.
+   rPAds          = 0.02
+   PAdsODU        = 12.
+   rnit           = 20.
+   ksO2nitri      = 20.
+   rODUox         = 20.
+   ksO2oduox      = 1.
+   ksO2oxic       = 3. 
+   ksNO3denit     = 30.
+   kinO2denit     = 1.
+   kinNO3anox     = 1.
+   kinO2anox      = 1.
+   rAnammox       = 0.2
 /
 
