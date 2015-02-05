@@ -708,16 +708,14 @@ call self%register_dependency(self%id_temp,standard_variables%temperature)
 call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
 call self%register_global_dependency(self%id_doy,standard_variables%number_of_days_since_start_of_the_year)
 call self%register_horizontal_dependency(self%id_zmax,standard_variables%bottom_depth)
-if (self%BioOxyOn) then
-    call self%register_dependency(self%id_Denitr_dep,'Denitr')
-    call self%register_dependency(self%id_Denitr_vertint,vertical_integral(self%id_Denitr_dep))
-    call self%register_horizontal_diagnostic_variable(self%id_Denitr_vertint_diag,'Denitr_vertint','mmol-N/m**2/d','vertical_integral_gross_primary_production', output=output_time_step_averaged)
-    call self%register_horizontal_diagnostic_variable(self%id_O2flux_diag,'O2flux','mmol-O2/m**2/d','oxygen_flux_between_sea_water_and_air', output=output_time_step_averaged)
-end if
 if (self%DiagOn) then
     call self%register_dependency(self%id_GPPR_dep,'GPPR')
     call self%register_dependency(self%id_GPPR_vertint,vertical_integral(self%id_GPPR_dep))
     call self%register_horizontal_diagnostic_variable(self%id_GPPR_vertint_diag,'GPPR_vertint','mmol-C/m**2/d','vertical_integral_gross_primary_production', output=output_time_step_averaged)
+    call self%register_dependency(self%id_Denitr_dep,'Denitr')
+    call self%register_dependency(self%id_Denitr_vertint,vertical_integral(self%id_Denitr_dep))
+    call self%register_horizontal_diagnostic_variable(self%id_Denitr_vertint_diag,'Denitr_vertint','mmol-N/m**2/d','vertical_integral_gross_primary_production', output=output_time_step_averaged)
+    call self%register_horizontal_diagnostic_variable(self%id_O2flux_diag,'O2flux','mmol-O2/m**2/d','oxygen_flux_between_sea_water_and_air', output=output_time_step_averaged)
 end if
 if (self%DebugDiagOn) then
     call self%register_dependency(self%id_totC,standard_variables%total_carbon)
