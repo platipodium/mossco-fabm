@@ -727,7 +727,7 @@ end if
 if (self%DebugDiagOn) then
     call self%register_dependency(self%id_totC,standard_variables%total_carbon)
     call self%register_dependency(self%id_totC_vertint,vertical_integral(self%id_totC))
-    call self%register_dependency(self%id_totN,standard_variables%total_carbon)
+    call self%register_dependency(self%id_totN,standard_variables%total_nitrogen)
     call self%register_dependency(self%id_totN_vertint,vertical_integral(self%id_totN))
     call self%register_dependency(self%id_totP,standard_variables%total_phosphorus)
     call self%register_dependency(self%id_totP_vertint,vertical_integral(self%id_totP))
