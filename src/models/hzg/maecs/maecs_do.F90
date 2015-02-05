@@ -465,7 +465,7 @@ if (self%BioOxyOn) then
 ! PO4-adsorption ceases when critical capacity is reached
 ! [FeS] approximated by ODU
 !   po4    = nut%P
-   radsP      = self%PAds * degradT * nut%P * max(env%odu,self%PAdsODU)
+   radsP      = self%rPAds * degradT * nut%P * max(env%odu,self%PAdsODU)
    rhsv%nutP  = rhsv%nutP - radsP
    rhsv%detP  = rhsv%detP + radsP
 !   rP     = self%rFast * (1.0_rk - Oxicminlim)
@@ -499,7 +499,7 @@ endif
 !!  rhsv%no3 = (-0.8_rk*Denitrific + Nitri - uptNO3)
 
 ! Anammox: NH3 oxidation by nitrite, here related to NO3
-  Anammox    = self%kanammox * Anoxiclim *Rescale * env%nh3 * no3/(no3+self%ksNO3denit)
+  Anammox    = self%rAnammox * Anoxiclim *Rescale * env%nh3 * no3/(no3+self%ksNO3denit)
 
 ! preference for NH3 in DIN-uptake of autotrophs
   nh3f        = 1.0d0 - exp(-5*env%nh3/(nut%N+self%small))

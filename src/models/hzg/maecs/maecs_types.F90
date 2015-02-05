@@ -62,7 +62,7 @@ real(rk) ::  nutN_initial, nutP_initial, nutS_initial, phyC_initial, phyN_initia
 real(rk) ::  P_max, alpha, sigma, theta_LHC, rel_chloropl_min, QN_phy_0, QN_phy_max, V_NC_max, AffN, zeta_CN, zstoich_PN, exud_phy, QP_phy_0, QP_phy_max, V_PC_max, AffP, QSi_phy_0, QSi_phy_max, V_SiC_max, AffSi, syn_nut, adap_rub, adap_theta, tau_regV, disease, phi_agg, agg_doc, sink_phys, vS_phy, vS_det, hydrol, remin, denit, remNP, PON_denit, Q10, T_ref, NutOrder
 real(rk) ::  const_NC_zoo, const_PC_zoo, g_max, k_grazC, yield_zoo, basal_resp_zoo, mort_zoo
 real(rk) ::  a_water, a_minfr, a_spm, a_chl, frac_PAR, small, dil, ex_airsea, O2_sat, N_depo, P_depo
-real(rk) ::  PAds, PAdsODU, rnit, ksO2nitri, rODUox, ksO2oduox, ksO2oxic, ksNO3denit, kinO2denit, kinNO3anox, kinO2anox, kanammox
+real(rk) ::  rPAds, PAdsODU, rnit, ksO2nitri, rODUox, ksO2oduox, ksO2oxic, ksNO3denit, kinO2denit, kinNO3anox, kinO2anox, rAnammox
 real(rk) ::  rq10, res0, K_QN_phy, iK_QN, iK_QP, iK_QSi, itheta_max, aver_QN_phy, aver_QP_phy, small_finite
 logical  ::  RubiscoOn, PhotoacclimOn, PhosphorusOn, SiliconOn, GrazingOn, BioOxyOn, DiagOn, DebugDiagOn, ChemostatOn, NResOn, detritus_no_river_dilution, plankton_no_river_dilution
 integer  ::  kwFzmaxMeth

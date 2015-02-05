@@ -140,7 +140,7 @@ contains
 !> \describepar{O2\_sat       , \mathrm{O2_sat}       , oxygen concentration in air-sea boundary layer, 300. mmol-O2/m2.d}
 !> \describepar{N\_depo       , \mathrm{N_depo}       , DIN deposition rate 0.5  6-21mg/m2.d Grieken2007 - , 1.8 mmol-N/m2.d}
 !> \describepar{P\_depo       , \mathrm{P_depo}       , DIP deposition rate , 0.1 mmol-P/m2.d}
-!> \describepar{PAds         , \mathrm{PAds}         , Adsorption coeff phosphorus, 0.3 }
+!> \describepar{rPAds        , \mathrm{rPAds}        , Adsorption coeff phosphorus, 0.02 }
 !> \describepar{PAdsODU      , \mathrm{PAdsODU}      , PO4-Fe dissolution threshold in terms of [FeS]/ODU, 12. }
 !> \describepar{rnit         , \mathrm{rnit}         , Max nitrification rate, 20. 1/d}
 !> \describepar{ksO2nitri    , \mathrm{ksO2nitri}    , half-sat O2 in nitrification, 20. umolO2/m3}
@@ -151,7 +151,7 @@ contains
 !> \describepar{kinO2denit   , \mathrm{kinO2denit}   , half-sat O2 inhib denitrif, 1. mmolO2/m3}
 !> \describepar{kinNO3anox   , \mathrm{kinNO3anox}   , half-sat NO3 inhib anoxic min, 1. mmolNO3/m3}
 !> \describepar{kinO2anox    , \mathrm{kinO2anox}    , half-sat O2 inhib anoxic min, 1. mmolO2/m3}
-!> \describepar{kanammox     , \mathrm{kanammox}     , anammox rate, 0. 1/d}
+!> \describepar{rAnammox     , \mathrm{rAnammox}     , anammox rate, 0.2 1/d}
 subroutine initialize(self, configunit)
 
 class (type_hzg_maecs), intent(inout), target :: self
@@ -244,7 +244,7 @@ real(rk)  :: O2_sat       ! oxygen concentration in air-sea boundary layer
 real(rk)  :: N_depo       ! DIN deposition rate 0.5  6-21mg/m2.d Grieken2007 - 
 real(rk)  :: P_depo       ! DIP deposition rate 
 !!------- Parameters from nml-list maecs_omex ------- 
-real(rk)  :: PAds         ! Adsorption coeff phosphorus
+real(rk)  :: rPAds        ! Adsorption coeff phosphorus
 real(rk)  :: PAdsODU      ! PO4-Fe dissolution threshold in terms of [FeS]/ODU
 real(rk)  :: rnit         ! Max nitrification rate
 real(rk)  :: ksO2nitri    ! half-sat O2 in nitrification
@@ -255,7 +255,7 @@ real(rk)  :: ksNO3denit   ! half-sat NO3 in denitrif
 real(rk)  :: kinO2denit   ! half-sat O2 inhib denitrif
 real(rk)  :: kinNO3anox   ! half-sat NO3 inhib anoxic min
 real(rk)  :: kinO2anox    ! half-sat O2 inhib anoxic min
-real(rk)  :: kanammox     ! anammox rate
+real(rk)  :: rAnammox     ! anammox rate
 !!------- Switches for configuring model structure -------
 logical   :: RubiscoOn    ! use Rubisco- here in C-units
 logical   :: PhotoacclimOn ! use Photoacclimation
@@ -299,8 +299,8 @@ namelist /maecs_env/ &
   P_depo
 
 namelist /maecs_omex/ &
-  PAds, PAdsODU, rnit, ksO2nitri, rODUox, ksO2oduox, ksO2oxic, ksNO3denit, &
-  kinO2denit, kinNO3anox, kinO2anox, kanammox
+  rPAds, PAdsODU, rnit, ksO2nitri, rODUox, ksO2oduox, ksO2oxic, ksNO3denit, &
+  kinO2denit, kinNO3anox, kinO2anox, rAnammox
 
 nutN_initial = 160_rk             ! mmol-N/m**3
 nutP_initial = 5_rk               ! mmol-P/m**3
@@ -380,7 +380,7 @@ ex_airsea    = 7e-4_rk            ! m/s
 O2_sat       = 300._rk            ! mmol-O2/m2.d
 N_depo       = 1.8_rk             ! mmol-N/m2.d
 P_depo       = 0.1_rk             ! mmol-P/m2.d
-PAds         = 0.3_rk             ! 
+rPAds        = 0.02_rk            ! 
 PAdsODU      = 12._rk             ! 
 rnit         = 20._rk             ! 1/d
 ksO2nitri    = 20._rk             ! umolO2/m3
@@ -391,7 +391,7 @@ ksNO3denit   = 30._rk             ! mmolNO3/m3
 kinO2denit   = 1._rk              ! mmolO2/m3
 kinNO3anox   = 1._rk              ! mmolNO3/m3
 kinO2anox    = 1._rk              ! mmolO2/m3
-kanammox     = 0._rk              ! 1/d
+rAnammox     = 0.2_rk             ! 1/d
 
 
 !--------- read namelists --------- 
@@ -527,7 +527,7 @@ end if
 
 !!------- model parameters from nml-list maecs_omex ------- 
 if (self%BioOxyOn) then
-    call self%get_parameter(self%PAds         ,'PAds',          default=PAds)
+    call self%get_parameter(self%rPAds        ,'rPAds',         default=rPAds)
     call self%get_parameter(self%PAdsODU      ,'PAdsODU',       default=PAdsODU)
     call self%get_parameter(self%rnit         ,'rnit',          default=rnit)
     call self%get_parameter(self%ksO2nitri    ,'ksO2nitri',     default=ksO2nitri)
@@ -538,7 +538,7 @@ if (self%BioOxyOn) then
     call self%get_parameter(self%kinO2denit   ,'kinO2denit',    default=kinO2denit)
     call self%get_parameter(self%kinNO3anox   ,'kinNO3anox',    default=kinNO3anox)
     call self%get_parameter(self%kinO2anox    ,'kinO2anox',     default=kinO2anox)
-    call self%get_parameter(self%kanammox     ,'kanammox',      default=kanammox)
+    call self%get_parameter(self%rAnammox     ,'rAnammox',      default=rAnammox)
 end if
 
 !!------- derived parameters  ------- 
