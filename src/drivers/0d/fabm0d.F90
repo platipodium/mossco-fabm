@@ -608,10 +608,11 @@
    LEVEL1 'time_loop'
 
    do n=MinN,MaxN
-      if (mod(n-MinN+1,2000)==0) then
+      if (mod(n-MinN+1,100000)==0) then
          write (strstep,'(i0)') n
          call write_time_string(julianday,secondsofday,timestr)
-         call log_message('     '//trim(timestr)//' (time step '//trim(strstep)//')')
+         call log_message('     '//trim(timestr)//')')
+!         call log_message('     '//trim(timestr)//' (time step '//trim(strstep*1.0E-5)//')')
       end if
 
       ! Update time and all time-dependent inputs.
