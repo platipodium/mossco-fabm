@@ -407,7 +407,7 @@ end subroutine initialize
   !type (type_diff)      :: diff,diff2
   !real(rk)              :: d2mudl2_d, dmu2=0.0_rk, mfac
 !  type (type_environment),   intent(inout)  :: environment 
-  real(rk) :: mort_S, mort_S0,mort_SJ, mort_T0, mort_G
+  real(rk) :: mort_S, mort_S0,mort_SJ, mort_T0, mort_G, mort_top
   real(rk) :: mort_J, mort_AJ, mort_T, mort_sum, mass_sum, doy, arg2
   real(rk) :: errf, eargA, argA, aa, eS, eS0, al0,alr, yfac, affin
   real(rk) :: Imaxr, lesdr, efn, efp, dll,loptm, sBDet, detect, sr, ft
@@ -421,10 +421,11 @@ end subroutine initialize
   real(rk), dimension(3) :: mort_R, mort_R0, mort_P
   real(rk), dimension(3) :: loptA, preyc, paras, fLc, m_host,rpara, pS
   real(rk), dimension(3,3):: grss
+  real(rk), dimension(51):: mAurelia60, mCyanea60
   real(rk) :: dl0, dl, dl2, bcrit, prey, preyE, preyT, preyTa, mGP
   real(rk) :: fR, fA, dfA_dl, lm_adult, al, lprey, lavg, aff, activ, eps
-  real(rk) :: gross, prod, dg_dB, dp_dB, dp_dl, mS0, mT0, ratf, no_age
-  integer  :: ib, ic, i, j, maxpred
+  real(rk) :: gross, prod, dg_dB, dp_dB, dp_dl, mS0, mT0, ratf, no_age, cnid, reltim
+  integer  :: ib, ic, i, j, maxpred, yi
   logical  :: IsExp, IsOut, IsMaxIng 
 !					Be     Pp     Cop
   integer  :: webtopo(3,3) = reshape((/0,1,0, 1,1,1, 0,0,0/), (/3,3/))
@@ -452,6 +453,10 @@ if(webtopo(1,3)+webtopo(2,3)+webtopo(3,3) .gt. 0) then
 else
   maxpred = 2
 endif
+
+! annual TS abundance data for scyphomedusae from VanWalraven et al 2014 
+mAurelia60 =(/ 2.133,0.213,0.000,7.253,0.000,0.213,0.213,0.427,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.640,0.000,0.000,72.960,0.427,30.080,47.787,10.667,0.853,20.053,77.013,9.387,24.960,6.400,10.667,9.387,31.147,26.667,16.427,4.267,29.227,4.693,7.253,2.133,0.640,0.427,4.053,7.893,12.587,0.213,0.000,0.000,27.733,3.840,0.213,22.613 /)
+mCyanea60  =(/ 0.033,0.000,0.000,0.780,0.423,0.195,0.033,0.553,0.033,0.000,0.000,0.748,1.301,0.065,2.211,0.325,0.585,0.228,0.033,0.033,0.325,5.236,0.358,0.423,0.520,9.138,2.699,0.585,1.528,1.691,5.463,2.472,0.065,3.089,1.203,0.195,10.862,0.748,0.358,0.423,0.260,0.455,1.789,6.667,1.203,0.390,2.146,11.740,1.171,0.098,0.618 /)
 
 ! Enter spatial loops (if any)
 _FABM_LOOP_BEGIN_
@@ -496,6 +501,18 @@ else
    mben = 950.0d0+(var(1)%BenTime-17.0d0) * 50.0d0
  endif
 endif
+!if (var(1)%BenTime .lt. 7.4d0) then   cnid = 1.0d0
+!else   cnid = 5.0d0 endif
+
+yi = FLOOR(var(1)%BenTime)  ! year index relative to 1960
+reltim      = var(1)%BenTime - yi - 0.56 ! peak abundance around day 200
+reltim      = reltim / 0.22  
+if (yi+14 .lt. 51) then
+ cnid = (mAurelia60(yi+14)+mCyanea60(yi+14))* exp(-reltim**2)
+else
+ cnid = 0.0d0
+endif
+
 ! loop over boxes   1: HR  2: Offshore
  do ib = 1, numb
 !
@@ -847,8 +864,12 @@ endif
 ! somatic growth : TODO: temperature dependency
    somgrwth = prod - recruit - mort_R(i)  ! can become negative which is OK
 
+! top-down pressure by larger jellies (cnidarians such as Aurelia Cyanea, or Chrysaora)
+   mort_top = Temp_dep(3)*self%m_predBe  * cnid !* mass(i)
+
 !  sum of all mortality rates
-   mort_sum = mort_R(i) + mort_S  + mGrz(i)+ mort_P(i) !+ mort_T
+   mort_sum = mort_R(i) + mort_S  + mGrz(i)+ mort_P(i) + mort_top
+
 !   if (abs(mort_sum) .gt. -0.5) write (*,'(A,1(I2),8(F12.5))') 'mort=',i, mort_sum ,lmsize(i),   fLc , Temp_dep(3), exp(-sig23(1)*(loptA(1)-lmsize(3))**2),mGrz(i),mort_P(i),sig23(1)
 !
 ! ----------  stage and size dynamics  -------------------
@@ -915,11 +936,12 @@ endif
    if (i .eq. 1) then ! Beroe
 ! --- dynamics of Beroe biomass
 ! quadratic mortality of Beroe to emulate top-down closure
-    bcrit     = Temp_dep(3)*self%m_predBe* var(ib)%B_Be! * 3E-6 *var(ib)%ParasPp! 0.44**2/
-    rhsv%B_Be = (prod - mort_sum - bcrit)* var(ib)%B_Be + Temp_dep(1)*self%immigr
+ !   bcrit     = Temp_dep(3)*self%m_predBe* var(ib)%B_Be! * 3E-6 *var(ib)%ParasPp! 0.44**2/
+!    rhsv%B_Be = (prod - mort_sum - bcrit)* var(ib)%B_Be + Temp_dep(1)*self%immigr
+    rhsv%B_Be = (prod - mort_sum )* var(ib)%B_Be + Temp_dep(1)*self%immigr
 ! --- dynamics of Beroe mean log size
 !  immigration  of mature individuals only
-    sum_dl  = sum_dl + Temp_dep(1)*self%immigr*(self%lA+0.0-lmsize(i))/(var(ib)%B_Be+eps)
+!    sum_dl  = sum_dl  + Temp_dep(1)*self%immigr*(self%lA+0.0-lmsize(i))/(var(ib)%B_Be+eps)
     rhsv%l_Be = sum_dl 
 
    ! Export diagnostic variables
@@ -950,18 +972,18 @@ endif
   _SET_DIAGNOSTIC_(self%id_init_dl, init_dl)                !step_integrated marginal size shift due to egg production
   _SET_DIAGNOSTIC_(self%id_graz_dl, graz_dl)                !step_integrated marginal size shift due to selective grazing
   _SET_DIAGNOSTIC_(self%id_sen_dl, sen_dl)                  !step_integrated marginal size shift due to starvation 
-  _SET_DIAGNOSTIC_(self%id_turb_dl, arg2)                  !step_integrated marginal size shift due to physical damage 
+  _SET_DIAGNOSTIC_(self%id_turb_dl, cnid)                  !step_integrated marginal size shift due to physical damage 
   _SET_DIAGNOSTIC_(self%id_prod_dl, prod_dl)                !step_integrated marginal size shift due to production 
   _SET_DIAGNOSTIC_(self%id_resp_dl, resp_dl)                !step_integrated marginal size shift due to respiration 
   _SET_DIAGNOSTIC_(self%id_paras_dl, paras_dl)              !step_integrated marginal size shift due to parasitism 
   _SET_DIAGNOSTIC_(self%id_dl_prey, dg_dly(i))                !step_integrated size difference to prey 
   _SET_DIAGNOSTIC_(self%id_dl_pred, dprod_dl(i))                 !step_integrated size difference to pred 
   _SET_DIAGNOSTIC_(self%id_mort_P, mort_P(i))                  !step_integrated density dependent mortality - parasites
-  _SET_DIAGNOSTIC_(self%id_mort_S, mort_S - Temp_dep(2)*self%immigr/var(ib)%B_Pp)                  !step_integrated physiological adult mortality rate
+  _SET_DIAGNOSTIC_(self%id_mort_S, reltim)                  !step_integrated physiological adult mortality rate
   _SET_DIAGNOSTIC_(self%id_mort_R, mort_R(i))                  !step_integrated temperature dependent mortality
   _SET_DIAGNOSTIC_(self%id_mort_G, mGrz(i))                  !step_integrated top-predation
   _SET_DIAGNOSTIC_(self%id_mort_J, mben)                  !step_integrated juvenile mortality
-  _SET_DIAGNOSTIC_(self%id_mort_T, mort_T)                !step_integrated damaging effect of turbulence 
+  _SET_DIAGNOSTIC_(self%id_mort_T, mort_top)                !step_integrated damaging effect of turbulence 
   _SET_DIAGNOSTIC_(self%id_somgrowth, somgrwth)             !step_integrated somatic growth rate 
   _SET_DIAGNOSTIC_(self%id_recruit, mass3)                !recruitstep_integrated egg production rate 
   _SET_DIAGNOSTIC_(self%id_mixBmass,m_host(i))            !step_integrated mass exchange rate Coast-HR-Offshore 
