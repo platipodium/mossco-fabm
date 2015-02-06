@@ -8,7 +8,7 @@
 #include<ctype.h>
 #include<string.h>
 #define MI 9   		/* do not change these array sizes  ...   */
-#define MAXP 49 	/*   unless you create highly complicated */
+#define MAXP 59 	/*   unless you create highly complicated */
 #define NAML 59 	/*   model and directory environments     */
 /* ------------------------------------------------------------------------------ */
 /*       configure-switches for the models; you MAY edit here:                    */ 
@@ -37,12 +37,12 @@ char elements[7]   = "CNPS";	/* elements kept explicitly. other variants : "N", 
 				/* "CNPSF" with "S" for Si/silicon or "F" for Fe/iron */
 char longelemnam[7][NAML]={"carbon","nitrogen","phosphorus","silicate"};				
 
-char nmlname0[MI][NAML] = {"switch","init","pars","graz","env"}; /* list of all nml-files tags of the fabm-model,"ctl" */
+char nmlname0[MI][NAML] = {"switch","init","pars","graz","env","omex"}; /* list of all nml-files tags of the fabm-model,"ctl" */
 				/* e.g., the tag "par" creates the full filename "modname_par.nml"  */
 				/* MUST include an "init" for the definition/initialisation of state variables */
 				/* MAY include a "switch" nml for all model switches to build modular hierarchies ; at the start of the list */
 				
-int nir=5;  			/* number of actual nml files; may be smaller than length of nmlname0 */
+int nir=6;  			/* number of actual nml files; may be smaller than length of nmlname0 */
 int bdim=1;  			/* number of spatial boxes in 0D */
 char lstname0[MI][NAML] = {"deps","diags","aux"}; /* names of the files for 1) external forcing and 2) diagnostics and, optional (AUX=1), 3) derived parameters */
 		/* order is fixed; ""deps" creates the full filename "modname_deps.lst"  */
@@ -50,17 +50,17 @@ char lstname0[MI][NAML] = {"deps","diags","aux"}; /* names of the files for 1) e
 char FabmDepVarName[NAML]= {"standard_variables%"}; /* prefix of the variable names in the FABM driver host */ 	
 				/*  standard_variables\%*/
 				
-char dirn_nml[NAML] = "";	/* directory where all the nml files  reside ./*/
-char dirn_f90[3*NAML] = "/home/wirtz/tools/mossco/fabm/src/models/hzg/maecs/";	/* directory where all the input sources (model.F90,...) reside ./
+char dirn_nml[NAML]	= "";	/* directory where all the nml files  reside ./*/
+char dirn_f90[3*NAML] 	= "/home/wirtz/mossco/fabm/src/models/hzg/maecs/";	/* directory where all the input sources (model.F90,...) reside ./
 //char dirn_f90[3*NAML] = "/home/onur/opt/src/fabm-code/src/models/hzg/maecs/";	/* directory where all the input sources (model.F90,...) reside ./*/
-char indent0[NAML] = "";	/* indentation in declaration part */ 
-char init_incl[3*NAML] = "call maecs_init_stoichvars(self)"; /* line included in init routine*/
-char init_varincl[3*NAML] = "call maecs_init_stoichvars(self)"; /* line included in init routine*/
+char indent0[NAML] 	= "";	/* indentation in declaration part */ 
+char init_incl[2*NAML] 	= "maecs_incl.lst"; /* file included in init routine*/
+char init_varincl[3*NAML]= "call maecs_init_stoichvars(self)"; /* line included in init routine*/
 //char vstructn[NAML]= "env";	/* name of the major variable structure */ 
-char vstructn[NAML]= "env";	/* name of the major variable structure */ 
-char vstructc[4]   = "E";	/* elements major variable structure
+char vstructn[NAML]	= "env";/* name of the major variable structure */ 
+char vstructc[4]   	= "E";	/* elements major variable structure
           A: all state variables T: traits  E: environmental forcing N: nutrients */ 
-char env_add[NAML] = "RNit";	/* additional variable as memeber of the env structure (e.g., non-mass,non-trait MAECS variables*/        
+char env_add[3*NAML] 	= "";	/* additional variable as member of the env structure (e.g., non-mass,non-trait MAECS variables*/        
 
 /* ------------------------------------------------------------------- */
 /*            do not edit below ...                                    */
@@ -69,24 +69,26 @@ int eoi,pi,pj,pjs,sws,ni,nj,d,np,nl,ss,i,pv,nmli=0,out=1,tti,nls,swi[MI][MAXP],
   setvel[MI][MAXP],setvel_n[MI][MAXP],trait[MAXP],found_rhs[MAXP],found_rate[MI][MAXP],pc;
 unsigned long dind;
 char line[256],line2[256],*lr,c,*cp,*cp1,*cp2,*cp3,tabs[2][6]={"    ",""};
-FILE *sp,*sp1,*sp3,*sp2,*spv[3],*spt;
+FILE *sp,*sp1,*sp3,*sp2,*sp4,*spv[3],*spt;
 char keys[5][4]={"RHS","ODE","GET"};
 // char traitpre[5]="phy%";/* structure name for functional group variables */
 char insname[NAML]="";
 char pref[NAML],pnam[NAML],ptyp[NAML],pvals[NAML],outn[256],outn2[256],ttn[NAML],fnam[NAML];
 char nmlname[MI][NAML],nmlfname[MI][NAML];//"switch",
 char nmlt[3][NAML] = {"par","init","switch"}; // 3 nml groups: parameters, init=states, logical switches
-char numt[3][NAML] = {"real(rk)","logical","character(len=64)"};
+char numt[4][NAML] = {"real(rk)","logical","integer","character(len=64)"};
 char yesno[2][NAML] = {"false","true"};
 char tdb[2][4]={"","_sf"},tcb[2]={',','\n'};
 char parname[MI][MAXP][NAML],snameshort[MAXP][NAML],snameshort2[MAXP][NAML],
   snameshort3[MAXP][NAML],parvals[MI][MAXP][NAML],pcom[MI][MAXP][3*NAML],texsymb[MI][MAXP][2*NAML],
   punit[MI][MAXP][NAML],sl[MAXP],setveln[MI][MAXP][NAML],swin[MI][MAXP][NAML],idname[MAXP][NAML],
-  strvari[MAXP],partypen[MI][MAXP][NAML],pmapstring[MI][MAXP][NAML],*ptr,velem;
+  strvari[MAXP],partypen[MI][MAXP][NAML],pmapstring[MI][MAXP][2*NAML],*ptr,velem;
 //char extvar[5][2][6]={{"I_0","par"},{"par","par"},{"",""}};
 char sc[99], tmpstr[NAML];
 int nmltype[MI],partype[MI][MAXP],nump[MI],ChemSpec[MAXP], ni0,nis,nelements;
-  
+
+// cp maecs_do_gen.F90 maecs/maecs_do.F90; cp maecs_types_gen.F90 maecs/maecs_types.F90; cp maecs_gen.F90 maecs/maecs.F90
+ 
 /* printf("argn=%d\t",argn);printf("argv=%s\t",argv[1]);
 if (argn>=2)   strcpy(simfile,argv[1]); else  exit(0);
 if (argn>=3)   strcpy(cas,argv[2]);printf("AS=%s\n",cas);*/
@@ -154,13 +156,26 @@ for(ni=0,nis=-1;ni<nir;ni++)
       if (out) printf("*** switch-dependency %s %s...\n",pnam,swin[ni][pi]);
       for(pj=0;pj<nump[nis];pj++)
         if(strcmp(swin[ni][pi],parname[nis][pj])==0) swi[ni][pi]=pj, pj=nump[nis]+3;  
-      if(pj<nump[nis]+3) printf("\nnot found in switch-namelist !!\n\n");
+      if(pj<nump[nis]+3)
+        {
+	printf("\n%s not found in switch-namelist !!\n\n",swin[ni][pi]);
+        for(pj=0;pj<nump[nis];pj++)
+	  printf("%s %d\t",parname[nis][pj],strcmp(swin[ni][pi],parname[nis][pj]));
+        printf("\n\n");
+	}
       }
       
 //  ----  check for trait transporter (e.g., phyC)
     if(strstr(line,"!TT") && ni==ni0)  
-       tti=pi; 
-    
+       tti=pi;    
+//  ----  check for env variables (not in maecs structure)
+    if(strstr(line,"EE") && ni==ni0) 
+      {
+      strcat(env_add,pnam),
+      cp=rindex(env_add,'_');*cp='\0';
+      strcat(env_add,", ");
+      }
+      
 //  ----  check for tech symbols needed for doxygen
     strcpy(texsymb[ni][pi],""); 
     cp1=strchr(line,'$'); 
@@ -189,7 +204,6 @@ for(ni=0,nis=-1;ni<nir;ni++)
        c=*(++cp);
     if((cp1=strstr(cp,"initial "))>=cp)
         cp+=strlen("initial "); 
-    
  
     if((cp1=strstr(cp,"\n"))>=0)
        strncpy(pcom[ni][pi],cp,cp1-cp);
@@ -226,12 +240,14 @@ for(ni=0,nis=-1;ni<nir;ni++)
       if (out) printf("*** settling velocity %s linked to state %d\t %s...\n",pnam,setvel[ni][pi],parname[ni0][setvel[ni][pi]]);
       }   
     
-    strcpy(parname[ni][pi],pnam);
+    strcpy(parname[ni][pi],pnam);    
+    
     if(strstr(ptyp,"bool")) partype[ni][pi]=1;
     else partype[ni][pi]=0;
+    if(strstr(ptyp,"integer")) partype[ni][pi]=2;
     
  
-    if(out) printf("%d %s unit=%s\t # %s\n",pi,parname[ni][pi],punit[ni][pi],pcom[ni][pi]);
+    if(out) printf("%d %s %d unit=%s\t # %s\n",pi,parname[ni][pi],partype[ni][pi],punit[ni][pi],pcom[ni][pi]);
     pi++;
     lr=fgets(line,256,sp);
     if(strstr(line,"!--")) eoi=1; 
@@ -453,41 +469,6 @@ fprintf(sp,"! --- HZG model types\n");
 
 // ---------------------------------------------------------------- 
 //    define the major variable structure of the model 
-if(strlen(vstructn) < 0) // TODO: unused? delete!
-  {
-//  fprintf(spt,"%stype type_%s_%s\n",indent0,modname,vstructn);
-  fprintf(spt,"%stype type_%s_var\n",indent0,modname);
-  if (strchr(vstructc,'A')!=NULL)
-    {
-    fprintf(spt,"%s real(rk) :: ",indent0);
-    for(ni=ni0,pj=0;pj<nump[ni];pj++)
-      fprintf(spt,"%s%c",snameshort2[pj],tcb[pj==nump[ni]-1]);
-    }
-  if (strchr(vstructc,'E')!=NULL || strchr(vstructc,'A')!=NULL) 
-    {
-    fprintf(spt,"%s real(rk) :: %s,",indent0,env_add); 
-    for(ni=nir,pj=0;pj<nump[ni];pj++)
-      fprintf(spt,"%s%c",parname[ni][pj],tcb[pj==nump[ni]-1]);
-    }
- if (strchr(vstructc,'N')!=NULL)
-    {
-    fprintf(spt,"%s real(rk) :: ",indent0);
-    for(ni=ni0,pj=0,pi=0;pj<nump[ni];pj++)
-     if(strstr(snameshort2[pj],"nut")!=NULL)
-       {
-       if(pi>0) fprintf(spt,", ");  
-       pi++; 
-       fprintf(spt,"%s",snameshort2[pj]);  
-       }
-    }
-  fprintf(spt,"%send type\n",indent0);
-// ---------------------------------------------------------------- 
-//    define the RHS structure that contains all state variables
-fprintf(spt,"%stype type_%s_rhs\n%s real(rk) :: ",indent0,modname,indent0);
-for(ni=ni0,pj=0;pj<nump[ni];pj++)
-  fprintf(spt,"%s%c",snameshort2[pj],tcb[pj==nump[ni]-1]);
-fprintf(spt,"%send type\n",indent0); 
-  }
 fprintf(spt,"! standard fabm model types\n",indent0);
 
 if(TYPES)
@@ -531,8 +512,18 @@ if(AUX)
 if(nis>=0)
   {
   fprintf(spt,"%slogical  :: ",indent0);
-  for(ni=nis,pj=0;pj<nump[ni];pj++)
+  for(ni=nis,pj=0,pi=0;pj<nump[ni];pj++)
+   if(partype[ni][pj]==1)
      fprintf(spt," %s%c",parname[ni][pj],tcb[pj==nump[ni]-1]);
+   else
+     pi++;
+  if(pi>0)
+    {
+    fprintf(spt,"%sinteger  :: ",indent0);
+    for(ni=nis,pj=0,pjs=0;pj<nump[ni];pj++)
+    if(partype[ni][pj]==2)
+     fprintf(spt," %s%c",parname[ni][pj],tcb[(pjs++)==pi-1]);
+    }
   }
     
 if(TYPES==0)
@@ -556,15 +547,16 @@ if(strlen(vstructn) > 0)
   if (strchr(vstructc,'A')!=NULL)
     {
 //    fprintf(spt,"%s real(rk) :: ",indent0);
-    fprintf(spt,"%s real(rk) :: %s,",indent0,env_add); 
+    fprintf(spt,"%s real(rk) :: %s ",indent0,env_add); 
     for(ni=ni0,pj=0;pj<nump[ni];pj++)
       fprintf(spt,"%s%c",snameshort2[pj],tcb[pj==nump[ni]-1]);
     }
   if (strchr(vstructc,'E')!=NULL) 
     {
-    fprintf(spt,"%s real(rk) :: %s,",indent0,env_add); 
+    fprintf(spt,"%s real(rk) :: %s ",indent0,env_add); 
     for(ni=nir,pj=0;pj<nump[ni];pj++)
-      fprintf(spt,"%s%c",parname[ni][pj],tcb[pj==nump[ni]-1]);
+      if(strstr(parname[ni][pj],"tot")==NULL)
+        fprintf(spt,"%s%c",parname[ni][pj],tcb[pj==nump[ni]-1]);
     }
  if (strchr(vstructc,'N')!=NULL)
     {
@@ -579,6 +571,8 @@ if(strlen(vstructn) > 0)
     }
   fprintf(spt,"%send type\n",indent0);
   }
+  
+  
 // ---------------------------------------------------------------- 
 //    define the RHS structure containibg all state variables
 fprintf(spt,"%stype type_%s_rhs\n%s real(rk) :: ",indent0,modname,indent0);
@@ -776,7 +770,7 @@ for(pjs=-1;pjs<nump[nis];pjs++)
       sl[pj]= ' '; if(strlen(snameshort2[pj])<7) sl[pj]='\t';
         
       if(sws==0 && pjs>=0)
-        fprintf(sp,"\nif (%s) then\n",swin[ni][pj]), sws=1;
+        fprintf(sp,"\nif (self%c%s) then\n",'%',swin[ni][pj]), sws=1;
       
       if(pjs>=0 &&out) printf("%s\t%s %s\t %d\n",swin[ni][pj],snameshort[pj],snameshort2[pj],trait[pj]);
      
@@ -847,6 +841,7 @@ for(pjs=-1;pjs<nump[nis];pjs++)
 if (bdim>1)
   fprintf(sp,"end do\n");
 fprintf(sp,"\n!!------- Register diagnostic variables  ------- \n");
+if(strcmp(modname,"maecs")==0)  fprintf(sp,"if (self%cDebugDiagOn) then\n",'%');
 ni=nir+1;
 for(pj=0;pj<nump[ni];pj++)
   {
@@ -858,6 +853,7 @@ for(pj=0;pj<nump[ni];pj++)
   fprintf(sp,"output=output_time_step_averaged)\n");  
   if(out)printf(" reg_diag(self%cid_%s,'%s',...\n",'%',parname[ni][pj],parname[ni][pj]);
   }
+if(strcmp(modname,"maecs")==0)  fprintf(sp,"end if\n");
  /*
 if(nelements>0)
   {
@@ -870,26 +866,46 @@ if(nelements>0)
 fprintf(sp,"\n!!------- Register environmental dependencies  ------- \n");
 ni=nir;
 
-for(pj=0;pj<nump[ni];pj++)
-  {
-//  pi=0;  pjs=-1;  while(strlen(extvar[pi][0])>0)
-//    if(strcmp(extvar[pi++][0],parname[ni][pj])==0) pjs=pi-1;  if(pjs>=0)  {  standard_variables%
+for(pjs=-1;pjs<nump[nis];pjs++)
+  for(pj=0,sws=0;pj<nump[ni];pj++)
+     { 
+     if(swi[ni][pj]==pjs)
+       {      
+       if(sws==0 && pjs>=0)
+         fprintf(sp,"if (%s) then\n",swin[ni][pj]), sws=1;
 //   fprintf(sp,"%scall self%cregister_dependency(self%cid_%s,varname_%s%s)\n",'%','%',
-   fprintf(sp,"%scall self%cregister_dependency(self%cid_%s,%s%s%s)\n",indent0,'%','%',
-   parname[ni][pj],FabmDepVarName,pmapstring[ni][pj],tdb[ (partypen[ni][pj][0]=='h') ] );
-//    fprintf(sp,"%scall self%cregister_dependency(self%cid_%s,standard_variables%c%s%s)\n",'%','%',
-//      parname[ni][pj],'%',pmapstring[ni][pj],tdb[ (partypen[ni][pj][0]=='h') ] );
-//       parname[ni][pj],extvar[pjs][1],tdb[ (partypen[ni][pj][0]=='h') ] );
-   if(out) printf(" reg dep(self%cid_%s,varname_%s%s)\n",'%',parname[ni][pj],pmapstring[ni][pj],tdb[ (partypen[ni][pj][0]=='h') ] );
-//    }   else     {printf("\n** ERROR: external forcing %s not found !!!\n now exit...\n",'%',parname[ni][pj]);exit(0);}
-  }  
+//       if(partypen[ni][pj][0]=='h' && strstr(parname[ni][pj],"tot")!=NULL )
+       strcpy(line2,FabmDepVarName),strcpy(line,partypen[ni][pj]);      
+       if(strstr(parname[ni][pj],"vert")!=NULL || strstr(parname[ni][pj],"flux")!=NULL || strstr(parname[ni][pj],"_dep")!=NULL )
+         {
+	 strcpy(line2,"");
+         if(strstr(parname[ni][pj],"diag")==NULL)  strcpy(line,"dependency");
+	 }
 
+       if(out) printf(" reg dep(self%cid_%s,varname_%s) \t switch=%d %d %d\n",'%',parname[ni][pj],pmapstring[ni][pj] ,swi[ni][pj],sws,pjs);
+       fprintf(sp,"%s%scall self%cregister_%s(self%cid_%s,%s%s)\n",indent0,tabs[(pjs<0)],'%',line,'%',parname[ni][pj],line2,pmapstring[ni][pj]);
+         
+//    }   else     {printf("\n** ERROR: external forcing %s not found !!!\n now exit...\n",'%',parname[ni][pj]);exit(0);}
+       } // if(swi[ni][pj]
+     if( pj==nump[ni]-1 && sws==1) fprintf(sp,"end if\n");
+     }  
+     
 if(strlen(init_incl)>1)
   {
-  fprintf(sp,"\n! extra line included from parser var init_incl \n");  
-  fprintf(sp,"%s\n",init_incl);  /* extra line; e.g. for including or calling a subroutine*/
+  printf("\n! extra lines included from %s \n",init_incl);
+  fprintf(sp,"\n! extra lines included from %s \n",init_incl);
+  sp4=fopen(init_incl,"r"); 
+  if(sp4==NULL) {printf("Error while opening %s !\n\n",init_incl),exit(0);}
+
+  lr=(char *)1;
+  while(lr!=NULL)
+    {
+    lr=fgets(line,256,sp4); 
+    fputs(line,sp);    
+    }
+  fclose(sp4);
   }
-fprintf(sp,"\n%sreturn\n\n!!-------  if files are not found ...  \n",indent0);
+fprintf(sp,"\n\n%sreturn\n\n!!-------  if files are not found ...  \n",indent0);
 for(ni=0;ni<nir;ni++)
   fprintf(sp,"%d call self%cfatal_error('%s_init','Error reading namelist %s.')\n",90+ni,'%',modname,nmlname[ni]);
 for(ni=0;ni<nir;ni++)
@@ -905,7 +921,7 @@ fprintf(sp,"!!------------------------------------------------------------------
 if(TYPES)
   {
 //  printf("closing %ld %ld %ld %ld  ...\n",sp,sp1,sp2,sp3);  
-  cp1=strstr(modname,"#SP#");
+  cp1=strstr(modname,"#SP#");lr=(char *)1;
   while(lr!=NULL && cp1==NULL)
     {
     lr=fgets(line,256,sp1); 
@@ -990,7 +1006,11 @@ for(d=0;d<1+0*NewModF90;d++)
       for(pi=0;pi<3;pi++) if (strncmp(cp1+4,keys[pi],3)==0) pc=pi;
       if(strncmp(cp1+4,"GED",3)==0) pc=5;
       if(strncmp(cp1+4,"DIA",3)==0) pc=6;   
-      if(strncmp(cp1+4,"CON",3)==0) pc=7;   
+      if(strncmp(cp1+4,"CON",3)==0) pc=7;  
+      
+      if(pc==6) 
+        printf("\n diags: ni=%d pj<%d\n\n", nir+1,nump[ni]);  
+      
       
       if(pc>=0 && pc<5)
         {
@@ -1064,11 +1084,12 @@ for(d=0;d<1+0*NewModF90;d++)
 //            fprintf(spv[d],"  _GET_(self%cid_%s, var%c%s)  ! %s\n",'%',parname[ni][pj],'%',parname[ni][pj],pcom[ni][pj]);
       if(pc==6) 
         for(ni=nir+1,pj=0;pj<nump[ni];pj++)
+	 if(strstr(parname[ni][pj],"tot")==NULL ) // total nut assumed horizontal
 	  {
-	  sprintf(line2,"%s, %s",parname[ni][pj], pmapstring[ni][pj]);
+	  sprintf(line2,"%s, _REPLNAN_(%s",parname[ni][pj], pmapstring[ni][pj]);
 	  if(found_rate[ni][pj]==1 && SCALEFAC && strstr(pcom[ni][pj],"RHS")!=NULL )  strcat(line2,"*secs_pr_day");  
           fprintf(spv[d],"  _SET_DIAGNOSTIC_(self%cid_%s",'%',line2);
-          fprintf(spv[d],")%s!%s %s\n",fil(sc,line2,32),partypen[ni][pj],pcom[ni][pj]);
+          fprintf(spv[d],"))%s!%s %s\n",fil(sc,line2,32),partypen[ni][pj],pcom[ni][pj]);
 	  }
       if(pc==7) /* get_conserved_quantities */
         {

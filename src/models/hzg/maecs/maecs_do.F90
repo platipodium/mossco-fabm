@@ -112,7 +112,6 @@ if (self%GrazingOn) then
       _GET_(self%id_zooC, zoo%C)  ! Zooplankton Carbon in mmol-C/m**3
 end if
 if (self%BioOxyOn) then
-      _GET_(self%id_fdet, env%fdet)  ! fast detritus C in mmolC/m**3
       _GET_(self%id_nh3, env%nh3)  ! dissolved ammonium in mmolN/m**3
       _GET_(self%id_oxy, env%oxy)  ! dissolved oxygen in mmolO2/m**3
       _GET_(self%id_odu, env%odu)  ! dissolved reduced substances in mmolO2/m**3
@@ -548,7 +547,6 @@ if (self%GrazingOn) then
       _SET_ODE_(self%id_zooC, rhsv%zooC UNIT)
 end if
 if (self%BioOxyOn) then
-      _SET_ODE_(self%id_fdet, rhsv%fdet UNIT)
       _SET_ODE_(self%id_nh3, rhsv%nh3 UNIT)
       _SET_ODE_(self%id_oxy, rhsv%oxy UNIT)
       _SET_ODE_(self%id_odu, rhsv%odu UNIT)

@@ -79,7 +79,6 @@ contains
 !> \describepar{Rub          , \mathrm{frac_Rub_ini}\mathrm{phyC_initial}, trait x biomass}
 !> \describepar{frac\_chl\_ini , \mathrm{frac_chl_ini} , Chl, 0.3 mg-Chla/mmol-C}
 !> \describepar{chl          , \mathrm{frac_chl_ini}\mathrm{phyC_initial}, trait x biomass}
-!> \describepar{fdet\_initial , \mathrm{fdet_initial} , fast detritus C, 0.0 mmolC/m**3}
 !> \describepar{nh3\_initial  , \mathrm{nh3_initial}  , dissolved ammonium, 120. mmolN/m**3}
 !> \describepar{oxy\_initial  , \mathrm{oxy_initial}  , dissolved oxygen, 120. mmolO2/m**3}
 !> \describepar{odu\_initial  , \mathrm{odu_initial}  , dissolved reduced substances, 0. mmolO2/m**3}
@@ -140,7 +139,7 @@ contains
 !> \describepar{O2\_sat       , \mathrm{O2_sat}       , oxygen concentration in air-sea boundary layer, 300. mmol-O2/m2.d}
 !> \describepar{N\_depo       , \mathrm{N_depo}       , DIN deposition rate 0.5  6-21mg/m2.d Grieken2007 - , 1.8 mmol-N/m2.d}
 !> \describepar{P\_depo       , \mathrm{P_depo}       , DIP deposition rate , 0.1 mmol-P/m2.d}
-!> \describepar{rPAds        , \mathrm{rPAds}        , Adsorption coeff phosphorus, 0.02 }
+!> \describepar{rPAds        , \mathrm{rPAds}        , Adsorption coeff phosphorus, 0.0 }
 !> \describepar{PAdsODU      , \mathrm{PAdsODU}      , PO4-Fe dissolution threshold in terms of [FeS]/ODU, 12. }
 !> \describepar{rnit         , \mathrm{rnit}         , Max nitrification rate, 20. 1/d}
 !> \describepar{ksO2nitri    , \mathrm{ksO2nitri}    , half-sat O2 in nitrification, 20. umolO2/m3}
@@ -180,7 +179,6 @@ real(rk)  :: frac_Rub_ini ! fraction of Rubisco
 real(rk)  :: Rub  ! trait times biomass
 real(rk)  :: frac_chl_ini ! Chl
 real(rk)  :: chl  ! trait times biomass
-real(rk)  :: fdet_initial ! fast detritus C
 real(rk)  :: nh3_initial  ! dissolved ammonium
 real(rk)  :: oxy_initial  ! dissolved oxygen
 real(rk)  :: odu_initial  ! dissolved reduced substances
@@ -280,8 +278,8 @@ namelist /maecs_init/ &
   nutN_initial, nutP_initial, nutS_initial, phyC_initial, phyN_initial, &
   phyP_initial, phyS_initial, zooC_initial, detC_initial, detN_initial, &
   detP_initial, detS_initial, domC_initial, domN_initial, domP_initial, &
-  RNit_initial, frac_Rub_ini, frac_chl_ini, fdet_initial, nh3_initial, &
-  oxy_initial, odu_initial
+  RNit_initial, frac_Rub_ini, frac_chl_ini, nh3_initial, oxy_initial, &
+  odu_initial
 
 namelist /maecs_pars/ &
   P_max, alpha, sigma, theta_LHC, rel_chloropl_min, QN_phy_0, QN_phy_max, &
@@ -320,7 +318,6 @@ domP_initial = 0.001_rk           ! mmol-P/m**3
 RNit_initial = 0._rk              ! mmol-N/m**3
 frac_Rub_ini = 0.4_rk             ! -
 frac_chl_ini = 0.3_rk             ! mg-Chla/mmol-C
-fdet_initial = 0.0_rk             ! mmolC/m**3
 nh3_initial  = 120._rk            ! mmolN/m**3
 oxy_initial  = 120._rk            ! mmolO2/m**3
 odu_initial  = 0._rk              ! mmolO2/m**3
@@ -380,7 +377,7 @@ ex_airsea    = 7e-4_rk            ! m/s
 O2_sat       = 300._rk            ! mmol-O2/m2.d
 N_depo       = 1.8_rk             ! mmol-N/m2.d
 P_depo       = 0.1_rk             ! mmol-P/m2.d
-rPAds        = 0.02_rk            ! 
+rPAds        = 0.0_rk             ! 
 PAdsODU      = 12._rk             ! 
 rnit         = 20._rk             ! 1/d
 ksO2nitri    = 20._rk             ! umolO2/m3
@@ -445,7 +442,6 @@ call self%get_parameter(self%domN_initial ,'domN_initial',  default=domN_initial
     call self%get_parameter(self%phyS_initial ,'phyS_initial',  default=phyS_initial)
     call self%get_parameter(self%detS_initial ,'detS_initial',  default=detS_initial)
     call self%get_parameter(self%zooC_initial ,'zooC_initial',  default=zooC_initial)
-    call self%get_parameter(self%fdet_initial ,'fdet_initial',  default=fdet_initial)
     call self%get_parameter(self%nh3_initial  ,'nh3_initial',   default=nh3_initial)
     call self%get_parameter(self%oxy_initial  ,'oxy_initial',   default=oxy_initial)
     call self%get_parameter(self%odu_initial  ,'odu_initial',   default=odu_initial)
@@ -480,17 +476,17 @@ call self%get_parameter(self%PON_denit    ,'PON_denit',     default=PON_denit)
 call self%get_parameter(self%Q10          ,'Q10',           default=Q10)
 call self%get_parameter(self%T_ref        ,'T_ref',         default=T_ref)
 call self%get_parameter(self%NutOrder     ,'NutOrder',      default=NutOrder)
-if (self%PhotoacclimOn) then
+if (PhotoacclimOn) then
     call self%get_parameter(self%adap_rub     ,'adap_rub',      default=adap_rub)
     call self%get_parameter(self%adap_theta   ,'adap_theta',    default=adap_theta)
 end if
-if (self%PhosphorusOn) then
+if (PhosphorusOn) then
     call self%get_parameter(self%QP_phy_0     ,'QP_phy_0',      default=QP_phy_0)
     call self%get_parameter(self%QP_phy_max   ,'QP_phy_max',    default=QP_phy_max)
     call self%get_parameter(self%V_PC_max     ,'V_PC_max',      default=V_PC_max)
     call self%get_parameter(self%AffP         ,'AffP',          default=AffP)
 end if
-if (self%SiliconOn) then
+if (SiliconOn) then
     call self%get_parameter(self%QSi_phy_0    ,'QSi_phy_0',     default=QSi_phy_0)
     call self%get_parameter(self%QSi_phy_max  ,'QSi_phy_max',   default=QSi_phy_max)
     call self%get_parameter(self%V_SiC_max    ,'V_SiC_max',     default=V_SiC_max)
@@ -499,10 +495,10 @@ end if
 
 !!------- model parameters from nml-list maecs_graz ------- 
 call self%get_parameter(self%const_NC_zoo ,'const_NC_zoo',  default=const_NC_zoo)
-if (self%PhosphorusOn) then
+if (PhosphorusOn) then
     call self%get_parameter(self%const_PC_zoo ,'const_PC_zoo',  default=const_PC_zoo)
 end if
-if (self%GrazingOn) then
+if (GrazingOn) then
     call self%get_parameter(self%g_max        ,'g_max',         default=g_max)
     call self%get_parameter(self%k_grazC      ,'k_grazC',       default=k_grazC)
     call self%get_parameter(self%yield_zoo    ,'yield_zoo',     default=yield_zoo)
@@ -520,13 +516,13 @@ call self%get_parameter(self%small        ,'small',         default=small)
 call self%get_parameter(self%dil          ,'dil',           default=dil)
 call self%get_parameter(self%N_depo       ,'N_depo',        default=N_depo)
 call self%get_parameter(self%P_depo       ,'P_depo',        default=P_depo)
-if (self%BioOxyOn) then
+if (BioOxyOn) then
     call self%get_parameter(self%ex_airsea    ,'ex_airsea',     default=ex_airsea)
     call self%get_parameter(self%O2_sat       ,'O2_sat',        default=O2_sat)
 end if
 
 !!------- model parameters from nml-list maecs_omex ------- 
-if (self%BioOxyOn) then
+if (BioOxyOn) then
     call self%get_parameter(self%rPAds        ,'rPAds',         default=rPAds)
     call self%get_parameter(self%PAdsODU      ,'PAdsODU',       default=PAdsODU)
     call self%get_parameter(self%rnit         ,'rnit',          default=rnit)
@@ -619,18 +615,9 @@ if (self%GrazingOn) then
     call self%register_state_variable(self%id_zooC,  'zooC','mmol-C/m**3','Zooplankton Carbon zooC', &
        zooC_initial, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution )
     call self%add_to_aggregate_variable(standard_variables%total_carbon,self%id_zooC)
-    
-    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_zooC,scale_factor=const_NC_zoo)
-    if (self%PhosphorusOn) then
-     call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_zooC,scale_factor=const_PC_zoo)
-    end if
-    
-    
 end if
 
 if (self%BioOxyOn) then
-    call self%register_state_variable(self%id_fdet,  'fdet','mmolC/m**3','fast detritus C fdet', &
-       fdet_initial, minimum=_ZERO_, no_river_dilution=.true. , vertical_movement=vS_det/secs_pr_day)
     call self%register_state_variable(self%id_nh3,   'nh3','mmolN/m**3','dissolved ammonium nh3', &
        nh3_initial, minimum=_ZERO_, no_river_dilution=.true. )
     call self%register_state_variable(self%id_oxy,   'oxy','mmolO2/m**3','dissolved oxygen oxy', &
@@ -715,16 +702,16 @@ call self%register_dependency(self%id_temp,standard_variables%temperature)
 call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
 call self%register_global_dependency(self%id_doy,standard_variables%number_of_days_since_start_of_the_year)
 call self%register_horizontal_dependency(self%id_zmax,standard_variables%bottom_depth)
-if (self%DiagOn) then
+if (DiagOn) then
     call self%register_dependency(self%id_GPPR_dep,'GPPR')
     call self%register_dependency(self%id_GPPR_vertint,vertical_integral(self%id_GPPR_dep))
-    call self%register_horizontal_diagnostic_variable(self%id_GPPR_vertint_diag,'GPPR_vertint','mmol-C/m**2/d','vertical_integral_gross_primary_production', output=output_time_step_averaged)
+    call self%register_horizontal_diagnostic_variable(self%id_GPPR_vertint_diag,'GPPR_vertint','mmol-C/m**2/d','vertical_integral_gross_primary_production')
     call self%register_dependency(self%id_Denitr_dep,'Denitr')
     call self%register_dependency(self%id_Denitr_vertint,vertical_integral(self%id_Denitr_dep))
-    call self%register_horizontal_diagnostic_variable(self%id_Denitr_vertint_diag,'Denitr_vertint','mmol-N/m**2/d','vertical_integral_gross_primary_production', output=output_time_step_averaged)
-    call self%register_horizontal_diagnostic_variable(self%id_O2flux_diag,'O2flux','mmol-O2/m**2/d','oxygen_flux_between_sea_water_and_air', output=output_time_step_averaged)
+    call self%register_horizontal_diagnostic_variable(self%id_Denitr_vertint_diag,'Denitr_vertint','mmol-N/m**2/d','vertical_integral_gross_primary_production')
+    call self%register_horizontal_diagnostic_variable(self%id_O2flux_diag,'O2flux','mmol-O2/m**2/d','oxygen_flux_between_sea_water_and_air')
 end if
-if (self%DebugDiagOn) then
+if (DebugDiagOn) then
     call self%register_dependency(self%id_totC,standard_variables%total_carbon)
     call self%register_dependency(self%id_totC_vertint,vertical_integral(self%id_totC))
     call self%register_dependency(self%id_totN,standard_variables%total_nitrogen)
@@ -733,14 +720,25 @@ if (self%DebugDiagOn) then
     call self%register_dependency(self%id_totP_vertint,vertical_integral(self%id_totP))
     call self%register_dependency(self%id_totS,standard_variables%total_silicate)
     call self%register_dependency(self%id_totS_vertint,vertical_integral(self%id_totS))
-    call self%register_horizontal_diagnostic_variable(self%id_totC_vertint_diag,'totC_vertint','mmol-C/m**2','vertical_integral_total_carbon', output=output_time_step_averaged)
-    call self%register_horizontal_diagnostic_variable(self%id_totN_vertint_diag,'totN_vertint','mmol-N/m**2','vertical_integral_total_nitrogen', output=output_time_step_averaged)
-    call self%register_horizontal_diagnostic_variable(self%id_totP_vertint_diag,'totP_vertint','mmol-P/m**2','vertical_integral_total_phosphorus', output=output_time_step_averaged)
-    call self%register_horizontal_diagnostic_variable(self%id_totS_vertint_diag,'totS_vertint','mmol-Si/m**2','vertical_integral_total_silicate', output=output_time_step_averaged)
+    call self%register_horizontal_diagnostic_variable(self%id_totC_vertint_diag,'totC_vertint','mmol-C/m**2','vertical_integral_total_carbon')
+    call self%register_horizontal_diagnostic_variable(self%id_totN_vertint_diag,'totN_vertint','mmol-N/m**2','vertical_integral_total_nitrogen')
+    call self%register_horizontal_diagnostic_variable(self%id_totP_vertint_diag,'totP_vertint','mmol-P/m**2','vertical_integral_total_phosphorus')
+    call self%register_horizontal_diagnostic_variable(self%id_totS_vertint_diag,'totS_vertint','mmol-Si/m**2','vertical_integral_total_silicate')
 end if
 
-! extra line included from parser var init_incl 
+! extra lines included from maecs_incl.lst 
+! complete N&P budgeting by componsnets with fixed stoichiometry such as ZooC
+if (self%GrazingOn) then
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_zooC,scale_factor=const_NC_zoo)
+   if (self%PhosphorusOn) then
+      call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_zooC,scale_factor=const_PC_zoo)
+   end if 
+end if
+
+! special initialization of generic maecs structures
 call maecs_init_stoichvars(self)
+call maecs_init_stoichvars(self)
+
 
 return
 

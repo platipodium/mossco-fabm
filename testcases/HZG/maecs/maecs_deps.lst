@@ -6,7 +6,7 @@ par	muE/m2s dependency downwelling_photosynthetic_radiative_flux par
 doy	-	global_dependency number_of_days_since_start_of_the_year
 totC	mmol-C/m**3 dependency total_carbon #DebugDiagOn
 totC_vertint	mmol-C/m**2 horizontal_dependency vertical_integral(self%id_totC) #DebugDiagOn
-totN	mmol-N/m**3 dependency total_carbon #DebugDiagOn
+totN	mmol-N/m**3 dependency total_nitrogen #DebugDiagOn
 totN_vertint	mmol-N/m**2 horizontal_dependency vertical_integral(self%id_totN) #DebugDiagOn
 GPPR_dep	mmol-C/m**3/d dependency 'GPPR' #DiagOn
 GPPR_vertint	mmol-C/m**2/d horizontal_dependency vertical_integral(self%id_GPPR_dep) #DiagOn

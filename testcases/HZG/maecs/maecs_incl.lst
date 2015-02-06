@@ -1,0 +1,10 @@
+! complete N&P budgeting by componsnets with fixed stoichiometry such as ZooC
+if (self%GrazingOn) then
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_zooC,scale_factor=const_NC_zoo)
+   if (self%PhosphorusOn) then
+      call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_zooC,scale_factor=const_PC_zoo)
+   end if 
+end if
+
+! special initialization of generic maecs structures
+call maecs_init_stoichvars(self)
