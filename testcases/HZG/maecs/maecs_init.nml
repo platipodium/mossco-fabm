@@ -46,16 +46,16 @@
 !-------------------------------------------------------------------------
 
 &maecs_init
- nutN_initial = 36., 
- nutP_initial =  3., 
+ nutN_initial = 28., 
+ nutP_initial =  2., 
  nutS_initial = 12, 
    zooC_initial = 0.02,
    phyC_initial = 10,
    phyN_initial = 0.8,
    phyP_initial = 0.06,
    phyS_initial = 1.2,
-   detC_initial = 50.,
-   detN_initial = 1.,
+   detC_initial = 10.,
+   detN_initial = 2.,
    detP_initial = 0.1,
    detS_initial = 0.,
    domC_initial = 0.1,
@@ -64,8 +64,8 @@
    RNit_initial = 0.,
    frac_Rub_ini = 0.4,
    frac_chl_ini = 0.3,
-   nh3_initial  = 36.
+   nh3_initial  = 23.
    oxy_initial  = 100.
-   odu_initial  = 200.
+   odu_initial  = 100.
 /
 
