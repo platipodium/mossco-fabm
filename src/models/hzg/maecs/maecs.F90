@@ -59,17 +59,17 @@ contains
 !>
 !> **Model parameters, descriptions and corresponding symbols used in formulas:**
 ! initial values
-!> \describepar{nutN\_initial , \mathrm{nutN_initial} , Dissolved Inorganic Nitrogen DIN, 160 mmol-N/m**3}
-!> \describepar{nutP\_initial , \mathrm{nutP_initial} , Dissolved Inorganic Phosphorus DIP, 5 mmol-P/m**3}
-!> \describepar{nutS\_initial , \mathrm{nutS_initial} , Dissolved Inorganic Silicon Si, 120 mmol-Si/m**3}
+!> \describepar{nutN\_initial , \mathrm{nutN_initial} , Dissolved Inorganic Nitrogen DIN, 28. mmol-N/m**3}
+!> \describepar{nutP\_initial , \mathrm{nutP_initial} , Dissolved Inorganic Phosphorus DIP, 2. mmol-P/m**3}
+!> \describepar{nutS\_initial , \mathrm{nutS_initial} , Dissolved Inorganic Silicon Si, 12 mmol-Si/m**3}
 !> \describepar{phyC\_initial , \mathrm{phyC_initial} , Phytplankton Carbon, 10 mmol-C/m**3}
 !> \describepar{phyN\_initial , \mathrm{phyN_initial} , Phytplankton Nitrogen, 0.8 mmol-N/m**3}
 !> \describepar{phyP\_initial , \mathrm{phyP_initial} , Phytplankton Phosphorus, 0.06 mmol-P/m**3}
 !> \describepar{phyS\_initial , \mathrm{phyS_initial} , Phytplankton Silicon, 1.2 mmol-Si/m**3}
 !> \describepar{zooC\_initial , \mathrm{zooC_initial} , Zooplankton Carbon, 0.02 mmol-C/m**3}
-!> \describepar{detC\_initial , \mathrm{detC_initial} , Detritus Carbon, 0. mmol-C/m**3}
-!> \describepar{detN\_initial , \mathrm{detN_initial} , Detritus Nitrogen, 0. mmol-N/m**3}
-!> \describepar{detP\_initial , \mathrm{detP_initial} , Detritus Phosphorus, 0. mmol-P/m**3}
+!> \describepar{detC\_initial , \mathrm{detC_initial} , Detritus Carbon, 10. mmol-C/m**3}
+!> \describepar{detN\_initial , \mathrm{detN_initial} , Detritus Nitrogen, 2. mmol-N/m**3}
+!> \describepar{detP\_initial , \mathrm{detP_initial} , Detritus Phosphorus, 0.1 mmol-P/m**3}
 !> \describepar{detS\_initial , \mathrm{detS_initial} , Detritus Silicon, 0. mmol-Si/m**3}
 !> \describepar{domC\_initial , \mathrm{domC_initial} , Dissolved Organic Carbon, 0.1 mmol-C/m**3}
 !> \describepar{domN\_initial , \mathrm{domN_initial} , Dissolved Organic Nitrogen, 0.01 mmol-N/m**3}
@@ -79,26 +79,26 @@ contains
 !> \describepar{Rub          , \mathrm{frac_Rub_ini}\mathrm{phyC_initial}, trait x biomass}
 !> \describepar{frac\_chl\_ini , \mathrm{frac_chl_ini} , Chl, 0.3 mg-Chla/mmol-C}
 !> \describepar{chl          , \mathrm{frac_chl_ini}\mathrm{phyC_initial}, trait x biomass}
-!> \describepar{nh3\_initial  , \mathrm{nh3_initial}  , dissolved ammonium, 120. mmolN/m**3}
-!> \describepar{oxy\_initial  , \mathrm{oxy_initial}  , dissolved oxygen, 120. mmolO2/m**3}
-!> \describepar{odu\_initial  , \mathrm{odu_initial}  , dissolved reduced substances, 0. mmolO2/m**3}
+!> \describepar{nh3\_initial  , \mathrm{nh3_initial}  , dissolved ammonium, 23. mmolN/m**3}
+!> \describepar{oxy\_initial  , \mathrm{oxy_initial}  , dissolved oxygen, 100. mmolO2/m**3}
+!> \describepar{odu\_initial  , \mathrm{odu_initial}  , dissolved reduced substances, 100. mmolO2/m**3}
 ! other parameters
 !> \describepar{P\_max        , P_\mathrm{max}        , maximum potential photosynthetic rate, 18.0 d^{-1}}
 !> \describepar{alpha        , \alpha        , specific light adsorption by chloroplasts *0.07 0.4 3, 0.22 m2 mol-C/(muE g-CHL)}
 !> \describepar{sigma        , \sigma        , Q-dependency of Rubisco activity/chloroplast ratio, 0.0 }
-!> \describepar{theta\_LHC    , \theta_\mathrm{C}    , chlorophyll a-to-C ratio of LHC, 2. mgChl mmolC^{-1}}
+!> \describepar{theta\_LHC    , \theta_\mathrm{C}    , chlorophyll a-to-C ratio of LHC, 2.5 mgChl mmolC^{-1}}
 !> \describepar{rel\_chloropl\_min , \mathrm{rel_chloropl_min} , chloroplast-C to phy-C ratio, 0.01 mol-C/mol-C}
 !> \describepar{QN\_phy\_0     , Q_{\mathrm{N}0}     , subsistence N-quota, 0.035 mol-N/mol-C}
 !> \describepar{QN\_phy\_max   , Q_\mathrm{N}^\mathrm{ref}   , maximum N-quota, 0.380 mol-N/mol-C}
 !> \describepar{V\_NC\_max     , V_\mathrm{max,N}^0     , maximum N uptake rate, 1.50 mmol-N/(m3 d)}
 !> \describepar{AffN         , A_\mathrm{N}^0         , N-Affinity, 0.50 m3/(mmol-N d)}
-!> \describepar{zeta\_CN      , \zeta_\mathrm{CN}      , respiratory costs of N-synthesis/NO3-reduction, 2.3 mol-C/mol-N}
+!> \describepar{zeta\_CN      , \zeta_\mathrm{CN}      , respiratory costs of N-synthesis/NO3-reduction, 2. mol-C/mol-N}
 !> \describepar{zstoich\_PN   , \mathrm{zstoich_PN}   , P-stoichiometry of active compounds(-> P costs), 0. mol-N/mol-P}
 !> \describepar{exud\_phy     , \mathrm{exud_phy}     , phytoplankton exudation per production, 0. }
 !> \describepar{QP\_phy\_0     , Q_{\mathrm{P}0}     , subsistence P-quota, 0.00 mol-P/mol-C}
 !> \describepar{QP\_phy\_max   , Q_\mathrm{P}^\mathrm{ref}   , subsistence P-quota, 0.030 mol-P/mol-C}
 !> \describepar{V\_PC\_max     , V_\mathrm{max,P}^0     , maximum P uptake rate, 0.20 mol-P/(mol-C d)}
-!> \describepar{AffP         , A_\mathrm{P}^0         , P-Affinity, 0.06 m3/(mmol-C d)}
+!> \describepar{AffP         , A_\mathrm{P}^0         , P-Affinity, 0.12 m3/(mmol-C d)}
 !> \describepar{QSi\_phy\_0    , Q_{\mathrm{Si}0}    , subsistence Si-quota, 0.0 mol-Si/mol-C}
 !> \describepar{QSi\_phy\_max  , Q_\mathrm{Si}^\mathrm{ref}  , subsistence Si-quota, 0.045 mol-Si/mol-C}
 !> \describepar{V\_SiC\_max    , V_\mathrm{max,Si}^0    , maximum Si-uptake rate, 0.10 mol-Si/(mol-C d)}
@@ -108,15 +108,16 @@ contains
 !> \describepar{adap\_theta   , \delta_\theta   , adap_theta, 1.0 }
 !> \describepar{tau\_regV     , \Delta t_\mathrm{v}     , tau-regV, 99.0 }
 !> \describepar{disease      , \mathrm{disease}      , parasites/disease mortality rate, 0 d^{-1}}
-!> \describepar{phi\_agg      , \mathrm{phi_agg}      , quadratic aggregation rate, 5E-4 m^6 mmol-N^{-2} d^{-1}}
+!> \describepar{phi\_agg      , \mathrm{phi_agg}      , quadratic aggregation rate, 1E-5 m^6 mmol-N^{-2} d^{-1}}
 !> \describepar{agg\_doc      , \mathrm{agg_doc}      , DOC multiplier in coagulation term, 0.1 m^-3 mmol-C}
-!> \describepar{sink\_phys    , \mathrm{sink_phys}    , sinking sensitivity on physiological status, 4 }
-!> \describepar{vS\_phy       , \mathrm{vS_phy}       , sinking velocity for phytoplankton, 0.8 m d^{-1}}
-!> \describepar{vS\_det       , \mathrm{vS_det}       , sinking velocity for detritus, 2.0 m d^{-1}}
-!> \describepar{hydrol       , \mathrm{hydrol}       , hydrolysis rate, 0.05 d^{-1}}
-!> \describepar{remin        , \mathrm{remin}        , pelagic remineralisation, 0.05 d^{-1}}
-!> \describepar{denit        , \mathrm{denit}        , DIN removal by denitrification , 0 d^{-1}}
-!> \describepar{remNP        , \mathrm{remNP}        , relative P-stoichiometry in preferential (high N) remin, 0.0 }
+!> \describepar{sink\_phys    , \mathrm{sink_phys}    , sinking sensitivity on physiological status, 0.4 }
+!> \describepar{vS\_phy       , \mathrm{vS_phy}       , sinking velocity for phytoplankton, 1. m d^{-1}}
+!> \describepar{vS\_det       , \mathrm{vS_det}       , sinking velocity for detritus, 4. m d^{-1}}
+!> \describepar{hydrol       , \mathrm{hydrol}       , degradation rate of most refractory POM, 0.03 d^{-1}}
+!> \describepar{remin        , \mathrm{remin}        , pel.remineralisation rate of most refractory DOM, 0.06 d^{-1}}
+!> \describepar{Nqual        , \mathrm{Nqual}        , linear quality increase with ON/OC, 0. }
+!> \describepar{remNP        , \mathrm{remNP}        , relative P-stoichiometry in preferential (high N) remin, 0. }
+!> \describepar{denit        , \mathrm{denit}        , DIN removal by denitrification , 0. d^{-1}}
 !> \describepar{PON\_denit    , \mathrm{PON_denit}    , critical PON for denitrification  , 5 mmol-N/m3 }
 !> \describepar{Q10          , \mathrm{Q10}          , Q10 factor, 2 }
 !> \describepar{T\_ref        , \mathrm{T_ref}        , reference Kelvin temperature, 288.0 K}
@@ -139,7 +140,7 @@ contains
 !> \describepar{O2\_sat       , \mathrm{O2_sat}       , oxygen concentration in air-sea boundary layer, 300. mmol-O2/m2.d}
 !> \describepar{N\_depo       , \mathrm{N_depo}       , DIN deposition rate 0.5  6-21mg/m2.d Grieken2007 - , 1.8 mmol-N/m2.d}
 !> \describepar{P\_depo       , \mathrm{P_depo}       , DIP deposition rate , 0.1 mmol-P/m2.d}
-!> \describepar{rPAds        , \mathrm{rPAds}        , Adsorption coeff phosphorus, 0.0 }
+!> \describepar{rPAds        , \mathrm{rPAds}        , Adsorption coeff phosphorus, 0.02 }
 !> \describepar{PAdsODU      , \mathrm{PAdsODU}      , PO4-Fe dissolution threshold in terms of [FeS]/ODU, 12. }
 !> \describepar{rnit         , \mathrm{rnit}         , Max nitrification rate, 20. 1/d}
 !> \describepar{ksO2nitri    , \mathrm{ksO2nitri}    , half-sat O2 in nitrification, 20. umolO2/m3}
@@ -213,10 +214,11 @@ real(rk)  :: agg_doc      ! DOC multiplier in coagulation term
 real(rk)  :: sink_phys    ! sinking sensitivity on physiological status
 real(rk)  :: vS_phy       ! sinking velocity for phytoplankton
 real(rk)  :: vS_det       ! sinking velocity for detritus
-real(rk)  :: hydrol       ! hydrolysis rate
-real(rk)  :: remin        ! pelagic remineralisation
-real(rk)  :: denit        ! DIN removal by denitrification 
+real(rk)  :: hydrol       ! degradation rate of most refractory POM
+real(rk)  :: remin        ! pel.remineralisation rate of most refractory DOM
+real(rk)  :: Nqual        ! linear quality increase with ON/OC
 real(rk)  :: remNP        ! relative P-stoichiometry in preferential (high N) remin
+real(rk)  :: denit        ! DIN removal by denitrification 
 real(rk)  :: PON_denit    ! critical PON for denitrification  
 real(rk)  :: Q10          ! Q10 factor
 real(rk)  :: T_ref        ! reference Kelvin temperature
@@ -286,7 +288,7 @@ namelist /maecs_pars/ &
   V_NC_max, AffN, zeta_CN, zstoich_PN, exud_phy, QP_phy_0, QP_phy_max, V_PC_max, &
   AffP, QSi_phy_0, QSi_phy_max, V_SiC_max, AffSi, syn_nut, adap_rub, adap_theta, &
   tau_regV, disease, phi_agg, agg_doc, sink_phys, vS_phy, vS_det, hydrol, remin, &
-  denit, remNP, PON_denit, Q10, T_ref, NutOrder
+  Nqual, remNP, denit, PON_denit, Q10, T_ref, NutOrder
 
 namelist /maecs_graz/ &
   const_NC_zoo, const_PC_zoo, g_max, k_grazC, yield_zoo, basal_resp_zoo, &
@@ -300,17 +302,17 @@ namelist /maecs_omex/ &
   rPAds, PAdsODU, rnit, ksO2nitri, rODUox, ksO2oduox, ksO2oxic, ksNO3denit, &
   kinO2denit, kinNO3anox, kinO2anox, rAnammox
 
-nutN_initial = 160_rk             ! mmol-N/m**3
-nutP_initial = 5_rk               ! mmol-P/m**3
-nutS_initial = 120_rk             ! mmol-Si/m**3
+nutN_initial = 28._rk             ! mmol-N/m**3
+nutP_initial = 2._rk              ! mmol-P/m**3
+nutS_initial = 12_rk              ! mmol-Si/m**3
 phyC_initial = 10_rk              ! mmol-C/m**3
 phyN_initial = 0.8_rk             ! mmol-N/m**3
 phyP_initial = 0.06_rk            ! mmol-P/m**3
 phyS_initial = 1.2_rk             ! mmol-Si/m**3
 zooC_initial = 0.02_rk            ! mmol-C/m**3
-detC_initial = 0._rk              ! mmol-C/m**3
-detN_initial = 0._rk              ! mmol-N/m**3
-detP_initial = 0._rk              ! mmol-P/m**3
+detC_initial = 10._rk             ! mmol-C/m**3
+detN_initial = 2._rk              ! mmol-N/m**3
+detP_initial = 0.1_rk             ! mmol-P/m**3
 detS_initial = 0._rk              ! mmol-Si/m**3
 domC_initial = 0.1_rk             ! mmol-C/m**3
 domN_initial = 0.01_rk            ! mmol-N/m**3
@@ -318,25 +320,25 @@ domP_initial = 0.001_rk           ! mmol-P/m**3
 RNit_initial = 0._rk              ! mmol-N/m**3
 frac_Rub_ini = 0.4_rk             ! -
 frac_chl_ini = 0.3_rk             ! mg-Chla/mmol-C
-nh3_initial  = 120._rk            ! mmolN/m**3
-oxy_initial  = 120._rk            ! mmolO2/m**3
-odu_initial  = 0._rk              ! mmolO2/m**3
+nh3_initial  = 23._rk             ! mmolN/m**3
+oxy_initial  = 100._rk            ! mmolO2/m**3
+odu_initial  = 100._rk            ! mmolO2/m**3
 P_max        = 18.0_rk            ! d^{-1}
 alpha        = 0.22_rk            ! m2 mol-C/(muE g-CHL)
 sigma        = 0.0_rk             ! 
-theta_LHC    = 2._rk              ! mgChl mmolC^{-1}
+theta_LHC    = 2.5_rk             ! mgChl mmolC^{-1}
 rel_chloropl_min = 0.01_rk            ! mol-C/mol-C
 QN_phy_0     = 0.035_rk           ! mol-N/mol-C
 QN_phy_max   = 0.380_rk           ! mol-N/mol-C
 V_NC_max     = 1.50_rk            ! mmol-N/(m3 d)
 AffN         = 0.50_rk            ! m3/(mmol-N d)
-zeta_CN      = 2.3_rk             ! mol-C/mol-N
+zeta_CN      = 2._rk              ! mol-C/mol-N
 zstoich_PN   = 0._rk              ! mol-N/mol-P
 exud_phy     = 0._rk              ! 
 QP_phy_0     = 0.00_rk            ! mol-P/mol-C
 QP_phy_max   = 0.030_rk           ! mol-P/mol-C
 V_PC_max     = 0.20_rk            ! mol-P/(mol-C d)
-AffP         = 0.06_rk            ! m3/(mmol-C d)
+AffP         = 0.12_rk            ! m3/(mmol-C d)
 QSi_phy_0    = 0.0_rk             ! mol-Si/mol-C
 QSi_phy_max  = 0.045_rk           ! mol-Si/mol-C
 V_SiC_max    = 0.10_rk            ! mol-Si/(mol-C d)
@@ -346,15 +348,16 @@ adap_rub     = 1.0_rk             !
 adap_theta   = 1.0_rk             ! 
 tau_regV     = 99.0_rk            ! 
 disease      = 0_rk               ! d^{-1}
-phi_agg      = 5E-4_rk            ! m^6 mmol-N^{-2} d^{-1}
+phi_agg      = 1E-5_rk            ! m^6 mmol-N^{-2} d^{-1}
 agg_doc      = 0.1_rk             ! m^-3 mmol-C
-sink_phys    = 4_rk               ! 
-vS_phy       = 0.8_rk             ! m d^{-1}
-vS_det       = 2.0_rk             ! m d^{-1}
-hydrol       = 0.05_rk            ! d^{-1}
-remin        = 0.05_rk            ! d^{-1}
-denit        = 0_rk               ! d^{-1}
-remNP        = 0.0_rk             ! 
+sink_phys    = 0.4_rk             ! 
+vS_phy       = 1._rk              ! m d^{-1}
+vS_det       = 4._rk              ! m d^{-1}
+hydrol       = 0.03_rk            ! d^{-1}
+remin        = 0.06_rk            ! d^{-1}
+Nqual        = 0._rk              ! 
+remNP        = 0._rk              ! 
+denit        = 0._rk              ! d^{-1}
 PON_denit    = 5_rk               ! mmol-N/m3 
 Q10          = 2_rk               ! 
 T_ref        = 288.0_rk           ! K
@@ -377,7 +380,7 @@ ex_airsea    = 7e-4_rk            ! m/s
 O2_sat       = 300._rk            ! mmol-O2/m2.d
 N_depo       = 1.8_rk             ! mmol-N/m2.d
 P_depo       = 0.1_rk             ! mmol-P/m2.d
-rPAds        = 0.0_rk             ! 
+rPAds        = 0.02_rk            ! 
 PAdsODU      = 12._rk             ! 
 rnit         = 20._rk             ! 1/d
 ksO2nitri    = 20._rk             ! umolO2/m3
@@ -470,8 +473,9 @@ call self%get_parameter(self%vS_phy       ,'vS_phy',        default=vS_phy)
 call self%get_parameter(self%vS_det       ,'vS_det',        default=vS_det)
 call self%get_parameter(self%hydrol       ,'hydrol',        default=hydrol)
 call self%get_parameter(self%remin        ,'remin',         default=remin)
-call self%get_parameter(self%denit        ,'denit',         default=denit)
+call self%get_parameter(self%Nqual        ,'Nqual',         default=Nqual)
 call self%get_parameter(self%remNP        ,'remNP',         default=remNP)
+call self%get_parameter(self%denit        ,'denit',         default=denit)
 call self%get_parameter(self%PON_denit    ,'PON_denit',     default=PON_denit)
 call self%get_parameter(self%Q10          ,'Q10',           default=Q10)
 call self%get_parameter(self%T_ref        ,'T_ref',         default=T_ref)

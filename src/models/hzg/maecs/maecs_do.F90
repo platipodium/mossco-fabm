@@ -322,11 +322,10 @@ else
 end if 
 
 ! ------------------------------------------------------------------
-!  ---  POM quality, relative to max N-quota of phytoplankton
-qualPOM     = det%N /(det%C + self%small_finite)  * self%iK_QN
-qualDOM     = dom%N /(dom%C + self%small_finite)  * self%iK_QN
-! TODO: analogue for DOM
-  
+!  ---  POM&DOM quality, relative to max N-quota of phytoplankton
+ qualPOM     = (1.0d0-self%Nqual) + self%Nqual * det%N /(det%C + self%small_finite)  * self%iK_QN
+ qualDOM     = (1.0d0-self%Nqual) + self%Nqual * dom%N /(dom%C + self%small_finite)  * self%iK_QN
+
 !  ---  hydrolysis & remineralisation rate (temp dependent)
 degradT     = self%hydrol * sens%f_T * qualPOM
 reminT      = self%remin  * sens%f_T * qualDOM
