@@ -163,7 +163,7 @@ end if
 !   final efficiency in interdependent multi-nutrient processing
 fac_colim   = qp_X
 
-phy%rel_phys= fac_colim * sens%upt_pot%C  ! auxiliary variable for sinking routine
+! phy%rel_phys= fac_colim * sens%upt_pot%C  ! auxiliary variable for sinking routine; not used?
 
 ! recursive product following from chain rule; first term : 1/LF
 prod_dq     = 1.0d0/smooth_small(qp_X,eps)
@@ -175,8 +175,6 @@ dfV_dtheta  = - acc%dRchl_dtheta * self%itheta_max
 !  auxiliary variable for the feed-back of N-quota and N-uptake change
 ! \todo stability   sigmv(1)    =   acc%dRchl_dQN  * self%itheta_max / phy%frac%NutUpt
 sigmv(1:num_nut)  = 0.0d0
-
-
 
 ! --- gross carbon uptake by phytoplankton (gross-primary production) ---------------
 ! I DONT UNDERSTAND THE FOLLOWING:

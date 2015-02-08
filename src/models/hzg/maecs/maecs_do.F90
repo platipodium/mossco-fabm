@@ -579,7 +579,7 @@ if (self%DebugDiagOn) then
   _SET_DIAGNOSTIC_(self%id_faP, _REPLNAN_(acclim%fA%P))      !average P-uptake affinity allocation
   _SET_DIAGNOSTIC_(self%id_faSi, _REPLNAN_(acclim%fA%Si))    !average Si-uptake affinity allocation
   _SET_DIAGNOSTIC_(self%id_rQSi, _REPLNAN_(phy%relQ%Si))     !average Relative Si-Quota
-  _SET_DIAGNOSTIC_(self%id_tmp, _REPLNAN_(acclim%tmp))       !average Temporary diagnostic
+  _SET_DIAGNOSTIC_(self%id_tmp, _REPLNAN_(ddegN))       !average Temporary diagnosticacclim%tmp
   _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(dRchl_phyC_dt))   !average Auxiliary diagnostic 
   _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(acclim%dRchl_dfracR*acclim%dfracR_dt)) !average Auxiliary diagnostic
   _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%dRchl_dtheta*acclim%dtheta_dt)) !average Auxiliary diagnostic
@@ -590,7 +590,7 @@ if (self%DebugDiagOn) then
   _SET_DIAGNOSTIC_(self%id_phyELR, _REPLNAN_(-exud%C))       !average Phytoplankton Exudation Loss Rate
   _SET_DIAGNOSTIC_(self%id_phyALR, _REPLNAN_(-aggreg_rate))  !average Phytoplankton Aggregation Loss Rate
   _SET_DIAGNOSTIC_(self%id_phyGLR, _REPLNAN_(-graz_rate/phy%reg%C)) !average Phytoplankton Grazing Loss Rate
-  _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(exp(-self%sink_phys*phy%relQ%N*phy%relQ%P))) !average Relative Sinking Velocity
+!  _SET_DIAGNOSTIC_(self%id_vs_phyr, _REPLNAN_(exp(-self%sink_phys*phy%gpp / (self%V_NC_max*self%zeta_CN)))) !average Relative Sinking Velocity
   _SET_DIAGNOSTIC_(self%id_qualPOM, _REPLNAN_(qualPOM))      !average Quality of POM 
   _SET_DIAGNOSTIC_(self%id_qualDOM, _REPLNAN_(qualDOM))      !average Quality of DOM 
   _SET_DIAGNOSTIC_(self%id_no3, _REPLNAN_(no3))              !average Nitrate
@@ -606,7 +606,7 @@ end subroutine maecs_do
 !> @details phyto sinking rate depends on the nutritional state, so for each node:
 !! \n \f$ phy\%relQ \f$ obtained by calling calc_internal_states(self,phy,det,dom,zoo) 
 !! \n then \f$ phyQstat=phy\%relQ\%N * phy\%relQ\%P \f$
-!! \n finally, vsink = maecs_functions::sinking(self\%vS_phy, phyQstat, vsink)
+!! \n finally, vs_phy = maecs_functions::sinking(self\%vS_phy, phyQstat, vs_phy)
 subroutine maecs_get_vertical_movement(self,_ARGUMENTS_GET_VERTICAL_MOVEMENT_)
 
 use maecs_functions
@@ -625,7 +625,7 @@ type (type_maecs_om):: dom
 
 !
 ! !LOCAL VARIABLES: 
-REALTYPE    :: phyQstat,vsink
+REALTYPE    :: phyQstat,vs_phy,vs_det, phyEner
 REALTYPE, parameter :: secs_pr_day = 86400.d0 
 !EOP
 !-----------------------------------------------------------------------
@@ -655,37 +655,43 @@ _FABM_LOOP_BEGIN_
    call calc_internal_states(self,phy,det,dom,zoo) 
    !write (*,'(A,2(F10.3))') 'phy%relQ%N, phy%relQ%P=', phy%relQ%N, phy%relQ%P
    
-   !calculate Q state
+   ! nutrient limitation ; TODO check product rule and add other elements such as Si
    phyQstat = phy%relQ%N * phy%relQ%P 
 
+   ! energy limitation ; TODO check function and quantity
+!   phyEner  = phy%gpp / (self%V_NC_max*self%zeta_CN)
+! smoothed minimum of energy and nutrient limitation; 
+!   phyQstat = phyQstat - smooth_small(phyQstat - phyEner, self%small)
+
    ! Calculate sinking
-!  call sinking(self%vS_phy, phyQstat, vsink)
+!  call sinking(self%vS_phy, phyQstat, vs_phy)
 
    !SINKING AS A FUNCTION OF INTERNAL STATES
-   vsink = self%vS_phy * exp( -self%sink_phys * phyQstat)
+   vs_phy = -self%vS_phy * exp( -self%sink_phys * phyQstat)
+  _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(-vs_phy)) !average Relative Sinking Velocity
 
    !CONSTANT SINKING
-   !vsink = self%vS_phy
+   !vs_phy = self%vS_phy
    
-   vsink = vsink / secs_pr_day
-   !write (*,'(A,2(F10.3))') 'phyQstat, vsink=', phyQstat, vsink
-   
+   vs_phy = vs_phy / secs_pr_day
+   !write (*,'(A,2(F10.3))') 'phyQstat, vs_phy=', phyQstat, vs_phy
+   vs_det = -1.0_rk*self%vS_det/secs_pr_day
    !set the rates
-   _SET_VERTICAL_MOVEMENT_(self%id_detC,-1.0_rk*self%vS_det/secs_pr_day)
-   _SET_VERTICAL_MOVEMENT_(self%id_detN,-1.0_rk*self%vs_det/secs_pr_day)
-   _SET_VERTICAL_MOVEMENT_(self%id_phyN,vsink)
-   _SET_VERTICAL_MOVEMENT_(self%id_phyC,vsink)
+   _SET_VERTICAL_MOVEMENT_(self%id_detC,vs_det)
+   _SET_VERTICAL_MOVEMENT_(self%id_detN,vs_det)
+   _SET_VERTICAL_MOVEMENT_(self%id_phyN,vs_phy)
+   _SET_VERTICAL_MOVEMENT_(self%id_phyC,vs_phy)
    if (self%PhosphorusOn) then
-      _SET_VERTICAL_MOVEMENT_(self%id_phyP,vsink)
-      _SET_VERTICAL_MOVEMENT_(self%id_detP,-1.0_rk*self%vs_det/secs_pr_day)
+      _SET_VERTICAL_MOVEMENT_(self%id_phyP,vs_phy)
+      _SET_VERTICAL_MOVEMENT_(self%id_detP,vs_det)
    end if
    if (self%SiliconOn) then
-      _SET_VERTICAL_MOVEMENT_(self%id_phyS,vsink)
-      _SET_VERTICAL_MOVEMENT_(self%id_detS,-1.0_rk*self%vs_det/secs_pr_day)
+      _SET_VERTICAL_MOVEMENT_(self%id_phyS,vs_phy)
+      _SET_VERTICAL_MOVEMENT_(self%id_detS,vs_det)
    end if
    if (self%PhotoacclimOn) then 
-      _SET_VERTICAL_MOVEMENT_(self%id_chl,vsink)
-      _SET_VERTICAL_MOVEMENT_(self%id_Rub,vsink)
+      _SET_VERTICAL_MOVEMENT_(self%id_chl,vs_phy)
+      _SET_VERTICAL_MOVEMENT_(self%id_Rub,vs_phy)
    end if
   
 _FABM_LOOP_END_
