@@ -428,15 +428,16 @@ subroutine sinking(vS ,phys_status,sinkvel)
 !> @todo: mm_method to be read from the nml?
 !> @todo: Q: phy\%reg\%P either non existent or commented out for different cases. Why?
 !> @todo: add equations
-subroutine min_mass(maecs,phy,method)
+subroutine min_mass(maecs,phy,min_Cmass,method)
 
 implicit none
 
 class (type_maecs_base_model), intent(in)      :: maecs
 type (type_maecs_phy), intent(inout)   :: phy
+real(rk), intent(out)                  :: min_Cmass
 integer, intent(in), optional          :: method
 
-real(rk)     :: min_Cmass, min_Nmass, delta_C, delta_N
+real(rk)     :: min_Nmass, delta_C, delta_N ! min_Cmass, 
 integer      ::  mm_method=_KAI_
 logical      ::  ischanged
 

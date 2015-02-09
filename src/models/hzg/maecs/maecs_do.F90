@@ -73,7 +73,7 @@ real(rk),parameter :: T0 = 288.15_rk ! reference Temperature fixed to 15 degC
 real(rk),parameter :: Q10b = 1.5_rk
 real(rk) :: Cprod, Nprod, Pprod
 real(rk) :: AnoxicMin,Denitrific,OxicMin,Nitri,OduDepo,OduOx,pDepo, Anammox
-real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto,faeces
+real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto,faeces, min_Cmass
 
 #define _KAI_ 0
 #define _MARKUS_ 1
@@ -124,11 +124,6 @@ if (.not. self%GrazingOn) then
       zoo%C = self%zooC_initial
 end if
 
-!phy%Rub = Rub
-!phy%chl = chl
-! Retrieve current environmental conditions.
-
-
 !S_GED
   _GET_(self%id_temp, env%temp)  ! water temperature
   _GET_(self%id_par, env%par)  ! light photosynthetically active radiation
@@ -150,7 +145,7 @@ end if
 !> @todo: min_mass correction of phy%\C and phy\%N at this stage requires specification of threshold values. What about back-calculating phy\%reg\%N from the smooth_small corrected phy\%Q\%N?
 
 ! --- checking and correcting extremely low state values  ------------  
-call min_mass(self,phy,method=2) !_KAI_ minimal reasonable Phy-C and -Nitrogen
+call min_mass(self,phy,min_Cmass,method=2) !_KAI_ minimal reasonable Phy-C and -Nitrogen
 
 ! --- stoichiometry of autotrophs (calculating QN_phy, frac_R, theta, and QP_phy)
 call calc_internal_states(self,phy,det,dom,zoo)
@@ -221,7 +216,7 @@ aggreg_rate = self%phi_agg * (1.0_rk - exp(-self%agg_doc*dom%C)) * (phy%N + det%
 !         vS * exp(-4*phys_status )                ! [d^{-1}] 
 !aggreg_rate = aggreg_rate * exp(-4*phy%rel_phys ) TODO: DOM quality as proxy for TEP
 
-! additional mortality due to H2S stress (EC:55 mmol-odu/m3; Kuester2005)
+! additional mortality due to H2S stress (EC_50 :55 mmol-H2S/m3; Kuester2005  or for Skel cost 3 mmol-H2S/m3, Breteler1991)
 if (self%BioOxyOn) then
    aggreg_rate = aggreg_rate + self%mort_ODU* env%odu
 endif
@@ -287,7 +282,7 @@ rhsv%phyN =  uptake%N             * phy%C &
 !>      + B = dfracR_dt is calculated in maecs_primprod::photosynthesis()
 
 if (abs(phy%reg%C) .gt. 1d-4) then
- if (self%PhotoacclimOn ) then ! check for too small biomasses 
+ if (self%PhotoacclimOn ) then ! check for too small biomasses %chl
 
 ! PHYTOPLANKTON CHLa
      ! note that theta*rel_chloropl in units [mg Chla (mmol C)^{-1}] 
@@ -299,7 +294,7 @@ if (abs(phy%reg%C) .gt. 1d-4) then
                   + acclim%dRchl_dQN    * dQN_dt 
 
 !   rhsv%chl = phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC + dRchl_phyC_dt * phy%C
-   rhsv%chl = phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC + dRchl_phyC_dt * phy%reg%C
+   rhsv%chl = phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC + dRchl_phyC_dt * phy%reg%C - self%decay_pigm * phy%chl
 
 !write (*,'(A,4(F10.3))') 'rhs chl=', phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC,dRchl_phyC_dt * phy%reg%C*1E1,phy%relQ%N**self%sigma,phy%theta
 
@@ -307,7 +302,7 @@ if (abs(phy%reg%C) .gt. 1d-4) then
  end if 
 
  if (self%RubiscoOn) then 
-   rhsv%Rub  = phy%Rub/phy%reg%C * rhsv%phyC + acclim%dfracR_dt * phy%C 
+   rhsv%Rub  = phy%Rub/phy%reg%C * rhsv%phyC + acclim%dfracR_dt * phy%C - self%decay_pigm *phy%Rub
  end if 
 else
   rhsv%Rub  = 0.0d0
@@ -630,7 +625,7 @@ type (type_maecs_om):: dom
 
 !
 ! !LOCAL VARIABLES: 
-REALTYPE    :: phyQstat,vs_phy,vs_det, phyEner
+REALTYPE    :: phyQstat,vs_phy,vs_det, phyEner, minPigm,min_Cmass, minc
 REALTYPE, parameter :: secs_pr_day = 86400.d0 
 !EOP
 !-----------------------------------------------------------------------
@@ -655,7 +650,7 @@ _FABM_LOOP_BEGIN_
    end if
 
    !write (*,'(A,2(F10.3))') 'Before: phy%C, phy%N=', phy%C, phy%N
-   call min_mass(self,phy,method=2) 
+   call min_mass(self,phy, min_Cmass, method=2) 
    !write (*,'(A,2(F10.3))') 'After: phy%C, phy%N=', phy%C, phy%N
    call calc_internal_states(self,phy,det,dom,zoo) 
    !write (*,'(A,2(F10.3))') 'phy%relQ%N, phy%relQ%P=', phy%relQ%N, phy%relQ%P
@@ -698,8 +693,19 @@ _FABM_LOOP_BEGIN_
       _SET_VERTICAL_MOVEMENT_(self%id_detS,vs_det)
    end if
    if (self%PhotoacclimOn) then 
-      _SET_VERTICAL_MOVEMENT_(self%id_chl,vs_phy)
-      _SET_VERTICAL_MOVEMENT_(self%id_Rub,vs_phy)
+!      _GET_(self%id_phyC, phy%Rub)  ! Phytplankton total Rubisco
+!      _GET_(self%id_phyN, phy%chl)  ! Phytplankton total chlorophyll
+! check for minimal value to avoid inconsistent export & accumulation of "safeguard"-pigments
+!       minPigm = 1.0d0
+!       minPigm = (1.0d0-exp(-phy%Rub/()))
+!      minc = min_Cmass * self%frac_Rub_ini +1E-4
+!      minPigm = 1.0d0/(1.0d0+exp(-10*(phy%Rub-minc)/minc))
+      _SET_VERTICAL_MOVEMENT_(self%id_chl, minPigm*vs_phy)
+
+!      minc = min_Cmass * self%frac_chl_ini +1E-4
+!      minPigm = 1.0d0/(1.0d0+exp(-10*(phy%chl-minc)/minc))
+!       minPigm = (1.0d0-exp(-phy%chl/(min_Cmass * self%frac_chl_ini)))
+      _SET_VERTICAL_MOVEMENT_(self%id_Rub, minPigm*vs_phy)
    end if
   
 _FABM_LOOP_END_
