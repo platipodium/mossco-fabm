@@ -28,14 +28,14 @@
 &maecs_env
    a_water = 0.001,
    a_minfr = 0.01 
-   a_spm = 0.004,
-   a_chl = 0.005,
+   a_spm = 0.002,
+   a_chl = 0.002,
    frac_PAR = 1.0,
    small = 1e-04,
    dil = 0.0, 
-   ex_airsea = 1e-4, 
+   ex_airsea = 4e-5, 
    O2_sat = 300.,
-   N_depo = 0.8,
-   P_depo = 0.06,
+   N_depo = 1.,
+   P_depo = 0.09,
 /
 

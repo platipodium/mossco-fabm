@@ -53,6 +53,8 @@
 !                    parasites/disease mortality rate ; TODO:not implemented yet
 ! mort_ODU         [float, unit = m3/mmol-ODU.d] #BioOxyOn
 !                    toxic stress due to H2S 
+! decay_pigm       [float, unit = 1/d] #PhotoacclimOn
+!                    pigment decay rate 
 ! phi_agg          [float, unit = m^6 mmol-N^{-2} d^{-1}]
 !                    quadratic aggregation rate
 ! agg_doc          [float, unit = m^-3 mmol-C]
@@ -87,7 +89,7 @@
    P_max = 18.0, 
    alpha = 0.22,
    sigma = 0.0,
-   theta_LHC = 2.0, 
+   theta_LHC = 2.5, 
    rel_chloropl_min = 0.01,
    QN_phy_0 = 0.035, 
    QN_phy_max = 0.380, 
@@ -109,14 +111,15 @@
    adap_theta = 1.,
    tau_regV = 99.0,
    disease = 0 
-   mort_ODU = 0.02
+   mort_ODU = 0.001
+   decay_pigm = 0.01
    phi_agg = 1E-3, 
    agg_doc = 1. 
    sink_phys = 0.
-   vS_phy = 0.5,
-   vS_det = 7.,
-   hydrol = 0.1,
-   remin = 0.01,
+   vS_phy = 0.6,
+   vS_det = 6.,
+   hydrol = 0.15,
+   remin = 0.015,
    Nqual = 0.,
    remNP = 0., 
    denit = 0. 
