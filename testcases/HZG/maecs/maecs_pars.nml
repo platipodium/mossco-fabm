@@ -50,7 +50,9 @@
 ! tau_regV         [float] $\Delta t_\mathrm{v}$
 !                    tau-regV
 ! disease          [float, unit = d^{-1}]
-!                    parasites/disease mortality rate
+!                    parasites/disease mortality rate ; TODO:not implemented yet
+! mort_ODU         [float, unit = m3/mmol-ODU.d] #BioOxyOn
+!                    toxic stress due to H2S 
 ! phi_agg          [float, unit = m^6 mmol-N^{-2} d^{-1}]
 !                    quadratic aggregation rate
 ! agg_doc          [float, unit = m^-3 mmol-C]
@@ -66,7 +68,7 @@
 ! remin            [float, unit = d^{-1}]
 !                    pel.remineralisation rate of most refractory DOM
 ! Nqual            [float, unit = ]
-!                    linear quality increase with ON/OC
+!                    quality increase with ON/OC (0:no effect; 1: full linearity)
 ! remNP            [float, unit = ]
 !                    relative P-stoichiometry in preferential (high N) remin
 ! denit            [float, unit = d^{-1}]
@@ -85,13 +87,13 @@
    P_max = 18.0, 
    alpha = 0.22,
    sigma = 0.0,
-   theta_LHC = 2.5, 
+   theta_LHC = 2.0, 
    rel_chloropl_min = 0.01,
    QN_phy_0 = 0.035, 
    QN_phy_max = 0.380, 
    V_NC_max = 1.50, 
    AffN = 0.50, 
-   zeta_CN = 2.,
+   zeta_CN = 2.3,
    zstoich_PN = 0.,
    exud_phy = 0.,
    QP_phy_0 = 0.00, 
@@ -103,17 +105,18 @@
    V_SiC_max = 0.10, 
    AffSi = 0.10, 
    syn_nut = -12.0000, 
-   adap_rub = 1.0,
-   adap_theta = 1.0,
+   adap_rub = 1.,
+   adap_theta = 1.,
    tau_regV = 99.0,
    disease = 0 
-   phi_agg = 1E-5, 
-   agg_doc = 0.1 
-   sink_phys = 0.4 
-   vS_phy = 1.,
-   vS_det = 4.,
-   hydrol = 0.03,
-   remin = 0.06,
+   mort_ODU = 0.02
+   phi_agg = 1E-3, 
+   agg_doc = 1. 
+   sink_phys = 0.
+   vS_phy = 0.5,
+   vS_det = 7.,
+   hydrol = 0.1,
+   remin = 0.01,
    Nqual = 0.,
    remNP = 0., 
    denit = 0. 
