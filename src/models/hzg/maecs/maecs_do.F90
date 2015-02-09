@@ -221,6 +221,11 @@ aggreg_rate = self%phi_agg * (1.0_rk - exp(-self%agg_doc*dom%C)) * (phy%N + det%
 !         vS * exp(-4*phys_status )                ! [d^{-1}] 
 !aggreg_rate = aggreg_rate * exp(-4*phy%rel_phys ) TODO: DOM quality as proxy for TEP
 
+! additional mortality due to H2S stress (EC:55 mmol-odu/m3; Kuester2005)
+if (self%BioOxyOn) then
+   aggreg_rate = aggreg_rate + self%mort_ODU* env%odu
+endif
+
 !_____________________________________________________________________________
 !
 !      turnover of long-term N-reservoir (denitrification + wet N-deposition)
@@ -579,7 +584,7 @@ if (self%DebugDiagOn) then
   _SET_DIAGNOSTIC_(self%id_faP, _REPLNAN_(acclim%fA%P))      !average P-uptake affinity allocation
   _SET_DIAGNOSTIC_(self%id_faSi, _REPLNAN_(acclim%fA%Si))    !average Si-uptake affinity allocation
   _SET_DIAGNOSTIC_(self%id_rQSi, _REPLNAN_(phy%relQ%Si))     !average Relative Si-Quota
-  _SET_DIAGNOSTIC_(self%id_tmp, _REPLNAN_(ddegN))       !average Temporary diagnosticacclim%tmp
+  _SET_DIAGNOSTIC_(self%id_tmp, _REPLNAN_(acclim%tmp))       !average Temporary diagnostic
   _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(dRchl_phyC_dt))   !average Auxiliary diagnostic 
   _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(acclim%dRchl_dfracR*acclim%dfracR_dt)) !average Auxiliary diagnostic
   _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%dRchl_dtheta*acclim%dtheta_dt)) !average Auxiliary diagnostic
@@ -590,7 +595,7 @@ if (self%DebugDiagOn) then
   _SET_DIAGNOSTIC_(self%id_phyELR, _REPLNAN_(-exud%C))       !average Phytoplankton Exudation Loss Rate
   _SET_DIAGNOSTIC_(self%id_phyALR, _REPLNAN_(-aggreg_rate))  !average Phytoplankton Aggregation Loss Rate
   _SET_DIAGNOSTIC_(self%id_phyGLR, _REPLNAN_(-graz_rate/phy%reg%C)) !average Phytoplankton Grazing Loss Rate
-!  _SET_DIAGNOSTIC_(self%id_vs_phyr, _REPLNAN_(exp(-self%sink_phys*phy%gpp / (self%V_NC_max*self%zeta_CN)))) !average Relative Sinking Velocity
+  _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(exp(-self%sink_phys*phy%relQ%N*phy%relQ%P))) !average Relative Sinking Velocity
   _SET_DIAGNOSTIC_(self%id_qualPOM, _REPLNAN_(qualPOM))      !average Quality of POM 
   _SET_DIAGNOSTIC_(self%id_qualDOM, _REPLNAN_(qualDOM))      !average Quality of DOM 
   _SET_DIAGNOSTIC_(self%id_no3, _REPLNAN_(no3))              !average Nitrate
@@ -681,6 +686,9 @@ _FABM_LOOP_BEGIN_
    _SET_VERTICAL_MOVEMENT_(self%id_detN,vs_det)
    _SET_VERTICAL_MOVEMENT_(self%id_phyN,vs_phy)
    _SET_VERTICAL_MOVEMENT_(self%id_phyC,vs_phy)
+!   if (self%ZooSinkMeth .eq. 1) then
+!    _SET_VERTICAL_MOVEMENT_(self%id_zooC,vs_phy)
+!   endif
    if (self%PhosphorusOn) then
       _SET_VERTICAL_MOVEMENT_(self%id_phyP,vs_phy)
       _SET_VERTICAL_MOVEMENT_(self%id_detP,vs_det)
