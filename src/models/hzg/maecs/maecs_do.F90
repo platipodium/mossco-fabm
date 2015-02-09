@@ -693,19 +693,8 @@ _FABM_LOOP_BEGIN_
       _SET_VERTICAL_MOVEMENT_(self%id_detS,vs_det)
    end if
    if (self%PhotoacclimOn) then 
-!      _GET_(self%id_phyC, phy%Rub)  ! Phytplankton total Rubisco
-!      _GET_(self%id_phyN, phy%chl)  ! Phytplankton total chlorophyll
-! check for minimal value to avoid inconsistent export & accumulation of "safeguard"-pigments
-!       minPigm = 1.0d0
-!       minPigm = (1.0d0-exp(-phy%Rub/()))
-!      minc = min_Cmass * self%frac_Rub_ini +1E-4
-!      minPigm = 1.0d0/(1.0d0+exp(-10*(phy%Rub-minc)/minc))
-      _SET_VERTICAL_MOVEMENT_(self%id_chl, minPigm*vs_phy)
-
-!      minc = min_Cmass * self%frac_chl_ini +1E-4
-!      minPigm = 1.0d0/(1.0d0+exp(-10*(phy%chl-minc)/minc))
-!       minPigm = (1.0d0-exp(-phy%chl/(min_Cmass * self%frac_chl_ini)))
-      _SET_VERTICAL_MOVEMENT_(self%id_Rub, minPigm*vs_phy)
+      _SET_VERTICAL_MOVEMENT_(self%id_chl, vs_phy)
+      _SET_VERTICAL_MOVEMENT_(self%id_Rub, vs_phy)
    end if
   
 _FABM_LOOP_END_
