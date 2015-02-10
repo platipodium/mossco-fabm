@@ -707,34 +707,34 @@ subroutine maecs_do_surface(self,_ARGUMENTS_DO_SURFACE_)
    class (type_hzg_maecs), intent(in) :: self
    _DECLARE_ARGUMENTS_DO_SURFACE_
 
-   real(rk) :: tot_vm_C,tot_vm_N,tot_vm_P,tot_vm_S, O2flux,O2airbl,oxy,tot_vm_GPPR,tot_vm_Denitr
+   real(rk) :: tot_vi_C,tot_vi_N,tot_vi_P,tot_vi_S, O2flux,O2airbl,oxy,tot_vi_GPPR,tot_vi_Denitr
    
 !define _REPLNAN_(X) X !changes back to original code
 #define _REPLNAN_(X) nan_num(X)
 
    _HORIZONTAL_LOOP_BEGIN_
-      _GET_HORIZONTAL_(self%id_totN_vertint,tot_vm_N)
-      _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totN_vertint_diag,_REPLNAN_(tot_vm_N))
-      _GET_HORIZONTAL_(self%id_totC_vertint,tot_vm_C)
-      _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totC_vertint_diag,_REPLNAN_(tot_vm_C))
+      _GET_HORIZONTAL_(self%id_totN_vertint,tot_vi_N)
+      _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totN_vertint_diag,_REPLNAN_(tot_vi_N))
+      _GET_HORIZONTAL_(self%id_totC_vertint,tot_vi_C)
+      _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totC_vertint_diag,_REPLNAN_(tot_vi_C))
       if (self%DiagOn) then
-        _GET_HORIZONTAL_(self%id_GPPR_vertint,tot_vm_GPPR)
-        _SET_HORIZONTAL_DIAGNOSTIC_(self%id_GPPR_vertint_diag,_REPLNAN_(tot_vm_GPPR))
+        _GET_HORIZONTAL_(self%id_GPPR_vertint,tot_vi_GPPR)
+        _SET_HORIZONTAL_DIAGNOSTIC_(self%id_GPPR_vertint_diag,_REPLNAN_(tot_vi_GPPR))
       end if
       if (self%BioOxyOn) then
-        _GET_HORIZONTAL_(self%id_Denitr_vertint,tot_vm_Denitr)
-        _SET_HORIZONTAL_DIAGNOSTIC_(self%id_Denitr_vertint_diag, _REPLNAN_(tot_vm_Denitr))
+        _GET_HORIZONTAL_(self%id_Denitr_vertint,tot_vi_Denitr)
+        _SET_HORIZONTAL_DIAGNOSTIC_(self%id_Denitr_vertint_diag, _REPLNAN_(tot_vi_Denitr))
       end if
      
       if (self%PhosphorusOn) then
-         _GET_HORIZONTAL_(self%id_totP_vertint,tot_vm_P)
-         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totP_vertint_diag,_REPLNAN_(tot_vm_P))
+         _GET_HORIZONTAL_(self%id_totP_vertint,tot_vi_P)
+         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totP_vertint_diag,_REPLNAN_(tot_vi_P))
 ! --- atmospheric deposition of PO4
          _SET_SURFACE_EXCHANGE_(self%id_nutP, self%P_depo UNIT)
       end if
       if (self%SiliconOn) then
-         _GET_HORIZONTAL_(self%id_totS_vertint,tot_vm_S)
-         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totS_vertint_diag,_REPLNAN_(tot_vm_S))
+         _GET_HORIZONTAL_(self%id_totS_vertint,tot_vi_S)
+         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totS_vertint_diag,_REPLNAN_(tot_vi_S))
       end if
 
 ! --- wet and dry deposition of NO3 
