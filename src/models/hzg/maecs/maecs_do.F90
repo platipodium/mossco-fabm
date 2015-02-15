@@ -196,7 +196,7 @@ if (self%GrazingOn) then
 !  --- transform from specific to bulk grazing rate
   graz_rate   = graz_rate * zoo%C 
 !  --- quadratic closure term
-  zoo_mort    = self%mort_zoo * sens%f_T  * zoo%C
+  zoo_mort    = self%mort_zoo * sens%f_T**self%fT_exp_mort  * zoo%C
 
 else
   graz_rate   = 0.0_rk

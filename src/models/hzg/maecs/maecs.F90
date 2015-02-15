@@ -131,6 +131,7 @@ contains
 !> \describepar{yield\_zoo    , \mathrm{yield_zoo}    , yield of herbivory, 0.35 }
 !> \describepar{basal\_resp\_zoo , \mathrm{basal_resp_zoo} , basal respiration, 0.05 per d}
 !> \describepar{mort\_zoo     , \mathrm{mort_zoo}     , quadratic mortality, 0.1 m**3/mmolN.d}
+!> \describepar{fT\_exp\_mort  , \mathrm{fT_exp_mort}  , exponent temperature dep. mortality (1: standard), 2.0 m**3/mmolN.d}
 !> \describepar{a\_water      , \mathrm{a_water}      , background attenuation coefficient, 0.001 1/m}
 !> \describepar{a\_minfr      , \mathrm{a_minfr}      , heuristic depth-dep attenuation, 0.01 -}
 !> \describepar{a\_spm        , \mathrm{a_spm}        , attenuation coefficient of SPM, 0.002 m**3/m.mmolC}
@@ -235,6 +236,7 @@ real(rk)  :: k_grazC      ! half saturation graing
 real(rk)  :: yield_zoo    ! yield of herbivory
 real(rk)  :: basal_resp_zoo ! basal respiration
 real(rk)  :: mort_zoo     ! quadratic mortality
+real(rk)  :: fT_exp_mort  ! exponent temperature dep. mortality (1: standard)
 !!------- Parameters from nml-list maecs_env ------- 
 real(rk)  :: a_water      ! background attenuation coefficient
 real(rk)  :: a_minfr      ! heuristic depth-dep attenuation
@@ -296,7 +298,7 @@ namelist /maecs_pars/ &
 
 namelist /maecs_graz/ &
   const_NC_zoo, const_PC_zoo, g_max, k_grazC, yield_zoo, basal_resp_zoo, &
-  mort_zoo
+  mort_zoo, fT_exp_mort
 
 namelist /maecs_env/ &
   a_water, a_minfr, a_spm, a_chl, frac_PAR, small, dil, ex_airsea, O2_sat, N_depo, &
@@ -375,6 +377,7 @@ k_grazC      = 5.0_rk             ! mmolN/m**3
 yield_zoo    = 0.35_rk            ! 
 basal_resp_zoo = 0.05_rk            ! per d
 mort_zoo     = 0.1_rk             ! m**3/mmolN.d
+fT_exp_mort  = 2.0_rk             ! m**3/mmolN.d
 a_water      = 0.001_rk           ! 1/m
 a_minfr      = 0.01_rk            ! -
 a_spm        = 0.002_rk           ! m**3/m.mmolC
@@ -518,6 +521,7 @@ if (GrazingOn) then
     call self%get_parameter(self%yield_zoo    ,'yield_zoo',     default=yield_zoo)
     call self%get_parameter(self%basal_resp_zoo ,'basal_resp_zoo',  default=basal_resp_zoo)
     call self%get_parameter(self%mort_zoo     ,'mort_zoo',      default=mort_zoo)
+    call self%get_parameter(self%fT_exp_mort  ,'fT_exp_mort',   default=fT_exp_mort)
 end if
 
 !!------- model parameters from nml-list maecs_env ------- 
