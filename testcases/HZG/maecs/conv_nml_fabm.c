@@ -50,17 +50,17 @@ char lstname0[MI][NAML] = {"deps","diags","aux"}; /* names of the files for 1) e
 char FabmDepVarName[NAML]= {"standard_variables%"}; /* prefix of the variable names in the FABM driver host */ 	
 				/*  standard_variables\%*/
 				
-char dirn_nml[NAML] = "";	/* directory where all the nml files  reside ./*/
-char dirn_f90[3*NAML] = "/home/wirtz/mossco/fabm/src/models/hzg/maecs/";	/* directory where all the input sources (model.F90,...) reside ./
+char dirn_nml[NAML]	= "";	/* directory where all the nml files  reside ./*/
+char dirn_f90[3*NAML] 	= "/home/wirtz/mossco/fabm/src/models/hzg/maecs/";	/* directory where all the input sources (model.F90,...) reside ./
 //char dirn_f90[3*NAML] = "/home/onur/opt/src/fabm-code/src/models/hzg/maecs/";	/* directory where all the input sources (model.F90,...) reside ./*/
-char indent0[NAML] = "";	/* indentation in declaration part */ 
-char init_incl[3*NAML] = "call maecs_init_stoichvars(self)"; /* line included in init routine*/
-char init_varincl[3*NAML] = "call maecs_init_stoichvars(self)"; /* line included in init routine*/
+char indent0[NAML] 	= "";	/* indentation in declaration part */ 
+char init_incl[2*NAML] 	= "maecs_incl.lst"; /* file included in init routine*/
+char init_varincl[3*NAML]= "call maecs_init_stoichvars(self)"; /* line included in init routine*/
 //char vstructn[NAML]= "env";	/* name of the major variable structure */ 
-char vstructn[NAML]= "env";	/* name of the major variable structure */ 
-char vstructc[4]   = "E";	/* elements major variable structure
+char vstructn[NAML]	= "env";/* name of the major variable structure */ 
+char vstructc[4]   	= "E";	/* elements major variable structure
           A: all state variables T: traits  E: environmental forcing N: nutrients */ 
-char env_add[3*NAML] = "";	/* additional variable as member of the env structure (e.g., non-mass,non-trait MAECS variables*/        
+char env_add[3*NAML] 	= "";	/* additional variable as member of the env structure (e.g., non-mass,non-trait MAECS variables*/        
 
 /* ------------------------------------------------------------------- */
 /*            do not edit below ...                                    */
@@ -68,8 +68,8 @@ char env_add[3*NAML] = "";	/* additional variable as member of the env structure
 int eoi,pi,pj,pjs,sws,ni,nj,d,np,nl,ss,i,pv,nmli=0,out=1,tti,nls,swi[MI][MAXP],
   setvel[MI][MAXP],setvel_n[MI][MAXP],trait[MAXP],found_rhs[MAXP],found_rate[MI][MAXP],pc;
 unsigned long dind;
-char line[2*256],line2[2*256],*lr,c,*cp,*cp1,*cp2,*cp3,tabs[2][6]={"    ",""};
-FILE *sp,*sp1,*sp3,*sp2,*spv[3],*spt;
+char line[256],line1[256],line2[256],*lr,c,*cp,*cp1,*cp2,*cp3,tabs[2][6]={"    ",""};
+FILE *sp,*sp1,*sp3,*sp2,*sp4,*spv[3],*spt;
 char keys[5][4]={"RHS","ODE","GET"};
 // char traitpre[5]="phy%";/* structure name for functional group variables */
 char insname[NAML]="";
@@ -732,7 +732,7 @@ for(ni=0;ni<nir;ni++)
     if(swi[ni][pj]==pjs)
       {
       if(sws==0 && pjs>=0 && ni!=ni0)
-         fprintf(sp,"if (self%c%s) then\n",'%',swin[ni][pj]), sws=1; 
+         fprintf(sp,"if (%s) then\n",swin[ni][pj]), sws=1; 
       sprintf(line,"%s",parname[ni][pj]);/*,parvals[ni][pj]*/
       strcpy(line2, fil(sc,line,13) );
       strcat(line,line2);
@@ -872,34 +872,44 @@ for(pjs=-1;pjs<nump[nis];pjs++)
      if(swi[ni][pj]==pjs)
        {      
        if(sws==0 && pjs>=0)
-         fprintf(sp,"if (self%c%s) then\n",'%',swin[ni][pj]), sws=1;
+         fprintf(sp,"if (%s) then\n",swin[ni][pj]), sws=1;
 //   fprintf(sp,"%scall self%cregister_dependency(self%cid_%s,varname_%s%s)\n",'%','%',
 //       if(partypen[ni][pj][0]=='h' && strstr(parname[ni][pj],"tot")!=NULL )
-       strcpy(line2,FabmDepVarName);
-       strcpy(line,partypen[ni][pj]);  
-       if(strstr(parname[ni][pj],"vert") || strstr(parname[ni][pj],"flux") || strstr(parname[ni][pj],"dep")!=NULL )
+       strcpy(line2,FabmDepVarName),strcpy(line,partypen[ni][pj]);  
+       strcpy(line1,pmapstring[ni][pj]);
+       if(strstr(parname[ni][pj],"vert")!=NULL || strstr(parname[ni][pj],"flux")!=NULL || strstr(parname[ni][pj],"_dep")!=NULL )
          {
 	 strcpy(line2,"");
-         if(strstr(parname[ni][pj],"diag")==NULL)  strcpy(line,"dependency");
+         if(strstr(parname[ni][pj],"diag")==NULL) 
+	   strcpy(line,"dependency");
+	 else
+	   strcat(line1,", output=output_time_step_averaged");
 	 }
-       strcat(line2,pmapstring[ni][pj]);
-       if(strstr(partypen[ni][pj],"horizontal_diagnostic")!=NULL) strcat(line2,", output=output_time_step_averaged");
-       
-       fprintf(sp,"%s%scall self%cregister_%s(self%cid_%s,%s)\n",indent0,tabs[(pjs<0)],'%',line,'%',parname[ni][pj],line2);
+
+       if(out) printf(" reg dep(self%cid_%s,varname_%s) \t switch=%d %d %d\n",'%',parname[ni][pj],pmapstring[ni][pj] ,swi[ni][pj],sws,pjs);
+       fprintf(sp,"%s%scall self%cregister_%s(self%cid_%s,%s%s)\n",indent0,tabs[(pjs<0)],'%',line,'%',parname[ni][pj],line2,line1);
          
-      if(out) printf("line2= %s\n",line2);
-      if(out) printf(" reg dep(self%cid_%s,varname_%s) \t switch=%d %d %d\n",'%',parname[ni][pj],pmapstring[ni][pj] ,swi[ni][pj],sws,pjs);
 //    }   else     {printf("\n** ERROR: external forcing %s not found !!!\n now exit...\n",'%',parname[ni][pj]);exit(0);}
        } // if(swi[ni][pj]
      if( pj==nump[ni]-1 && sws==1) fprintf(sp,"end if\n");
      }  
-
+     
 if(strlen(init_incl)>1)
   {
-  fprintf(sp,"\n! extra line included from parser var init_incl \n");  
-  fprintf(sp,"%s\n",init_incl);  /* extra line; e.g. for including or calling a subroutine*/
+  printf("\n! extra lines included from %s \n",init_incl);
+  fprintf(sp,"\n! extra lines included from %s \n",init_incl);
+  sp4=fopen(init_incl,"r"); 
+  if(sp4==NULL) {printf("Error while opening %s !\n\n",init_incl),exit(0);}
+
+  lr=(char *)1;
+  while(lr!=NULL)
+    {
+    lr=fgets(line,256,sp4); 
+    fputs(line,sp);    
+    }
+  fclose(sp4);
   }
-fprintf(sp,"\n%sreturn\n\n!!-------  if files are not found ...  \n",indent0);
+fprintf(sp,"\n\n%sreturn\n\n!!-------  if files are not found ...  \n",indent0);
 for(ni=0;ni<nir;ni++)
   fprintf(sp,"%d call self%cfatal_error('%s_init','Error reading namelist %s.')\n",90+ni,'%',modname,nmlname[ni]);
 for(ni=0;ni<nir;ni++)
@@ -915,7 +925,7 @@ fprintf(sp,"!!------------------------------------------------------------------
 if(TYPES)
   {
 //  printf("closing %ld %ld %ld %ld  ...\n",sp,sp1,sp2,sp3);  
-  cp1=strstr(modname,"#SP#");
+  cp1=strstr(modname,"#SP#");lr=(char *)1;
   while(lr!=NULL && cp1==NULL)
     {
     lr=fgets(line,256,sp1); 
