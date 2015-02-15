@@ -722,7 +722,7 @@ if (DiagOn) then
     call self%register_horizontal_diagnostic_variable(self%id_GPPR_vertint_diag,'GPPR_vertint','mmol-C/m**2/d','vertical_integral_gross_primary_production', output=output_time_step_averaged)
     call self%register_dependency(self%id_Denitr_dep,'Denitr')
     call self%register_dependency(self%id_Denitr_vertint,vertical_integral(self%id_Denitr_dep))
-    call self%register_horizontal_diagnostic_variable(self%id_Denitr_vertint_diag,'Denitr_vertint','mmol-N/m**2/d','vertical_integral_denitrification', output=output_time_step_averaged)
+    call self%register_horizontal_diagnostic_variable(self%id_Denitr_vertint_diag,'Denitr_vertint','mmol-N/m**2/d','vertical_integral_Denitrification', output=output_time_step_averaged)
     call self%register_horizontal_diagnostic_variable(self%id_O2flux_diag,'O2flux','mmol-O2/m**2/d','oxygen_flux_between_sea_water_and_air', output=output_time_step_averaged)
 end if
 if (DebugDiagOn) then
@@ -734,10 +734,10 @@ if (DebugDiagOn) then
     call self%register_dependency(self%id_totP_vertint,vertical_integral(self%id_totP))
     call self%register_dependency(self%id_totS,standard_variables%total_silicate)
     call self%register_dependency(self%id_totS_vertint,vertical_integral(self%id_totS))
-    call self%register_horizontal_diagnostic_variable(self%id_totC_vertint_diag,'totC_vertint','mmol-C/m**2','vertical_integral_total_carbon')
-    call self%register_horizontal_diagnostic_variable(self%id_totN_vertint_diag,'totN_vertint','mmol-N/m**2','vertical_integral_total_nitrogen')
-    call self%register_horizontal_diagnostic_variable(self%id_totP_vertint_diag,'totP_vertint','mmol-P/m**2','vertical_integral_total_phosphorus')
-    call self%register_horizontal_diagnostic_variable(self%id_totS_vertint_diag,'totS_vertint','mmol-Si/m**2','vertical_integral_total_silicate')
+    call self%register_horizontal_diagnostic_variable(self%id_totC_vertint_diag,'totC_vertint','mmol-C/m**2','vertical_integral_total_carbon', output=output_time_step_averaged)
+    call self%register_horizontal_diagnostic_variable(self%id_totN_vertint_diag,'totN_vertint','mmol-N/m**2','vertical_integral_total_nitrogen', output=output_time_step_averaged)
+    call self%register_horizontal_diagnostic_variable(self%id_totP_vertint_diag,'totP_vertint','mmol-P/m**2','vertical_integral_total_phosphorus', output=output_time_step_averaged)
+    call self%register_horizontal_diagnostic_variable(self%id_totS_vertint_diag,'totS_vertint','mmol-Si/m**2','vertical_integral_total_silicate', output=output_time_step_averaged)
 end if
 
 ! extra lines included from maecs_incl.lst 

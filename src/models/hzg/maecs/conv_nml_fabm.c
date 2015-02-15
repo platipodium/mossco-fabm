@@ -68,7 +68,7 @@ char env_add[3*NAML] 	= "";	/* additional variable as member of the env structur
 int eoi,pi,pj,pjs,sws,ni,nj,d,np,nl,ss,i,pv,nmli=0,out=1,tti,nls,swi[MI][MAXP],
   setvel[MI][MAXP],setvel_n[MI][MAXP],trait[MAXP],found_rhs[MAXP],found_rate[MI][MAXP],pc;
 unsigned long dind;
-char line[256],line2[256],*lr,c,*cp,*cp1,*cp2,*cp3,tabs[2][6]={"    ",""};
+char line[256],line1[256],line2[256],*lr,c,*cp,*cp1,*cp2,*cp3,tabs[2][6]={"    ",""};
 FILE *sp,*sp1,*sp3,*sp2,*sp4,*spv[3],*spt;
 char keys[5][4]={"RHS","ODE","GET"};
 // char traitpre[5]="phy%";/* structure name for functional group variables */
@@ -875,15 +875,19 @@ for(pjs=-1;pjs<nump[nis];pjs++)
          fprintf(sp,"if (%s) then\n",swin[ni][pj]), sws=1;
 //   fprintf(sp,"%scall self%cregister_dependency(self%cid_%s,varname_%s%s)\n",'%','%',
 //       if(partypen[ni][pj][0]=='h' && strstr(parname[ni][pj],"tot")!=NULL )
-       strcpy(line2,FabmDepVarName),strcpy(line,partypen[ni][pj]);      
+       strcpy(line2,FabmDepVarName),strcpy(line,partypen[ni][pj]);  
+       strcpy(line1,pmapstring[ni][pj]);
        if(strstr(parname[ni][pj],"vert")!=NULL || strstr(parname[ni][pj],"flux")!=NULL || strstr(parname[ni][pj],"_dep")!=NULL )
          {
 	 strcpy(line2,"");
-         if(strstr(parname[ni][pj],"diag")==NULL)  strcpy(line,"dependency");
+         if(strstr(parname[ni][pj],"diag")==NULL) 
+	   strcpy(line,"dependency");
+	 else
+	   strcat(line1,", output=output_time_step_averaged");
 	 }
 
        if(out) printf(" reg dep(self%cid_%s,varname_%s) \t switch=%d %d %d\n",'%',parname[ni][pj],pmapstring[ni][pj] ,swi[ni][pj],sws,pjs);
-       fprintf(sp,"%s%scall self%cregister_%s(self%cid_%s,%s%s)\n",indent0,tabs[(pjs<0)],'%',line,'%',parname[ni][pj],line2,pmapstring[ni][pj]);
+       fprintf(sp,"%s%scall self%cregister_%s(self%cid_%s,%s%s)\n",indent0,tabs[(pjs<0)],'%',line,'%',parname[ni][pj],line2,line1);
          
 //    }   else     {printf("\n** ERROR: external forcing %s not found !!!\n now exit...\n",'%',parname[ni][pj]);exit(0);}
        } // if(swi[ni][pj]
