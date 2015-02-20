@@ -41,6 +41,8 @@
 !                    maximum Si-uptake rate
 ! AffSi            [float, unit = m3/(mmol-C d)] $A_\mathrm{Si}^0$ #SiliconOn
 !                    Si-Affinity
+! MaxRelQ          [float, unit =-] $\mathrm{max}q$ *0.04 0.08 4 
+!                    upper bound for relative quota
 ! syn_nut          [float, unit = ] $1/h$ *-20.0 -7. 4
 !                    synchrony nqueue in nutrient quota limitation
 ! adap_rub         [float, unit = ] $\delta_R$  #PhotoacclimOn
@@ -55,6 +57,8 @@
 !                    toxic stress due to H2S 
 ! decay_pigm       [float, unit = 1/d] #PhotoacclimOn
 !                    pigment decay rate 
+! decay_nut       [float, unit = 1/d] 
+!                    non-carbon structure decay rate 
 ! phi_agg          [float, unit = m^6 mmol-N^{-2} d^{-1}]
 !                    quadratic aggregation rate
 ! agg_doc          [float, unit = m^-3 mmol-C]
@@ -106,6 +110,7 @@
    QSi_phy_max = 0.045, 
    V_SiC_max = 0.10, 
    AffSi = 0.10, 
+   MaxRelQ = -3.0,
    syn_nut = -12.0000, 
    adap_rub = 1.,
    adap_theta = 1.,
@@ -113,6 +118,7 @@
    disease = 0 
    mort_ODU = 0E-5
    decay_pigm = 1E-3
+   decay_nut = 1E-3
    phi_agg = 1E-4, 
    agg_doc = 1. 
    sink_phys = 3.
