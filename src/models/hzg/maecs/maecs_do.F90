@@ -642,6 +642,11 @@ _FABM_LOOP_BEGIN_
    !Calculate manually
    _GET_(self%id_phyC, phy%C)  ! Phytplankton Carbon in mmol-C/m**3
    _GET_(self%id_phyN, phy%N)  ! Phytplankton Nitrogen in mmol-N/m**3
+   _GET_(self%id_detN, det%N)  ! Phytplankton Nitrogen in mmol-N/m**3
+   _GET_(self%id_domC, dom%C)  ! Phytplankton Nitrogen in mmol-N/m**3
+
+!   aggreg_acc = 1.0_rk + 2*self%phi_agg * (1.0_rk - exp(-self%agg_doc*dom%C)) * (phy%N + det%N) 
+
    if (self%GrazingOn) then
      _GET_(self%id_zooC, zoo%C)  ! Zooplankton Carbon in mmol-C/m**3
    end if
@@ -675,6 +680,7 @@ _FABM_LOOP_BEGIN_
    
    vs_phy = vs_phy / secs_pr_day
    !write (*,'(A,2(F10.3))') 'phyQstat, vs_phy=', phyQstat, vs_phy
+!   vs_det = -1.0_rk*self%vS_det*aggreg_acc/secs_pr_day
    vs_det = -1.0_rk*self%vS_det/secs_pr_day
    !set the rates
    _SET_VERTICAL_MOVEMENT_(self%id_detC,vs_det)
