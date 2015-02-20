@@ -21,6 +21,8 @@
 !                  use Chemostat mode 
 ! NResOn         [bool]
 !                  use long-term N-reservoir
+! ZooSinkMeth    [integer]
+!                  method of Zoo vertical movement 0:no 1:=v_phy 2: diel migration  
 ! kwFzmaxMeth    [integer]
 !                  background extinction method
 ! detritus_no_river_dilution [bool]
@@ -41,6 +43,7 @@
    ChemostatOn = .false.,
    NResOn = .false.,
    kwFzmaxMeth = 0,
+   ZooSinkMeth = 0,
    detritus_no_river_dilution=.false.,
    plankton_no_river_dilution=.true.,
 /

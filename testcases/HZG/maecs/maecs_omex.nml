@@ -39,6 +39,6 @@
    kinO2denit     = 1.
    kinNO3anox     = 1.
    kinO2anox      = 1.
-   rAnammox       = 0.2
+   rAnammox       = 0.025
 /
 
