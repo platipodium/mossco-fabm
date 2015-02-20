@@ -86,37 +86,39 @@ contains
 !> \describepar{P\_max        , P_\mathrm{max}        , maximum potential photosynthetic rate, 18.0 d^{-1}}
 !> \describepar{alpha        , \alpha        , specific light adsorption by chloroplasts *0.07 0.4 3, 0.22 m2 mol-C/(muE g-CHL)}
 !> \describepar{sigma        , \sigma        , Q-dependency of Rubisco activity/chloroplast ratio, 0.0 }
-!> \describepar{theta\_LHC    , \theta_\mathrm{C}    , chlorophyll a-to-C ratio of LHC, 2.5 mgChl mmolC^{-1}}
+!> \describepar{theta\_LHC    , \theta_\mathrm{C}    , chlorophyll a-to-C ratio of LHC, 2. mgChl mmolC^{-1}}
 !> \describepar{rel\_chloropl\_min , \mathrm{rel_chloropl_min} , chloroplast-C to phy-C ratio, 0.01 mol-C/mol-C}
 !> \describepar{QN\_phy\_0     , Q_{\mathrm{N}0}     , subsistence N-quota, 0.035 mol-N/mol-C}
 !> \describepar{QN\_phy\_max   , Q_\mathrm{N}^\mathrm{ref}   , maximum N-quota, 0.380 mol-N/mol-C}
 !> \describepar{V\_NC\_max     , V_\mathrm{max,N}^0     , maximum N uptake rate, 1.50 mmol-N/(m3 d)}
-!> \describepar{AffN         , A_\mathrm{N}^0         , N-Affinity, 0.50 m3/(mmol-N d)}
+!> \describepar{AffN         , A_\mathrm{N}^0         , N-Affinity, 1.5 m3/(mmol-N d)}
 !> \describepar{zeta\_CN      , \zeta_\mathrm{CN}      , respiratory costs of N-synthesis/NO3-reduction, 2.3 mol-C/mol-N}
 !> \describepar{zstoich\_PN   , \mathrm{zstoich_PN}   , P-stoichiometry of active compounds(-> P costs), 0. mol-N/mol-P}
 !> \describepar{exud\_phy     , \mathrm{exud_phy}     , phytoplankton exudation per production, 0. }
 !> \describepar{QP\_phy\_0     , Q_{\mathrm{P}0}     , subsistence P-quota, 0.00 mol-P/mol-C}
 !> \describepar{QP\_phy\_max   , Q_\mathrm{P}^\mathrm{ref}   , subsistence P-quota, 0.030 mol-P/mol-C}
 !> \describepar{V\_PC\_max     , V_\mathrm{max,P}^0     , maximum P uptake rate, 0.20 mol-P/(mol-C d)}
-!> \describepar{AffP         , A_\mathrm{P}^0         , P-Affinity, 0.12 m3/(mmol-C d)}
+!> \describepar{AffP         , A_\mathrm{P}^0         , P-Affinity, 0.3 m3/(mmol-C d)}
 !> \describepar{QSi\_phy\_0    , Q_{\mathrm{Si}0}    , subsistence Si-quota, 0.0 mol-Si/mol-C}
 !> \describepar{QSi\_phy\_max  , Q_\mathrm{Si}^\mathrm{ref}  , subsistence Si-quota, 0.045 mol-Si/mol-C}
 !> \describepar{V\_SiC\_max    , V_\mathrm{max,Si}^0    , maximum Si-uptake rate, 0.10 mol-Si/(mol-C d)}
 !> \describepar{AffSi        , A_\mathrm{Si}^0        , Si-Affinity, 0.10 m3/(mmol-C d)}
+!> \describepar{MaxRelQ      , \mathrm{max}q      , upper bound for relative quota, 3.0 }
 !> \describepar{syn\_nut      , 1/h      , synchrony nqueue in nutrient quota limitation, -12.0000 }
 !> \describepar{adap\_rub     , \delta_R     , adap_rub, 1. }
 !> \describepar{adap\_theta   , \delta_\theta   , adap_theta, 1. }
 !> \describepar{tau\_regV     , \Delta t_\mathrm{v}     , tau-regV, 99.0 }
 !> \describepar{disease      , \mathrm{disease}      , parasites/disease mortality rate ; TODO:not implemented yet, 0 d^{-1}}
-!> \describepar{mort\_ODU     , \mathrm{mort_ODU}     , toxic stress due to H2S , 0.004 m3/mmol-ODU.d}
-!> \describepar{decay\_pigm   , \mathrm{decay_pigm}   , pigment decay rate , 0.004 1/d}
-!> \describepar{phi\_agg      , \mathrm{phi_agg}      , quadratic aggregation rate, 1E-3 m^6 mmol-N^{-2} d^{-1}}
+!> \describepar{mort\_ODU     , \mathrm{mort_ODU}     , toxic stress due to H2S , 0E-5 m3/mmol-ODU.d}
+!> \describepar{decay\_pigm   , \mathrm{decay_pigm}   , pigment decay rate , 3E-3 1/d}
+!> \describepar{decay\_nut    , \mathrm{decay_nut}    , non-carbon structure decay rate , 3E-3 1/d}
+!> \describepar{phi\_agg      , \mathrm{phi_agg}      , quadratic aggregation rate, 1E-4 m^6 mmol-N^{-2} d^{-1}}
 !> \describepar{agg\_doc      , \mathrm{agg_doc}      , DOC multiplier in coagulation term, 1. m^-3 mmol-C}
-!> \describepar{sink\_phys    , \mathrm{sink_phys}    , sinking sensitivity on physiological status, 0. }
-!> \describepar{vS\_phy       , \mathrm{vS_phy}       , sinking velocity for phytoplankton, 0.6 m d^{-1}}
-!> \describepar{vS\_det       , \mathrm{vS_det}       , sinking velocity for detritus, 6. m d^{-1}}
-!> \describepar{hydrol       , \mathrm{hydrol}       , degradation rate of most refractory POM, 0.15 d^{-1}}
-!> \describepar{remin        , \mathrm{remin}        , pel.remineralisation rate of most refractory DOM, 0.015 d^{-1}}
+!> \describepar{sink\_phys    , \mathrm{sink_phys}    , sinking sensitivity on physiological status, 3. }
+!> \describepar{vS\_phy       , \mathrm{vS_phy}       , sinking velocity for phytoplankton, 0.5 m d^{-1}}
+!> \describepar{vS\_det       , \mathrm{vS_det}       , sinking velocity for detritus, 4. m d^{-1}}
+!> \describepar{hydrol       , \mathrm{hydrol}       , degradation rate of most refractory POM, 0.1 d^{-1}}
+!> \describepar{remin        , \mathrm{remin}        , pel.remineralisation rate of most refractory DOM, 0.02 d^{-1}}
 !> \describepar{Nqual        , \mathrm{Nqual}        , quality increase with ON/OC (0:no effect; 1: full linearity), 0. }
 !> \describepar{remNP        , \mathrm{remNP}        , relative P-stoichiometry in preferential (high N) remin, 0. }
 !> \describepar{denit        , \mathrm{denit}        , DIN removal by denitrification , 0. d^{-1}}
@@ -207,6 +209,7 @@ real(rk)  :: QSi_phy_0    ! subsistence Si-quota
 real(rk)  :: QSi_phy_max  ! subsistence Si-quota
 real(rk)  :: V_SiC_max    ! maximum Si-uptake rate
 real(rk)  :: AffSi        ! Si-Affinity
+real(rk)  :: MaxRelQ      ! upper bound for relative quota
 real(rk)  :: syn_nut      ! synchrony nqueue in nutrient quota limitation
 real(rk)  :: adap_rub     ! adap_rub
 real(rk)  :: adap_theta   ! adap_theta
@@ -214,6 +217,7 @@ real(rk)  :: tau_regV     ! tau-regV
 real(rk)  :: disease      ! parasites/disease mortality rate ; TODO:not implemented yet
 real(rk)  :: mort_ODU     ! toxic stress due to H2S 
 real(rk)  :: decay_pigm   ! pigment decay rate 
+real(rk)  :: decay_nut    ! non-carbon structure decay rate 
 real(rk)  :: phi_agg      ! quadratic aggregation rate
 real(rk)  :: agg_doc      ! DOC multiplier in coagulation term
 real(rk)  :: sink_phys    ! sinking sensitivity on physiological status
@@ -292,9 +296,10 @@ namelist /maecs_init/ &
 namelist /maecs_pars/ &
   P_max, alpha, sigma, theta_LHC, rel_chloropl_min, QN_phy_0, QN_phy_max, &
   V_NC_max, AffN, zeta_CN, zstoich_PN, exud_phy, QP_phy_0, QP_phy_max, V_PC_max, &
-  AffP, QSi_phy_0, QSi_phy_max, V_SiC_max, AffSi, syn_nut, adap_rub, adap_theta, &
-  tau_regV, disease, mort_ODU, decay_pigm, phi_agg, agg_doc, sink_phys, vS_phy, &
-  vS_det, hydrol, remin, Nqual, remNP, denit, PON_denit, Q10, T_ref, NutOrder
+  AffP, QSi_phy_0, QSi_phy_max, V_SiC_max, AffSi, MaxRelQ, syn_nut, adap_rub, &
+  adap_theta, tau_regV, disease, mort_ODU, decay_pigm, decay_nut, phi_agg, &
+  agg_doc, sink_phys, vS_phy, vS_det, hydrol, remin, Nqual, remNP, denit, PON_denit, &
+  Q10, T_ref, NutOrder
 
 namelist /maecs_graz/ &
   const_NC_zoo, const_PC_zoo, g_max, k_grazC, yield_zoo, basal_resp_zoo, &
@@ -332,37 +337,39 @@ odu_initial  = 100._rk            ! mmolO2/m**3
 P_max        = 18.0_rk            ! d^{-1}
 alpha        = 0.22_rk            ! m2 mol-C/(muE g-CHL)
 sigma        = 0.0_rk             ! 
-theta_LHC    = 2.5_rk             ! mgChl mmolC^{-1}
+theta_LHC    = 2._rk              ! mgChl mmolC^{-1}
 rel_chloropl_min = 0.01_rk            ! mol-C/mol-C
 QN_phy_0     = 0.035_rk           ! mol-N/mol-C
 QN_phy_max   = 0.380_rk           ! mol-N/mol-C
 V_NC_max     = 1.50_rk            ! mmol-N/(m3 d)
-AffN         = 0.50_rk            ! m3/(mmol-N d)
+AffN         = 1.5_rk             ! m3/(mmol-N d)
 zeta_CN      = 2.3_rk             ! mol-C/mol-N
 zstoich_PN   = 0._rk              ! mol-N/mol-P
 exud_phy     = 0._rk              ! 
 QP_phy_0     = 0.00_rk            ! mol-P/mol-C
 QP_phy_max   = 0.030_rk           ! mol-P/mol-C
 V_PC_max     = 0.20_rk            ! mol-P/(mol-C d)
-AffP         = 0.12_rk            ! m3/(mmol-C d)
+AffP         = 0.3_rk             ! m3/(mmol-C d)
 QSi_phy_0    = 0.0_rk             ! mol-Si/mol-C
 QSi_phy_max  = 0.045_rk           ! mol-Si/mol-C
 V_SiC_max    = 0.10_rk            ! mol-Si/(mol-C d)
 AffSi        = 0.10_rk            ! m3/(mmol-C d)
+MaxRelQ      = 3.0_rk             ! 
 syn_nut      = -12.0000_rk        ! 
 adap_rub     = 1._rk              ! 
 adap_theta   = 1._rk              ! 
 tau_regV     = 99.0_rk            ! 
 disease      = 0_rk               ! d^{-1}
-mort_ODU     = 0.004_rk           ! m3/mmol-ODU.d
-decay_pigm   = 0.004_rk           ! 1/d
-phi_agg      = 1E-3_rk            ! m^6 mmol-N^{-2} d^{-1}
+mort_ODU     = 0E-5_rk            ! m3/mmol-ODU.d
+decay_pigm   = 3E-3_rk            ! 1/d
+decay_nut    = 3E-3_rk            ! 1/d
+phi_agg      = 1E-4_rk            ! m^6 mmol-N^{-2} d^{-1}
 agg_doc      = 1._rk              ! m^-3 mmol-C
-sink_phys    = 0._rk              ! 
-vS_phy       = 0.6_rk             ! m d^{-1}
-vS_det       = 6._rk              ! m d^{-1}
-hydrol       = 0.15_rk            ! d^{-1}
-remin        = 0.015_rk           ! d^{-1}
+sink_phys    = 3._rk              ! 
+vS_phy       = 0.5_rk             ! m d^{-1}
+vS_det       = 4._rk              ! m d^{-1}
+hydrol       = 0.1_rk             ! d^{-1}
+remin        = 0.02_rk            ! d^{-1}
 Nqual        = 0._rk              ! 
 remNP        = 0._rk              ! 
 denit        = 0._rk              ! d^{-1}
@@ -472,9 +479,11 @@ call self%get_parameter(self%AffN         ,'AffN',          default=AffN)
 call self%get_parameter(self%zeta_CN      ,'zeta_CN',       default=zeta_CN)
 call self%get_parameter(self%zstoich_PN   ,'zstoich_PN',    default=zstoich_PN)
 call self%get_parameter(self%exud_phy     ,'exud_phy',      default=exud_phy)
+call self%get_parameter(self%MaxRelQ      ,'MaxRelQ',       default=MaxRelQ)
 call self%get_parameter(self%syn_nut      ,'syn_nut',       default=syn_nut)
 call self%get_parameter(self%tau_regV     ,'tau_regV',      default=tau_regV)
 call self%get_parameter(self%disease      ,'disease',       default=disease)
+call self%get_parameter(self%decay_nut    ,'decay_nut',     default=decay_nut)
 call self%get_parameter(self%phi_agg      ,'phi_agg',       default=phi_agg)
 call self%get_parameter(self%agg_doc      ,'agg_doc',       default=agg_doc)
 call self%get_parameter(self%sink_phys    ,'sink_phys',     default=sink_phys)
