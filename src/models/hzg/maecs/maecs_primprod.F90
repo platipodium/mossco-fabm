@@ -336,7 +336,14 @@ exud%C      = self%exud_phy * grossC                        ![d^{-1}]
 
 ! --- carbon specific nitrogen & phosporus exudation   -------------------------
 exud%N      = self%exud_phy * uptake%N   ! [(mmolN) (mmolC)^{-1} d^{-1}]
-exud%P      = phy%P / phy%reg%N * exud%N   ! [(mmolP) (mmolC)^{-1} d^{-1}]
+
+! ---- additional exudation to release unrealistic stoichiometry in depositional holes
+exud%N      = exud%N + self%decay_nut * (1.0d0-exp(phy%relQ%N) * phy%N
+
+if (self%PhosphorusOn) then
+  exud%P      = phy%P / phy%reg%N * exud%N   ! [(mmolP) (mmolC)^{-1} d^{-1}]
+  exud%P      = exud%P + self%decay_pigm * (1.0d0-exp(phy%relQ%P) * phy%P
+endif
 
 ! set few volatile diag variables ___________________________________
 !if (self%DebugDiagOn) then
