@@ -35,7 +35,7 @@ type (type_maecs_om), intent(inout) :: dom
 type (type_maecs_zoo), intent(inout) :: zoo
 real(rk) :: min_Cmass, maxq
 
-maxq = 2.0d0
+!maxq = 2.0d0
 
 ! min_Cmass = maecs%small_finite * 1.0d-3 / maecs%a_spm
 
@@ -52,8 +52,9 @@ phy%Q%N  = smooth_small(phy%Q%N, maecs%QN_phy_0)
 phy%relQ%N  = (phy%Q%N - maecs%QN_phy_0) * maecs%iK_QN
 phy%relQ%N  = smooth_small(phy%relQ%N, maecs%small_finite)
 ! added for deep detritus traps with extreme quotas kw Jul, 16 2013
-phy%relQ%N  = maxq - smooth_small(maxq- phy%relQ%N, maecs%small_finite)
-
+if(maecs%MaxRelQ .gt. 0.) then
+   phy%relQ%N  = maecs%MaxRelQ - smooth_small(maecs%MaxRelQ- phy%relQ%N, maecs%small_finite)
+endif
 ! --- stoichiometry of non-living organic matter  ---------------------------------
 !dom%QN      = dom%N  /(dom%C + min_Cmass )  ! N:C ratio of dissolved organic matter (DOM)
 !det%QN      = det%N /(det%C + min_Cmass)   ! N:C ratio of detritus
@@ -65,7 +66,10 @@ if (maecs%PhosphorusOn) then
    phy%relQ%P = ( phy%Q%P - maecs%QP_phy_0 ) * maecs%iK_QP
    phy%relQ%P = smooth_small(phy%relQ%P, maecs%small_finite)
 ! added for deep detritus traps with extreme quotas kw Jul, 16 2013
-   phy%relQ%P = maxq - smooth_small(maxq- phy%relQ%P, maecs%small_finite)
+!   phy%relQ%P = maxq - smooth_small(maxq- phy%relQ%P, maecs%small_finite)
+   if(maecs%MaxRelQ .gt. 0.) then
+     phy%relQ%P  = maecs%MaxRelQ - smooth_small(maecs%MaxRelQ- phy%relQ%P, maecs%small_finite)
+   endif
 !write (*,'(A,4(F10.3))') 'relQ%P=',phy%relQ%P,phy%Q%P*1E3,(phy%Q%P - maecs%QP_phy_0)*1E3,maecs%QP_phy_0*1E3
 
 !   dom%QP     = dom%P  / (dom%C  + min_Cmass)  ! P:C ratio of DOM
