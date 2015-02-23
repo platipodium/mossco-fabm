@@ -33,12 +33,9 @@ type (type_maecs_phy), intent(inout) :: phy
 type (type_maecs_om), intent(inout) :: det
 type (type_maecs_om), intent(inout) :: dom
 type (type_maecs_zoo), intent(inout) :: zoo
-real(rk) :: min_Cmass, maxq
-
-!maxq = 2.0d0
+real(rk) :: min_Cmass
 
 ! min_Cmass = maecs%small_finite * 1.0d-3 / maecs%a_spm
-
 
 !> @fn maecs_functions::calc_internal_states()
 !> 1. Calculate elemental absolute and relative quotas (Q and relQ):
@@ -52,7 +49,7 @@ phy%Q%N  = smooth_small(phy%Q%N, maecs%QN_phy_0)
 phy%relQ%N  = (phy%Q%N - maecs%QN_phy_0) * maecs%iK_QN
 phy%relQ%N  = smooth_small(phy%relQ%N, maecs%small_finite)
 ! added for deep detritus traps with extreme quotas kw Jul, 16 2013
-if(maecs%MaxRelQ .gt. 0.) then
+if( 0.9d0* phy%relQ%N .gt. maecs%MaxRelQ ) then
    phy%relQ%N  = maecs%MaxRelQ - smooth_small(maecs%MaxRelQ- phy%relQ%N, maecs%small_finite)
 endif
 ! --- stoichiometry of non-living organic matter  ---------------------------------
@@ -67,7 +64,8 @@ if (maecs%PhosphorusOn) then
    phy%relQ%P = smooth_small(phy%relQ%P, maecs%small_finite)
 ! added for deep detritus traps with extreme quotas kw Jul, 16 2013
 !   phy%relQ%P = maxq - smooth_small(maxq- phy%relQ%P, maecs%small_finite)
-   if(maecs%MaxRelQ .gt. 0.) then
+   if( 0.9d0* phy%relQ%P .gt. maecs%MaxRelQ ) then
+!   if(maecs%MaxRelQ .gt. 0.) then
      phy%relQ%P  = maecs%MaxRelQ - smooth_small(maecs%MaxRelQ- phy%relQ%P, maecs%small_finite)
    endif
 !write (*,'(A,4(F10.3))') 'relQ%P=',phy%relQ%P,phy%Q%P*1E3,(phy%Q%P - maecs%QP_phy_0)*1E3,maecs%QP_phy_0*1E3
@@ -83,6 +81,8 @@ if (maecs%SiliconOn) then
 
    phy%relQ%Si = ( phy%Q%Si - maecs%QSi_phy_0 ) /(maecs%QSi_phy_max-maecs%QSi_phy_0) 
 
+!TODO extend max-reQ to Si
+
 ! added for deep detritus traps with extreme quotas kw Jul, 16 2013
 !   phy%relQ%Si = _ONE_ - smooth_small(_ONE_- phy%relQ%Si, maecs%small_finite)
 !   phy%Q%SiN    = phy%Sii / phy%reg%N
@@ -96,11 +96,10 @@ end if
 !>    - @f$ f_R = \mathrm{phy\%Rub} / phy_C @f$
 phy%frac%Rub=maecs%frac_Rub_ini
 
-
 !if (maecs%PhotoacclimOn) then
 if (maecs%RubiscoOn) then 
 ! trait + transporter needs division to become a trait again
-     phy%frac%Rub = phy%Rub / phy%reg%C
+   phy%frac%Rub = phy%Rub / phy%reg%C
 !     phy%frac%Rub = phy%Rub / phy%reg%N
 else
    phy%frac%Rub=maecs%frac_Rub_ini
@@ -113,7 +112,6 @@ end if
 ! ensures that f_R is always somewhat smaller than one, since it
 ! leaves a minimal fraction of resources to other compartments (f_V)
 phy%frac%Rub = _ONE_ - smooth_small(_ONE_- phy%frac%Rub ,maecs%small_finite + maecs%rel_chloropl_min)
-
 
 !> @fn maecs_functions::calc_internal_states()
 !> 3. Calculate @f$ \theta \mathrm{ and } f_{\theta} @f$ 
@@ -164,12 +162,12 @@ phy%frac%NutUpt = smooth_small(phy%frac%TotFree - phy%frac%Rub - phy%frac%theta,
 !>    - @f$ zoo_{yield} = \mathrm{maecs\%yield_zoo} \mathrm{ , } zoo_{flopp} = 1-\mathrm{maecs\%yield_zoo} @f$
 if (maecs%GrazingOn) then
   ! ---- herbivore stoichiometry ---------------------------
-  zoo%Q%N    = maecs%const_NC_zoo
+  zoo%Q%N   = maecs%const_NC_zoo
   zoo%N     = zoo%C * zoo%Q%N
   zoo%yield = maecs%yield_zoo
   zoo%flopp =  _ONE_ - maecs%yield_zoo
   if (maecs%PhosphorusOn) then 
-    zoo%Q%P    = maecs%const_PC_zoo
+    zoo%Q%P   = maecs%const_PC_zoo
     zoo%P     = zoo%C * zoo%Q%P
   endif
 endif

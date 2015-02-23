@@ -56,6 +56,7 @@ real(rk) :: phys_status, dQN_dt, dRchl_phyC_dt=0.0_rk ! []
 real(rk) :: graz_rate   ! carbon-specific grazing rate                          [d^{-1}]
 real(rk) :: zoo_respC   ! temperature dependent carbon respiration rate  [mmolC m^{-3} d^{-1}]
 real(rk) :: zoo_mort
+real(rk) :: decay       ! pigment-specific decay rate                          [d^{-1}]
 real(rk) :: denitrate   ! pelagic N-loss by denitrification, emulating benthic pool and suboxic micro-environments
 real(rk) :: deporate    ! pelagic, "volumetric" deposition, slowly refueling N-losses
 real(rk) :: qualPOM, ddegN, ddegP     !  POM quality -> degradation
@@ -292,9 +293,12 @@ if (abs(phy%reg%C) .gt. 1d-4) then
    dRchl_phyC_dt =  acclim%dRchl_dtheta * acclim%dtheta_dt   & 
                   + acclim%dRchl_dfracR * acclim%dfracR_dt   & 
                   + acclim%dRchl_dQN    * dQN_dt 
+! pigment decay to relieve from artificially high pigm:C ratios at very low phyC
+   decay = self%decay_pigm * (exp(phy%frac%theta)-1.0d0)
 
 !   rhsv%chl = phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC + dRchl_phyC_dt * phy%C
-   rhsv%chl = phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC + dRchl_phyC_dt * phy%reg%C - self%decay_pigm * phy%chl
+   rhsv%chl = phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC &
+                   + dRchl_phyC_dt * phy%reg%C - decay * phy%chl
 
 !write (*,'(A,4(F10.3))') 'rhs chl=', phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC,dRchl_phyC_dt * phy%reg%C*1E1,phy%relQ%N**self%sigma,phy%theta
 
@@ -302,7 +306,8 @@ if (abs(phy%reg%C) .gt. 1d-4) then
  end if 
 
  if (self%RubiscoOn) then 
-   rhsv%Rub  = phy%Rub/phy%reg%C * rhsv%phyC + acclim%dfracR_dt * phy%C - self%decay_pigm *phy%Rub
+   decay = self%decay_pigm * (exp(phy%frac%Rub)-1.0d0)
+   rhsv%Rub  = phy%Rub/phy%reg%C * rhsv%phyC + acclim%dfracR_dt * phy%C - decay*phy%Rub
  end if 
 else
   rhsv%Rub  = 0.0d0
