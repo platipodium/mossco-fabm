@@ -119,7 +119,7 @@
    mort_ODU = 0E-5
    decay_pigm = 0.01
    decay_nut = 0.003
-   phi_agg = 1E-4, 
+   phi_agg = 8.E-4, 
    agg_doc = 1. 
    sink_phys = 3.
    vS_phy = 0.5,
