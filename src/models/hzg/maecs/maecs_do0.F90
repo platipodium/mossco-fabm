@@ -163,13 +163,7 @@ end if
 
 call calc_sensitivities(self,sens,phy,env,nut,acclim)
 
-if (phy%frac%Rub .lt. -0.001d0) then
-  write (*,'(A,4(F10.3))') 'fR=',phy%reg%C,phy%frac%Rub,self%small_finite + self%rel_chloropl_min,phy%frac%NutUpt
-end if
-!if (phy%chl .lt. 0.01d0) then
-!  phy%theta     = phy%chl / (phy%rel_chloropl * phy%reg%C)   ! trait variable
-!  phy%frac%theta= phy%theta * phy%rel_chloropl * maecs%itheta_max ! []     no 
-!  write (*,'(A,3(F10.3))') 'fT=',phy%chl,phy%reg%C,phy%Rub end if
+!write (*,'(A,4(F10.3))') 'f=',phy%reg%C,phy%frac%Rub,self%small_finite + self%rel_chloropl_min,phy%frac%NutUpt
 !write (*,'(A,4(F10.3))') 'PAR, T, th, P =',env%par,env%temp,phy%theta, sens%upt_pot%C 
 
 !> @fn fabm_hzg_maecs::maecs_do ()
@@ -188,7 +182,7 @@ end if
 !> @todo: graz_rate: no temperature modification: forgotten?
 
 ! --- ALGAL GROWTH and EXUDATION RATES, physiological trait dynamics ----------------
-call photosynthesis(self,sens,phy,nut,uptake,exud,acclim)
+call photosynthesis(self,sens,phy,uptake,exud,acclim)
 
 ! ----------------       grazing        -------------------------------------------
 if (self%GrazingOn) then
@@ -305,14 +299,6 @@ if (abs(phy%reg%C) .gt. 1d-4) then
 !   rhsv%chl = phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC + dRchl_phyC_dt * phy%C
    rhsv%chl = phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC &
                    + dRchl_phyC_dt * phy%reg%C - decay * phy%chl
-
-if (rhsv%chl .lt. -200.d0) then
-!  phy%theta     = phy%chl / (phy%rel_chloropl * phy%reg%C)   ! trait variable
-!  phy%frac%theta= phy%theta * phy%rel_chloropl * maecs%itheta_max ! []     no 
-  write (*,'(A,4(F14.3))') 'dChl=',rhsv%chl,phy%chl,dRchl_phyC_dt,rhsv%phyC,dQN_dt
-  write (*,'(A,6(F14.3))') 'aa=',acclim%dRchl_dtheta,acclim%dtheta_dt,acclim%dRchl_dfracR,acclim%dfracR_dt,acclim%dRchl_dQN, dQN_dt
-  write (*,'(A,2(F14.3))') 'dmdx=',acclim%fac1,acclim%fac2
-end if
 
 !write (*,'(A,4(F10.3))') 'rhs chl=', phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC,dRchl_phyC_dt * phy%reg%C*1E1,phy%relQ%N**self%sigma,phy%theta
 
@@ -589,8 +575,8 @@ if (self%DebugDiagOn) then
   _SET_DIAGNOSTIC_(self%id_fracT, _REPLNAN_(phy%frac%theta)) !average LHC fract
   _SET_DIAGNOSTIC_(self%id_Theta, _REPLNAN_(phy%theta))      !average Theta
   _SET_DIAGNOSTIC_(self%id_fracNU, _REPLNAN_(phy%frac%NutUpt)) !average Nut
-  _SET_DIAGNOSTIC_(self%id_QN, _REPLNAN_(phy%relQ%N))           !average N:C ratio
-  _SET_DIAGNOSTIC_(self%id_QP, _REPLNAN_(phy%relQ%P))           !average P:C ratio
+  _SET_DIAGNOSTIC_(self%id_QN, _REPLNAN_(phy%Q%N))           !average N:C ratio
+  _SET_DIAGNOSTIC_(self%id_QP, _REPLNAN_(phy%Q%P))           !average P:C ratio
   _SET_DIAGNOSTIC_(self%id_aVN, _REPLNAN_(acclim%aV%N))      !average N-uptake activity
   _SET_DIAGNOSTIC_(self%id_aVP, _REPLNAN_(acclim%aV%P))      !average P-uptake activity
   _SET_DIAGNOSTIC_(self%id_aVSi, _REPLNAN_(acclim%aV%Si))    !average Si-uptake activity
@@ -598,7 +584,7 @@ if (self%DebugDiagOn) then
   _SET_DIAGNOSTIC_(self%id_faP, _REPLNAN_(acclim%fA%P))      !average P-uptake affinity allocation
   _SET_DIAGNOSTIC_(self%id_faSi, _REPLNAN_(acclim%fA%Si))    !average Si-uptake affinity allocation
   _SET_DIAGNOSTIC_(self%id_rQSi, _REPLNAN_(phy%relQ%Si))     !average Relative Si-Quota
-  _SET_DIAGNOSTIC_(self%id_tmp, _REPLNAN_(sens%upt_pot%Si))       !average Temporary diagnosticacclim%tmp
+  _SET_DIAGNOSTIC_(self%id_tmp, _REPLNAN_(acclim%tmp))       !average Temporary diagnostic
   _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(dRchl_phyC_dt))   !average Auxiliary diagnostic 
   _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(acclim%dRchl_dfracR*acclim%dfracR_dt)) !average Auxiliary diagnostic
   _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%dRchl_dtheta*acclim%dtheta_dt)) !average Auxiliary diagnostic
@@ -645,7 +631,7 @@ type (type_maecs_om):: dom
 !
 ! !LOCAL VARIABLES: 
 REALTYPE    :: phyQstat,vs_phy,vs_det, phyEner, minPigm,min_Cmass, minc
-!REALTYPE    :: aggf, agge=16.d0
+REALTYPE    :: aggf, agge=16.d0
 REALTYPE, parameter :: secs_pr_day = 86400.d0 
 !EOP
 !-----------------------------------------------------------------------
@@ -662,16 +648,17 @@ _FABM_LOOP_BEGIN_
    !Calculate manually
    _GET_(self%id_phyC, phy%C)  ! Phytplankton Carbon in mmol-C/m**3
    _GET_(self%id_phyN, phy%N)  ! Phytplankton Nitrogen in mmol-N/m**3
-!   _GET_(self%id_detC, det%C)  ! Detritus Nitrogen in mmol-N/m**3
-!   _GET_(self%id_detN, det%N)  ! Detritus Nitrogen in mmol-N/m**3
+   _GET_(self%id_detC, det%C)  ! Detritus Nitrogen in mmol-N/m**3
+   _GET_(self%id_detN, det%N)  ! Detritus Nitrogen in mmol-N/m**3
    _GET_(self%id_domC, dom%C)  ! DONitrogen in mmol-N/m**3
-!    aggf = det%C/106+det%N/16
-!    if (self%PhosphorusOn) then
-!      _GET_(self%id_detP, det%P)  ! Detritus Phosphorus in mmol-P/m**3
-!      aggf = aggf + det%P
-!    endif
+    aggf = det%C/106+det%N/16
+    if (self%PhosphorusOn) then
+      _GET_(self%id_detP, det%P)  ! Detritus Phosphorus in mmol-P/m**3
+      aggf = aggf + det%P
+    endif
 !   aggf = 1.0_rk + 2*self%phi_agg * (phy%N + det%N) 
-!   aggf = 0.1d0 + 1.0d0/(1.0d0+ exp(-3+agge*aggf))
+!   aggf = 3.15_rk - exp(-agge*det%C/106) - exp(-agge*det%N/16) - exp(-agge*det%P) 
+   aggf = 0.1d0 + 1.0d0/(1.0d0+ exp(-3+agge*aggf))
 
    if (self%GrazingOn) then
      _GET_(self%id_zooC, zoo%C)  ! Zooplankton Carbon in mmol-C/m**3
@@ -706,8 +693,8 @@ _FABM_LOOP_BEGIN_
    
    vs_phy = vs_phy / secs_pr_day
    !write (*,'(A,2(F10.3))') 'phyQstat, vs_phy=', phyQstat, vs_phy
-!   vs_det = -self%vS_det*aggf/secs_pr_day
-   vs_det = -1.0_rk*self%vS_det/secs_pr_day
+   vs_det = -self%vS_det*aggf/secs_pr_day
+!   vs_det = -1.0_rk*self%vS_det/secs_pr_day
    !set the rates
    _SET_VERTICAL_MOVEMENT_(self%id_detC,vs_det)
    _SET_VERTICAL_MOVEMENT_(self%id_detN,vs_det)

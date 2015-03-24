@@ -17,12 +17,13 @@
 !> @details 
 !> This is the subroutine, where the optimal regulation of phytoplankton traits
 !> are described, which is central to the physiological-MAECS
-subroutine photosynthesis(self,sens,phy,uptake,exud,acc)
+subroutine photosynthesis(self,sens,phy,nut,uptake,exud,acc)
 implicit none
 
 class (type_maecs_base_model), intent(in)   :: self
 type (type_maecs_sensitivities),intent(in), target :: sens
 type (type_maecs_phy), intent(inout)       :: phy
+type (type_maecs_om),intent(in) :: nut
 type (type_maecs_om), intent(out), target  :: uptake
 type (type_maecs_om), intent(out)          :: exud
 type (type_maecs_traitdyn), intent(out), target    :: acc
@@ -187,7 +188,7 @@ sigmv(1:num_nut)  = 0.0d0
 !> - grossC=Pmaxc*fR*sens\%upt\_pot\%C
 !>   + sens\%upt\_pot\%C  : light harvesting (light limited growth)
 !> - darkf= 1-exp(-grossC/self\%res0)
-Pmaxc     = (fac_colim-eps) * sens%P_max_T
+Pmaxc     = (fac_colim-0*eps) * sens%P_max_T
 grossC    = phy%frac%Rub * Pmaxc * sens%upt_pot%C  ! primary production
 
 !resC      = 0.5d0/(1.0d0 + exp( 3.1415d0)) *self%V_NC_max* sens%f_T * self%zeta_CN 
@@ -259,7 +260,7 @@ do i = 1, num_nut
    dmuQ_dfracR     = dmuQ_dfracR + elem(i)%dmudV * (elem(i)%upt_act+eps) * dfV_dfracR
    dmuQ_dtheta     = dmuQ_dtheta + elem(i)%dmudV * (elem(i)%upt_act+eps) * dfV_dtheta
 ! small *eps* correction at vanishing productivity since now aV=0 would entirely decouple regulation
-
+! if (dmuQ_dfracR .lt. -20. .or. abs(dmuQ_dfracR+1.d0) .lt. 0.01) write (*,'(A,I3,10(F10.4))') 'Q',i,dmuQ_dfracR , elem(i)%dmudV , elem(i)%relQ,(elem(i)%upt_act+eps) , dfV_dfracR,act_V , elem(i)%upt_pot,Nut%P,Nut%N,grossC
 end do
 !if (self%SiliconOn) uptake%Si=uptake%Si + 0.5*sens%upt_pot%Si
 
@@ -287,7 +288,7 @@ if (self%RubiscoOn) then
    grad_fracR = dmu_dfracR      &   ! marginal C gain of light independent processes 
               + dmuQ_dfracR         ! marginal loss due to reduced uptake 
 
-!   acc%fac1 = dmu_dfracR
+   acc%fac1 = dmuQ_dfracR
 !   acc%fac2 = dmuQ_dfracR
 
 ! --- regulation speed in Rubisco expression ------------------------------------ 
@@ -326,9 +327,8 @@ if (self%PhotoacclimOn) then
   ! *** ADAPTIVE EQUATION FOR 'theta'
    acc%dtheta_dt = flex_theta * grad_theta
    !for being able to save these intermediate quantities as diag vars:
-   acc%fac1=flex_theta 
-   acc%fac2=grad_theta
-
+!   acc%fac1=flex_theta 
+   acc%fac2=dmuQ_dtheta
 end if
 ! --- carbon exudation   -------------------------------------------------------
 !  TODO: discuss and adjust; data?
