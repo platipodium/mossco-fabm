@@ -47,7 +47,7 @@ type (type_maecs_traitdyn)::acclim
 type (type_maecs_sensitivities) :: sens
 
 ! --- LOCAL MODEL VARIABLES:
-integer  :: i, j, iz, ihour, iloop
+integer  :: i, j, iz, ihour, iloop, doy
 real(rk) :: reminT, degradT       ! Temp dependent remineralisation and hydrolysis rates
 ! --- QUOTA and FRACTIONS
 real(rk) :: phys_status, dQN_dt, dRchl_phyC_dt=0.0_rk ! []
@@ -131,7 +131,6 @@ end if
 !E_GED  ! list outcommented due to different usage of zmax and doy (see light extinction)
 
 ! write (*,'(A,2(F10.3))') 'par/T:',env%par,env%temp
-
 
 ! @ingroup main
 !> @fn fabm_hzg_maecs::maecs_do () 
@@ -573,6 +572,18 @@ if (self%NResOn) then
       _SET_ODE_(self%id_RNit, rhsv%RNit UNIT)
 end if
 !#E_ODE
+
+if (self%ChemostatOn) then
+  _GET_GLOBAL_ (self%id_doy,doy) !day of year
+  select case (doy)
+           case (30)
+            _SET_ODE_(self%id_nutP, 4*(1.0-nut%P) UNIT)
+           case (60)
+            _SET_ODE_(self%id_nutN, 4*(16.0-nut%N) UNIT)
+           case (90)
+            _SET_ODE_(self%id_nutS, 4*(16.0-nut%Si) UNIT)
+  end select
+endif
 
 !________________________________________________________________________________
 ! set diag variables, mostly from PrimProd module
