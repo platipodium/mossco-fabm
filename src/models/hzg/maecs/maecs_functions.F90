@@ -432,21 +432,23 @@ subroutine sinking(vS ,phys_status,sinkvel)
 !> @todo: mm_method to be read from the nml?
 !> @todo: Q: phy\%reg\%P either non existent or commented out for different cases. Why?
 !> @todo: add equations
-subroutine min_mass(maecs,phy,min_Cmass,method)
+subroutine min_mass(maecs,phy,min_Cmass,iscritical,method)
 
 implicit none
 
 class (type_maecs_base_model), intent(in)      :: maecs
 type (type_maecs_phy), intent(inout)   :: phy
 real(rk), intent(out)                  :: min_Cmass
+logical,intent(out)                    :: iscritical
 integer, intent(in), optional          :: method
 
 real(rk)     :: min_Nmass, delta_C, delta_N ! min_Cmass, 
 integer      ::  mm_method=_KAI_
-logical      ::  ischanged
+logical      ::  ischanged 
 
 if (present(method)) mm_method=method
 ischanged = .false.
+iscritical= .false.
 
 select case (mm_method)
  case (_MARKUS_)
@@ -482,7 +484,6 @@ select case (mm_method)
    end if
 !write (*,'(A,4(F10.3))') 'P=',phy%P,phy%reg%C * maecs%aver_QP_phy,smooth_small(phy%P,min_Cmass * maecs%aver_QP_phy)
    if (ischanged) then ! retune P and Rub
-
 !      if (maecs%PhosphorusOn)  phy%reg%P =  phy%reg%C * maecs%aver_QP_phy
       if (maecs%RubiscoOn) then 
          phy%Rub =  phy%reg%C * maecs%frac_Rub_ini
@@ -491,7 +492,8 @@ select case (mm_method)
        phy%Rub = smooth_small( phy%Rub , min_Cmass * maecs%frac_Rub_ini)
 !      if (maecs%PhosphorusOn)  phy%reg%P =  smooth_small(phy%P,min_Cmass * maecs%aver_QP_phy)
    end if ! ischanged
-  
+   if ((abs(phy%C-phy%reg%C) .gt. 1d-1*min_Cmass) .or. (abs(phy%N-phy%reg%N) .gt. 1d-1*min_Cmass* maecs%aver_QN_phy) ) iscritical= .true.
+
  case (2)
 ! -------------------------------------------------------------------------------
 ! --- Here, phyC and phyN are smoothed as soon as biomass approaches 'min_mass',  
@@ -515,6 +517,9 @@ select case (mm_method)
          ischanged = .true.
       end if  
    end if
+   if (ischanged) then
+     if (abs(phy%C-phy%reg%C) .gt. 1d-1*min_Cmass .or. abs(phy%N-phy%reg%N) .gt. 1d-1*min_Cmass* maecs%aver_QN_phy ) iscritical= .true.
+   endif
 !!      if (phy%reg%N .gt. 0.2 * phy%reg%C) phy%reg%N = 0.2 * phy%reg%C
 
  case (3)

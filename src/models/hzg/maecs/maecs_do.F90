@@ -75,7 +75,7 @@ real(rk),parameter :: Q10b = 1.5_rk
 real(rk) :: Cprod, Nprod, Pprod
 real(rk) :: AnoxicMin,Denitrific,OxicMin,Nitri,OduDepo,OduOx,pDepo, Anammox
 real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto,faeces, min_Cmass
-
+logical  :: IsCritical = .false. ! phyC and phyN below reasonable range ?
 #define _KAI_ 0
 #define _MARKUS_ 1
 ! #define UNIT / 86400
@@ -145,7 +145,7 @@ end if
 !> @todo: min_mass correction of phy%\C and phy\%N at this stage requires specification of threshold values. What about back-calculating phy\%reg\%N from the smooth_small corrected phy\%Q\%N?
 
 ! --- checking and correcting extremely low state values  ------------  
-call min_mass(self,phy,min_Cmass,method=2) !_KAI_ minimal reasonable Phy-C and -Nitrogen
+call min_mass(self,phy, min_Cmass, IsCritical, method=2) ! minimal reasonable Phy-C and -Nitrogen
 
 ! --- stoichiometry of autotrophs (calculating QN_phy, frac_R, theta, and QP_phy)
 call calc_internal_states(self,phy,det,dom,zoo)
@@ -162,9 +162,9 @@ end if
 
 call calc_sensitivities(self,sens,phy,env,nut,acclim)
 
-if (phy%frac%Rub .lt. -0.001d0) then
-  write (*,'(A,4(F10.3))') 'fR=',phy%reg%C,phy%frac%Rub,self%small_finite + self%rel_chloropl_min,phy%frac%NutUpt
-end if
+!if (IsCritical .and. .false. ) then
+!  write (*,'(A,4(F10.3))') 'fR=',phy%reg%C,phy%frac%Rub,self%small_finite + self%rel_chloropl_min,phy%frac%NutUpt
+!end if
 !if (phy%chl .lt. 0.01d0) then
 !  phy%theta     = phy%chl / (phy%rel_chloropl * phy%reg%C)   ! trait variable
 !  phy%frac%theta= phy%theta * phy%rel_chloropl * maecs%itheta_max ! []     no 
@@ -206,10 +206,12 @@ if (self%GrazingOn) then
 
 else
   graz_rate   = 0.0_rk
+  if (self%ChemostatOn .and. .not. IsCritical) graz_rate = 0.3*phy%C
   zoo_mort    = 0.0_rk
   lossZ       = type_maecs_om(0.0_rk, 0.0_rk, 0.0_rk, 0.0_rk)
   floppZ      = type_maecs_om(0.0_rk, 0.0_rk, 0.0_rk, 0.0_rk)
 end if
+
 
 ! --- phytoplankton aggregation -------------------------------------------------
 ! If biovolume is primarily determined by the nitrogen content, also for detritus
@@ -573,15 +575,16 @@ if (self%NResOn) then
 end if
 !#E_ODE
 
+! artifical, serial nutrient input to illustrate co-limitation dynamics in 0D
 if (self%ChemostatOn) then
   _GET_GLOBAL_ (self%id_doy,doy) !day of year
   select case (doy)
-           case (30)
-            _SET_ODE_(self%id_nutP, 4*(1.0-nut%P) UNIT)
-           case (60)
-            _SET_ODE_(self%id_nutN, 4*(16.0-nut%N) UNIT)
-           case (90)
-            _SET_ODE_(self%id_nutS, 4*(16.0-nut%Si) UNIT)
+           case (89:92)
+            _SET_ODE_(self%id_nutP, 5*(1.0-nut%P) UNIT)
+           case (29:32)
+            _SET_ODE_(self%id_nutN, 5*(16.0-nut%N) UNIT)
+           case (59:62)
+            _SET_ODE_(self%id_nutS, 5*(16.0-nut%Si) UNIT)
   end select
 endif
 
@@ -610,8 +613,8 @@ if (self%DebugDiagOn) then
   _SET_DIAGNOSTIC_(self%id_faSi, _REPLNAN_(acclim%fA%Si))    !average Si-uptake affinity allocation
   _SET_DIAGNOSTIC_(self%id_rQSi, _REPLNAN_(phy%relQ%Si))     !average Relative Si-Quota
   _SET_DIAGNOSTIC_(self%id_tmp, _REPLNAN_(sens%upt_pot%Si))       !average Temporary diagnosticacclim%tmp
-  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(dRchl_phyC_dt))   !average Auxiliary diagnostic 
-  _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(acclim%dRchl_dfracR*acclim%dfracR_dt)) !average Auxiliary diagnostic
+  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(1d-1*min_Cmass* self%aver_QN_phy))   !average Auxiliary diagnostic 
+  _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(abs(phy%N-phy%reg%N)/(1d-1*min_Cmass* self%aver_QN_phy))) !average Auxiliary diagnostic
   _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%dRchl_dtheta*acclim%dtheta_dt)) !average Auxiliary diagnostic
   _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(acclim%fac1))     !average dtheta
   _SET_DIAGNOSTIC_(self%id_fac5, _REPLNAN_(acclim%fac2))     !average dtheta
@@ -652,6 +655,7 @@ type (type_maecs_phy):: phy !< maecs phytoplankton type
 type (type_maecs_zoo) :: zoo
 type (type_maecs_om):: det
 type (type_maecs_om):: dom
+logical  :: IsCritical = .false. ! phyC and phyN below reasonable range ?
 
 !
 ! !LOCAL VARIABLES: 
@@ -692,7 +696,7 @@ _FABM_LOOP_BEGIN_
    end if
 
    !write (*,'(A,2(F10.3))') 'Before: phy%C, phy%N=', phy%C, phy%N
-   call min_mass(self,phy, min_Cmass, method=2) 
+   call min_mass(self,phy, min_Cmass, IsCritical, method=2) 
    !write (*,'(A,2(F10.3))') 'After: phy%C, phy%N=', phy%C, phy%N
    call calc_internal_states(self,phy,det,dom,zoo) 
    !write (*,'(A,2(F10.3))') 'phy%relQ%N, phy%relQ%P=', phy%relQ%N, phy%relQ%P
