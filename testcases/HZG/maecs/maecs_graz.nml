@@ -25,7 +25,7 @@
    g_max = 1.,
    k_grazC = 3.0,
    yield_zoo = 0.4,
-   basal_resp_zoo = 0.05,
-   mort_zoo = 0.05,
+   basal_resp_zoo = 0.025,
+   mort_zoo = 0.025,
    fT_exp_mort = 1.0,
 /

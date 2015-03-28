@@ -54,9 +54,9 @@
    phyN_initial = 0.8,
    phyP_initial = 0.08,
    phyS_initial = 1.2,
-   detC_initial = 5.,
-   detN_initial = 1.,
-   detP_initial = 0.1,
+   detC_initial = 15.,
+   detN_initial = 3.,
+   detP_initial = 0.3,
    detS_initial = 0.,
    domC_initial = 10.,
    domN_initial = 1.5,
@@ -65,7 +65,7 @@
    frac_Rub_ini = 0.4,
    frac_chl_ini = 0.3,
    nh3_initial  = 15.
-   oxy_initial  = 200.
-   odu_initial  = 50.
+   oxy_initial  = 120.
+   odu_initial  = 120.
 /
 
