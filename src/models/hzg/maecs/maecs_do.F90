@@ -147,6 +147,35 @@ end if
 ! --- checking and correcting extremely low state values  ------------  
 call min_mass(self,phy, min_Cmass, IsCritical, method=2) ! minimal reasonable Phy-C and -Nitrogen
 
+if(self%maxVal .lt. 0.0d0) then 
+  IsCritical=.false.
+else
+  if(phy%chl .gt. self%maxVal .or. phy%Rub .gt. self%maxVal) IsCritical=.true.
+endif
+
+if(IsCritical) then
+  rhsv%nutN=0.0d0
+  rhsv%nutP=0.0d0
+  rhsv%nutS=0.0d0
+  rhsv%phyC=0.0d0
+  rhsv%phyN=0.0d0
+  rhsv%phyP=0.0d0
+  rhsv%phyS=0.0d0
+  rhsv%zooC=0.0d0
+  rhsv%detC=0.0d0
+  rhsv%detN=0.0d0
+  rhsv%detP=0.0d0
+  rhsv%detS=0.0d0
+  rhsv%domC=0.0d0
+  rhsv%domN=0.0d0
+  rhsv%domP=0.0d0
+  rhsv%RNit=0.0d0
+  rhsv%Rub=0.0d0
+  rhsv%chl=0.0d0
+  rhsv%nh3=0.0d0
+  rhsv%oxy=0.0d0
+  rhsv%odu=0.0d0
+else
 ! --- stoichiometry of autotrophs (calculating QN_phy, frac_R, theta, and QP_phy)
 call calc_internal_states(self,phy,det,dom,zoo)
 
@@ -289,7 +318,7 @@ rhsv%phyN =  uptake%N             * phy%C &
 !>      + A = rhsv\%phyC * phyRub/phyC
 !>      + B = dfracR_dt is calculated in maecs_primprod::photosynthesis()
 
-if (abs(phy%reg%C) .gt. 1d-4) then
+if (abs(phy%C) .gt. 1d-4) then
  if (self%PhotoacclimOn ) then ! check for too small biomasses %chl
 
 ! PHYTOPLANKTON CHLa
@@ -535,6 +564,7 @@ endif
 !  rhsv%po4 = (f_T * Pprod - radsP) 
 end if
 
+end if
 
 !#S_ODE
 !---------- ODE for each state variable ----------
@@ -599,22 +629,25 @@ if (self%DebugDiagOn) then
   _SET_DIAGNOSTIC_(self%id_GPPR, _REPLNAN_(phy%gpp*phy%C))   !average gross primary production
   _SET_DIAGNOSTIC_(self%id_Denitr, _REPLNAN_(0.8*Denitrific)) !average denitrification rate
   _SET_DIAGNOSTIC_(self%id_chl2C, _REPLNAN_(phy%theta*phy%rel_chloropl/12)) !average chlorophyll:carbon ratio 
+  _SET_DIAGNOSTIC_(self%id_Theta, _REPLNAN_(phy%theta))      !average Theta
   _SET_DIAGNOSTIC_(self%id_fracR, _REPLNAN_(phy%frac%Rub))   !average Rubisco fract
   _SET_DIAGNOSTIC_(self%id_fracT, _REPLNAN_(phy%frac%theta)) !average LHC fract
-  _SET_DIAGNOSTIC_(self%id_Theta, _REPLNAN_(phy%theta))      !average Theta
   _SET_DIAGNOSTIC_(self%id_fracNU, _REPLNAN_(phy%frac%NutUpt)) !average Nut
-  _SET_DIAGNOSTIC_(self%id_QN, _REPLNAN_(phy%relQ%N))           !average N:C ratio
-  _SET_DIAGNOSTIC_(self%id_QP, _REPLNAN_(phy%relQ%P))           !average P:C ratio
+  _SET_DIAGNOSTIC_(self%id_QN, _REPLNAN_(phy%Q%N))           !average N:C ratio
+  _SET_DIAGNOSTIC_(self%id_QP, _REPLNAN_(phy%Q%P))           !average P:C ratio
+  _SET_DIAGNOSTIC_(self%id_QSi, _REPLNAN_(phy%Q%Si))         !average Si:C ratio
   _SET_DIAGNOSTIC_(self%id_aVN, _REPLNAN_(acclim%aV%N))      !average N-uptake activity
   _SET_DIAGNOSTIC_(self%id_aVP, _REPLNAN_(acclim%aV%P))      !average P-uptake activity
   _SET_DIAGNOSTIC_(self%id_aVSi, _REPLNAN_(acclim%aV%Si))    !average Si-uptake activity
   _SET_DIAGNOSTIC_(self%id_faN, _REPLNAN_(acclim%fA%N))      !average N-uptake affinity allocation
   _SET_DIAGNOSTIC_(self%id_faP, _REPLNAN_(acclim%fA%P))      !average P-uptake affinity allocation
   _SET_DIAGNOSTIC_(self%id_faSi, _REPLNAN_(acclim%fA%Si))    !average Si-uptake affinity allocation
+  _SET_DIAGNOSTIC_(self%id_rQN, _REPLNAN_(phy%relQ%N))       !average Relative N-Quota
+  _SET_DIAGNOSTIC_(self%id_rQP, _REPLNAN_(phy%relQ%P))       !average Relative P-Quota
   _SET_DIAGNOSTIC_(self%id_rQSi, _REPLNAN_(phy%relQ%Si))     !average Relative Si-Quota
-  _SET_DIAGNOSTIC_(self%id_tmp, _REPLNAN_(sens%upt_pot%Si))       !average Temporary diagnosticacclim%tmp
-  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(1d-1*min_Cmass* self%aver_QN_phy))   !average Auxiliary diagnostic 
-  _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(abs(phy%N-phy%reg%N)/(1d-1*min_Cmass* self%aver_QN_phy))) !average Auxiliary diagnostic
+  _SET_DIAGNOSTIC_(self%id_tmp, _REPLNAN_(acclim%tmp))       !average Temporary diagnostic
+  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(dRchl_phyC_dt))   !average Auxiliary diagnostic 
+  _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(acclim%dRchl_dfracR*acclim%dfracR_dt)) !average Auxiliary diagnostic
   _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%dRchl_dtheta*acclim%dtheta_dt)) !average Auxiliary diagnostic
   _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(acclim%fac1))     !average dtheta
   _SET_DIAGNOSTIC_(self%id_fac5, _REPLNAN_(acclim%fac2))     !average dtheta
