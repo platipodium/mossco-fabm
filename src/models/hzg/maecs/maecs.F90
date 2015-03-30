@@ -808,6 +808,11 @@ end subroutine initialize
 
 !> @brief to calculate light extinction when kc changes with depth
 !> @details extinction coef=\f$ a_{\mathrm{water}} + a_{\mathrm{spm}}* (p+d+z) \f$
+!> if &maecs_env/kwFzmaxMeth==0: a_{\mathrm{water}}=constant
+!> if &maecs_env/kwFzmaxMeth==1: a_{\mathrm{water}}=a_w*f1(z); f1(z) is exponential
+!> if &maecs_env/kwFzmaxMeth==2: a_{\mathrm{water}}=a_w*f2(z); f2(z) is sigmoidal
+!> if &maecs_env/kwFzmaxMeth==3: a_{\mathrm{water}}=a_w*f2(z)f(t); f(t) is unimodal
+
    subroutine get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
 !  
 ! !INPUT PARAMETERS:
