@@ -36,7 +36,7 @@ module nonlocal
    ! original depth-explicit source variable, using the appropriate weights.
    type,extends(type_base_model),public :: type_depth_integral
       type (type_horizontal_diagnostic_variable_id) :: id_integral
-      type (type_dependency_id)                     :: id_target
+      type (type_state_variable_id)                 :: id_target
       type (type_dependency_id)                     :: id_weights
       type (type_dependency_id)                     :: id_thickness
    contains
@@ -97,7 +97,7 @@ contains
 
       class (type_depth_integral_rate_distributor),pointer :: rate_distributor
 
-      call self%register_dependency(self%id_target, 'target', '', 'variable to depth-integrate')
+      call self%register_state_dependency(self%id_target, 'target', '', 'variable to depth-integrate')
       call self%register_dependency(self%id_weights,'weights','-','weights for vertical integration')
       call self%register_diagnostic_variable(self%id_integral,'result','','result',missing_value=0.0_rk, &
          act_as_state_variable=.true.,domain=domain_bottom)
@@ -114,9 +114,9 @@ contains
       call rate_distributor%request_coupling(rate_distributor%id_sms,'result_sms_tot')
    end subroutine depth_integral_initialize
 
-   subroutine depth_integral_do(self,_ARGUMENTS_VERT_)
+   subroutine depth_integral_do(self,_ARGUMENTS_VERTICAL_)
       class (type_depth_integral),intent(in) :: self
-      _DECLARE_ARGUMENTS_VERT_
+      _DECLARE_ARGUMENTS_VERTICAL_
 
       real(rk) :: local,weight,thickness,integral
 

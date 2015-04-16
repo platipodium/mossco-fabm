@@ -3,11 +3,11 @@
 !BOP
 !
 ! !INTERFACE:
-   module pclake_abiotic_sediment
+   module au_pclake_abiotic_sediment
 !
 ! !DESCRIPTION:
 !
-!  The pclake_abiotic_sediment module describes all the state variables 
+!  The au_pclake_abiotic_sediment module describes all the state variables 
 !  which are related to abiotic processes in the sediment, including: 
 !  inorganic matter(IM), organic matters(detritus),dissolved nutirents
 !  (ammonia, nitrate,phosphate) immobilized phosphrus(absorbed phosphrus).
@@ -37,13 +37,13 @@
 !
 ! !USES:
    use fabm_types
-   use pclake_utility, ONLY: uFunTmAbio
+   use au_pclake_utility, ONLY: uFunTmAbio
    implicit none
 !  default: all is private.
    private
 !
 ! !PUBLIC DERIVED TYPES:
-   type, extends(type_base_model),public :: type_pclake_abiotic_sediment
+   type, extends(type_base_model),public :: type_au_pclake_abiotic_sediment
 !     local state variable identifers
 !     sDIMS: inorganic matter concentration, in dry-weight,gDW/m**2
 !     sDDetS, detritus concentration, in dry-weight,gDW/m**2
@@ -106,7 +106,7 @@
 !
       procedure initialize
       procedure do_bottom
-   end type type_pclake_abiotic_sediment
+   end type type_au_pclake_abiotic_sediment
 
 
 !  private data memebers(API0.92)
@@ -132,11 +132,11 @@
    subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
-!  Here, the pclake_abiotic_sediment namelist is read and the variables 
+!  Here, the au_pclake_abiotic_sediment namelist is read and the variables 
 !  are registered with FABM.
 !
 ! !INPUT PARAMETERS:
-   class (type_pclake_abiotic_sediment), intent(inout), target :: self
+   class (type_au_pclake_abiotic_sediment), intent(inout), target :: self
    integer,                              intent(in)            :: configunit
 
 
@@ -235,7 +235,7 @@
    subroutine do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
 !
 ! ! INPUT PARAMETERS:
-   class (type_pclake_abiotic_sediment), intent(in)    :: self
+   class (type_au_pclake_abiotic_sediment), intent(in)    :: self
    _DECLARE_ARGUMENTS_DO_BOTTOM_
 !
 ! !LOCAL VARIABLES:
@@ -478,7 +478,7 @@
 !EOC
 !-----------------------------------------------------------------------
 
-   end module pclake_abiotic_sediment
+   end module au_pclake_abiotic_sediment
 
 !------------------------------------------------------------------------------
 ! Copyright by the FABM_PCLake-team under the GNU Public License - www.gnu.org

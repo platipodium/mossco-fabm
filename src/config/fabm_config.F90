@@ -77,7 +77,6 @@ contains
       class (type_node),pointer          :: node
       character(len=64)                  :: instancename
       type (type_key_value_pair),pointer :: pair
-      class (type_base_model),   pointer :: childmodel
       logical                            :: initialize,check_conservation,require_initialization,require_all_parameters
       type (type_error),         pointer :: config_error
 
@@ -110,11 +109,11 @@ contains
          instancename = trim(pair%key)
          select type (dict=>pair%value)
             class is (type_dictionary)
-               childmodel => create_model_from_dictionary(instancename,dict,model%root, &
-                                                          require_initialization,require_all_parameters,check_conservation)
+               call create_model_from_dictionary(instancename,dict,model%root, &
+                                                 require_initialization,require_all_parameters,check_conservation)
             class is (type_null)
-               childmodel => create_model_from_dictionary(instancename,type_dictionary(),model%root, &
-                                                          require_initialization,require_all_parameters,check_conservation)
+               call create_model_from_dictionary(instancename,type_dictionary(),model%root, &
+                                                 require_initialization,require_all_parameters,check_conservation)
             class is (type_node)
                call fatal_error('create_model_tree_from_dictionary','Configuration information for model "'// &
                   trim(instancename)//'" must be a dictionary, not a single value.')
@@ -137,14 +136,15 @@ contains
 
    end subroutine create_model_tree_from_dictionary
 
-   function create_model_from_dictionary(instancename,node,parent, &
-                                         require_initialization,require_all_parameters,check_conservation) result(model)
+   subroutine create_model_from_dictionary(instancename,node,parent, &
+                                           require_initialization,require_all_parameters,check_conservation)
       character(len=*),       intent(in)           :: instancename
       class (type_dictionary),intent(in)           :: node
       class (type_base_model),intent(inout),target :: parent
       logical,                intent(in)           :: require_initialization,require_all_parameters,check_conservation
       class (type_base_model),pointer              :: model
 
+      logical                            :: use_model
       character(len=64)                  :: modelname
       character(len=256)                 :: long_name
       type (type_dictionary)             :: parametermap
@@ -156,6 +156,13 @@ contains
       type (type_error),pointer          :: config_error
 
       nullify(config_error)
+
+      use_model = node%get_logical('use',default=.true.,error=config_error)
+      if (associated(config_error)) call fatal_error('create_model_from_dictionary',config_error%message)
+      if (.not.use_model) then
+         call log_message('SKIPPING model instance '//trim(instancename)//' because it has use=false set.')
+         return
+      end if
 
       ! Retrieve model name (default to instance name if not provided).
       modelname = trim(node%get_string('model',default=instancename,error=config_error))
@@ -276,7 +283,7 @@ contains
          pair => pair%next
       end do
 
-   end function create_model_from_dictionary
+   end subroutine create_model_from_dictionary
 
    subroutine parse_initialization(model,node,initialized_set,get_background)
       class (type_base_model),intent(inout) :: model
@@ -299,7 +306,7 @@ contains
                   trim(value%path)//': "'//trim(pair%key)//'" is not a member of model "'//trim(model%name)//'".')
                is_state_variable = .false.
                if (.not.object%state_indices%is_empty()) then
-                  realvalue = value%to_real(default=0.0_rk,success=success)
+                  realvalue = value%to_real(default=real(0,real_kind),success=success)
                   if (.not.success) call fatal_error('parse_initialization', &
                      trim(value%path)//': "'//trim(value%string)//'" is not a real number.')
                   if (get_background) then

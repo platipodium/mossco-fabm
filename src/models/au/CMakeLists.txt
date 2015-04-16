@@ -1,16 +1,18 @@
 add_library(fabm_models_au OBJECT
-            pclake/au_abiotic_sediment.F90
-            pclake/au_abiotic_water.F90
-            pclake/au_auxilary.F90
-            pclake/au_dummy_state.F90
-            pclake/au_foodweb_sediment.F90
-            pclake/au_foodweb_water.F90
-            pclake/au_macrophytes.F90
-            pclake/au_pclake_model_library.F90
-            pclake/au_phytoplankton_sediment.F90
-            pclake/au_phytoplankton_water.F90
-            pclake/au_utility.F90
+            model_library.F90
+            pclake/model_library.F90
+            pclake/abiotic_sediment.F90
+            pclake/abiotic_water.F90
+            pclake/auxilary.F90
+            pclake/foodweb_sediment.F90
+            pclake/foodweb_water.F90
+            pclake/macrophytes.F90
+            pclake/phytoplankton_sediment.F90
+            pclake/phytoplankton_water.F90
+            pclake/utility.F90
             prey_predator/prey_predator.F90
+            prey_predator/lotka_volterra.F90
+            prey_predator/jacob_monod.F90
            )
 
 add_dependencies(fabm_models_au fabm_base)

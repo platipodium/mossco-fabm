@@ -34,9 +34,9 @@ module fabm_builtin_models
    end type
 
    type,extends(type_base_model) :: type_weighted_sum
-      character(len=attribute_length) :: output_long_name = ''
-      character(len=attribute_length) :: output_units     = ''
-      real(rk)                        :: offset           = 0.0_rk
+      character(len=attribute_length) :: units         = ''
+      integer                         :: result_output = output_instantaneous
+      real(rk)                        :: offset        = 0.0_rk
       type (type_diagnostic_variable_id) :: id_output
       type (type_component),pointer   :: first => null()
    contains
@@ -48,9 +48,9 @@ module fabm_builtin_models
    end type
 
    type,extends(type_base_model) :: type_horizontal_weighted_sum
-      character(len=attribute_length) :: output_long_name = ''
-      character(len=attribute_length) :: output_units     = ''
-      real(rk)                        :: offset           = 0.0_rk
+      character(len=attribute_length) :: units         = ''
+      integer                         :: result_output = output_instantaneous
+      real(rk)                        :: offset        = 0.0_rk
       type (type_horizontal_diagnostic_variable_id) :: id_output
       type (type_horizontal_component),pointer   :: first => null()
    contains
@@ -86,8 +86,23 @@ module fabm_builtin_models
       procedure :: initialize => horizontal_constant_initialize
    end type
 
+   type,extends(type_base_model) :: type_constant_surface_flux
+      type (type_state_variable_id) :: id_target
+      real(rk) :: flux
    contains
+      procedure :: initialize => constant_surface_flux_initialize
+      procedure :: do_surface => constant_surface_flux_do_surface
+   end type
 
+   type,extends(type_base_model) :: type_external_surface_flux
+      type (type_state_variable_id)        :: id_target
+      type (type_horizontal_dependency_id) :: id_flux
+   contains
+      procedure :: initialize => external_surface_flux_initialize
+      procedure :: do_surface => external_surface_flux_do_surface
+   end type
+
+   contains
 
    subroutine create(self,name,model)
       class (type_factory),intent(in) :: self
@@ -97,6 +112,9 @@ module fabm_builtin_models
       select case (name)
          case ('bulk_constant');       allocate(type_bulk_constant::model)
          case ('horizontal_constant'); allocate(type_horizontal_constant::model)
+         case ('surface_flux');        allocate(type_constant_surface_flux::model)
+         case ('constant_surface_flux');allocate(type_constant_surface_flux::model)
+         case ('external_surface_flux');allocate(type_external_surface_flux::model)
          ! Add new examples models here
       end select
 
@@ -114,7 +132,7 @@ module fabm_builtin_models
       create_for_one_ = .false.
       if (present(create_for_one)) create_for_one_ = create_for_one
 
-      call parent%add_bulk_variable(name,self%output_units,name,link=link)
+      call parent%add_bulk_variable(name,self%units,name,link=link)
       if (.not.associated(self%first)) then
          ! No components - add link to zero field to parent.
          call parent%request_coupling(link,'zero')
@@ -144,12 +162,11 @@ module fabm_builtin_models
       do while (associated(component))
          i = i + 1
          write (temp,'(i0)') i
-         call self%register_dependency(component%id,'term'//trim(temp),self%output_units,'term '//trim(temp))
+         call self%register_dependency(component%id,'term'//trim(temp),self%units,'term '//trim(temp))
          call self%request_coupling(component%id,trim(component%name))
          component => component%next
       end do
-      if (self%output_long_name=='') self%output_long_name = 'result'
-      call self%register_diagnostic_variable(self%id_output,'result',self%output_units,'result')
+      call self%register_diagnostic_variable(self%id_output,'result',self%units,'result',output=self%result_output)
    end subroutine
 
    subroutine weighted_sum_add_component(self,name,weight,include_background)
@@ -229,7 +246,7 @@ module fabm_builtin_models
       create_for_one_ = .false.
       if (present(create_for_one)) create_for_one_ = create_for_one
 
-      call parent%add_horizontal_variable(name,self%output_units,name,link=link)
+      call parent%add_horizontal_variable(name,self%units,name,link=link)
       if (.not.associated(self%first)) then
          ! No components - add link to zero field to parent.
          call parent%request_coupling(link,'zero_hz')
@@ -259,12 +276,11 @@ module fabm_builtin_models
       do while (associated(component))
          i = i + 1
          write (temp,'(i0)') i
-         call self%register_dependency(component%id,'term'//trim(temp),self%output_units,'term '//trim(temp))
+         call self%register_dependency(component%id,'term'//trim(temp),self%units,'term '//trim(temp))
          call self%request_coupling(component%id,trim(component%name))
          component => component%next
       end do
-      if (self%output_long_name=='') self%output_long_name = 'result'
-      call self%register_diagnostic_variable(self%id_output,'result',self%output_units,'result')
+      call self%register_diagnostic_variable(self%id_output,'result',self%units,'result',output=self%result_output)
    end subroutine
 
    subroutine horizontal_weighted_sum_after_coupling(self)
@@ -305,9 +321,9 @@ module fabm_builtin_models
       if (present(include_background)) component%include_background = include_background
    end subroutine
 
-   subroutine horizontal_weighted_sum_evaluate_horizontal(self,_ARGUMENTS_HZ_)
+   subroutine horizontal_weighted_sum_evaluate_horizontal(self,_ARGUMENTS_HORIZONTAL_)
       class (type_horizontal_weighted_sum),intent(in) :: self
-      _DECLARE_ARGUMENTS_HZ_
+      _DECLARE_ARGUMENTS_HORIZONTAL_
 
       type (type_horizontal_component),pointer        :: component
       real(rk)                                        :: value
@@ -332,7 +348,7 @@ module fabm_builtin_models
    subroutine horizontal_weighted_sum_do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
       class (type_horizontal_weighted_sum),intent(in) :: self
       _DECLARE_ARGUMENTS_DO_BOTTOM_
-      call self%evaluate_horizontal(_ARGUMENTS_HZ_)
+      call self%evaluate_horizontal(_ARGUMENTS_HORIZONTAL_)
    end subroutine
 
    subroutine simple_depth_integral_initialize(self,configunit)
@@ -370,12 +386,12 @@ module fabm_builtin_models
       call self%get_parameter(value,'value','','value')
       if (standard_name/='') then
          call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
-            output=output_none, standard_variable=type_bulk_standard_variable(name=standard_name))
+            output=output_none, standard_variable=type_bulk_standard_variable(name=standard_name), source=source_none)
       else
          call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
-            output=output_none)
+            output=output_none, source=source_none)
       end if
-   end subroutine
+   end subroutine bulk_constant_initialize
 
    subroutine horizontal_constant_initialize(self,configunit)
       class (type_horizontal_constant),intent(inout),target :: self
@@ -388,11 +404,54 @@ module fabm_builtin_models
       call self%get_parameter(value,'value','','value')
       if (standard_name/='') then
          call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
-            output=output_none, standard_variable=type_horizontal_standard_variable(name=standard_name))
+            output=output_none, standard_variable=type_horizontal_standard_variable(name=standard_name), source=source_none)
       else
          call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
-            output=output_none)
+            output=output_none, source=source_none)
       end if
-   end subroutine
+   end subroutine horizontal_constant_initialize
+
+   subroutine constant_surface_flux_initialize(self,configunit)
+      class (type_constant_surface_flux),intent(inout),target :: self
+      integer,                  intent(in)           :: configunit
+
+      character(len=attribute_length) :: standard_name
+      real(rk)                        :: value
+
+      call self%register_state_dependency(self%id_target,'target','UNITS m-3','target variable')
+      call self%get_parameter(self%flux,'flux','UNITS m-2 s-1','flux (positive for into water)')
+   end subroutine constant_surface_flux_initialize
+
+   subroutine constant_surface_flux_do_surface(self,_ARGUMENTS_DO_SURFACE_)
+      class (type_constant_surface_flux), intent(in) :: self
+      _DECLARE_ARGUMENTS_DO_SURFACE_
+
+      _HORIZONTAL_LOOP_BEGIN_
+         _SET_SURFACE_EXCHANGE_(self%id_target,self%flux)
+      _HORIZONTAL_LOOP_END_
+   end subroutine constant_surface_flux_do_surface
+
+   subroutine external_surface_flux_initialize(self,configunit)
+      class (type_external_surface_flux),intent(inout),target :: self
+      integer,                  intent(in)           :: configunit
+
+      character(len=attribute_length) :: standard_name
+      real(rk)                        :: value
+
+      call self%register_state_dependency(self%id_target,'target','UNITS m-3','target variable')
+      call self%register_dependency(self%id_flux,'flux','UNITS m-2 s-1','surface flux')
+   end subroutine external_surface_flux_initialize
+
+   subroutine external_surface_flux_do_surface(self,_ARGUMENTS_DO_SURFACE_)
+      class (type_external_surface_flux), intent(in) :: self
+      _DECLARE_ARGUMENTS_DO_SURFACE_
+
+      real(rk) :: flux
+
+      _HORIZONTAL_LOOP_BEGIN_
+         _GET_HORIZONTAL_(self%id_flux,flux)
+         _SET_SURFACE_EXCHANGE_(self%id_target,flux)
+      _HORIZONTAL_LOOP_END_
+   end subroutine external_surface_flux_do_surface
 
 end module fabm_builtin_models
