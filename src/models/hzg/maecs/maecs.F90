@@ -739,8 +739,8 @@ end if
 !!------- Register environmental dependencies  ------- 
 call self%register_dependency(self%id_temp,standard_variables%temperature)
 call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
-call self%register_global_dependency(self%id_doy,standard_variables%number_of_days_since_start_of_the_year)
-call self%register_horizontal_dependency(self%id_zmax,standard_variables%bottom_depth)
+call self%register_dependency(self%id_doy,standard_variables%number_of_days_since_start_of_the_year)
+call self%register_dependency(self%id_zmax,standard_variables%bottom_depth)
 if (DiagOn) then
     call self%register_dependency(self%id_GPPR_dep,'GPPR')
     call self%register_dependency(self%id_GPPR_vertint,vertical_integral(self%id_GPPR_dep))
