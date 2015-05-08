@@ -9,6 +9,8 @@ module fabm_hzg_maecs
 use fabm_types
 use maecs_types
 
+#define _DEBUG_ 0
+
 !implicit none
 
 private
@@ -824,7 +826,10 @@ end subroutine initialize
    
    ! Enter spatial loops (if any)
    _LOOP_BEGIN_
-  
+
+#if _DEBUG_
+ write(*,'(A)') 'begin light_ext'
+#endif
    ! Retrieve current (local) state variable values.  
    _GET_(self%id_phyC,p) ! phytoplankton
    _GET_(self%id_detC,d) ! detritus
@@ -878,6 +883,9 @@ end subroutine initialize
    ! Attenuation as a result of background turbidity and self-shading of phytoplankton.
    _SET_EXTINCTION_(kw + self%a_spm*(p+d+z))
 
+#if _DEBUG_
+write(*,'(A)') 'end light_ext'
+#endif
    ! Leave spatial loops (if any)
    _LOOP_END_
 

@@ -78,10 +78,16 @@ real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto,faeces, min_
 logical  :: IsCritical = .false. ! phyC and phyN below reasonable range ?
 #define _KAI_ 0
 #define _MARKUS_ 1
+#define _DEBUG_ 0
 ! #define UNIT / 86400
 #define UNIT *1.1574074074E-5_rk
 
  _LOOP_BEGIN_
+
+#if _DEBUG_
+write(*,'(A)') 'begin DO'
+#endif
+
 ! First retrieve current (local) state  variable values
 !#S_GET
 !---------- GET for each state variable ----------
@@ -663,7 +669,11 @@ if (self%DebugDiagOn) then
 !#E_DIA
 end if
 !write (*,'(A,3(F11.5))') 'RN,depo,denit=',env%RNit,deporate,denitrate
-                  
+
+#if _DEBUG_
+write(*,'(A)') 'end DO'
+#endif
+
   _LOOP_END_
 
 end subroutine maecs_do
@@ -700,7 +710,11 @@ REALTYPE, parameter :: secs_pr_day = 86400.d0
 !BOC
 
 _FABM_LOOP_BEGIN_
-   
+
+#if _DEBUG_
+write(*,'(A)') 'begin vert_move'
+#endif
+
    ! Retrieve phtoplankton state
    
    !Retrieve the 'phyQstat' directly as a diagnostic variable: does not work yet.
@@ -776,7 +790,11 @@ _FABM_LOOP_BEGIN_
       _SET_VERTICAL_MOVEMENT_(self%id_chl, vs_phy)
       _SET_VERTICAL_MOVEMENT_(self%id_Rub, vs_phy)
    end if
-  
+
+#if _DEBUG_
+write(*,'(A)') 'end vert_move'
+#endif
+
 _FABM_LOOP_END_
   
 end subroutine maecs_get_vertical_movement
@@ -793,6 +811,11 @@ subroutine maecs_do_surface(self,_ARGUMENTS_DO_SURFACE_)
 #define _REPLNAN_(X) nan_num(X)
 
    _HORIZONTAL_LOOP_BEGIN_
+
+#if _DEBUG_
+write(*,'(A)') 'begin surface_DO'
+#endif
+
       _GET_HORIZONTAL_(self%id_totN_vertint,tot_vi_N)
       _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totN_vertint_diag,_REPLNAN_(tot_vi_N))
       _GET_HORIZONTAL_(self%id_totC_vertint,tot_vi_C)
@@ -835,6 +858,10 @@ subroutine maecs_do_surface(self,_ARGUMENTS_DO_SURFACE_)
         _SET_SURFACE_EXCHANGE_(self%id_oxy, O2flux )
         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_O2flux_diag, _REPLNAN_(O2flux)) ! converts mmol/m2.s to mmol/m2.d
       endif
+
+#if _DEBUG_
+write(*,'(A)') 'end surface_DO'
+#endif
 
    _HORIZONTAL_LOOP_END_
 
