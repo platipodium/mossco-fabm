@@ -159,7 +159,7 @@ else
   if(phy%chl .gt. self%maxVal .or. phy%Rub .gt. self%maxVal) IsCritical=.true.
 endif
 
-if(IsCritical) then
+if(IsCritical .and. .not. self%ChemostatOn) then
   rhsv%nutN=0.0d0
   rhsv%nutP=0.0d0
   rhsv%nutS=0.0d0
@@ -241,7 +241,7 @@ if (self%GrazingOn) then
 
 else
   graz_rate   = 0.0_rk
-  if (self%ChemostatOn .and. .not. IsCritical) graz_rate = 0.3*phy%C
+  if (self%ChemostatOn .and. .not. IsCritical) graz_rate = 0.2*phy%C
   zoo_mort    = 0.0_rk
   lossZ       = type_maecs_om(0.0_rk, 0.0_rk, 0.0_rk, 0.0_rk)
   floppZ      = type_maecs_om(0.0_rk, 0.0_rk, 0.0_rk, 0.0_rk)
@@ -324,7 +324,7 @@ rhsv%phyN =  uptake%N             * phy%C &
 !>      + A = rhsv\%phyC * phyRub/phyC
 !>      + B = dfracR_dt is calculated in maecs_primprod::photosynthesis()
 
-if (abs(phy%C) .gt. 1d-4) then
+!if (abs(phy%C) .gt. 1d-4) then
  if (self%PhotoacclimOn ) then ! check for too small biomasses %chl
 
 ! PHYTOPLANKTON CHLa
@@ -353,16 +353,14 @@ end if
 !write (*,'(A,4(F10.3))') 'rhs chl=', phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC,dRchl_phyC_dt * phy%reg%C*1E1,phy%relQ%N**self%sigma,phy%theta
 
 !_____________________________________________ _________________________________
- end if 
+ end if ! PhotoacclimOn
 
  if (self%RubiscoOn) then 
    decay = self%decay_pigm * (exp(phy%frac%Rub)-1.0d0)
    rhsv%Rub  = phy%Rub/phy%reg%C * rhsv%phyC + acclim%dfracR_dt * phy%C - decay*phy%Rub
  end if 
-else
-  rhsv%Rub  = 0.0d0
-  rhsv%chl  = 0.0d0
-endif
+!else  rhsv%Rub  = 0.0d0  rhsv%chl  = 0.0d0 
+!endif !if (abs(phy%C) .gt. 1d-4)
 
 !________________________________________________________________________________
 !
@@ -515,15 +513,15 @@ if (self%BioOxyOn) then
 
 ! extra-omexdia P -dynamics  
   if (self%PhosphorusOn) then
-! PO4-adsorption ceases when critical capacity is reached
-! [FeS] approximated by ODU
+!   PO4-adsorption ceases when critical capacity is reached
+!   [FeS] approximated by ODU
 !   po4    = nut%P
-   radsP      = self%rPAds * degradT * nut%P * max(env%odu,self%PAdsODU)
-   rhsv%nutP  = rhsv%nutP - radsP
-   rhsv%detP  = rhsv%detP + radsP
+    radsP      = self%rPAds * degradT * nut%P * max(env%odu,self%PAdsODU)
+    rhsv%nutP  = rhsv%nutP - radsP
+    rhsv%detP  = rhsv%detP + radsP
 !   rP     = self%rFast * (1.0_rk - Oxicminlim)
 !   Pprod  = rP * pdet
-endif
+  endif
 
 ! Oxic mineralisation, denitrification, anoxic mineralisation
 ! then the mineralisation rates
@@ -568,9 +566,9 @@ endif
 !    rhsv%pdet = (radsP - f_T * Pprod) 
 !  dynamics of po4 ~ dissolved phosphate
 !  rhsv%po4 = (f_T * Pprod - radsP) 
-end if
+end if !BioOxyOn
 
-end if
+end if !IsCritical
 
 !#S_ODE
 !---------- ODE for each state variable ----------
