@@ -553,7 +553,7 @@ if (self%BioOxyOn) then
   Anammox    = self%rAnammox * Anoxiclim *Rescale * env%nh3 * no3/(no3+self%ksNO3denit)
 
 ! preference for NH3 in DIN-uptake of autotrophs
-  nh3f        = 1.0d0 - exp(-5*env%nh3/(nut%N+self%small))
+  nh3f        = 1.0d0 - exp(-5*env%nh3/smooth_small(nut%N,self%small))
 !  dynamics of nh3 ~ dissolved ammonium
   rhsv%nh3    = Nprod - Nitri + lossZ%N * zoo%C  & !/ (1.0_rk + self%NH3Ads)
                + (exud%N - nh3f*uptake%N) * phy%C &!env%nh3/(nut%N+self%small) *
