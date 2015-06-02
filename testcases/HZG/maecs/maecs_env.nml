@@ -1,10 +1,12 @@
 !-------------------------------------------------------------------------------
 ! MAECS environment parameters
 !-------------------------------------------------------------------------------
+! a_fz     [float, unit= m]
+!            parameter that controls the turbidity gradient across depth
+! a_minfr  [float, unit= -]
+!            min.fraction of the background attenuation coefficient that applies
 ! a_water  [float, unit = 1/m]
 !            background attenuation coefficient
-! a_minfr  [float, unit = -]
-!            heuristic depth-dep attenuation
 ! a_spm    [float, unit = m**3/m.mmolC]
 !            attenuation coefficient of SPM
 ! a_chl    [float, unit = m**3/m.mgChl]
@@ -28,8 +30,9 @@
 !-------------------------------------------------------------------------------
 
 &maecs_env
-   a_water = 1.000,
-   a_minfr = 0.01 
+   a_fz = 7.55
+   a_minfr = 0.2,
+   a_water = 1.0,
    a_spm = 0.0045,
    a_chl = 0.002,
    frac_PAR = 1.0,

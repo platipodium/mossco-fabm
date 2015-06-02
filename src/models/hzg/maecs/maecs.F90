@@ -137,7 +137,8 @@ contains
 !> \describepar{mort\_zoo     , \mathrm{mort_zoo}     , quadratic mortality, 0.025 m**3/mmolN.d}
 !> \describepar{fT\_exp\_mort  , \mathrm{fT_exp_mort}  , exponent temperature dep. mortality (1: standard), 1.0 m**3/mmolN.d}
 !> \describepar{a\_water      , \mathrm{a_water}      , background attenuation coefficient, 0.003 1/m}
-!> \describepar{a\_minfr      , \mathrm{a_minfr}      , heuristic depth-dep attenuation, 0.01 -}
+!> \describepar{a\_fz         , \mathrm{a_fz}         , parameter that controls the turbidity gradient across depth, 7.55 m}
+!> \describepar{a\_minfr      , \mathrm{a_minfr}      , min.fraction of the background attenuation coefficient that applies, 0.2 -}
 !> \describepar{a\_spm        , \mathrm{a_spm}        , attenuation coefficient of SPM, 0.002 m**3/m.mmolC}
 !> \describepar{a\_chl        , \mathrm{a_chl}        , attenuation coefficient due to Chl absorption, 0.002 m**3/m.mgChl}
 !> \describepar{frac\_PAR     , \mathrm{frac_PAR}     , photosynthetically active fraction of light, 1.0 }
@@ -245,8 +246,9 @@ real(rk)  :: basal_resp_zoo ! basal respiration
 real(rk)  :: mort_zoo     ! quadratic mortality
 real(rk)  :: fT_exp_mort  ! exponent temperature dep. mortality (1: standard)
 !!------- Parameters from nml-list maecs_env ------- 
+real(rk)  :: a_fz         ! parameter controlling depth dependent turbidity
+real(rk)  :: a_minfr      ! min.fraction of the background attenuation coefficient that applies
 real(rk)  :: a_water      ! background attenuation coefficient
-real(rk)  :: a_minfr      ! heuristic depth-dep attenuation
 real(rk)  :: a_spm        ! attenuation coefficient of SPM
 real(rk)  :: a_chl        ! attenuation coefficient due to Chl absorption
 real(rk)  :: frac_PAR     ! photosynthetically active fraction of light
@@ -310,7 +312,7 @@ namelist /maecs_graz/ &
   mort_zoo, fT_exp_mort
 
 namelist /maecs_env/ &
-  a_water, a_minfr, a_spm, a_chl, frac_PAR, small, maxVal, dil, ex_airsea, O2_sat, &
+  a_fz,a_water, a_minfr, a_spm, a_chl, frac_PAR, small, maxVal, dil, ex_airsea, O2_sat, &
   N_depo, P_depo
 
 namelist /maecs_omex/ &
@@ -389,6 +391,7 @@ yield_zoo    = 0.4_rk             !
 basal_resp_zoo = 0.025_rk           ! per d
 mort_zoo     = 0.025_rk           ! m**3/mmolN.d
 fT_exp_mort  = 1.0_rk             ! m**3/mmolN.d
+a_fz         = 7.5_rk             !
 a_water      = 0.003_rk           ! 1/m
 a_minfr      = 0.01_rk            ! -
 a_spm        = 0.002_rk           ! m**3/m.mmolC
@@ -539,6 +542,7 @@ if (GrazingOn) then
 end if
 
 !!------- model parameters from nml-list maecs_env ------- 
+call self%get_parameter(self%a_fz         ,'a_fz',          default=a_fz)
 call self%get_parameter(self%a_water      ,'a_water',       default=a_water)
 call self%get_parameter(self%a_minfr      ,'a_minfr',       default=a_minfr)
 call self%get_parameter(self%a_spm        ,'a_spm',         default=a_spm)
@@ -839,10 +843,6 @@ end subroutine initialize
     z=0.0_rk 
    end if
    
-   !fz parameters
-   fz1=0.5_rk 
-   fz2=11.0_rk 
-   
    !default: fz=ft=1
    fz=1.0_rk 
    ft=1.0_rk 
@@ -856,7 +856,7 @@ end subroutine initialize
    else if (self%kwFzmaxMeth .eq. 2) then
     _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
     !f(z)=sigmoidal function of depth with an upper plateau (100%) at 0-10 m and a lower (10%) for 30+
-    fz=self%a_minfr+(1-self%a_minfr)*(1-1/(1+exp(-zmax*fz1+fz2)))
+    fz=self%a_minfr+(1.0-self%a_minfr)*(1.0-1.0/(1+exp(-zmax*0.5_rk+self%a_fz)))
    else if (self%kwFzmaxMeth .eq. 3) then
     
     _GET_GLOBAL_ (self%id_doy,doy) !day of year
@@ -871,7 +871,7 @@ end subroutine initialize
     !write (*,'(A, F7.6)') 'ft term: ',0.05*(A*sin(2.0*doy*Pi/365.0 +2.0*L*Pi/365.0)+B)
     
     !f(z)=sigmoidal function of depth with an upper plateau (100%) at 0-10 m and a lower (10%) for 30+
-    fz=self%a_minfr+(1.0-self%a_minfr)*(1.0-1.0/(1.0+exp(-zmax*0.5+10)))
+    fz=self%a_minfr+(1.0-self%a_minfr)*(1.0-1.0/(1.0+exp(-zmax*0.5_rk+self%a_fz)))
     
     !write (*,'(A, F7.6)') 'fz term: ',(1.0-self%a_minfr)*(1.0-1.0/(1.0+exp(-zmax*0.5+10))) 
      
