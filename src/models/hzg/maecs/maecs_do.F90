@@ -834,8 +834,6 @@ write(*,'(A)') 'begin surface_DO'
       if (self%PhosphorusOn) then
          _GET_HORIZONTAL_(self%id_totP_vertint,tot_vi_P)
          _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totP_vertint_diag,_REPLNAN_(tot_vi_P))
-! --- atmospheric deposition of PO4
-         _SET_SURFACE_EXCHANGE_(self%id_nutP, self%P_depo UNIT)
       end if
       if (self%SiliconOn) then
          _GET_HORIZONTAL_(self%id_totS_vertint,tot_vi_S)
@@ -845,6 +843,10 @@ write(*,'(A)') 'begin surface_DO'
 
 ! --- wet and dry deposition of NO3 
       _SET_SURFACE_EXCHANGE_(self%id_nutN, self%N_depo UNIT)
+! --- atmospheric deposition of PO4
+      if (self%PhosphorusOn) then
+         _SET_SURFACE_EXCHANGE_(self%id_nutP, self%P_depo UNIT)
+      end if
 
 ! --- oxygen flux between sea water and air -----
       if (self%BioOxyOn) then
