@@ -628,10 +628,14 @@ endif
 !define _REPLNAN_(X) X !changes back to original code
 #define _REPLNAN_(X) nan_num(X)
 
-if (self%DebugDiagOn) then
-!#S_DIA
+if (self%DiagOn) then
   _SET_DIAGNOSTIC_(self%id_GPPR, _REPLNAN_(phy%gpp*phy%C))   !average gross primary production
   _SET_DIAGNOSTIC_(self%id_Denitr, _REPLNAN_(0.8*Denitrific)) !average denitrification rate
+  _SET_DIAGNOSTIC_(self%id_dPAR, _REPLNAN_(env%par))         !average Photosynthetically Active Radiation
+end if
+
+if (self%DebugDiagOn) then
+!#S_DIA
   _SET_DIAGNOSTIC_(self%id_chl2C, _REPLNAN_(phy%theta*phy%rel_chloropl/12)) !average chlorophyll:carbon ratio 
   _SET_DIAGNOSTIC_(self%id_Theta, _REPLNAN_(phy%theta))      !average Theta
   _SET_DIAGNOSTIC_(self%id_fracR, _REPLNAN_(phy%frac%Rub))   !average Rubisco fract
@@ -655,7 +659,6 @@ if (self%DebugDiagOn) then
   _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%dRchl_dtheta*acclim%dtheta_dt)) !average Auxiliary diagnostic
   _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(acclim%fac1))     !average dtheta
   _SET_DIAGNOSTIC_(self%id_fac5, _REPLNAN_(acclim%fac2))     !average dtheta
-  _SET_DIAGNOSTIC_(self%id_dPAR, _REPLNAN_(env%par))         !average Photosynthetically Active Radiation
   _SET_DIAGNOSTIC_(self%id_phyUR, _REPLNAN_(uptake%C))       !average Phytoplankton C Uptake Rate
   _SET_DIAGNOSTIC_(self%id_phyELR, _REPLNAN_(-exud%C))       !average Phytoplankton Exudation Loss Rate
   _SET_DIAGNOSTIC_(self%id_phyALR, _REPLNAN_(-aggreg_rate))  !average Phytoplankton Aggregation Loss Rate
@@ -814,19 +817,20 @@ subroutine maecs_do_surface(self,_ARGUMENTS_DO_SURFACE_)
 write(*,'(A)') 'begin surface_DO'
 #endif
 
+      if (self%DiagOn) then
+        _GET_HORIZONTAL_(self%id_GPPR_vertint,tot_vi_GPPR)
+        _SET_HORIZONTAL_DIAGNOSTIC_(self%id_GPPR_vertint_diag,_REPLNAN_(tot_vi_GPPR))
+        if (self%BioOxyOn) then
+          _GET_HORIZONTAL_(self%id_Denitr_vertint,tot_vi_Denitr)
+          _SET_HORIZONTAL_DIAGNOSTIC_(self%id_Denitr_vertint_diag, _REPLNAN_(tot_vi_Denitr))
+        end if
+      end if
+      
+      if (self%DebugDiagOn) then 
       _GET_HORIZONTAL_(self%id_totN_vertint,tot_vi_N)
       _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totN_vertint_diag,_REPLNAN_(tot_vi_N))
       _GET_HORIZONTAL_(self%id_totC_vertint,tot_vi_C)
       _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totC_vertint_diag,_REPLNAN_(tot_vi_C))
-      if (self%DiagOn) then
-        _GET_HORIZONTAL_(self%id_GPPR_vertint,tot_vi_GPPR)
-        _SET_HORIZONTAL_DIAGNOSTIC_(self%id_GPPR_vertint_diag,_REPLNAN_(tot_vi_GPPR))
-      end if
-      if (self%BioOxyOn) then
-        _GET_HORIZONTAL_(self%id_Denitr_vertint,tot_vi_Denitr)
-        _SET_HORIZONTAL_DIAGNOSTIC_(self%id_Denitr_vertint_diag, _REPLNAN_(tot_vi_Denitr))
-      end if
-     
       if (self%PhosphorusOn) then
          _GET_HORIZONTAL_(self%id_totP_vertint,tot_vi_P)
          _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totP_vertint_diag,_REPLNAN_(tot_vi_P))
@@ -836,6 +840,7 @@ write(*,'(A)') 'begin surface_DO'
       if (self%SiliconOn) then
          _GET_HORIZONTAL_(self%id_totS_vertint,tot_vi_S)
          _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totS_vertint_diag,_REPLNAN_(tot_vi_S))
+      end if
       end if
 
 ! --- wet and dry deposition of NO3 
@@ -854,7 +859,9 @@ write(*,'(A)') 'begin surface_DO'
 
         O2flux  = self%ex_airsea * (O2airbl - oxy)!
         _SET_SURFACE_EXCHANGE_(self%id_oxy, O2flux )
-        _SET_HORIZONTAL_DIAGNOSTIC_(self%id_O2flux_diag, _REPLNAN_(O2flux)) ! converts mmol/m2.s to mmol/m2.d
+        if (self%DiagOn) then
+          _SET_HORIZONTAL_DIAGNOSTIC_(self%id_O2flux_diag, _REPLNAN_(O2flux)) ! converts mmol/m2.s to mmol/m2.d
+        end if
       endif
 
 #if _DEBUG_

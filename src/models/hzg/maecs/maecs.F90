@@ -666,10 +666,6 @@ end if
 
 !!------- Register diagnostic variables  ------- 
 if (self%DebugDiagOn) then
-call self%register_diagnostic_variable(self%id_GPPR,    'GPPR','mmolC/m**3/d', 'gross primary production GPPR', &
-  output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_Denitr,  'Denitr','mmol-N/m**3/d', 'denitrification rate Denitr', &
-  output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_chl2C,   'chl2C','gCHL/m**3', 'chlorophyll:carbon ratio  chl2C', &
   output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_Theta,   'Theta','-', 'Theta Theta', &
@@ -716,8 +712,6 @@ call self%register_diagnostic_variable(self%id_fac4,    'fac4','-', 'dtheta fac4
   output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_fac5,    'fac5','-', 'dtheta fac5', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_dPAR,    'dPAR','W/m**2', 'Photosynthetically Active Radiation dPAR', &
-  output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_phyUR,   'phyUR','1/d', 'Phytoplankton C Uptake Rate phyUR', &
   output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_phyELR,  'phyELR','1/d', 'Phytoplankton Exudation Loss Rate phyELR', &
@@ -742,6 +736,12 @@ call self%register_dependency(self%id_par,standard_variables%downwelling_photosy
 call self%register_dependency(self%id_doy,standard_variables%number_of_days_since_start_of_the_year)
 call self%register_dependency(self%id_zmax,standard_variables%bottom_depth)
 if (DiagOn) then
+    call self%register_diagnostic_variable(self%id_GPPR,    'GPPR','mmolC/m**3/d', 'gross primary production GPPR', &
+      output=output_time_step_averaged)
+    call self%register_diagnostic_variable(self%id_Denitr,  'Denitr','mmol-N/m**3/d', 'denitrification rate Denitr', &
+      output=output_time_step_averaged)
+    call self%register_diagnostic_variable(self%id_dPAR,    'dPAR','W/m**2', 'Photosynthetically Active Radiation dPAR', &
+      output=output_time_step_averaged)
     call self%register_dependency(self%id_GPPR_dep,'GPPR')
     call self%register_dependency(self%id_GPPR_vertint,vertical_integral(self%id_GPPR_dep))
     call self%register_horizontal_diagnostic_variable(self%id_GPPR_vertint_diag,'GPPR_vertint','mmol-C/m**2/d','vertical_integral_gross_primary_production', output=output_time_step_averaged)
