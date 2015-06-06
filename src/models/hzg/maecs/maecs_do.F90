@@ -762,7 +762,9 @@ write(*,'(A)') 'begin vert_move'
 
    !SINKING AS A FUNCTION OF INTERNAL STATES
    vs_phy = -self%vS_phy * exp( -self%sink_phys * phyQstat)
-  _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(-vs_phy)) !average Relative Sinking Velocity
+   if (self%DebugDiagOn) then 
+      _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(-vs_phy)) !average Relative Sinking Velocity
+   end if
 
    !CONSTANT SINKING
    !vs_phy = self%vS_phy
