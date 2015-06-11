@@ -189,6 +189,7 @@ sigmv(1:num_nut)  = 0.0d0
 !>   + sens\%upt\_pot\%C  : light harvesting (light limited growth)
 !> - darkf= 1-exp(-grossC/self\%res0)
 Pmaxc     = (fac_colim-0*eps) * sens%P_max_T
+
 grossC    = phy%frac%Rub * Pmaxc * sens%upt_pot%C  ! primary production
 
 !resC      = 0.5d0/(1.0d0 + exp( 3.1415d0)) *self%V_NC_max* sens%f_T * self%zeta_CN 

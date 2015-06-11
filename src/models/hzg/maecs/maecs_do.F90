@@ -134,6 +134,8 @@ end if
 !S_GED
   _GET_(self%id_temp, env%temp)  ! water temperature
   _GET_(self%id_par, env%par)  ! light photosynthetically active radiation
+  _GET_(self%id_CO2, env%CO2)  ! salinity-> [CO2]
+
 !E_GED  ! list outcommented due to different usage of zmax and doy (see light extinction)
 
 ! write (*,'(A,2(F10.3))') 'par/T:',env%par,env%temp
@@ -819,7 +821,7 @@ subroutine maecs_do_surface(self,_ARGUMENTS_DO_SURFACE_)
 write(*,'(A)') 'begin surface_DO'
 #endif
 
-      if (self%DiagOn) then
+      if (self%DiagOn .and. .true.) then
         _GET_HORIZONTAL_(self%id_GPPR_vertint,tot_vi_GPPR)
         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_GPPR_vertint_diag,_REPLNAN_(tot_vi_GPPR))
         if (self%BioOxyOn) then
