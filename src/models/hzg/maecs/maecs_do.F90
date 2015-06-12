@@ -134,7 +134,11 @@ end if
 !S_GED
   _GET_(self%id_temp, env%temp)  ! water temperature
   _GET_(self%id_par, env%par)  ! light photosynthetically active radiation
-  _GET_(self%id_CO2, env%CO2)  ! salinity-> [CO2]
+  if (_AVAILABLE_(self%id_CO2)) then
+    _GET_(self%id_CO2, env%CO2)  ! CO2
+  else
+    env%CO2 = 10000.0_rk ! for default rel_co2=1.0, this results in almost CO2-independent dynamics
+  end if
 
 !E_GED  ! list outcommented due to different usage of zmax and doy (see light extinction)
 
