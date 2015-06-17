@@ -281,8 +281,13 @@ logical   :: PhosphorusOn ! resolve Phosphorus cycle
 logical   :: SiliconOn    ! resolve Silicon cycle
 logical   :: GrazingOn    ! use Zooplankton grazing
 logical   :: BioOxyOn     ! use oxygen&ODU from OMEXDIA
-logical   :: DiagOn       ! output of major analysis diagnostics
-logical   :: DebugDiagOn  ! output of all diagnostics
+logical   :: DebugDiagOn  ! output of volatile diagnostics for debugging
+logical   :: Budget0DDiagOn ! output of elemental budgets (totX)
+logical   :: Budget2DDiagOn ! output of vertical budget integrals (totX_vertint/diag)
+logical   :: BGC0DDiagOn  ! output of local rates (GPP, Denit,...) and states (NO3)
+logical   :: BGC2DDiagOn  ! output of BGC fluxes (O,C,N)
+logical   :: PhysiolDiagOn ! output of ecophysiological/allocation/acclimation variables
+logical   :: RateDiagOn   ! output of phytoplankton growth and loss rate contributions
 logical   :: ChemostatOn  ! use Chemostat mode 
 logical   :: NResOn       ! use long-term N-reservoir
 integer   :: kwFzmaxMeth  ! background extinction method
@@ -291,7 +296,8 @@ logical   :: plankton_no_river_dilution ! use riverine det import
 
 namelist /maecs_switch/ &
   RubiscoOn, PhotoacclimOn, PhosphorusOn, SiliconOn, GrazingOn, BioOxyOn, &
-  DiagOn, DebugDiagOn, ChemostatOn, NResOn, kwFzmaxMeth, detritus_no_river_dilution, &
+  DebugDiagOn, Budget0DDiagOn, Budget2DDiagOn, BGC0DDiagOn, BGC2DDiagOn, &
+  PhysiolDiagOn, RateDiagOn, ChemostatOn, NResOn, kwFzmaxMeth, detritus_no_river_dilution, &
   plankton_no_river_dilution
 
 namelist /maecs_init/ &
@@ -446,8 +452,13 @@ call self%get_parameter(self%PhosphorusOn,  'PhosphorusOn',  default=PhosphorusO
 call self%get_parameter(self%SiliconOn,     'SiliconOn',     default=SiliconOn)
 call self%get_parameter(self%GrazingOn,     'GrazingOn',     default=GrazingOn)
 call self%get_parameter(self%BioOxyOn,      'BioOxyOn',      default=BioOxyOn)
-call self%get_parameter(self%DiagOn,        'DiagOn',        default=DiagOn)
 call self%get_parameter(self%DebugDiagOn,   'DebugDiagOn',   default=DebugDiagOn)
+call self%get_parameter(self%Budget0DDiagOn,  'Budget0DDiagOn',  default=Budget0DDiagOn)
+call self%get_parameter(self%Budget2DDiagOn,  'Budget2DDiagOn',  default=Budget2DDiagOn)
+call self%get_parameter(self%BGC0DDiagOn,   'BGC0DDiagOn',   default=BGC0DDiagOn)
+call self%get_parameter(self%BGC2DDiagOn,   'BGC2DDiagOn',   default=BGC2DDiagOn)
+call self%get_parameter(self%PhysiolDiagOn,  'PhysiolDiagOn',  default=PhysiolDiagOn)
+call self%get_parameter(self%RateDiagOn,    'RateDiagOn',    default=RateDiagOn)
 call self%get_parameter(self%ChemostatOn,   'ChemostatOn',   default=ChemostatOn)
 call self%get_parameter(self%NResOn,        'NResOn',        default=NResOn)
 call self%get_parameter(self%kwFzmaxMeth,   'kwFzmaxMeth',   default=kwFzmaxMeth)
@@ -509,33 +520,33 @@ call self%get_parameter(self%PON_denit    ,'PON_denit',     default=PON_denit)
 call self%get_parameter(self%Q10          ,'Q10',           default=Q10)
 call self%get_parameter(self%T_ref        ,'T_ref',         default=T_ref)
 call self%get_parameter(self%NutOrder     ,'NutOrder',      default=NutOrder)
-if (PhotoacclimOn) then
+if (self%PhotoacclimOn) then
     call self%get_parameter(self%adap_rub     ,'adap_rub',      default=adap_rub)
     call self%get_parameter(self%adap_theta   ,'adap_theta',    default=adap_theta)
     call self%get_parameter(self%decay_pigm   ,'decay_pigm',    default=decay_pigm)
 end if
-if (PhosphorusOn) then
+if (self%PhosphorusOn) then
     call self%get_parameter(self%QP_phy_0     ,'QP_phy_0',      default=QP_phy_0)
     call self%get_parameter(self%QP_phy_max   ,'QP_phy_max',    default=QP_phy_max)
     call self%get_parameter(self%V_PC_max     ,'V_PC_max',      default=V_PC_max)
     call self%get_parameter(self%AffP         ,'AffP',          default=AffP)
 end if
-if (SiliconOn) then
+if (self%SiliconOn) then
     call self%get_parameter(self%QSi_phy_0    ,'QSi_phy_0',     default=QSi_phy_0)
     call self%get_parameter(self%QSi_phy_max  ,'QSi_phy_max',   default=QSi_phy_max)
     call self%get_parameter(self%V_SiC_max    ,'V_SiC_max',     default=V_SiC_max)
     call self%get_parameter(self%AffSi        ,'AffSi',         default=AffSi)
 end if
-if (BioOxyOn) then
+if (self%BioOxyOn) then
     call self%get_parameter(self%mort_ODU     ,'mort_ODU',      default=mort_ODU)
 end if
 
 !!------- model parameters from nml-list maecs_graz ------- 
 call self%get_parameter(self%const_NC_zoo ,'const_NC_zoo',  default=const_NC_zoo)
-if (PhosphorusOn) then
+if (self%PhosphorusOn) then
     call self%get_parameter(self%const_PC_zoo ,'const_PC_zoo',  default=const_PC_zoo)
 end if
-if (GrazingOn) then
+if (self%GrazingOn) then
     call self%get_parameter(self%g_max        ,'g_max',         default=g_max)
     call self%get_parameter(self%k_grazC      ,'k_grazC',       default=k_grazC)
     call self%get_parameter(self%yield_zoo    ,'yield_zoo',     default=yield_zoo)
@@ -557,13 +568,13 @@ call self%get_parameter(self%maxVal       ,'maxVal',        default=maxVal)
 call self%get_parameter(self%dil          ,'dil',           default=dil)
 call self%get_parameter(self%N_depo       ,'N_depo',        default=N_depo)
 call self%get_parameter(self%P_depo       ,'P_depo',        default=P_depo)
-if (BioOxyOn) then
+if (self%BioOxyOn) then
     call self%get_parameter(self%ex_airsea    ,'ex_airsea',     default=ex_airsea)
     call self%get_parameter(self%O2_sat       ,'O2_sat',        default=O2_sat)
 end if
 
 !!------- model parameters from nml-list maecs_omex ------- 
-if (BioOxyOn) then
+if (self%BioOxyOn) then
     call self%get_parameter(self%rPAds        ,'rPAds',         default=rPAds)
     call self%get_parameter(self%PAdsODU      ,'PAdsODU',       default=PAdsODU)
     call self%get_parameter(self%rnit         ,'rnit',          default=rnit)
@@ -673,104 +684,114 @@ if (self%NResOn) then
 end if
 
 !!------- Register diagnostic variables  ------- 
+
 if (self%DebugDiagOn) then
-call self%register_diagnostic_variable(self%id_chl2C,   'chl2C','gCHL/m**3', 'chlorophyll:carbon ratio  chl2C', &
+call self%register_diagnostic_variable(self%id_tmp,     'tmp','-', 'Temporary_diagnostic_ tmp', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_Theta,   'Theta','-', 'Theta Theta', &
+call self%register_diagnostic_variable(self%id_fac1,    'fac1','-', 'Auxiliary_diagnostic_ fac1', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_fracR,   'fracR','-', 'Rubisco fract fracR', &
+call self%register_diagnostic_variable(self%id_fac2,    'fac2','-', 'Auxiliary_diagnostic_ fac2', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_fracT,   'fracT','-', 'LHC fract fracT', &
+call self%register_diagnostic_variable(self%id_fac3,    'fac3','-', 'Auxiliary_diagnostic_ fac3', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_fracNU,  'fracNU','-', 'Nut fracNU', &
+call self%register_diagnostic_variable(self%id_fac4,    'fac4','-', 'dtheta_dt_due_to_flex_theta_ fac4', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_QN,      'QN','-', 'N:C ratio QN', &
+call self%register_diagnostic_variable(self%id_fac5,    'fac5','-', 'dtheta_dt_due_to_grad_theta_ fac5', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_QP,      'QP','-', 'P:C ratio QP', &
+end if
+
+if (self%BGC0DDiagOn) then
+call self%register_diagnostic_variable(self%id_GPPR,    'GPPR','mmolC/m**3/d', 'gross_primary_production_ GPPR', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_QSi,     'QSi','-', 'Si:C ratio QSi', &
+call self%register_diagnostic_variable(self%id_Denitr,  'Denitr','mmol-N/m**3/d', 'denitrification_rate_ Denitr', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_aVN,     'aVN','-', 'N-uptake activity aVN', &
+call self%register_diagnostic_variable(self%id_dPAR,    'dPAR','W/m**2', 'Photosynthetically_Active_Radiation_ dPAR', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_aVP,     'aVP','-', 'P-uptake activity aVP', &
+call self%register_diagnostic_variable(self%id_DNP,     'DNP','-', 'DIN:DIP_ratio_ DNP', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_aVSi,    'aVSi','-', 'Si-uptake activity aVSi', &
+call self%register_diagnostic_variable(self%id_QNP,     'QNP','-', 'N:P_ratio_ QNP', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_faN,     'faN','-', 'N-uptake affinity allocation faN', &
+call self%register_diagnostic_variable(self%id_qualPOM, 'qualPOM','-', 'Quality_of_POM_ qualPOM', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_faP,     'faP','-', 'P-uptake affinity allocation faP', &
+call self%register_diagnostic_variable(self%id_qualDOM, 'qualDOM','-', 'Quality_of_DOM_ qualDOM', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_faSi,    'faSi','-', 'Si-uptake affinity allocation faSi', &
+call self%register_diagnostic_variable(self%id_no3,     'no3','mmol-N/m**3', 'Nitrate_ no3', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_rQN,     'rQN','-', 'Relative N-Quota rQN', &
+end if
+
+if (self%PhysiolDiagOn) then
+call self%register_diagnostic_variable(self%id_chl2C,   'chl2C','gCHL/m**3', 'chlorophyll:carbon_ratio_=_chl-a/chloroplast-C_*_chloroplast-C/phy-molC_*_1molC/12gC_ chl2C', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_rQP,     'rQP','-', 'Relative P-Quota rQP', &
+call self%register_diagnostic_variable(self%id_Theta,   'Theta','-', 'Theta_ Theta', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_rQSi,    'rQSi','-', 'Relative Si-Quota rQSi', &
+call self%register_diagnostic_variable(self%id_fracR,   'fracR','-', 'Rubisco_fract._allocation_ fracR', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_tmp,     'tmp','-', 'Temporary diagnostic tmp', &
+call self%register_diagnostic_variable(self%id_fracT,   'fracT','-', 'LHC_fract._allocation_ fracT', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_fac1,    'fac1','-', 'Auxiliary diagnostic  fac1', &
+call self%register_diagnostic_variable(self%id_fracNU,  'fracNU','-', 'Nut._Uptake_fract._allocation_ fracNU', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_fac2,    'fac2','-', 'Auxiliary diagnostic fac2', &
+call self%register_diagnostic_variable(self%id_QN,      'QN','-', 'N:C_ratio_ QN', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_fac3,    'fac3','-', 'Auxiliary diagnostic fac3', &
+call self%register_diagnostic_variable(self%id_QP,      'QP','-', 'P:C_ratio_ QP', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_fac4,    'fac4','-', 'dtheta fac4', &
+call self%register_diagnostic_variable(self%id_QSi,     'QSi','-', 'Si:C_ratio_ QSi', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_fac5,    'fac5','-', 'dtheta fac5', &
+call self%register_diagnostic_variable(self%id_aVN,     'aVN','-', 'N-uptake_activity_ aVN', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_phyUR,   'phyUR','1/d', 'Phytoplankton C Uptake Rate phyUR', &
+call self%register_diagnostic_variable(self%id_aVP,     'aVP','-', 'P-uptake_activity_ aVP', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_phyELR,  'phyELR','1/d', 'Phytoplankton Exudation Loss Rate phyELR', &
+call self%register_diagnostic_variable(self%id_aVSi,    'aVSi','-', 'Si-uptake_activity_ aVSi', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_phyALR,  'phyALR','1/d', 'Phytoplankton Aggregation Loss Rate phyALR', &
+call self%register_diagnostic_variable(self%id_faN,     'faN','-', 'N-uptake_affinity_allocation_ faN', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_phyGLR,  'phyGLR','1/d', 'Phytoplankton Grazing Loss Rate phyGLR', &
+call self%register_diagnostic_variable(self%id_faP,     'faP','-', 'P-uptake_affinity_allocation_ faP', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_vsinkr,  'vsinkr','-', 'Relative Sinking Velocity vsinkr', &
+call self%register_diagnostic_variable(self%id_faSi,    'faSi','-', 'Si-uptake_affinity_allocation_ faSi', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_qualPOM, 'qualPOM','-', 'Quality of POM  qualPOM', &
+call self%register_diagnostic_variable(self%id_rQN,     'rQN','-', 'Relative_N-Quota_ rQN', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_qualDOM, 'qualDOM','-', 'Quality of DOM  qualDOM', &
+call self%register_diagnostic_variable(self%id_rQP,     'rQP','-', 'Relative_P-Quota_ rQP', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_no3,     'no3','mmol-N/m**3', 'Nitrate no3', &
+call self%register_diagnostic_variable(self%id_rQSi,    'rQSi','-', 'Relative_Si-Quota_ rQSi', &
+  output=output_time_step_averaged)
+end if
+
+if (self%RateDiagOn) then
+call self%register_diagnostic_variable(self%id_phyUR,   'phyUR','1/d', 'Phytoplankton_C_Uptake_Rate_ phyUR', &
+  output=output_time_step_averaged)
+call self%register_diagnostic_variable(self%id_phyELR,  'phyELR','1/d', 'Phytoplankton_Exudation_Loss_Rate_ phyELR', &
+  output=output_time_step_averaged)
+call self%register_diagnostic_variable(self%id_phyALR,  'phyALR','1/d', 'Phytoplankton_Aggregation_Loss_Rate_ phyALR', &
+  output=output_time_step_averaged)
+call self%register_diagnostic_variable(self%id_phyGLR,  'phyGLR','1/d', 'Phytoplankton_Grazing_Loss_Rate_ phyGLR', &
+  output=output_time_step_averaged)
+call self%register_diagnostic_variable(self%id_vsinkr,  'vsinkr','-', 'Relative_Sinking_Rate_ vsinkr', &
   output=output_time_step_averaged)
 end if
 
 !!------- Register environmental dependencies  ------- 
+
+! check dependencies in diag switches
+ if (self%Budget2DDiagOn .and. .not. self%Budget0DDiagOn) call self%fatal_error('maecs_init','Budget2DDiagOn=TRUE requires Budget0DDiagOn=TRUE')
+
+if (self%BGC2DDiagOn .and. .not. self%BGC0DDiagOn) call self%fatal_error('maecs_init','BGC2DDiagOn=TRUE requires BGC0DDiagOn=TRUE')
+
 call self%register_dependency(self%id_temp,standard_variables%temperature)
 call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
 call self%register_global_dependency(self%id_doy,standard_variables%number_of_days_since_start_of_the_year)
 call self%register_horizontal_dependency(self%id_zmax,standard_variables%bottom_depth)
-!if (BioOxyOn) then
-    call self%register_dependency(self%id_CO2,standard_variables%practical_salinity)
-!end if
-if (self%DiagOn) then
-    call self%register_diagnostic_variable(self%id_GPPR,    'GPPR','mmolC/m**3/d', 'gross primary production GPPR', &
-      output=output_time_step_averaged)
-    call self%register_diagnostic_variable(self%id_Denitr,  'Denitr','mmol-N/m**3/d', 'denitrification rate Denitr', &
-      output=output_time_step_averaged)
-    call self%register_diagnostic_variable(self%id_dPAR,    'dPAR','W/m**2', 'Photosynthetically Active Radiation dPAR', &
-      output=output_time_step_averaged)
-    call self%register_dependency(self%id_GPPR_dep,'GPPR')
-! if( .false. ) then
-    call self%register_dependency(self%id_GPPR_vertint,vertical_integral(self%id_GPPR_dep))
-    call self%register_horizontal_diagnostic_variable(self%id_GPPR_vertint_diag,'GPPR_vertint','mmol-C/m**2/d','vertical_integral_gross_primary_production', output=output_time_step_averaged)
-    call self%register_dependency(self%id_Denitr_dep,'Denitr')
-    call self%register_dependency(self%id_Denitr_vertint,vertical_integral(self%id_Denitr_dep))
-    call self%register_horizontal_diagnostic_variable(self%id_Denitr_vertint_diag,'Denitr_vertint','mmol-N/m**2/d','vertical_integral_Denitrification', output=output_time_step_averaged)
-    call self%register_horizontal_diagnostic_variable(self%id_O2flux_diag,'O2flux','mmol-O2/m**2/d','oxygen_flux_between_sea_water_and_air', output=output_time_step_averaged)
-  endif
-!end if
-if (self%DebugDiagOn) then
+
+if (self%Budget0DDiagOn) then
     call self%register_dependency(self%id_totC,standard_variables%total_carbon)
-    call self%register_dependency(self%id_totC_vertint,vertical_integral(self%id_totC))
     call self%register_dependency(self%id_totN,standard_variables%total_nitrogen)
-    call self%register_dependency(self%id_totN_vertint,vertical_integral(self%id_totN))
     call self%register_dependency(self%id_totP,standard_variables%total_phosphorus)
-    call self%register_dependency(self%id_totP_vertint,vertical_integral(self%id_totP))
     call self%register_dependency(self%id_totS,standard_variables%total_silicate)
+end if
+
+if (self%Budget2DDiagOn) then
+    call self%register_dependency(self%id_totC_vertint,vertical_integral(self%id_totC))
+    call self%register_dependency(self%id_totN_vertint,vertical_integral(self%id_totN))
+    call self%register_dependency(self%id_totP_vertint,vertical_integral(self%id_totP))
     call self%register_dependency(self%id_totS_vertint,vertical_integral(self%id_totS))
     call self%register_horizontal_diagnostic_variable(self%id_totC_vertint_diag,'totC_vertint','mmol-C/m**2','vertical_integral_total_carbon', output=output_time_step_averaged)
     call self%register_horizontal_diagnostic_variable(self%id_totN_vertint_diag,'totN_vertint','mmol-N/m**2','vertical_integral_total_nitrogen', output=output_time_step_averaged)
@@ -778,8 +799,22 @@ if (self%DebugDiagOn) then
     call self%register_horizontal_diagnostic_variable(self%id_totS_vertint_diag,'totS_vertint','mmol-Si/m**2','vertical_integral_total_silicate', output=output_time_step_averaged)
 end if
 
+if (self%BGC2DDiagOn) then
+    call self%register_dependency(self%id_GPPR_dep,'GPPR')
+    call self%register_dependency(self%id_GPPR_vertint,vertical_integral(self%id_GPPR_dep))
+    call self%register_horizontal_diagnostic_variable(self%id_GPPR_vertint_diag,'GPPR_vertint','mmol-C/m**2/d','vertical_integral_gross_primary_production', output=output_time_step_averaged)
+    call self%register_dependency(self%id_Denitr_dep,'Denitr')
+    call self%register_dependency(self%id_Denitr_vertint,vertical_integral(self%id_Denitr_dep))
+    call self%register_horizontal_diagnostic_variable(self%id_Denitr_vertint_diag,'Denitr_vertint','mmol-N/m**2/d','vertical_integral_Denitrification', output=output_time_step_averaged)
+    call self%register_horizontal_diagnostic_variable(self%id_O2flux_diag,'O2flux','mmol-O2/m**2/d','oxygen_flux_between_sea_water_and_air', output=output_time_step_averaged)
+end if
+
+if (self%ChemostatOn) then
+    call self%register_dependency(self%id_CO2,standard_variables%practical_salinity)
+end if
+
 ! extra lines included from maecs_incl.lst 
-! complete N&P budgeting by componsnets with fixed stoichiometry such as ZooC
+! complete N&P budgeting including components with fixed stoichiometry such as ZooC
 if (self%GrazingOn) then
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_zooC,scale_factor=const_NC_zoo)
    if (self%PhosphorusOn) then
@@ -789,8 +824,8 @@ end if
 
 ! special initialization of generic maecs structures
 call maecs_init_stoichvars(self)
-call maecs_init_stoichvars(self)
 
+!--- end of maecs_incl.lst!--- end of maecs_incl.lst
 
 return
 

@@ -218,7 +218,8 @@ sens%P_max_T = maecs%P_max * sens%f_T
 sens%a_light = maecs%alpha * par /(sens%P_max_T)  ! par NOCH BAUSTELLE, jetzt PAR in zellmitte 
 sens%upt_pot%C  = 1.0d0 - exp(- sens%a_light * phy%theta) ! [dimensionless]
 ! write (*,'(A,5(F10.4))') 'PAR Pm a th S:',par, sens%P_max_T,sens%a_light , phy%theta,sens%upt_pot%C
-if (maecs%rel_co2 .gt. 0.01d0) then 
+if (maecs%ChemostatOn) then
+ if (maecs%rel_co2 .gt. 0.01d0) then 
 ! write (*,'(A,3(F10.4))') 'PAR CO2:',par,env%CO2 ,sens%upt_pot%C
 !  sens%upt_pot%C = sens%upt_pot%C * (1.0d0 - exp(-env%CO2/maecs%rel_co2))
   NutF    = smooth_small(env%CO2,maecs%small)
@@ -229,7 +230,7 @@ if (maecs%rel_co2 .gt. 0.01d0) then
 !  fA%C  =  0.5d0
   acc%fA%C=fA%C
   sens%upt_pot%C = uptflex(affin ,sens%upt_pot%C, NutF, fA%C)
-
+ end if
 end if
 
 ! --- carbon specific N-uptake: sites vs. processing ----------------------------------
