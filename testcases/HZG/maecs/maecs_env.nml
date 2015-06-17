@@ -4,11 +4,11 @@
 ! a_water  [float, unit = 1/m]
 !            background attenuation coefficient
 ! a_minfr  [float, unit = -]
-!            min.fraction of the background attenuation coefficient that applies
+!            heuristic depth-dep attenuation
 ! a_spm    [float, unit = m**3/m.mmolC]
 !            attenuation coefficient of SPM
-! a_fz    [float, unit = m]
-!            depth lag for coast/off-shore transition of turbidity
+! a_fz    [float, unit = -]
+!            depth dependent turbidity gradient
 ! a_chl    [float, unit = m**3/m.mgChl]
 !            attenuation coefficient due to Chl absorption
 ! rel_co2  [float, unit = -]
@@ -32,8 +32,8 @@
 !-------------------------------------------------------------------------------
 
 &maecs_env
-   a_water = 3.0,
-   a_minfr = 0.2,
+   a_water = 0.70,
+   a_minfr = 0.2 
    a_spm = 0.0045,
    a_fz = 7.55,
    a_chl = 0.002,

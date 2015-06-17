@@ -356,19 +356,21 @@ for(nls=0,ni=nir;nls<2+AUX;nls++,ni++)
   while(lr!=NULL && pi<MAXP && eoi==0)
     {
 // ----  retrieve info line per line 
-    sscanf(line,"%s %s %s %s %[ a-z:-#A-Z]\n",parname[ni][pi],punit[ni][pi],
+//    sscanf(line,"%s %s %s %s %[ a-z:-#A-Z]\n",parname[ni][pi],punit[ni][pi],
+    sscanf(line,"%s %s %s %s %s\n",parname[ni][pi],punit[ni][pi],
 	   partypen[ni][pi],pmapstring[ni][pi],pcom[ni][pi]);
-    if(out) printf("%d %s unit=%s\t # %s\n",pi,parname[ni][pi],punit[ni][pi],pcom[ni][pi]);
+    if(out) printf("%d %s unit=%s\t\tpc=%s\n",pi,parname[ni][pi],punit[ni][pi],pcom[ni][pi]);
 //  ----  check for switch-dependency
     swi[ni][pi]=-1;
     cp=strchr(pcom[ni][pi],'#'); 
     if(cp!=NULL && nis>=0)
       {
       strcpy(swin[ni][pi],cp+1);
-      if(out) printf("*** switch-dependency %s %s...\n",parname[ni][pi],swin[ni][pi]);
+      if(out) printf("*** switch-dependency %s:  %s (%ls, %s)\n",parname[ni][pi],swin[ni][pi],cp,cp);
       for(pj=0;pj<nump[nis];pj++)
         if(strcmp(swin[ni][pi],parname[nis][pj])==0) swi[ni][pi]=pj, pj=nump[nis]+3;  
       if(pj<nump[nis]+3) printf("\nnot found in switch-namelist !!\n\n");
+      *cp='\0';
       }
     lr=fgets(line,256,sp);
     pi++;  
@@ -732,7 +734,7 @@ for(ni=0;ni<nir;ni++)
     if(swi[ni][pj]==pjs)
       {
       if(sws==0 && pjs>=0 && ni!=ni0)
-         fprintf(sp,"if (%s) then\n",swin[ni][pj]), sws=1; 
+         fprintf(sp,"if (self%c%s) then\n",'%',swin[ni][pj]), sws=1; 
       sprintf(line,"%s",parname[ni][pj]);/*,parvals[ni][pj]*/
       strcpy(line2, fil(sc,line,13) );
       strcat(line,line2);
@@ -841,19 +843,28 @@ for(pjs=-1;pjs<nump[nis];pjs++)
 if (bdim>1)
   fprintf(sp,"end do\n");
 fprintf(sp,"\n!!------- Register diagnostic variables  ------- \n");
-if(strcmp(modname,"maecs")==0)  fprintf(sp,"if (self%cDebugDiagOn) then\n",'%');
+//if(strcmp(modname,"maecs")==0)  fprintf(sp,"if (self%cDebugDiagOn) then\n",'%');
 ni=nir+1;
-for(pj=0;pj<nump[ni];pj++)
-  {
-  fprintf(sp,"%scall self%cregister_diagnostic_variable(self%cid_%s,%s'%s',",indent0,'%','%',
-    parname[ni][pj],fil(sc,parname[ni][pj],8),parname[ni][pj]);
-  fprintf(sp,"'%s', '%s %s', &\n%s  ",punit[ni][pj],pcom[ni][pj],parname[ni][pj],indent0);
+for(pjs=-1;pjs<nump[nis];pjs++)
+ {
+ for(pj=0,sws=0;pj<nump[ni];pj++)
+   if(swi[ni][pj]==pjs)
+     {
+     sl[pj]= ' '; if(strlen(snameshort2[pj])<7) sl[pj]='\t';
+     if(sws==0 && pjs>=0)
+       fprintf(sp,"\nif (self%c%s) then\n",'%',swin[ni][pj]), sws=1;
+
+     fprintf(sp,"%scall self%cregister_diagnostic_variable(self%cid_%s,%s'%s',",indent0,'%','%',
+       parname[ni][pj],fil(sc,parname[ni][pj],8),parname[ni][pj]);
+     fprintf(sp,"'%s', '%s %s', &\n%s  ",punit[ni][pj],pcom[ni][pj],parname[ni][pj],indent0);
 //  fprintf(sp,"time_treatment=time_treatment_%s)\n",partypen[ni][pj]);  
 //  fprintf(sp,"output=output_instantaneous)\n");  
-  fprintf(sp,"output=output_time_step_averaged)\n");  
-  if(out)printf(" reg_diag(self%cid_%s,'%s',...\n",'%',parname[ni][pj],parname[ni][pj]);
-  }
-if(strcmp(modname,"maecs")==0)  fprintf(sp,"end if\n");
+     fprintf(sp,"output=output_time_step_averaged)\n");  
+     if(out)printf(" reg_diag(self%cid_%s,'%s',...\t%s\n",'%',parname[ni][pj],parname[ni][pj],swin[ni][pj]);
+     }
+ if(sws==1) fprintf(sp,"end if\n");
+ }  
+//if(strcmp(modname,"maecs")==0)  fprintf(sp,"end if\n");
  /*
 if(nelements>0)
   {
@@ -864,6 +875,9 @@ if(nelements>0)
   }
     */
 fprintf(sp,"\n!!------- Register environmental dependencies  ------- \n");
+if(strcmp(modname,"maecs")==0)fprintf(sp,"\n! check dependencies in diag switches\n if (self%cBudget2DDiagOn .and. .not. self%cBudget0DDiagOn) call self%cfatal_error('maecs_init','Budget2DDiagOn=TRUE requires Budget0DDiagOn=TRUE')\n\n",'%','%','%');
+if(strcmp(modname,"maecs")==0)fprintf(sp,"if (self%cBGC2DDiagOn .and. .not. self%cBGC0DDiagOn) call self%cfatal_error('maecs_init','BGC2DDiagOn=TRUE requires BGC0DDiagOn=TRUE')\n\n",'%','%','%');
+
 ni=nir;
 
 for(pjs=-1;pjs<nump[nis];pjs++)
@@ -872,7 +886,7 @@ for(pjs=-1;pjs<nump[nis];pjs++)
      if(swi[ni][pj]==pjs)
        {      
        if(sws==0 && pjs>=0)
-         fprintf(sp,"if (%s) then\n",swin[ni][pj]), sws=1;
+         fprintf(sp,"\nif (self%c%s) then\n",'%',swin[ni][pj]), sws=1;
 //   fprintf(sp,"%scall self%cregister_dependency(self%cid_%s,varname_%s%s)\n",'%','%',
 //       if(partypen[ni][pj][0]=='h' && strstr(parname[ni][pj],"tot")!=NULL )
        strcpy(line2,FabmDepVarName),strcpy(line,partypen[ni][pj]);  
@@ -1087,14 +1101,21 @@ for(d=0;d<1+0*NewModF90;d++)
 	  }
 //            fprintf(spv[d],"  _GET_(self%cid_%s, var%c%s)  ! %s\n",'%',parname[ni][pj],'%',parname[ni][pj],pcom[ni][pj]);
       if(pc==6) 
-        for(ni=nir+1,pj=0;pj<nump[ni];pj++)
-	 if(strstr(parname[ni][pj],"tot")==NULL ) // total nut assumed horizontal
-	  {
-	  sprintf(line2,"%s, _REPLNAN_(%s",parname[ni][pj], pmapstring[ni][pj]);
-	  if(found_rate[ni][pj]==1 && SCALEFAC && strstr(pcom[ni][pj],"RHS")!=NULL )  strcat(line2,"*secs_pr_day");  
-          fprintf(spv[d],"  _SET_DIAGNOSTIC_(self%cid_%s",'%',line2);
-          fprintf(spv[d],"))%s!%s %s\n",fil(sc,line2,32),partypen[ni][pj],pcom[ni][pj]);
-	  }
+	for(ni=nir+1,pjs=-1;pjs<nump[nis];pjs++)
+	 { 
+         for(pj=0,sws=0;pj<nump[ni];pj++)
+	  if(strstr(parname[ni][pj],"tot")==NULL ) // total nut assumed horizontal
+           if(swi[ni][pj]==pjs)
+            {
+            if(sws==0 && pjs>=0)
+              fprintf(spv[d],"if (self%c%s) then\n",'%',swin[ni][pj]), sws=1;  
+	    sprintf(line2,"%s, _REPLNAN_(%s",parname[ni][pj], pmapstring[ni][pj]);
+	    if(found_rate[ni][pj]==1 && SCALEFAC && strstr(pcom[ni][pj],"RHS")!=NULL )  strcat(line2,"*secs_pr_day");  
+            fprintf(spv[d],"  _SET_DIAGNOSTIC_(self%cid_%s",'%',line2);
+            fprintf(spv[d],"))%s!%s %s\n",fil(sc,line2,32),partypen[ni][pj],pcom[ni][pj]);
+	    }
+	  if(sws==1) fprintf(sp,"end if\n");
+	  } 
       if(pc==7) /* get_conserved_quantities */
         {
         fprintf(spv[d]," real(rk) :: ");
