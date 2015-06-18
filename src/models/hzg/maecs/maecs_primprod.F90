@@ -100,14 +100,15 @@ dbal_dv = 1.0d0 + phy%Q%N * self%zeta_CN
 !> 3. if \mathrm{self\%syn\_nut<0}: synergy is assumed to increase with accumulated pool size 
 !> of N & P as major biochemical species and is proportional to f_V 
 !> @todo: explain & details         
-if (self%syn_nut .le. _ZERO_ ) then  !self%nutind%iP
+if (self%syn_nut .le. _ZERO_ .or. self%ChemostatOn) then  !self%nutind%iP
    sumrelQ = elem(self%nutind%iN)%relQ
    if (self%PhosphorusOn) sumrelQ = sumrelQ + elem(self%nutind%iP)%relQ
    if (self%SiliconOn)    sumrelQ = sumrelQ + elem(self%nutind%iSi)%relQ
+!   sumrelQ = sumrelQ/num_nut
    syn_act = -self%syn_nut *(phy%frac%NutUpt * sumrelQ +eps)
 !   syn_act = -self%syn_nut * elem(self%nutind%nhi)%relQRub
 else
-   syn_act  = self%syn_nut
+   syn_act  = abs(self%syn_nut)
 endif 
 acc%tmp   =   syn_act ! store
 
@@ -339,11 +340,11 @@ exud%C      = self%exud_phy * grossC                        ![d^{-1}]
 exud%N      = self%exud_phy * uptake%N   ! [(mmolN) (mmolC)^{-1} d^{-1}]
 
 ! ---- additional exudation to release unrealistic stoichiometry in depositional holes
-if (phy%relQ%N .gt. 1.0d0) exud%N = exud%N + self%decay_nut * smooth_small( exp(phy%relQ%N-1.0d0)-1.0d0,eps ) * phy%Q%N
+if (phy%relQ%N .gt. 1.0d0) exud%N = exud%N + self%decay_nut * smooth_small( exp((phy%Q%N - maecs%QN_phy_max)* maecs%iK_QN)-1.0d0,eps ) * phy%Q%N
 
 if (self%PhosphorusOn .and. phy%relQ%P .gt. 1.0d0) then
   exud%P      = phy%P / phy%reg%N * exud%N   ! [(mmolP) (mmolC)^{-1} d^{-1}]
-  exud%P      = exud%P + self%decay_nut * smooth_small(exp(phy%relQ%P-1.0d0)-1.0d0,eps) * phy%Q%P
+  exud%P      = exud%P + self%decay_nut * smooth_small(exp((phy%Q%P - maecs%QP_phy_max)* maecs%iK_QP)-1.0d0,eps) * phy%Q%P
 endif
 
 ! set few volatile diag variables ___________________________________
