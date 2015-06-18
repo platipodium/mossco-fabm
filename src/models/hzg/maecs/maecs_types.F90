@@ -23,6 +23,7 @@ public type_maecs_sensitivities, type_maecs_om, &
 type type_maecs_nutindex
    integer :: iN, iP, iSi
    integer :: nutnum, nhi   
+   integer :: nfV, nSRN
 end type
 ! standard fabm model types
 type,extends(type_base_model),public :: type_maecs_base_model

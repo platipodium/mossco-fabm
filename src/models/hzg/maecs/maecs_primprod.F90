@@ -100,13 +100,13 @@ dbal_dv = 1.0d0 + phy%Q%N * self%zeta_CN
 !> 3. if \mathrm{self\%syn\_nut<0}: synergy is assumed to increase with accumulated pool size 
 !> of N & P as major biochemical species and is proportional to f_V 
 !> @todo: explain & details         
-if (self%syn_nut .le. _ZERO_ .or. self%ChemostatOn) then  !self%nutind%iP
+if (self%syn_nut .le. _ZERO_ ) then  !self%nutind%iP
    sumrelQ = elem(self%nutind%iN)%relQ
    if (self%PhosphorusOn) sumrelQ = sumrelQ + elem(self%nutind%iP)%relQ
    if (self%SiliconOn)    sumrelQ = sumrelQ + elem(self%nutind%iSi)%relQ
-!   sumrelQ = sumrelQ/num_nut
-   syn_act = -self%syn_nut *(phy%frac%NutUpt * sumrelQ +eps)
-!   syn_act = -self%syn_nut * elem(self%nutind%nhi)%relQRub
+   sumrelQ = sumrelQ/num_nut
+!  synchrony increases with uptake machinery and nut stores 
+   syn_act = -self%syn_nut * phy%frac%NutUpt**self%nutind%nfV  * sumrelQ**self%nutind%nSRN
 else
    syn_act  = abs(self%syn_nut)
 endif 
