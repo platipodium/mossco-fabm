@@ -340,11 +340,11 @@ exud%C      = self%exud_phy * grossC                        ![d^{-1}]
 exud%N      = self%exud_phy * uptake%N   ! [(mmolN) (mmolC)^{-1} d^{-1}]
 
 ! ---- additional exudation to release unrealistic stoichiometry in depositional holes
-if (phy%relQ%N .gt. 1.0d0) exud%N = exud%N + self%decay_nut * smooth_small( exp((phy%Q%N - maecs%QN_phy_max)* maecs%iK_QN)-1.0d0,eps ) * phy%Q%N
+if (phy%relQ%N .gt. 1.0d0) exud%N = exud%N + self%decay_nut * smooth_small( exp((phy%Q%N - self%QN_phy_max)* self%iK_QN)-1.0d0,eps ) * phy%Q%N
 
 if (self%PhosphorusOn .and. phy%relQ%P .gt. 1.0d0) then
   exud%P      = phy%P / phy%reg%N * exud%N   ! [(mmolP) (mmolC)^{-1} d^{-1}]
-  exud%P      = exud%P + self%decay_nut * smooth_small(exp((phy%Q%P - maecs%QP_phy_max)* maecs%iK_QP)-1.0d0,eps) * phy%Q%P
+  exud%P      = exud%P + self%decay_nut * smooth_small(exp((phy%Q%P - self%QP_phy_max)* self%iK_QP)-1.0d0,eps) * phy%Q%P
 endif
 
 ! set few volatile diag variables ___________________________________
