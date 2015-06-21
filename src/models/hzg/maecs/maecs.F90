@@ -603,7 +603,7 @@ self%small_finite  = sqrt(small)
 
 !!------- Register state variables  ------- 
 call self%register_state_variable(self%id_nutN,  'nutN','mmol-N/m**3','Dissolved Inorganic Nitrogen DIN nutN', &
-   nutN_initial, minimum=_ZERO_, no_river_dilution=.true. )
+   nutN_initial, minimum=_ZERO_, no_river_dilution=.false. )
 call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_nutN)
 call self%register_state_variable(self%id_phyC,  'phyC','mmol-C/m**3','Phytplankton Carbon phyC', &
    phyC_initial, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution )
@@ -638,7 +638,7 @@ end if
 
 if (self%PhosphorusOn) then
     call self%register_state_variable(self%id_nutP,  'nutP','mmol-P/m**3','Dissolved Inorganic Phosphorus DIP nutP', &
-       nutP_initial, minimum=_ZERO_, no_river_dilution=.true. )
+       nutP_initial, minimum=_ZERO_, no_river_dilution=.false. )
     call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_nutP)
     call self%register_state_variable(self%id_phyP,  'phyP','mmol-P/m**3','Phytplankton Phosphorus phyP', &
        phyP_initial, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution )
@@ -653,7 +653,7 @@ end if
 
 if (self%SiliconOn) then
     call self%register_state_variable(self%id_nutS,  'nutS','mmol-Si/m**3','Dissolved Inorganic Silicon Si nutS', &
-       nutS_initial, minimum=_ZERO_, no_river_dilution=.true. )
+       nutS_initial, minimum=_ZERO_, no_river_dilution=.false. )
     call self%add_to_aggregate_variable(standard_variables%total_silicate,self%id_nutS)
     call self%register_state_variable(self%id_phyS,  'phyS','mmol-Si/m**3','Phytplankton Silicon phyS', &
        phyS_initial, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution )
@@ -671,7 +671,7 @@ end if
 
 if (self%BioOxyOn) then
     call self%register_state_variable(self%id_nh3,   'nh3','mmolN/m**3','dissolved ammonium nh3', &
-       nh3_initial, minimum=_ZERO_, no_river_dilution=.true. )
+       nh3_initial, minimum=_ZERO_, no_river_dilution=.false. )
     call self%register_state_variable(self%id_oxy,   'oxy','mmolO2/m**3','dissolved oxygen oxy', &
        oxy_initial, minimum=_ZERO_, no_river_dilution=.true. )
     call self%register_state_variable(self%id_odu,   'odu','mmolO2/m**3','dissolved reduced substances odu', &
