@@ -36,7 +36,9 @@
 ! detritus_no_river_dilution [bool]
 !                  use riverine det import
 ! plankton_no_river_dilution [bool]
-!                  use riverine det import
+!                  use riverine phy import
+! nutrient_no_river_dilution [bool]
+!                  use riverine nut import
 !-------------------------------------------------------------------------------
 
 &maecs_switch
@@ -52,10 +54,12 @@
    BGC0DDiagOn = .false.,
    BGC2DDiagOn = .false.,
    PhysiolDiagOn = .false.,
+   DebugDiagOn = .false.,
    RateDiagOn = .false.,
-   ChemostatOn = .false.,
+   ChemostatOn = .true.,
    NResOn = .false.,
    kwFzmaxMeth = 0,
    detritus_no_river_dilution=.false.,
-   plankton_no_river_dilution=.true.,
+   plankton_no_river_dilution=.false.,
+   nutrient_no_river_dilution=.false,
 /
