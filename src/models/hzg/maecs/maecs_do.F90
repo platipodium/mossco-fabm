@@ -349,6 +349,8 @@ rhsv%phyN =  uptake%N             * phy%C &
                    + dRchl_phyC_dt * phy%reg%C - decay * phy%chl
 
 !if (rhsv%chl .lt. -200.d0) then
+!  phy%theta     = phy%chl / (phy%rel_chloropl * phy%reg%C)   ! trait variable
+!  phy%frac%theta= phy%theta * phy%rel_chloropl * maecs%itheta_max ! []     no 
 !  write (*,'(A,4(F14.3))') 'dChl=',rhsv%chl,phy%chl,dRchl_phyC_dt,rhsv%phyC,dQN_dt
 !  write (*,'(A,6(F14.3))') 'aa=',acclim%dRchl_dtheta,acclim%dtheta_dt,acclim%dRchl_dfracR,acclim%dfracR_dt,acclim%dRchl_dQN, dQN_dt
 !  write (*,'(A,2(F14.3))') 'dmdx=',acclim%fac1,acclim%fac2

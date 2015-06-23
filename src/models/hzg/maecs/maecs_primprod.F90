@@ -102,11 +102,11 @@ dbal_dv = 1.0d0 + phy%Q%N * self%zeta_CN
 !> @todo: explain & details         
 if (self%syn_nut .le. _ZERO_ ) then  !self%nutind%iP
    sumrelQ = elem(self%nutind%iN)%relQ
-   if (self%PhosphorusOn) sumrelQ = sumrelQ + elem(self%nutind%iP)%relQ
-   if (self%SiliconOn)    sumrelQ = sumrelQ + elem(self%nutind%iSi)%relQ
-   sumrelQ = sumrelQ/num_nut
+   if (self%PhosphorusOn) sumrelQ = sumrelQ * elem(self%nutind%iP)%relQ
+   if (self%SiliconOn)    sumrelQ = sumrelQ * elem(self%nutind%iSi)%relQ
+!   sumrelQ = sumrelQ/num_nut
 !  synchrony increases with uptake machinery and nut stores 
-   syn_act = -self%syn_nut * phy%frac%NutUpt**self%nutind%nfV  * sumrelQ**self%nutind%nSRN
+   syn_act = smooth_small( (-self%syn_nut+self%a_chl) * phy%frac%NutUpt**self%nutind%nfV  * sumrelQ**self%nutind%nSRN - self%a_chl,eps)
 else
    syn_act  = abs(self%syn_nut)
 endif 

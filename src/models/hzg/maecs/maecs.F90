@@ -136,15 +136,15 @@ contains
 !> \describepar{basal\_resp\_zoo , \mathrm{basal_resp_zoo} , basal respiration, 0.05 per d}
 !> \describepar{mort\_zoo     , \mathrm{mort_zoo}     , quadratic mortality, 0.05 m**3/mmolN.d}
 !> \describepar{fT\_exp\_mort  , \mathrm{fT_exp_mort}  , exponent temperature dep. mortality (1: standard), 1.0 m**3/mmolN.d}
-!> \describepar{a\_water      , \mathrm{a_water}      , maximum background attenuation coefficient, 1.0 1/m}
+!> \describepar{a\_water      , \mathrm{a_water}      , background attenuation coefficient, 1.0 1/m}
 !> \describepar{a\_minfr      , \mathrm{a_minfr}      , heuristic depth-dep attenuation, 0.01 -}
 !> \describepar{a\_spm        , \mathrm{a_spm}        , attenuation coefficient of SPM, 0.005 m**3/m.mmolC}
-!> \describepar{a\_fz         , \mathrm{a_fz}         , depth dependent turbidity , 7.5 -}
-!> \describepar{a\_chl        , \mathrm{a_chl}        , attenuation coefficient due to Chl absorption, 0.002 m**3/m.mgChl}
-!> \describepar{rel\_co2      , \mathrm{rel_co2}      , relative CO2 conc in sea water , 1.0 -}
+!> \describepar{a\_fz         , \mathrm{a_fz}         , depth dependent turbidity gradient, 7.5 -}
+!> \describepar{a\_chl        , \mathrm{a_chl}        , attenuation coefficient due to Chl absorption, 0.0 m**3/m.mgChl}
+!> \describepar{rel\_co2      , \mathrm{rel_co2}      , relative CO2 conc in sea water , -1.0 -}
 !> \describepar{frac\_PAR     , \mathrm{frac_PAR}     , photosynthetically active fraction of light, 1.0 }
 !> \describepar{small        , \mathrm{small}        , lower limit for denominator in ratios; small_finite=sqrt(small), 1e-04 }
-!> \describepar{maxVal       , \mathrm{maxVal}       , upper limit for trait variables; <0: also no mininum check, -1. }
+!> \describepar{maxVal       , \mathrm{maxVal}       , upper limit for trait variables; <0: also no mininum check, -12. }
 !> \describepar{dil          , \mathrm{dil}          , dilution of all concentrations except dissolved inorganics, 0.0 1/d}
 !> \describepar{ex\_airsea    , \mathrm{ex_airsea}    , diffusivity coefficient (m2/s) divided by boundary layer thickness, 3e-5 m/s}
 !> \describepar{O2\_sat       , \mathrm{O2_sat}       , oxygen concentration in air-sea boundary layer, 300. mmol-O2/m2.d}
@@ -247,10 +247,10 @@ real(rk)  :: basal_resp_zoo ! basal respiration
 real(rk)  :: mort_zoo     ! quadratic mortality
 real(rk)  :: fT_exp_mort  ! exponent temperature dep. mortality (1: standard)
 !!------- Parameters from nml-list maecs_env ------- 
-real(rk)  :: a_water      ! maximum background attenuation coefficient
+real(rk)  :: a_water      ! background attenuation coefficient
 real(rk)  :: a_minfr      ! heuristic depth-dep attenuation
 real(rk)  :: a_spm        ! attenuation coefficient of SPM
-real(rk)  :: a_fz         ! depth dependent turbidity 
+real(rk)  :: a_fz         ! depth dependent turbidity gradient
 real(rk)  :: a_chl        ! attenuation coefficient due to Chl absorption
 real(rk)  :: rel_co2      ! relative CO2 conc in sea water 
 real(rk)  :: frac_PAR     ! photosynthetically active fraction of light
@@ -292,13 +292,14 @@ logical   :: ChemostatOn  ! use Chemostat mode
 logical   :: NResOn       ! use long-term N-reservoir
 integer   :: kwFzmaxMeth  ! background extinction method
 logical   :: detritus_no_river_dilution ! use riverine det import
-logical   :: plankton_no_river_dilution ! use riverine det import
+logical   :: plankton_no_river_dilution ! use riverine phy import
+logical   :: nutrient_no_river_dilution ! use riverine nut import
 
 namelist /maecs_switch/ &
   RubiscoOn, PhotoacclimOn, PhosphorusOn, SiliconOn, GrazingOn, BioOxyOn, &
   DebugDiagOn, Budget0DDiagOn, Budget2DDiagOn, BGC0DDiagOn, BGC2DDiagOn, &
   PhysiolDiagOn, RateDiagOn, ChemostatOn, NResOn, kwFzmaxMeth, detritus_no_river_dilution, &
-  plankton_no_river_dilution
+  plankton_no_river_dilution, nutrient_no_river_dilution
 
 namelist /maecs_init/ &
   nutN_initial, nutP_initial, nutS_initial, phyC_initial, phyN_initial, &
@@ -403,11 +404,11 @@ a_water      = 1.0_rk             ! 1/m
 a_minfr      = 0.01_rk            ! -
 a_spm        = 0.005_rk           ! m**3/m.mmolC
 a_fz         = 7.5_rk             ! -
-a_chl        = 0.002_rk           ! m**3/m.mgChl
-rel_co2      = 1.0_rk             ! -
+a_chl        = 0.0_rk             ! m**3/m.mgChl
+rel_co2      = -1.0_rk            ! -
 frac_PAR     = 1.0_rk             ! 
 small        = 1e-04_rk           ! 
-maxVal       = -1._rk             ! 
+maxVal       = -12._rk            ! 
 dil          = 0.0_rk             ! 1/d
 ex_airsea    = 3e-5_rk            ! m/s
 O2_sat       = 300._rk            ! mmol-O2/m2.d
@@ -464,6 +465,7 @@ call self%get_parameter(self%NResOn,        'NResOn',        default=NResOn)
 call self%get_parameter(self%kwFzmaxMeth,   'kwFzmaxMeth',   default=kwFzmaxMeth)
 call self%get_parameter(self%detritus_no_river_dilution,  'detritus_no_river_dilution',  default=detritus_no_river_dilution)
 call self%get_parameter(self%plankton_no_river_dilution,  'plankton_no_river_dilution',  default=plankton_no_river_dilution)
+call self%get_parameter(self%nutrient_no_river_dilution,  'nutrient_no_river_dilution',  default=nutrient_no_river_dilution)
 
 !!------- model parameters from nml-list maecs_init ------- 
 call self%get_parameter(self%nutN_initial ,'nutN_initial',  default=nutN_initial)
@@ -603,7 +605,7 @@ self%small_finite  = sqrt(small)
 
 !!------- Register state variables  ------- 
 call self%register_state_variable(self%id_nutN,  'nutN','mmol-N/m**3','Dissolved Inorganic Nitrogen DIN nutN', &
-   nutN_initial, minimum=_ZERO_, no_river_dilution=.false. )
+   nutN_initial, minimum=_ZERO_, no_river_dilution=nutrient_no_river_dilution )
 call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_nutN)
 call self%register_state_variable(self%id_phyC,  'phyC','mmol-C/m**3','Phytplankton Carbon phyC', &
    phyC_initial, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution )
@@ -618,10 +620,10 @@ call self%register_state_variable(self%id_detN,  'detN','mmol-N/m**3','Detritus 
    detN_initial, minimum=_ZERO_, no_river_dilution=detritus_no_river_dilution )
 call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_detN)
 call self%register_state_variable(self%id_domC,  'domC','mmol-C/m**3','Dissolved Organic Carbon domC', &
-   domC_initial, minimum=_ZERO_, no_river_dilution=.true. )
+   domC_initial, minimum=_ZERO_, no_river_dilution=.false. )
 call self%add_to_aggregate_variable(standard_variables%total_carbon,self%id_domC)
 call self%register_state_variable(self%id_domN,  'domN','mmol-N/m**3','Dissolved Organic Nitrogen domN', &
-   domN_initial, minimum=_ZERO_, no_river_dilution=.true. )
+   domN_initial, minimum=_ZERO_, no_river_dilution=.false. )
 call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_domN)
 
 if (self%RubiscoOn) then
@@ -638,7 +640,7 @@ end if
 
 if (self%PhosphorusOn) then
     call self%register_state_variable(self%id_nutP,  'nutP','mmol-P/m**3','Dissolved Inorganic Phosphorus DIP nutP', &
-       nutP_initial, minimum=_ZERO_, no_river_dilution=.false. )
+       nutP_initial, minimum=_ZERO_, no_river_dilution=nutrient_no_river_dilution )
     call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_nutP)
     call self%register_state_variable(self%id_phyP,  'phyP','mmol-P/m**3','Phytplankton Phosphorus phyP', &
        phyP_initial, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution )
@@ -647,13 +649,13 @@ if (self%PhosphorusOn) then
        detP_initial, minimum=_ZERO_, no_river_dilution=detritus_no_river_dilution )
     call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_detP)
     call self%register_state_variable(self%id_domP,  'domP','mmol-P/m**3','Dissolved Organic Phosphorus domP', &
-       domP_initial, minimum=_ZERO_, no_river_dilution=.true. )
+       domP_initial, minimum=_ZERO_, no_river_dilution=.false. )
     call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_domP)
 end if
 
 if (self%SiliconOn) then
     call self%register_state_variable(self%id_nutS,  'nutS','mmol-Si/m**3','Dissolved Inorganic Silicon Si nutS', &
-       nutS_initial, minimum=_ZERO_, no_river_dilution=.false. )
+       nutS_initial, minimum=_ZERO_, no_river_dilution=nutrient_no_river_dilution )
     call self%add_to_aggregate_variable(standard_variables%total_silicate,self%id_nutS)
     call self%register_state_variable(self%id_phyS,  'phyS','mmol-Si/m**3','Phytplankton Silicon phyS', &
        phyS_initial, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution )
@@ -680,7 +682,7 @@ end if
 
 if (self%NResOn) then
     call self%register_state_variable(self%id_RNit,  'RNit','mmol-N/m**3','N-reservoir RNit', &
-       RNit_initial, minimum=_ZERO_, no_river_dilution=.true. )
+       RNit_initial, minimum=_ZERO_, no_river_dilution=.false. )
 end if
 
 !!------- Register diagnostic variables  ------- 
