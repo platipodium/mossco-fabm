@@ -97,18 +97,13 @@ dbal_dv = 1.0d0 + phy%Q%N * self%zeta_CN
 
 ! --- synchrony in nutrient assimilation depends on growth cycle and N-quota
 !> @fn maecs_primprod::photosynthesis()
-!> 3. if \mathrm{self\%syn\_nut<0}: synergy is assumed to increase with accumulated pool size 
-!> of N & P as major biochemical species and is proportional to f_V 
+!> 3. if \mathrm{self\%syn\_nut<0}: synergy is proportional to f_V 
 !> @todo: explain & details         
-if (self%syn_nut .le. _ZERO_ ) then  !self%nutind%iP
-   sumrelQ = elem(self%nutind%iN)%relQ
-   if (self%PhosphorusOn) sumrelQ = sumrelQ * elem(self%nutind%iP)%relQ
-   if (self%SiliconOn)    sumrelQ = sumrelQ * elem(self%nutind%iSi)%relQ
-!   sumrelQ = sumrelQ/num_nut
-!  synchrony increases with uptake machinery and nut stores 
-   syn_act = smooth_small( (-self%syn_nut+self%a_chl) * phy%frac%NutUpt**self%nutind%nfV  * sumrelQ**self%nutind%nSRN - self%a_chl,eps)
+if (self%syn_nut .lt. -0.001 ) then  !self%nutind%iP
+!  synchrony increases with uptake machinery
+   syn_act = -self%syn_nut * phy%frac%NutUpt
 else
-   syn_act  = abs(self%syn_nut)
+   syn_act  = self%syn_nut
 endif 
 acc%tmp   =   syn_act ! store
 

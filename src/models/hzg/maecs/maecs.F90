@@ -1004,15 +1004,15 @@ endif
 if (self%nutind%nutnum .gt. nm) call self%fatal_error('maecs_init','Not enough nutrient indices provided by NutOrder.')
 
 ! build exponents from par value for experimental reshaping of synchrony function
-if (self%maxVal .lt. -9.5d0) then 
-  nm = nint(-self%maxVal) - 10
-  self%nutind%nfV  = floor(nm*0.5d0)
-  self%nutind%nSRN = mod(nm,2)
-  write (*,'(A,1(F7.2),3(I4))') 'syn exp: ',self%maxVal,nm,self%nutind%nfV, self%nutind%nSRN
-else
-  self%nutind%nfV  = 1
-  self%nutind%nSRN = 1
-endif
+!if (self%maxVal .lt. -9.5d0) then 
+!  nm = nint(-self%maxVal) - 10
+!  self%nutind%nfV  = floor(nm*0.5d0)
+!  self%nutind%nSRN = mod(nm,2)
+!  write (*,'(A,1(F7.2),3(I4))') 'syn exp: ',self%maxVal,nm,self%nutind%nfV, self%nutind%nSRN
+!else
+!  self%nutind%nfV  = 1
+!  self%nutind%nSRN = 1
+!endif
 
 end subroutine maecs_init_stoichvars 
 

@@ -616,17 +616,17 @@ end if
 !#E_ODE
 
 ! artifical, serial nutrient input to illustrate co-limitation dynamics in 0D
-if (self%ChemostatOn) then
-  _GET_GLOBAL_ (self%id_doy,doy) !day of year
-  select case (doy)
-           case (89:92)
-            _SET_ODE_(self%id_nutP, 5*(1.0-nut%P) UNIT)
-           case (29:32)
-            _SET_ODE_(self%id_nutN, 5*(16.0-nut%N) UNIT)
-           case (59:62)
-            _SET_ODE_(self%id_nutS, 5*(16.0-nut%Si) UNIT)
-  end select
-endif
+!if (self%ChemostatOn) then
+!  _GET_GLOBAL_ (self%id_doy,doy) !day of year
+!  select case (doy)
+!           case (89:92)
+!            _SET_ODE_(self%id_nutP, 5*(1.0-nut%P) UNIT)
+!           case (29:32)
+!            _SET_ODE_(self%id_nutN, 5*(16.0-nut%N) UNIT)
+!           case (59:62)
+!            _SET_ODE_(self%id_nutS, 5*(16.0-nut%Si) UNIT)
+!  end select
+!endif
 
 !________________________________________________________________________________
 ! set diag variables, mostly from PrimProd module

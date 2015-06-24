@@ -194,7 +194,7 @@ type (type_maecs_om),intent(in) :: nut
 type (type_maecs_traitdyn), intent(out) :: acc
 
 type (type_maecs_om) :: fA
-real(rk) :: par, T_Kelv, NutF, affin
+real(rk) :: par, T_Kelv, NutF, affin, pmax
 
 !> @fn maecs_functions::calc_sensitivities()
 !> 1. calculate (sens\%) f\_T, P\_max\_T, a\_light, upt\_pot\%C 
@@ -224,9 +224,10 @@ if (maecs%ChemostatOn) then
 !  sens%upt_pot%C = sens%upt_pot%C * (1.0d0 - exp(-env%CO2/maecs%rel_co2))
   NutF    = smooth_small(env%CO2,maecs%small)
 ! normalized affinity to DIC ([CO2]+[HCO3])
-  affin = sens%upt_pot%C/maecs%rel_co2
+  pmax  = smooth_small(sens%upt_pot%C,maecs%small)
+  affin = pmax/maecs%rel_co2
 ! optimal partitioning between surface transporter and carboxylation/Rubisco
-  fA%C  =  fOptUpt(affin ,sens%upt_pot%C, NutF)
+  fA%C  =  fOptUpt(affin ,pmax, NutF)
 !  fA%C  =  0.5d0
   acc%fA%C=fA%C
   sens%upt_pot%C = uptflex(affin ,sens%upt_pot%C, NutF, fA%C)
