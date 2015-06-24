@@ -134,10 +134,12 @@ end if
 !S_GED
   _GET_(self%id_temp, env%temp)  ! water temperature
   _GET_(self%id_par, env%par)  ! light photosynthetically active radiation
-  if (_AVAILABLE_(self%id_CO2) .and. self%ChemostatOn) then
-    _GET_(self%id_CO2, env%CO2)  ! CO2
-  else
-    env%CO2 = 10000.0_rk ! for default rel_co2=1.0, this results in almost CO2-independent dynamics
+  if (self%ChemostatOn) then
+    if (_AVAILABLE_(self%id_CO2)) then
+      _GET_(self%id_CO2, env%CO2)  ! CO2
+    else
+      env%CO2 = 0.0_rk ! todo: throw an error, if necessary dependency cannot be found 
+    end if
   end if
 
 !E_GED  ! list outcommented due to different usage of zmax and doy (see light extinction)
