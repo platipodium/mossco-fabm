@@ -677,7 +677,7 @@ if (self%RateDiagOn) then
   _SET_DIAGNOSTIC_(self%id_phyELR, _REPLNAN_(-exud%C))       !average Phytoplankton_Exudation_Loss_Rate_
   _SET_DIAGNOSTIC_(self%id_phyALR, _REPLNAN_(-aggreg_rate))  !average Phytoplankton_Aggregation_Loss_Rate_
   _SET_DIAGNOSTIC_(self%id_phyGLR, _REPLNAN_(-graz_rate/phy%reg%C)) !average Phytoplankton_Grazing_Loss_Rate_
-  _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(exp(-self%sink_phys*phy%relQ%N*phy%relQ%P))) !average Relative_Sinking_Rate_
+!  _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(exp(-self%sink_phys*phy%relQ%N*phy%relQ%P))) !average Relative_Sinking_Rate_
 end if
 !#E_DIA
 
@@ -773,7 +773,7 @@ write(*,'(A)') 'begin vert_move'
 
    !SINKING AS A FUNCTION OF INTERNAL STATES
    vs_phy = -self%vS_phy * exp( -self%sink_phys * phyQstat)
-   if (self%DebugDiagOn) then 
+   if (self%RateDiagOn) then 
       _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(-vs_phy)) !average Relative Sinking Velocity
    end if
 
