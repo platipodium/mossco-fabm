@@ -60,7 +60,10 @@ char init_varincl[3*NAML]= "call maecs_init_stoichvars(self)"; /* line included 
 char vstructn[NAML]	= "env";/* name of the major variable structure */ 
 char vstructc[4]   	= "E";	/* elements major variable structure
           A: all state variables T: traits  E: environmental forcing N: nutrients */ 
-char env_add[3*NAML] 	= "";	/* additional variable as member of the env structure (e.g., non-mass,non-trait MAECS variables*/        
+char env_add[3*NAML] 	= "";	/* additional variable as member of the env structure (e.g., non-mass,non-trait MAECS variables*/ 
+/* dependencies in switches */
+char swi1[7][NAML]	= {"BGC2DDiagOn","Budget2DDiagOn","PhysiolDiagOn","BGC0DDiagOn","BGC0DDiagOn","-"};
+char swi2[7][NAML]	= {"BGC0DDiagOn","Budget0DDiagOn","PhotoacclimOn","PhosphorusOn","BioOxyOn",""};
 
 /* ------------------------------------------------------------------- */
 /*            do not edit below ...                                    */
@@ -800,14 +803,16 @@ for(pjs=-1;pjs<nump[nis];pjs++)
       else
         fprintf(sp,"%s   %s",tabs[(pjs<0)],parname[ni][pj]); 
       
-      ss=1;
-      if(SED==0 && snameshort2[pj][1]=='o') ss=1; 
+      ss=0;
+      if(SED==0 && snameshort2[pj][0]=='o') ss=1; 
       if(strcmp(modname,"maecs")==0)
         {
         if(trait[pj]==1 || strncmp(snameshort2[pj],"phy",3)==0 || strncmp(snameshort2[pj],"zoo",3)==0)
           fprintf(sp,", minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution "); 
         else if (strncmp(snameshort2[pj],"det",3)==0)
           fprintf(sp,", minimum=_ZERO_, no_river_dilution=detritus_no_river_dilution "); 
+        else if (strncmp(snameshort2[pj],"nut",3)==0)
+          fprintf(sp,", minimum=_ZERO_, no_river_dilution=nutrient_no_river_dilution "); 
         else
 	 fprintf(sp,", minimum=_ZERO_, no_river_dilution=.%s. ",yesno[ss]); 
 	}
@@ -874,11 +879,18 @@ if(nelements>0)
      indent0,'%','%',elements[pi],elements[pi],elements[pi],elements[pi]);
   }
     */
-fprintf(sp,"\n!!------- Register environmental dependencies  ------- \n");
-if(strcmp(modname,"maecs")==0)fprintf(sp,"\n! check dependencies in diag switches\n if (self%cBudget2DDiagOn .and. .not. self%cBudget0DDiagOn) call self%cfatal_error('maecs_init','Budget2DDiagOn=TRUE requires Budget0DDiagOn=TRUE')\n\n",'%','%','%');
-if(strcmp(modname,"maecs")==0)fprintf(sp,"if (self%cBGC2DDiagOn .and. .not. self%cBGC0DDiagOn) call self%cfatal_error('maecs_init','BGC2DDiagOn=TRUE requires BGC0DDiagOn=TRUE')\n\n",'%','%','%');
-
+pi=0;
+if(strcmp(modname,"maecs")==0)
+  {
+  if(swi1[pi][0]!='-')  fprintf(sp,"\n! ------ check dependencies in diag switches -------\n");
+  while(swi1[pi][0]!='-')
+   {
+   fprintf(sp,"if (self%c%s .and. .not. self%c%s) call self%cfatal_error('maecs_init','%s=TRUE requires %s=TRUE')\n",'%',swi1[pi],'%',swi2[pi],'%',swi1[pi],swi2[pi]);
+   pi++;  
+   }
+  }
 ni=nir;
+fprintf(sp,"\n!!------- Register environmental dependencies  ------- \n");
 
 for(pjs=-1;pjs<nump[nis];pjs++)
   for(pj=0,sws=0;pj<nump[ni];pj++)
