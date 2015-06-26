@@ -771,13 +771,14 @@ call self%register_diagnostic_variable(self%id_vsinkr,  'vsinkr','-', 'Relative_
   output=output_time_step_averaged)
 end if
 
-!!------- Register environmental dependencies  ------- 
-
-! check dependencies in diag switches
- if (self%Budget2DDiagOn .and. .not. self%Budget0DDiagOn) call self%fatal_error('maecs_init','Budget2DDiagOn=TRUE requires Budget0DDiagOn=TRUE')
-
+! ------ check dependencies in diag switches -------
 if (self%BGC2DDiagOn .and. .not. self%BGC0DDiagOn) call self%fatal_error('maecs_init','BGC2DDiagOn=TRUE requires BGC0DDiagOn=TRUE')
+if (self%Budget2DDiagOn .and. .not. self%Budget0DDiagOn) call self%fatal_error('maecs_init','Budget2DDiagOn=TRUE requires Budget0DDiagOn=TRUE')
+if (self%PhysiolDiagOn .and. .not. self%PhotoacclimOn) call self%fatal_error('maecs_init','PhysiolDiagOn=TRUE requires PhotoacclimOn=TRUE')
+if (self%BGC0DDiagOn .and. .not. self%PhosphorusOn) call self%fatal_error('maecs_init','BGC0DDiagOn=TRUE requires PhosphorusOn=TRUE')
+if (self%BGC0DDiagOn .and. .not. self%BioOxyOn) call self%fatal_error('maecs_init','BGC0DDiagOn=TRUE requires BioOxyOn=TRUE')
 
+!!------- Register environmental dependencies  ------- 
 call self%register_dependency(self%id_temp,standard_variables%temperature)
 call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
 call self%register_global_dependency(self%id_doy,standard_variables%number_of_days_since_start_of_the_year)

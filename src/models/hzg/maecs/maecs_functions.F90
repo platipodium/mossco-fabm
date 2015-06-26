@@ -72,6 +72,10 @@ if (maecs%PhosphorusOn) then
 
 !   dom%QP     = dom%P  / (dom%C  + min_Cmass)  ! P:C ratio of DOM
 !   det%QP     = det%P / (det%C + min_Cmass)  ! P:C ratio of detritus
+else
+   phy%Q%P     = maecs%QP_phy_0
+   phy%relQ%P  = maecs%small_finite
+
 end if 
   
 if (maecs%SiliconOn) then 
@@ -254,6 +258,9 @@ if (maecs%PhosphorusOn) then
    fA%P    =  fOptUpt(maecs%AffP,maecs%V_PC_max * sens%f_T, NutF)
    acc%fA%P=fA%P
    sens%upt_pot%P  = uptflex(maecs%AffP,maecs%V_PC_max*sens%f_T,Nut%P,fA%P)
+else
+   acc%fA%P= 0.5d0
+   acc%Av%P= 0.d0
 end if
 !write (*,'(A,4(F10.3))') 'vP=',sens%upt_pot%P,maecs%V_PC_max * sens%f_T,nut%P,maecs%small*1E3
 
@@ -264,6 +271,9 @@ if (maecs%SiliconOn) then
    fA%Si    =  fOptUpt(maecs%AffSi,maecs%V_SiC_max * sens%f_T, NutF)
    acc%fA%Si=fA%Si
    sens%upt_pot%Si = uptflex(maecs%AffSi,maecs%V_SiC_max * sens%f_T,nutF,fA%Si)
+else
+   acc%fA%Si= 0.5d0
+   acc%Av%Si= 0.d0
 end if
 ! TODO check temperature dependence of nutrient affinity
 

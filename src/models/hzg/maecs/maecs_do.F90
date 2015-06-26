@@ -247,7 +247,7 @@ if (self%GrazingOn) then
 
 else
   graz_rate   = 0.0_rk
-  if (self%ChemostatOn .and. .not. IsCritical) graz_rate = 0.2*phy%C
+!  if (self%ChemostatOn .and. .not. IsCritical) graz_rate = 0.2*phy%C
   zoo_mort    = 0.0_rk
   lossZ       = type_maecs_om(0.0_rk, 0.0_rk, 0.0_rk, 0.0_rk)
   floppZ      = type_maecs_om(0.0_rk, 0.0_rk, 0.0_rk, 0.0_rk)
@@ -647,7 +647,7 @@ if (self%BGC0DDiagOn) then
   _SET_DIAGNOSTIC_(self%id_GPPR, _REPLNAN_(phy%gpp*phy%C))   !average gross_primary_production_
   _SET_DIAGNOSTIC_(self%id_Denitr, _REPLNAN_(0.8*Denitrific)) !average denitrification_rate_
   _SET_DIAGNOSTIC_(self%id_dPAR, _REPLNAN_(env%par))         !average Photosynthetically_Active_Radiation_
-  _SET_DIAGNOSTIC_(self%id_DNP, _REPLNAN_(nut%N/nut%P))      !average DIN:DIP_ratio_
+  _SET_DIAGNOSTIC_(self%id_DNP, _REPLNAN_(nut%N/(nut%P+self%small)))   !average DIN:DIP_ratio_
   _SET_DIAGNOSTIC_(self%id_QNP, _REPLNAN_(phy%Q%N/phy%Q%P))  !average N:P_ratio_
   _SET_DIAGNOSTIC_(self%id_qualPOM, _REPLNAN_(qualPOM))      !average Quality_of_POM_
   _SET_DIAGNOSTIC_(self%id_qualDOM, _REPLNAN_(qualDOM))      !average Quality_of_DOM_
