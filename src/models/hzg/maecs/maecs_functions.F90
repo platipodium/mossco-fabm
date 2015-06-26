@@ -492,7 +492,7 @@ select case (mm_method)
 !     approaches a lower threshold 'min_mass', in the order of o(1.d-4) / 
 ! set small boundary depending on numerical resolution
 ! TODO: insert h ~ level height, here 10cm 
-   min_Cmass = maecs%small_finite * 1.0d-2 / maecs%a_spm  
+   min_Cmass = maecs%small_finite !* 1.0d-2 / maecs%a_spm  
    min_Nmass = min_Cmass * maecs%aver_QN_phy
    phy%reg%C = smooth_small( phy%C , min_Cmass)
    if (abs(phy%C-phy%reg%C) .gt. 1d-2*min_Cmass) then
@@ -522,7 +522,7 @@ select case (mm_method)
 ! --- Here, phyC and phyN are smoothed as soon as biomass approaches 'min_mass',  
 ! set small boundary depending on numerical resolution
 ! TODO: insert h ~ level height, here 10cm 
-   min_Cmass = maecs%small_finite * 1.0d-3 / maecs%a_spm  
+   min_Cmass = maecs%small_finite !* 1.0d-3 / maecs%a_spm  
    min_Nmass = min_Cmass * maecs%aver_QN_phy
    phy%reg%C = smooth_small( phy%C , min_Cmass)
    delta_C   = phy%reg%C - phy%C
@@ -551,7 +551,7 @@ select case (mm_method)
 !     approaches a lower threshold 'min_mass', in the order of o(1.d-4) / 
 ! set small boundary depending on numerical resolution
 ! TODO: insert h ~ level height, here 10cm 
-   min_Cmass = maecs%small_finite * 1.0d-3 / maecs%a_spm  
+   min_Cmass = maecs%small_finite !* 1.0d-3 / maecs%a_spm  
    phy%reg%C = smooth_small( phy%C , min_Cmass)
    phy%reg%N = smooth_small( phy%N , min_Cmass * maecs%aver_QN_phy)
 !   if (maecs%PhosphorusOn)  phy%reg%P = smooth_small( phy%P , min_Cmass * maecs%aver_QP_phy)
