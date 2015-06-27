@@ -872,7 +872,7 @@ end subroutine initialize
    class(type_hzg_maecs),intent(in)          :: self 
    _DECLARE_ARGUMENTS_GET_EXTINCTION_
    
-   real(rk) :: p,d,z,kw,zmax,doy,fz,ft,A,B,L,fz1,fz2
+   real(rk) :: p,d,z,chl,kw,zmax,doy,fz,ft,A,B,L,fz1,fz2
    real(rk), PARAMETER ::  Pi = 3.1415927_rk
    
    ! Enter spatial loops (if any)
@@ -887,8 +887,15 @@ end subroutine initialize
    if (self%GrazingOn) then
     _GET_(self%id_zooC, z)  ! Zooplankton Carbon in mmol-C/m**3
    else
-    z=0.0_rk 
+     z=0.0_rk 
    end if
+   if (self%PhotoacclimOn .and. self%a_chl .gt. 0.d0) then
+      _GET_(self%id_chl, chl)  ! Chl in mg-Chla/mmol-C
+   else
+     chl=0.0_rk 
+   end if
+
+! TODO calc chl = frac_chl_ini*phyC
    
    !default: fz=ft=1
    fz=1.0_rk 
@@ -928,7 +935,7 @@ end subroutine initialize
    !write (*,'(A, 2(F5.2), I4, 3(F5.2))') 'zmax,t,meth,fz,ft,kw: ',zmax,doy,self%kwFzmaxMeth,fz,ft,kw
    
    ! Attenuation as a result of background turbidity and self-shading of phytoplankton.
-   _SET_EXTINCTION_(kw + self%a_spm*(p+d+z))
+   _SET_EXTINCTION_(kw + self%a_spm*(p+d+z) + self%a_chl*chl )
 
 #if _DEBUG_
 write(*,'(A)') 'end light_ext'
