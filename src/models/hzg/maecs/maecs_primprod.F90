@@ -328,6 +328,11 @@ exud%C      = self%exud_phy * grossC                        ![d^{-1}]
 
 ! --- carbon specific nitrogen & phosporus exudation   -------------------------
 exud%N      = self%exud_phy * uptake%N   ! [(mmolN) (mmolC)^{-1} d^{-1}]
+if (self%PhosphorusOn .and.  exud%N .gt. 0.0d0) then
+  exud%P      = phy%P / phy%reg%N * exud%N  
+else
+  exud%P      = 0.0d0
+end if
 
 ! ---- additional exudation to release unrealistic stoichiometry in depositional holes
 if( phy%relQ%N .gt. 0.95d0*self%MaxRelQ ) then
@@ -336,7 +341,6 @@ if( phy%relQ%N .gt. 0.95d0*self%MaxRelQ ) then
 end if
 
 if (self%PhosphorusOn) then
-  exud%P      = phy%P / phy%reg%N * exud%N   ! [(mmolP) (mmolC)^{-1} d^{-1}]
   if( phy%relQ%P .gt. 0.95d0*self%MaxRelQ ) then
     ex = max(0.0d0,(phy%Q%P - self%QP_phy_0)* self%iK_QP - self%MaxRelQ)
     exud%P = exud%P + self%decay_nut * (exp(ex)-1.0d0) * phy%Q%P

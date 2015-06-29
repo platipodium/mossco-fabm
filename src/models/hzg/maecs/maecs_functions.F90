@@ -221,12 +221,11 @@ sens%P_max_T = maecs%P_max * sens%f_T
 ! --- light response curve ------------------------------------------------------------------------
 sens%a_light = maecs%alpha * par /(sens%P_max_T)  ! par NOCH BAUSTELLE, jetzt PAR in zellmitte 
 sens%upt_pot%C  = 1.0d0 - exp(- sens%a_light * phy%theta) ! [dimensionless]
-! write (*,'(A,5(F10.4))') 'PAR Pm a th S:',par, sens%P_max_T,sens%a_light , phy%theta,sens%upt_pot%C
 if (maecs%ChemostatOn) then
  if (maecs%rel_co2 .gt. 0.01d0) then 
 ! write (*,'(A,3(F10.4))') 'PAR CO2:',par,env%CO2 ,sens%upt_pot%C
 !  sens%upt_pot%C = sens%upt_pot%C * (1.0d0 - exp(-env%CO2/maecs%rel_co2))
-  NutF    = smooth_small(env%CO2,maecs%small)
+  NutF  = smooth_small(env%CO2,maecs%small)
 ! normalized affinity to DIC ([CO2]+[HCO3])
   pmax  = smooth_small(sens%upt_pot%C,maecs%small)
   affin = pmax/maecs%rel_co2
@@ -234,6 +233,7 @@ if (maecs%ChemostatOn) then
   fA%C  =  fOptUpt(affin ,pmax, NutF)
 !  fA%C  =  0.5d0
   acc%fA%C=fA%C
+ write (*,'(A,5(F10.4))') 'co2 A f Pm-> ',env%CO2,affin,fA%C, sens%upt_pot%C,uptflex(affin ,sens%upt_pot%C, NutF, fA%C)
   sens%upt_pot%C = uptflex(affin ,sens%upt_pot%C, NutF, fA%C)
  end if
 end if
