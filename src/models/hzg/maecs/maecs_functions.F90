@@ -49,7 +49,7 @@ phy%Q%N  = smooth_small(phy%Q%N, maecs%QN_phy_0)
 phy%relQ%N  = (phy%Q%N - maecs%QN_phy_0) * maecs%iK_QN
 phy%relQ%N  = smooth_small(phy%relQ%N, maecs%small_finite)
 ! added for deep detritus traps with extreme quotas kw Jul, 16 2013
-if( 0.9d0* phy%relQ%N .gt. maecs%MaxRelQ ) then
+if(  phy%relQ%N .gt. 0.95d0*maecs%MaxRelQ ) then
    phy%relQ%N  = maecs%MaxRelQ - smooth_small(maecs%MaxRelQ- phy%relQ%N, maecs%small_finite)
 endif
 ! --- stoichiometry of non-living organic matter  ---------------------------------
@@ -64,7 +64,7 @@ if (maecs%PhosphorusOn) then
    phy%relQ%P = smooth_small(phy%relQ%P, maecs%small_finite)
 ! added for deep detritus traps with extreme quotas kw Jul, 16 2013
 !   phy%relQ%P = maxq - smooth_small(maxq- phy%relQ%P, maecs%small_finite)
-   if( 0.9d0* phy%relQ%P .gt. maecs%MaxRelQ ) then
+   if(  phy%relQ%P .gt. 0.95d0*maecs%MaxRelQ ) then
 !   if(maecs%MaxRelQ .gt. 0.) then
      phy%relQ%P  = maecs%MaxRelQ - smooth_small(maecs%MaxRelQ- phy%relQ%P, maecs%small_finite)
    endif

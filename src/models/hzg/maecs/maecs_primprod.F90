@@ -41,16 +41,14 @@ real(rk) :: flex_theta , flex_fracR ! [...]
 real(rk) :: dfV_dfracR , dfV_dtheta
 real(rk) :: grossC, Pmaxc
 real(rk) :: dbal_dv, dmu_daV_tot
-real(rk) :: e_N0, e_N
 real(rk) :: syn_act, hh
 real(rk) :: f_Lip, q_Lip, q_NoLip 
-real(rk) :: sumrelQ
 real(rk) :: c_h1, c_hq           ! correction terms of queuing function 
 real(rk) :: fac_colim            ! colimitation factor (dimensionless)
 real(rk) :: q_X, qp_Y, qp_X      ! placeholder for nutrient availability
 real(rk) :: qfunc, deriv_qfunc   ! queuing function and derivative
 real(rk) :: prod_dq, d_X, d_QX, dmu_daV, act_V
-real(rk) :: resC, darkf
+real(rk) :: resC, darkf, ex
 real(rk), dimension(5) :: sigmv ! relative quota-uptake feed-back 
 real(rk), dimension(5) :: dqp_X_dq_X, dqp_X_dqp_Y  ! derivatives
 real(rk), dimension(5) :: zeta_X  ! C-costs of assimilation of nutrient X
@@ -207,7 +205,6 @@ do i = 1, num_nut
  ! ------------------ derivatives of co-limited growth function ---------------------
    d_X       = prod_dq * dqp_X_dq_X(i)
    prod_dq   = prod_dq * dqp_X_dqp_Y(i)
-!   e_N       = e_N0 + d_X * elem(i)%iKQ / elem(i)%relQ
 
    d_QX      = d_X* dbal_dv * elem(i)%iKQ + sigmv(i)* phy%Q%N * self%zeta_CN  ! 
 
@@ -217,8 +214,6 @@ do i = 1, num_nut
 
 !   steady-state down-regulation of uptake I: balance of respiration and indirect benefits  
    dmu_dV    = (1.0d0 + zeta_X(i) * elem(i)%Q) * d_QX/(1.0d0 + elem(i)%Q * (d_QX + sigmv(i)))
-
-!   dmu_dV    = dmu_dV * e_N / (e_N + sigmv(i))
 
 !   steady-state down-regulation of uptake I: balance of respiration and indirect benefits  
    dmu_daV   = (-zeta_X(i) + dmu_dV) * phy%frac%NutUpt * elem(i)%upt_pot  
@@ -335,12 +330,18 @@ exud%C      = self%exud_phy * grossC                        ![d^{-1}]
 exud%N      = self%exud_phy * uptake%N   ! [(mmolN) (mmolC)^{-1} d^{-1}]
 
 ! ---- additional exudation to release unrealistic stoichiometry in depositional holes
-if (phy%relQ%N .gt. 1.0d0) exud%N = exud%N + self%decay_nut * smooth_small( exp((phy%Q%N - self%QN_phy_max)* self%iK_QN)-1.0d0,eps ) * phy%Q%N
+if( phy%relQ%N .gt. 0.95d0*self%MaxRelQ ) then
+  ex = max(0.0d0,(phy%Q%N - self%QN_phy_0)* self%iK_QN - self%MaxRelQ)
+  exud%N = exud%N + self%decay_nut * (exp(ex)-1.0d0) * phy%Q%N
+end if
 
-if (self%PhosphorusOn .and. phy%relQ%P .gt. 1.0d0) then
+if (self%PhosphorusOn) then
   exud%P      = phy%P / phy%reg%N * exud%N   ! [(mmolP) (mmolC)^{-1} d^{-1}]
-  exud%P      = exud%P + self%decay_nut * smooth_small(exp((phy%Q%P - self%QP_phy_max)* self%iK_QP)-1.0d0,eps) * phy%Q%P
-endif
+  if( phy%relQ%P .gt. 0.95d0*self%MaxRelQ ) then
+    ex = max(0.0d0,(phy%Q%P - self%QP_phy_0)* self%iK_QP - self%MaxRelQ)
+    exud%P = exud%P + self%decay_nut * (exp(ex)-1.0d0) * phy%Q%P
+  end if
+end if
 
 ! set few volatile diag variables ___________________________________
 !if (self%DebugDiagOn) then
