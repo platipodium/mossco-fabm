@@ -129,6 +129,8 @@ end if
 !#E_GET
 if (.not. self%GrazingOn) then
       zoo%C = self%zooC_initial
+      zoo%N = self%zooC_initial * self%const_NC_zoo
+      zoo%P = self%zooC_initial * self%const_PC_zoo
 end if
 
 !S_GED
@@ -391,9 +393,9 @@ reminT      = self%remin  * sens%f_T * qualDOM
 
 !  ---  hydrolysis & remineralisation depend on quality, here propto N/C quota of OM
 !  acceleration: rate difference for N-pool
-ddegN       = self%hydrol * sens%f_T * smooth_small(1.0d0 - qualPOM, self%small_finite)
+ddegN       = self%hydrol * sens%f_T * smooth_small(1.0d0 - qualPOM, 0.0d0)
 ddegP       = self%remNP * ddegN       
-dremN       = self%remin * sens%f_T * smooth_small(1.0d0 - qualDOM, self%small_finite)
+dremN       = self%remin * sens%f_T * smooth_small(1.0d0 - qualDOM, 0.0d0)
 dremP       = self%remNP * dremN
 !________________________________________________________________________________
 !
@@ -465,18 +467,21 @@ if (self%PhosphorusOn) then
               + aggreg_rate          * phy%P    &
               - self%dil             * det%P    &         
               + zoo_mort             * zoo%P    & 
-              - (degradT + ddegP)    * det%P    ! quality enhances P remin
+              - (degradT + ddegP)    * det%P    ! quality enhances P remin            
+              
   !  --- DOP
    Pprod     = (reminT + dremP)      * dom%P
    rhsv%domP = exud%P                * phy%C    &
               + (degradT + ddegP)    * det%P    &
               - self%dil             * dom%P    &              
               - Pprod
+             
   !  --- DIP
    rhsv%nutP = - uptake%P            * phy%C    & 
               + Pprod                           & 
               + lossZ%P              * zoo%C    &
               + self%dil * (self%nutP_initial - nut%P)
+            
 end if 
 !________________________________________________________________________________
 !
@@ -510,7 +515,7 @@ if (self%BioOxyOn) then
    f_T    = sens%f_T
 
 ! ---------- manages overlapping state variables 
-   no3    = smooth_small(nut%N - env%nh3,  self%small)
+   no3    = smooth_small(nut%N - env%nh3,  0.0d0)
 ! ---------- remineralisation limitations 
    Oxicminlim = env%oxy/(env%oxy+self%ksO2oxic+relaxO2*(env%nh3+env%odu))              
    Denitrilim = (1.0_rk-env%oxy/(env%oxy+self%kinO2denit)) * no3/(no3+self%ksNO3denit)
@@ -559,12 +564,16 @@ if (self%BioOxyOn) then
   Anammox    = self%rAnammox * Anoxiclim *Rescale * env%nh3 * no3/(no3+self%ksNO3denit)
 
 ! preference for NH3 in DIN-uptake of autotrophs
-  nh3f        = 1.0d0 - exp(-5*env%nh3/smooth_small(nut%N,self%small))
+!  nh3f        = 1.0d0 -exp(-5*env%nh3/smooth_small(nut%N,self%small))
+!  nh3f        = 1.0d0/(1.0d0+exp(-30*(env%nh3/(nut%N + env%nh3+0.01d0 )-0.5d0)))
+  nh3f        = env%nh3/(nut%N+ env%nh3+0.01d0)
 !  dynamics of nh3 ~ dissolved ammonium
   rhsv%nh3    = Nprod - Nitri + lossZ%N * zoo%C  & !/ (1.0_rk + self%NH3Ads)
-               + (exud%N - nh3f*uptake%N) * phy%C &!env%nh3/(nut%N+self%small) *
+               - nh3f*uptake%N * phy%C &!env%nh3/(nut%N+self%small) *
                + self%dil * (self%nh3_initial - env%nh3) &
-               - Anammox
+               - Anammox - smooth_small(env%nh3 - nut%N,  0.0d0)
+             
+!  if(env%nh3 .lt. 0.1d0) write (*,'(A,11(F10.3))') 'nh3=', env%nh3,nut%N,rhsv%nh3,nh3f,- Nitri,uptake%N,- nh3f*uptake%N*phy%C,self%dil*(self%nh3_initial-env%nh3),(0.8d0 * Denitrific+Anammox)*1E5
 
   rhsv%nutN   = rhsv%nutN - 0.8d0 * Denitrific - Anammox
 

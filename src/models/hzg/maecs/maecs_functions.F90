@@ -170,10 +170,10 @@ if (maecs%GrazingOn) then
   zoo%N     = zoo%C * zoo%Q%N
   zoo%yield = maecs%yield_zoo
   zoo%flopp =  _ONE_ - maecs%yield_zoo
-  if (maecs%PhosphorusOn) then 
+!  if (maecs%PhosphorusOn) then 
     zoo%Q%P   = maecs%const_PC_zoo
     zoo%P     = zoo%C * zoo%Q%P
-  endif
+! endif  
 endif
 end subroutine
 
@@ -225,7 +225,7 @@ if (maecs%ChemostatOn) then
  if (maecs%rel_co2 .gt. 0.01d0) then 
 ! write (*,'(A,3(F10.4))') 'PAR CO2:',par,env%CO2 ,sens%upt_pot%C
 !  sens%upt_pot%C = sens%upt_pot%C * (1.0d0 - exp(-env%CO2/maecs%rel_co2))
-  NutF  = smooth_small(env%CO2,maecs%small)
+  NutF  = smooth_small(env%CO2,0.0d0)
 ! normalized affinity to DIC ([CO2]+[HCO3])
   pmax  = smooth_small(sens%upt_pot%C,maecs%small)
   affin = pmax/maecs%rel_co2
@@ -244,12 +244,17 @@ end if
 !>   - (acc\%)fA\%X= call: foptupt()
 !>   - (sens\%)upt\_pot\%X= call: uptflex()
 ! non-zero nutrient concentration for regulation
-NutF    = smooth_small(nut%N,maecs%small)
+  NutF    = smooth_small(nut%N-maecs%small_finite,0.0d0)
 ! optimal partitioning between
 ! surface uptake sites and internal enzymes (for assimilation)
-fA%N    =  fOptUpt(maecs%AffN,maecs%V_NC_max * sens%f_T, NutF)
-acc%fA%N=fA%N
-sens%upt_pot%N   = uptflex(maecs%AffN,maecs%V_NC_max*sens%f_T,Nut%N, fA%N)
+!if(Nut%N .gt. maecs%small_finite) then
+  fA%N    =  fOptUpt(maecs%AffN,maecs%V_NC_max * sens%f_T, NutF)
+  acc%fA%N=fA%N
+  sens%upt_pot%N   = uptflex(maecs%AffN,maecs%V_NC_max*sens%f_T,NutF, fA%N)
+!else
+!  fA%N    =  0.99d0
+!  sens%upt_pot%N   = 0
+!  end if
 
 !  P-uptake coefficients
 if (maecs%PhosphorusOn) then 
@@ -262,7 +267,6 @@ else
    acc%fA%P= 0.5d0
    acc%Av%P= 0.d0
 end if
-!write (*,'(A,4(F10.3))') 'vP=',sens%upt_pot%P,maecs%V_PC_max * sens%f_T,nut%P,maecs%small*1E3
 
 !  Si-uptake coefficients
 if (maecs%SiliconOn) then 
@@ -289,8 +293,8 @@ pure real(rk) function fOptUpt(Aff0, Vmax0, Nut)
    implicit none
 
    real(rk), intent(in)      :: Aff0, Vmax0, Nut
-
-   fOptUpt     = _ONE_/(sqrt(Aff0*Nut/(Vmax0)) + _ONE_ );
+! avoid fOptUpt=1 since Vmax=0 will induce a NaN in uptflex at Nut=0
+   fOptUpt     = 1.d0/(sqrt(Aff0*Nut/(Vmax0)) + 1.001d0);
    end function fOptUpt
    
 !-----------------------------------------------------------------------

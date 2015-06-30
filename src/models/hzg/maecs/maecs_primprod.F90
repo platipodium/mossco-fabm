@@ -227,6 +227,7 @@ do i = 1, num_nut
    elem(i)%dmudV   = dmu_dV
    elem(i)%dmudaV  = dmu_daV
    elem(i)%aV      = act_V 
+!   if(i .lt. 3) write (*,'(A,1(I3),5(F10.3))') 'upN: ',i,elem(i)%upt_pot,act_V,dmu_daV,dmu_dV,dmu_daV_tot  
 end do
 
 !acc%fac1 = elem(1)%dmudV
@@ -248,6 +249,8 @@ do i = 1, num_nut
    elem(i)%upt_act = act_V * elem(i)%upt_pot
    elem(i)%upt     = phy%frac%NutUpt * elem(i)%upt_act  ! [(molX) (molC)^{-1} d{-1}]
 
+  
+   
 ! +++ derivative of C-uptake rate with respect to quota ++++++++++++++++++++++++++++++
    dmuQ_dfracR     = dmuQ_dfracR + elem(i)%dmudV * (elem(i)%upt_act+1*eps) * dfV_dfracR
    dmuQ_dtheta     = dmuQ_dtheta + elem(i)%dmudV * (elem(i)%upt_act+1*eps) * dfV_dtheta
