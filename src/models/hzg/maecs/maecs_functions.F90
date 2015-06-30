@@ -84,13 +84,10 @@ end if
 !>    - unpack phy\%frac\%Rub (=@f$ f_R @f$)= phy\%Rub / phy\%reg\%C
 !>    - smooth 1-@f$ f_R @f$to (small\%finite + rel_chlropl_min) (both nml pars), such that @f$ f_R @f$ is always smaller than 1
 !>    - @f$ f_R = \mathrm{phy\%Rub} / phy_C @f$
-phy%frac%Rub=maecs%frac_Rub_ini
 
-!if (maecs%PhotoacclimOn) then
 if (maecs%RubiscoOn) then 
 ! trait + transporter needs division to become a trait again
    phy%frac%Rub = phy%Rub / phy%reg%C
-!     phy%frac%Rub = phy%Rub / phy%reg%N
 else
    phy%frac%Rub=maecs%frac_Rub_ini
 end if   
