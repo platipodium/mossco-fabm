@@ -33,9 +33,6 @@ type (type_maecs_phy), intent(inout) :: phy
 type (type_maecs_om), intent(inout) :: det
 type (type_maecs_om), intent(inout) :: dom
 type (type_maecs_zoo), intent(inout) :: zoo
-real(rk) :: min_Cmass
-
-! min_Cmass = maecs%small_finite * 1.0d-3 / maecs%a_spm
 
 !> @fn maecs_functions::calc_internal_states()
 !> 1. Calculate elemental absolute and relative quotas (Q and relQ):
@@ -51,9 +48,7 @@ phy%relQ%N  = (phy%Q%N - maecs%QN_phy_0) * maecs%iK_QN
 if(  phy%relQ%N .gt. 0.95d0*maecs%MaxRelQ ) then
    phy%relQ%N  = maecs%MaxRelQ - smooth_small(maecs%MaxRelQ- phy%relQ%N, maecs%small_finite)
 endif
-! --- stoichiometry of non-living organic matter  ---------------------------------
-!dom%QN      = dom%N  /(dom%C + min_Cmass )  ! N:C ratio of dissolved organic matter (DOM)
-!det%QN      = det%N /(det%C + min_Cmass)   ! N:C ratio of detritus
+
 if (maecs%PhosphorusOn) then 
    phy%Q%P     = phy%P / phy%reg%C
 ! added for mixing effects in estuaries kw Jul, 15 2013
@@ -64,13 +59,9 @@ if (maecs%PhosphorusOn) then
    if(  phy%relQ%P .gt. 0.95d0*maecs%MaxRelQ ) then
      phy%relQ%P  = maecs%MaxRelQ - smooth_small(maecs%MaxRelQ- phy%relQ%P, maecs%small_finite)
    endif
-
-!   dom%QP     = dom%P  / (dom%C  + min_Cmass)  ! P:C ratio of DOM
-!   det%QP     = det%P / (det%C + min_Cmass)  ! P:C ratio of detritus
 else
    phy%Q%P     = maecs%QP_phy_0
    phy%relQ%P  = maecs%small_finite
-
 end if 
   
 if (maecs%SiliconOn) then 
