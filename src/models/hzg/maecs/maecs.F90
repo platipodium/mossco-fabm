@@ -275,25 +275,25 @@ real(rk)  :: kinNO3anox   ! half-sat NO3 inhib anoxic min
 real(rk)  :: kinO2anox    ! half-sat O2 inhib anoxic min
 real(rk)  :: rAnammox     ! anammox rate
 !!------- Switches for configuring model structure -------
-logical   :: RubiscoOn    ! use Rubisco- here in C-units
-logical   :: PhotoacclimOn ! use Photoacclimation
-logical   :: PhosphorusOn ! resolve Phosphorus cycle
-logical   :: SiliconOn    ! resolve Silicon cycle
-logical   :: GrazingOn    ! use Zooplankton grazing
-logical   :: BioOxyOn     ! use oxygen&ODU from OMEXDIA
-logical   :: DebugDiagOn  ! output of volatile diagnostics for debugging
-logical   :: Budget0DDiagOn ! output of elemental budgets (totX)
-logical   :: Budget2DDiagOn ! output of vertical budget integrals (totX_vertint/diag)
-logical   :: BGC0DDiagOn  ! output of local rates (GPP, Denit,...) and states (NO3)
-logical   :: BGC2DDiagOn  ! output of BGC fluxes (O,C,N)
-logical   :: PhysiolDiagOn ! output of ecophysiological/allocation/acclimation variables
-logical   :: RateDiagOn   ! output of phytoplankton growth and loss rate contributions
-logical   :: ChemostatOn  ! use Chemostat mode 
-logical   :: NResOn       ! use long-term N-reservoir
-integer   :: kwFzmaxMeth  ! background extinction method
-logical   :: detritus_no_river_dilution ! use riverine det import
-logical   :: plankton_no_river_dilution ! use riverine phy import
-logical   :: nutrient_no_river_dilution ! use riverine nut import
+logical   :: RubiscoOn=.false.      ! use Rubisco- here in C-units
+logical   :: PhotoacclimOn=.false.  ! use Photoacclimation
+logical   :: PhosphorusOn=.false.   ! resolve Phosphorus cycle
+logical   :: SiliconOn=.false.      ! resolve Silicon cycle
+logical   :: GrazingOn=.true.       ! use Zooplankton grazing
+logical   :: BioOxyOn=.false.       ! use oxygen&ODU from OMEXDIA
+logical   :: DebugDiagOn=.false.    ! output of volatile diagnostics for debugging
+logical   :: Budget0DDiagOn=.false. ! output of elemental budgets (totX)
+logical   :: Budget2DDiagOn=.false. ! output of vertical budget integrals (totX_vertint/diag)
+logical   :: BGC0DDiagOn=.false.    ! output of local rates (GPP, Denit,...) and states (NO3)
+logical   :: BGC2DDiagOn=.false.    ! output of BGC fluxes (O,C,N)
+logical   :: PhysiolDiagOn=.false.  ! output of ecophysiological/allocation/acclimation variables
+logical   :: RateDiagOn=.false.     ! output of phytoplankton growth and loss rate contributions
+logical   :: ChemostatOn=.false.    ! use Chemostat mode 
+logical   :: NResOn=.false.         ! use long-term N-reservoir
+integer   :: kwFzmaxMeth=0          ! background extinction method
+logical   :: detritus_no_river_dilution=.false. ! zero-gradient riverine detritus import
+logical   :: plankton_no_river_dilution=.true.  ! zero-gradient riverine phytoplankton import
+logical   :: nutrient_no_river_dilution=.false. ! zero-gradient riverine nutrient import
 
 namelist /maecs_switch/ &
   RubiscoOn, PhotoacclimOn, PhosphorusOn, SiliconOn, GrazingOn, BioOxyOn, &
@@ -722,7 +722,7 @@ call self%register_diagnostic_variable(self%id_no3,     'no3','mmol-N/m**3', 'Ni
 end if
 
 if (self%PhysiolDiagOn) then
-call self%register_diagnostic_variable(self%id_chl2C,   'chl2C','gCHL/m**3', 'chlorophyll:carbon_ratio_=_chl-a/chloroplast-C_*_chloroplast-C/phy-molC_*_1molC/12gC_ chl2C', &
+call self%register_diagnostic_variable(self%id_chl2C,   'chl2C','gCHL/m**3', 'chlorophyll_to_carbon_ratio', &
   output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_Theta,   'Theta','-', 'Theta_ Theta', &
   output=output_time_step_averaged)
