@@ -40,7 +40,7 @@ type (type_maecs_zoo), intent(inout) :: zoo
 !>   - phy\%relQ\%X= (phy\%Q\%X - maecs\%qN_phy_0) / maecs\%iK_QN where x=N,P,Si
 phy%Q%N    = phy%reg%N / phy%reg%C
 ! added for mixing effects in estuaries kw Jul, 15 2013
-phy%Q%N  = smooth_small(phy%Q%N, maecs%QN_phy_0)
+phy%Q%N  = smooth_small(phy%Q%N, maecs%QN_phy_0+maecs%small_finite)
 
 ! fraction of free (biochemically available) intracellular nitrogen
 phy%relQ%N  = (phy%Q%N - maecs%QN_phy_0) * maecs%iK_QN
@@ -52,7 +52,7 @@ endif
 if (maecs%PhosphorusOn) then 
    phy%Q%P     = phy%P / phy%reg%C
 ! added for mixing effects in estuaries kw Jul, 15 2013
-   phy%Q%P     = smooth_small(phy%Q%P, maecs%QP_phy_0)
+   phy%Q%P     = smooth_small(phy%Q%P, maecs%QP_phy_0+maecs%small_finite)
 
    phy%relQ%P = ( phy%Q%P - maecs%QP_phy_0 ) * maecs%iK_QP
 ! added for deep detritus traps with extreme quotas kw Jul, 16 2013
@@ -208,7 +208,7 @@ if (maecs%ChemostatOn) then
  if (maecs%rel_co2 .gt. 0.01d0) then 
 ! write (*,'(A,3(F10.4))') 'PAR CO2:',par,env%CO2 ,sens%upt_pot%C
 !  sens%upt_pot%C = sens%upt_pot%C * (1.0d0 - exp(-env%CO2/maecs%rel_co2))
-  NutF  = smooth_small(env%CO2,0.0d0)
+  NutF  = max(env%CO2,0.0d0)
 ! normalized affinity to DIC ([CO2]+[HCO3])
   pmax  = smooth_small(sens%upt_pot%C,maecs%small)
   affin = pmax/maecs%rel_co2
@@ -227,7 +227,7 @@ end if
 !>   - (acc\%)fA\%X= call: foptupt()
 !>   - (sens\%)upt\_pot\%X= call: uptflex()
 ! non-zero nutrient concentration for regulation
-  NutF    = smooth_small(nut%N-maecs%small_finite,0.0d0)
+  NutF    = max(nut%N,0.0d0)
 ! optimal partitioning between
 ! surface uptake sites and internal enzymes (for assimilation)
 !if(Nut%N .gt. maecs%small_finite) then

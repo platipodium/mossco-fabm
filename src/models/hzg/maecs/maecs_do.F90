@@ -395,9 +395,9 @@ reminT      = self%remin  * sens%f_T * qualDOM
 
 !  ---  hydrolysis & remineralisation depend on quality, here propto N/C quota of OM
 !  acceleration: rate difference for N-pool
-ddegN       = self%hydrol * sens%f_T * smooth_small(1.0d0 - qualPOM, 0.0d0)
+ddegN       = self%hydrol * sens%f_T * max(1.0d0 - qualPOM, 0.0d0)
 ddegP       = self%remNP * ddegN       
-dremN       = self%remin * sens%f_T * smooth_small(1.0d0 - qualDOM, 0.0d0)
+dremN       = self%remin * sens%f_T * max(1.0d0 - qualDOM, 0.0d0)
 dremP       = self%remNP * dremN
 !________________________________________________________________________________
 !
@@ -517,7 +517,7 @@ if (self%BioOxyOn) then
    f_T    = sens%f_T
 
 ! ---------- manages overlapping state variables 
-   no3    = smooth_small(nut%N - env%nh3,  0.0d0)
+   no3    = max(nut%N - env%nh3,  0.0d0)
 ! ---------- remineralisation limitations 
    Oxicminlim = env%oxy/(env%oxy+self%ksO2oxic+relaxO2*(env%nh3+env%odu))              
    Denitrilim = (1.0_rk-env%oxy/(env%oxy+self%kinO2denit)) * no3/(no3+self%ksNO3denit)
@@ -568,14 +568,14 @@ if (self%BioOxyOn) then
 ! preference for NH3 in DIN-uptake of autotrophs
 !  nh3f        = 1.0d0 -exp(-5*env%nh3/smooth_small(nut%N,self%small))
 !  nh3f        = 1.0d0/(1.0d0+exp(-30*(env%nh3/(nut%N + env%nh3+0.01d0 )-0.5d0)))
-  nh3f        = env%nh3/(nut%N+ env%nh3+0.01d0)
+  nh3f        = env%nh3/(nut%N+ env%nh3+0.1d0)
 !  dynamics of nh3 ~ dissolved ammonium
   rhsv%nh3    = Nprod - Nitri + lossZ%N * zoo%C  & !/ (1.0_rk + self%NH3Ads)
                - nh3f*uptake%N * phy%C &!env%nh3/(nut%N+self%small) *
                + self%dil * (self%nh3_initial - env%nh3) &
-               - Anammox - smooth_small(env%nh3 - nut%N,  0.0d0)
+               - Anammox - max(env%nh3 - nut%N,  0.0d0)
              
-!  if(env%nh3 .lt. 0.1d0) write (*,'(A,11(F10.3))') 'nh3=', env%nh3,nut%N,rhsv%nh3,nh3f,- Nitri,uptake%N,- nh3f*uptake%N*phy%C,self%dil*(self%nh3_initial-env%nh3),(0.8d0 * Denitrific+Anammox)*1E5
+  if(env%nh3 .lt. 0.1d0) write (*,'(A,11(F10.3))') 'nh3=', env%nh3,nut%N,rhsv%nh3,nh3f,- Nitri,uptake%N,- nh3f*uptake%N*phy%C,self%dil*(self%nh3_initial-env%nh3),(0.8d0 * Denitrific+Anammox)*1E5
 
   rhsv%nutN   = rhsv%nutN - 0.8d0 * Denitrific - Anammox
 

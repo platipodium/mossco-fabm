@@ -723,7 +723,7 @@ end if
 
 if (self%PhysiolDiagOn) then
 call self%register_diagnostic_variable(self%id_chl2C,   'chl2C','gCHL/m**3', 'chlorophyll_to_carbon_ratio', &
-  output=output_time_step_averaged)
+  output=output_time_step_averaged) !=_chl-a/chloroplast-C_*_chloroplast-C/phy-molC_*_1molC/12gC_ chl2C
 call self%register_diagnostic_variable(self%id_Theta,   'Theta','-', 'Theta_ Theta', &
   output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_fracR,   'fracR','-', 'Rubisco_fract._allocation_ fracR', &
