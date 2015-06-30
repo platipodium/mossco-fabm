@@ -47,7 +47,6 @@ phy%Q%N  = smooth_small(phy%Q%N, maecs%QN_phy_0)
 
 ! fraction of free (biochemically available) intracellular nitrogen
 phy%relQ%N  = (phy%Q%N - maecs%QN_phy_0) * maecs%iK_QN
-phy%relQ%N  = smooth_small(phy%relQ%N, maecs%small_finite)
 ! added for deep detritus traps with extreme quotas kw Jul, 16 2013
 if(  phy%relQ%N .gt. 0.95d0*maecs%MaxRelQ ) then
    phy%relQ%N  = maecs%MaxRelQ - smooth_small(maecs%MaxRelQ- phy%relQ%N, maecs%small_finite)
@@ -61,14 +60,10 @@ if (maecs%PhosphorusOn) then
    phy%Q%P     = smooth_small(phy%Q%P, maecs%QP_phy_0)
 
    phy%relQ%P = ( phy%Q%P - maecs%QP_phy_0 ) * maecs%iK_QP
-   phy%relQ%P = smooth_small(phy%relQ%P, maecs%small_finite)
 ! added for deep detritus traps with extreme quotas kw Jul, 16 2013
-!   phy%relQ%P = maxq - smooth_small(maxq- phy%relQ%P, maecs%small_finite)
    if(  phy%relQ%P .gt. 0.95d0*maecs%MaxRelQ ) then
-!   if(maecs%MaxRelQ .gt. 0.) then
      phy%relQ%P  = maecs%MaxRelQ - smooth_small(maecs%MaxRelQ- phy%relQ%P, maecs%small_finite)
    endif
-!write (*,'(A,4(F10.3))') 'relQ%P=',phy%relQ%P,phy%Q%P*1E3,(phy%Q%P - maecs%QP_phy_0)*1E3,maecs%QP_phy_0*1E3
 
 !   dom%QP     = dom%P  / (dom%C  + min_Cmass)  ! P:C ratio of DOM
 !   det%QP     = det%P / (det%C + min_Cmass)  ! P:C ratio of detritus
