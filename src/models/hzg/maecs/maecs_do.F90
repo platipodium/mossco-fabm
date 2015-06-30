@@ -142,7 +142,7 @@ end if
 
 !E_GED  ! list outcommented due to different usage of zmax and doy (see light extinction)
 
-! write (*,'(A,2(F10.3))') 'par/T:',env%par,env%temp
+! write (*,'(A,3(F10.3))') 'par/T/co2:',env%par,env%temp,env%CO2
 
 ! @ingroup main
 !> @fn fabm_hzg_maecs::maecs_do () 
@@ -637,10 +637,14 @@ end if
 !#S_DIA
 if (self%DebugDiagOn) then
   _SET_DIAGNOSTIC_(self%id_tmp, _REPLNAN_(acclim%tmp))       !average Temporary_diagnostic_
-  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(dRchl_phyC_dt))   !average Auxiliary_diagnostic_
-  _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(acclim%dRchl_dfracR*acclim%dfracR_dt)) !average Auxiliary_diagnostic_
-  _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%dRchl_dtheta*acclim%dtheta_dt)) !average Auxiliary_diagnostic_
-  _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(acclim%fac1))     !average dtheta_dt_due_to_flex_theta_
+!  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(dRchl_phyC_dt))   !average Auxiliary_diagnostic_
+!  _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(acclim%dRchl_dfracR*acclim%dfracR_dt)) !average Auxiliary_diagnostic_
+!  _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%dRchl_dtheta*acclim%dtheta_dt)) !average Auxiliary_diagnostic_
+!  _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(acclim%fac))     !average dtheta_dt_due_to_flex_theta_
+  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(acclim%fac1))     !average dtheta_dt_due_to_flex_theta_
+  _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(acclim%fac2))     !average dtheta_dt_due_to_flex_theta_
+  _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%fac3))     !average dtheta_dt_due_to_flex_theta_
+  _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(acclim%fac4))     !average dtheta_dt_due_to_flex_theta_
   _SET_DIAGNOSTIC_(self%id_fac5, _REPLNAN_(acclim%fac2))     !average dtheta_dt_due_to_grad_theta_
 end if
 if (self%BGC0DDiagOn) then

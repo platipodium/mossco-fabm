@@ -134,7 +134,7 @@ type type_maecs_traitdyn
       real(rk)   :: dRchl_dQN
       type (type_maecs_om) :: aV !instantaneously optimized trait: activity
       type (type_maecs_om) :: fA !instantaneously optimized trait: large fA-> affinity (i.e., uptake sites) vs small fA-> Vmax (i.e., transport)
-      real(rk)   :: tmp,fac1,fac2  ! for volatile diagnostics
+      real(rk)   :: tmp,fac1,fac2,fac3,fac4  ! for volatile diagnostics
 !      type (type_maecs_om) :: dV_dfracR, dV_dtheta
 end type
                                        

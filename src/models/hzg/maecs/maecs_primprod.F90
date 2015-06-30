@@ -280,9 +280,8 @@ if (self%RubiscoOn) then
    grad_fracR = dmu_dfracR      &   ! marginal C gain of light independent processes 
               + dmuQ_dfracR         ! marginal loss due to reduced uptake 
 
-   acc%fac1 = dmuQ_dfracR
-!   acc%fac2 = dmuQ_dfracR
-
+   acc%fac4 = dmuQ_dfracR
+   acc%fac3 = dmu_dfracR
 ! --- regulation speed in Rubisco expression ------------------------------------ 
    flex_fracR = self%adap_Rub * (1.0d0 - phy%frac%Rub ) * phy%frac%Rub
 ! \todo check old version: (phy%frac%Rub - self%rel_chloropl_min-self%small_finite)
@@ -307,7 +306,7 @@ end if
 if (self%PhotoacclimOn) then
 ! --- derivatives of C-uptake rate  --------------------------------------------         
 !     positive gradient term due to PAR adsorption by CHL 
-   dmu_dtheta = Pmaxc* phy%frac%Rub * (1.0d0-sens%upt_pot%C)*sens%a_light & 
+   dmu_dtheta = Pmaxc* phy%frac%Rub * exp(- sens%a_light * phy%theta) *sens%a_light & 
                       - self%zeta_CN * upt_act%N * dfV_dtheta
 
    grad_theta = dmu_dtheta + dmuQ_dtheta  ! marginal C gain and indirect costs of chloroplasts
@@ -319,8 +318,8 @@ if (self%PhotoacclimOn) then
   ! *** ADAPTIVE EQUATION FOR 'theta'
    acc%dtheta_dt = flex_theta * grad_theta
    !for being able to save these intermediate quantities as diag vars:
-!   acc%fac1=flex_theta 
-   acc%fac2=dmuQ_dtheta
+   acc%fac1 = dmu_dtheta
+   acc%fac2 = dmuQ_dtheta
 end if
 ! --- carbon exudation   -------------------------------------------------------
 !  TODO: discuss and adjust; data?
