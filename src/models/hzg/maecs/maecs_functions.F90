@@ -12,7 +12,7 @@
    use maecs_types
 
    !private
-   real(rk),private     ::zero=0.0_rk
+   real(rk),private     ::zero   = 0.0_rk
    
    public   uptflex       ,& 
             queuefunc, queuefunc0, queuederiv ,&
@@ -52,9 +52,10 @@ endif
 if (maecs%PhosphorusOn) then 
    phy%Q%P     = phy%P / phy%reg%C
 ! added for mixing effects in estuaries kw Jul, 15 2013
-   phy%Q%P     = smooth_small(phy%Q%P, maecs%QP_phy_0+maecs%small_finite)
+   phy%Q%P     = smooth_small(phy%Q%P, maecs%QP_phy_0+maecs%small * maecs%QP_phy_max)
 
    phy%relQ%P = ( phy%Q%P - maecs%QP_phy_0 ) * maecs%iK_QP
+
 ! added for deep detritus traps with extreme quotas kw Jul, 16 2013
    if(  phy%relQ%P .gt. 0.95d0*maecs%MaxRelQ ) then
      phy%relQ%P  = maecs%MaxRelQ - smooth_small(maecs%MaxRelQ- phy%relQ%P, maecs%small_finite)
@@ -115,7 +116,7 @@ phy%frac%Rub = _ONE_ - smooth_small(_ONE_- phy%frac%Rub ,maecs%small_finite + ma
 !>    - @f$ \mathrm{phy\%frac\%NutUpt}=f_V = \mathrm{phy\%frac\%TotFree} - f_{\theta} - f_R  @f$, where phy\%frac\%TotFree=1.0
 
 ! calculate rel_chloropl
-phy%rel_chloropl = smooth_small(phy%frac%Rub * phy%relQ%N**maecs%sigma,maecs%rel_chloropl_min)
+phy%rel_chloropl = smooth_small(phy%frac%Rub* phy%relQ%N**maecs%sigma,maecs%rel_chloropl_min)
 
 if (maecs%PhotoacclimOn) then  
 
@@ -182,7 +183,9 @@ type (type_maecs_traitdyn), intent(out) :: acc
 
 type (type_maecs_om) :: fA
 real(rk) :: par, T_Kelv, NutF, affin, pmax
+logical      ::IsAdap = .true.
 
+if((maecs%adap_rub .lt. 0.001d0 .and. maecs%adap_theta.lt. 0.001d0) .or.  .not. maecs%PhotoacclimOn) IsAdap = .false. 
 !> @fn maecs_functions::calc_sensitivities()
 !> 1. calculate (sens\%) f\_T, P\_max\_T, a\_light, upt\_pot\%C 
 par          = maecs%frac_PAR * env%par ! use active  fraction frac_PAR of available radiation
@@ -190,13 +193,8 @@ T_Kelv       = env%Temp + 273.d0 ! temperature in Kelvin
 ! ----------------------------------------------------------------------------
 ! +++ determine rates for photoautotophic growth ++++++++++++++++++++++++++++++++++++++++++++++++++
 ! --- temperature dependence of metabolic rates (with T_ref given in units [Kelvin]) --------------
-!sens%f_T  = exp(-maecs%Ae_all *(1.0d0/T_Kelv - 1.0d0/maecs%T_ref ))
-
-!WHAT IS THIS?
-!sens%f_T  = exp( maecs%rq10*(T_Kelv-maecs%T_ref))
-!OK, got it: in maecs.F90,L438, rq10=0.1*log(Q10).
-!SO THE FUNCTION BEHAVES EXACTLY AS THE Q10 RULE. BUT WHY NOT SIMPLY WRITING THE FORMULA AS EVERYONE ELSE RECOGNIZES?
-sens%f_T  = maecs%rq10**((T_Kelv-maecs%T_ref)/10.0)
+!standard Q10 RULE
+sens%f_T     = maecs%rq10**((T_Kelv-maecs%T_ref)/10.0)
 
 ! --- (potential) maximum photosynthetic rate -----------------------------------------------------
 sens%P_max_T = maecs%P_max * sens%f_T
@@ -205,20 +203,20 @@ sens%P_max_T = maecs%P_max * sens%f_T
 sens%a_light = maecs%alpha * par /(sens%P_max_T)  ! par NOCH BAUSTELLE, jetzt PAR in zellmitte 
 sens%upt_pot%C  = 1.0d0 - exp(- sens%a_light * phy%theta) ! [dimensionless]
 if (maecs%ChemostatOn) then
- if (maecs%rel_co2 .gt. 0.01d0) then 
+  if (maecs%rel_co2 .gt. 0.01d0) then 
 ! write (*,'(A,3(F10.4))') 'PAR CO2:',par,env%CO2 ,sens%upt_pot%C
-!  sens%upt_pot%C = sens%upt_pot%C * (1.0d0 - exp(-env%CO2/maecs%rel_co2))
-  NutF  = max(env%CO2,0.0d0)
+    NutF    = max(env%CO2, 0.0d0)
+
 ! normalized affinity to DIC ([CO2]+[HCO3])
-  pmax  = smooth_small(sens%upt_pot%C,maecs%small)
-  affin = pmax/maecs%rel_co2
+    pmax    = smooth_small(sens%upt_pot%C,maecs%small)
+    affin   = pmax/maecs%rel_co2
+
 ! optimal partitioning between surface transporter and carboxylation/Rubisco
-  fA%C  =  fOptUpt(affin ,pmax, NutF)
-!  fA%C  =  0.5d0
-  acc%fA%C=fA%C
+    fA%C    = fOptUpt(affin ,pmax, NutF, IsAdap)
+    acc%fA%C= fA%C
 ! write (*,'(A,5(F10.4))') 'co2 A f Pm-> ',env%CO2,affin,fA%C, sens%upt_pot%C,uptflex(affin ,sens%upt_pot%C, NutF, fA%C)
-  sens%upt_pot%C = uptflex(affin ,sens%upt_pot%C, NutF, fA%C)
- end if
+    sens%upt_pot%C = uptflex(affin ,sens%upt_pot%C, NutF, fA%C)
+  end if
 end if
 
 ! --- carbon specific N-uptake: sites vs. processing ----------------------------------
@@ -227,40 +225,35 @@ end if
 !>   - (acc\%)fA\%X= call: foptupt()
 !>   - (sens\%)upt\_pot\%X= call: uptflex()
 ! non-zero nutrient concentration for regulation
-  NutF    = max(nut%N,0.0d0)
+NutF          = max(nut%N,0.0d0)
 ! optimal partitioning between
 ! surface uptake sites and internal enzymes (for assimilation)
-!if(Nut%N .gt. maecs%small_finite) then
-  fA%N    =  fOptUpt(maecs%AffN,maecs%V_NC_max * sens%f_T, NutF)
-  acc%fA%N=fA%N
-  sens%upt_pot%N   = uptflex(maecs%AffN,maecs%V_NC_max*sens%f_T,NutF, fA%N)
-!else
-!  fA%N    =  0.99d0
-!  sens%upt_pot%N   = 0
-!  end if
+fA%N          = fOptUpt(maecs%AffN,maecs%V_NC_max * sens%f_T, NutF, IsAdap)
+acc%fA%N      = fA%N
+sens%upt_pot%N= uptflex(maecs%AffN,maecs%V_NC_max*sens%f_T,NutF, fA%N)
 
 !  P-uptake coefficients
 if (maecs%PhosphorusOn) then 
-   NutF    = smooth_small(nut%P,maecs%small)
+   NutF          = smooth_small(nut%P,maecs%small)
 ! optimal partitioning 
-   fA%P    =  fOptUpt(maecs%AffP,maecs%V_PC_max * sens%f_T, NutF)
-   acc%fA%P=fA%P
-   sens%upt_pot%P  = uptflex(maecs%AffP,maecs%V_PC_max*sens%f_T,Nut%P,fA%P)
+   fA%P          = fOptUpt(maecs%AffP,maecs%V_PC_max * sens%f_T, NutF, IsAdap)
+   acc%fA%P      = fA%P
+   sens%upt_pot%P= uptflex(maecs%AffP,maecs%V_PC_max*sens%f_T,Nut%P,fA%P)
 else
-   acc%fA%P= 0.5d0
-   acc%Av%P= 0.d0
+   acc%fA%P      = 0.5d0
+   acc%Av%P      = 0.d0
 end if
 
 !  Si-uptake coefficients
 if (maecs%SiliconOn) then 
-   NutF    = smooth_small(nut%Si,maecs%small)
+   NutF          = smooth_small(nut%Si,maecs%small)
 ! optimal partitioning 
-   fA%Si    =  fOptUpt(maecs%AffSi,maecs%V_SiC_max * sens%f_T, NutF)
-   acc%fA%Si=fA%Si
-   sens%upt_pot%Si = uptflex(maecs%AffSi,maecs%V_SiC_max * sens%f_T,nutF,fA%Si)
+   fA%Si         = fOptUpt(maecs%AffSi,maecs%V_SiC_max * sens%f_T, NutF, IsAdap)
+   acc%fA%Si     = fA%Si
+   sens%upt_pot%Si= uptflex(maecs%AffSi,maecs%V_SiC_max * sens%f_T,nutF,fA%Si)
 else
-   acc%fA%Si= 0.5d0
-   acc%Av%Si= 0.d0
+   acc%fA%Si     = 0.5d0
+   acc%Av%Si     = 0.d0
 end if
 ! TODO check temperature dependence of nutrient affinity
 
@@ -272,12 +265,17 @@ end subroutine
 !> @details 
 !> calculates @f$ f_{A,X} @f$ \lref{see eq. ,eq:optutpalloc,.}
 !> @f$ f_{A,X} = 1/ (1+ \sqrt(A_X^0*DIX/V_{max,X}^0)) @f$
-pure real(rk) function fOptUpt(Aff0, Vmax0, Nut)
+pure real(rk) function fOptUpt(Aff0, Vmax0, Nut, IsOn)
    implicit none
 
    real(rk), intent(in)      :: Aff0, Vmax0, Nut
+   logical, intent(in)       :: IsOn
+   if (IsOn) then
 ! avoid fOptUpt=1 since Vmax=0 will induce a NaN in uptflex at Nut=0
-   fOptUpt     = 1.d0/(sqrt(Aff0*Nut/(Vmax0)) + 1.001d0);
+     fOptUpt     = 1.d0/(sqrt(Aff0*Nut/(Vmax0)) + 1.001d0)
+   else
+     fOptUpt     = 0.5d0
+   end if
    end function fOptUpt
    
 !-----------------------------------------------------------------------

@@ -62,9 +62,11 @@ eps     =  self%small_finite ! just  a shorter namer for a small thing
 ! prelim solution: stoichiometry in RNA (N:P ~ 4:1) and phospholipids (N:P~1:1)
 ! TODO: include proteins/mebranes (N:P >> 16:1) under low growth conditions 
 !  q_NoLip  = 3.8  ! P-stoichiometry of active compounds (DNA, RNA)  
+! zeta_CP         = self%zeta_CN * ((1.-f_Lip)*q_NoLip + f_Lip*q_Lip)
 q_NoLip  = self%zstoich_PN !   16 : Redfield-stoichiometry 
 q_Lip    = 1.  ! 0.8 storage P-stoichiometry   
-f_Lip    = 1./(1.+exp(10*(1.-phy%relQ%P)))
+!f_Lip    = 1./(1.+exp(10*(1.-phy%relQ%P)))
+f_Lip    = 0.5d0
 
 !> @fn maecs_primprod::photosynthesis()
 !> 1. Prepare loop over structure elements by assigning a pointer structure
@@ -78,8 +80,9 @@ num_nut  = self%nutind%nutnum  ! total number of nutrients
 !> @fn maecs_primprod::photosynthesis()
 !> 2. calculate the dchl/dtheta, dchl/dfracR, dchl/dQN, dbal/dv
 !if (self%PhotoacclimOn) then  
+! TODO complete derivatives for cases sigma .ne. 0 or 1
 acc%dRchl_dtheta = phy%rel_chloropl 
-acc%dRchl_dfracR = phy%theta * phy%relQ%N**self%sigma
+acc%dRchl_dfracR = phy%theta * phy%relQ%N**self%sigma !* (1.0d0-self%sigma)
 acc%dRchl_dQN    = phy%theta * phy%frac%Rub * self%sigma  * self%iK_QN
                      ! * phy%relQ%N**(self%sigma-1)
 !endif
@@ -249,8 +252,6 @@ do i = 1, num_nut
    elem(i)%upt_act = act_V * elem(i)%upt_pot
    elem(i)%upt     = phy%frac%NutUpt * elem(i)%upt_act  ! [(molX) (molC)^{-1} d{-1}]
 
-  
-   
 ! +++ derivative of C-uptake rate with respect to quota ++++++++++++++++++++++++++++++
    dmuQ_dfracR     = dmuQ_dfracR + elem(i)%dmudV * (elem(i)%upt_act+1*eps) * dfV_dfracR
    dmuQ_dtheta     = dmuQ_dtheta + elem(i)%dmudV * (elem(i)%upt_act+1*eps) * dfV_dtheta
@@ -316,6 +317,7 @@ if (self%PhotoacclimOn) then
 
   ! --- regulation speed in photoacclimation  -----------------------------------
   !flex_theta  = self%adap_theta * ( self%theta_LHC - phy%theta) * phy%theta
+!  flex_theta  = self%adap_theta * (1- phy%frac%theta) * phy%frac%theta 
   flex_theta  = self%adap_theta * (self%theta_LHC/phy%rel_chloropl)**2 * (1- phy%frac%theta) * phy%frac%theta 
 
   ! *** ADAPTIVE EQUATION FOR 'theta'

@@ -707,8 +707,6 @@ call self%register_diagnostic_variable(self%id_GPPR,    'GPPR','mmolC/m**3/d', '
   output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_Denitr,  'Denitr','mmol-N/m**3/d', 'denitrification_rate_ Denitr', &
   output=output_time_step_averaged)
-call self%register_diagnostic_variable(self%id_dPAR,    'dPAR','W/m**2', 'Photosynthetically_Active_Radiation_ dPAR', &
-  output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_DNP,     'DNP','-', 'DIN:DIP_ratio_ DNP', &
   output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_QNP,     'QNP','-', 'N:P_ratio_ QNP', &
@@ -722,6 +720,8 @@ call self%register_diagnostic_variable(self%id_no3,     'no3','mmol-N/m**3', 'Ni
 end if
 
 if (self%PhysiolDiagOn) then
+call self%register_diagnostic_variable(self%id_dPAR,    'dPAR','W/m**2', 'Photosynthetically_Active_Radiation_ dPAR', &
+  output=output_time_step_averaged)
 call self%register_diagnostic_variable(self%id_chl2C,   'chl2C','gCHL/m**3', 'chlorophyll_to_carbon_ratio', &
   output=output_time_step_averaged) !=_chl-a/chloroplast-C_*_chloroplast-C/phy-molC_*_1molC/12gC_ chl2C
 call self%register_diagnostic_variable(self%id_Theta,   'Theta','-', 'Theta_ Theta', &

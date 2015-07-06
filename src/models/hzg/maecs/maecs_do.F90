@@ -348,9 +348,8 @@ rhsv%phyN =  uptake%N             * phy%C &
 ! pigment decay to relieve from artificially high pigm:C ratios at very low phyC
    decay = self%decay_pigm * (exp(phy%frac%theta)-1.0d0)
 
-!   rhsv%chl = phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC + dRchl_phyC_dt * phy%C
-   rhsv%chl = phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC &
-                   + dRchl_phyC_dt * phy%reg%C - decay * phy%chl
+   rhsv%chl = phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC  &
+               + dRchl_phyC_dt * phy%C  - decay * phy%chl
 
 !if (rhsv%chl .lt. -200.d0) then
 !  phy%theta     = phy%chl / (phy%rel_chloropl * phy%reg%C)   ! trait variable
@@ -575,7 +574,7 @@ if (self%BioOxyOn) then
                + self%dil * (self%nh3_initial - env%nh3) &
                - Anammox - max(env%nh3 - nut%N,  0.0d0)
              
-  if(env%nh3 .lt. 0.1d0) write (*,'(A,11(F10.3))') 'nh3=', env%nh3,nut%N,rhsv%nh3,nh3f,- Nitri,uptake%N,- nh3f*uptake%N*phy%C,self%dil*(self%nh3_initial-env%nh3),(0.8d0 * Denitrific+Anammox)*1E5
+!  if(env%nh3 .lt. 0.1d0) write (*,'(A,11(F10.3))') 'nh3=', env%nh3,nut%N,rhsv%nh3,nh3f,- Nitri,uptake%N,- nh3f*uptake%N*phy%C,self%dil*(self%nh3_initial-env%nh3),(0.8d0 * Denitrific+Anammox)*1E5
 
   rhsv%nutN   = rhsv%nutN - 0.8d0 * Denitrific - Anammox
 
@@ -661,7 +660,6 @@ end if
 if (self%BGC0DDiagOn) then
   _SET_DIAGNOSTIC_(self%id_GPPR, _REPLNAN_(phy%gpp*phy%C))   !average gross_primary_production_
   _SET_DIAGNOSTIC_(self%id_Denitr, _REPLNAN_(0.8*Denitrific)) !average denitrification_rate_
-  _SET_DIAGNOSTIC_(self%id_dPAR, _REPLNAN_(env%par))         !average Photosynthetically_Active_Radiation_
   _SET_DIAGNOSTIC_(self%id_DNP, _REPLNAN_(nut%N/(nut%P+self%small)))   !average DIN:DIP_ratio_
   _SET_DIAGNOSTIC_(self%id_QNP, _REPLNAN_(phy%Q%N/phy%Q%P))  !average N:P_ratio_
   _SET_DIAGNOSTIC_(self%id_qualPOM, _REPLNAN_(qualPOM))      !average Quality_of_POM_
@@ -669,7 +667,8 @@ if (self%BGC0DDiagOn) then
   _SET_DIAGNOSTIC_(self%id_no3, _REPLNAN_(no3))              !average Nitrate_
 end if
 if (self%PhysiolDiagOn) then
-  _SET_DIAGNOSTIC_(self%id_chl2C, _REPLNAN_(phy%theta*phy%rel_chloropl/12)) !average chlorophyll:carbon_ratio_=_chl-a/chloroplast-C_*_chloroplast-C/phy-molC_*_1molC/12gC_
+  _SET_DIAGNOSTIC_(self%id_dPAR, _REPLNAN_(env%par))         !average Photosynthetically_Active_Radiation_
+  _SET_DIAGNOSTIC_(self%id_chl2C, _REPLNAN_(phy%theta*phy%rel_chloropl)) !average chlorophyll:carbon_ratio_=_chl-a/chloroplast-C_*_chloroplast-C/phy-_
   _SET_DIAGNOSTIC_(self%id_Theta, _REPLNAN_(phy%theta))      !average Theta_
   _SET_DIAGNOSTIC_(self%id_fracR, _REPLNAN_(phy%frac%Rub))   !average Rubisco_fract._allocation_
   _SET_DIAGNOSTIC_(self%id_fracT, _REPLNAN_(phy%frac%theta)) !average LHC_fract._allocation_
@@ -685,7 +684,7 @@ if (self%PhysiolDiagOn) then
   _SET_DIAGNOSTIC_(self%id_faSi, _REPLNAN_(acclim%fA%Si))    !average Si-uptake_affinity_allocation_
   _SET_DIAGNOSTIC_(self%id_rQN, _REPLNAN_(phy%relQ%N))       !average Relative_N-Quota_
   _SET_DIAGNOSTIC_(self%id_rQP, _REPLNAN_(phy%relQ%P))       !average Relative_P-Quota_
-  _SET_DIAGNOSTIC_(self%id_rQSi, _REPLNAN_(phy%relQ%Si))     !average Relative_Si-Quota_
+  _SET_DIAGNOSTIC_(self%id_rQSi, _REPLNAN_(phy%P / phy%reg%C  ))     !phy%relQ%Siaverage Relative_Si-Quota_
 end if
 if (self%RateDiagOn) then
   _SET_DIAGNOSTIC_(self%id_phyUR, _REPLNAN_(uptake%C))       !average Phytoplankton_C_Uptake_Rate_
