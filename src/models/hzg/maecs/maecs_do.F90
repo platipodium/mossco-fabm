@@ -146,8 +146,6 @@ end if
 
 !E_GED  ! list outcommented due to different usage of zmax and doy (see light extinction)
 
-! write (*,'(A,3(F10.3))') 'par/T/co2:',env%par,env%temp,env%CO2
-
 ! @ingroup main
 !> @fn fabm_hzg_maecs::maecs_do () 
 !> 1. Calculation of quotas, internal states, potential rates
@@ -263,7 +261,6 @@ end if
 !aggreg_rate = self%phi_agg * dom%C * (phy%N + det%N)                    ! [d^{-1}] 
 
 !_GET_(self%id_fracR,phys_status )  
-!write (*,'(A,1(F10.3))') 'phys=',phys_status
 
 aggreg_rate = self%phi_agg * (1.0_rk - exp(-self%agg_doc*dom%C)) * (phy%N + det%N) 
 !         vS * exp(-4*phys_status )                ! [d^{-1}] 
