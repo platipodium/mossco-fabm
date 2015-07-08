@@ -734,6 +734,9 @@ REALTYPE, parameter :: secs_pr_day = 86400.d0
 !-----------------------------------------------------------------------
 !BOC
 
+!define _REPLNAN_(X) X !changes back to original code
+#define _REPLNAN_(X) nan_num(X)
+
 _FABM_LOOP_BEGIN_
 
 #if _DEBUG_
@@ -787,7 +790,7 @@ write(*,'(A)') 'begin vert_move'
    !SINKING AS A FUNCTION OF INTERNAL STATES
    vs_phy = -self%vS_phy * exp( -self%sink_phys * phyQstat)
    if (self%RateDiagOn) then 
-      _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(-vs_phy)) !average Relative Sinking Velocity
+     _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(vs_phy)) !average Relative Sinking Velocity
    end if
 
    !CONSTANT SINKING
