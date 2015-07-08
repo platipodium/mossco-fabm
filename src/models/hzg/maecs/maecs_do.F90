@@ -683,7 +683,7 @@ if (self%PhysiolDiagOn) then
   _SET_DIAGNOSTIC_(self%id_faSi, _REPLNAN_(acclim%fA%Si))    !average Si-uptake_affinity_allocation_
   _SET_DIAGNOSTIC_(self%id_rQN, _REPLNAN_(phy%relQ%N))       !average Relative_N-Quota_
   _SET_DIAGNOSTIC_(self%id_rQP, _REPLNAN_(phy%relQ%P))       !average Relative_P-Quota_
-  _SET_DIAGNOSTIC_(self%id_rQSi, _REPLNAN_(phy%P / phy%reg%C  ))     !phy%relQ%Siaverage Relative_Si-Quota_
+  _SET_DIAGNOSTIC_(self%id_rQSi, _REPLNAN_(phy%relQ%Si ))     !phy%relQ%Siaverage Relative_Si-Quota_
 end if
 if (self%RateDiagOn) then
   _SET_DIAGNOSTIC_(self%id_phyUR, _REPLNAN_(uptake%C))       !average Phytoplankton_C_Uptake_Rate_
