@@ -661,7 +661,9 @@ if (self%BGC0DDiagOn) then
   _SET_DIAGNOSTIC_(self%id_QNP, _REPLNAN_(phy%Q%N/phy%Q%P))  !average N:P_ratio_
   _SET_DIAGNOSTIC_(self%id_qualPOM, _REPLNAN_(qualPOM))      !average Quality_of_POM_
   _SET_DIAGNOSTIC_(self%id_qualDOM, _REPLNAN_(qualDOM))      !average Quality_of_DOM_
-  _SET_DIAGNOSTIC_(self%id_no3, _REPLNAN_(no3))              !average Nitrate_
+  if (self%BioOxyOn) then
+    _SET_DIAGNOSTIC_(self%id_no3, _REPLNAN_(no3))              !average Nitrate_
+  end if
 end if
 if (self%PhysiolDiagOn) then
   _SET_DIAGNOSTIC_(self%id_dPAR, _REPLNAN_(env%par))         !average Photosynthetically_Active_Radiation_
