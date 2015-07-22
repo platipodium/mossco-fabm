@@ -168,6 +168,7 @@ else
 endif
 
 if(IsCritical .and. .not. self%ChemostatOn) then
+!if(IsCritical .or. (self%ChemostatOn .and. phy%N .lt. 1E-4) ) then
   rhsv%nutN=0.0d0
   rhsv%nutP=0.0d0
   rhsv%nutS=0.0d0
@@ -314,7 +315,7 @@ rhsv%phyN =  uptake%N             * phy%C &
            - exud%N               * phy%C & 
            - aggreg_rate          * phy%N &
            - self%dil             * phy%N &          
-           - graz_rate * phy%Q%N       
+           - graz_rate * phy%Q%N       ! Q_N is bounded for safety reasons: TODO change grazing units to N
    
 !rhsv%phyN = 0.0_rk
 
@@ -342,6 +343,7 @@ rhsv%phyN =  uptake%N             * phy%C &
    dRchl_phyC_dt =  acclim%dRchl_dtheta * acclim%dtheta_dt   & 
                   + acclim%dRchl_dfracR * acclim%dfracR_dt   & 
                   + acclim%dRchl_dQN    * dQN_dt 
+
 ! pigment decay to relieve from artificially high pigm:C ratios at very low phyC
    decay = self%decay_pigm * (exp(phy%frac%theta)-1.0d0)
 
@@ -451,6 +453,9 @@ rhsv%nutN   = -uptake%N            * phy%C    &
              + lossZ%N             * zoo%C    &
              + self%dil * (self%nutN_initial - nut%N) &
              + deporate
+
+if(self%ChemostatOn .and. self%remin .lt. 0.0001d0) rhsv%nutN = 0.0d0
+
 !________________________________________________________________________________
 !
 if (self%PhosphorusOn) then 
@@ -479,7 +484,9 @@ if (self%PhosphorusOn) then
               + Pprod                           & 
               + lossZ%P              * zoo%C    &
               + self%dil * (self%nutP_initial - nut%P)
-            
+
+   if(self%ChemostatOn .and. self%remin .lt. 0.0001d0) rhsv%nutP = 0.0d0
+           
 end if 
 !________________________________________________________________________________
 !

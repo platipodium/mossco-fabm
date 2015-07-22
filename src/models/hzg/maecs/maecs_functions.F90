@@ -40,7 +40,7 @@ type (type_maecs_zoo), intent(inout) :: zoo
 !>   - phy\%relQ\%X= (phy\%Q\%X - maecs\%qN_phy_0) / maecs\%iK_QN where x=N,P,Si
 phy%Q%N    = phy%reg%N / phy%reg%C
 ! added for mixing effects in estuaries kw Jul, 15 2013
-phy%Q%N  = smooth_small(phy%Q%N, maecs%QN_phy_0+maecs%small_finite)
+phy%Q%N  = smooth_small(phy%Q%N, maecs%QN_phy_0 + maecs%small_finite * maecs%QN_phy_max)
 
 ! fraction of free (biochemically available) intracellular nitrogen
 phy%relQ%N  = (phy%Q%N - maecs%QN_phy_0) * maecs%iK_QN
@@ -50,9 +50,9 @@ if(  phy%relQ%N .gt. 0.95d0*maecs%MaxRelQ ) then
 endif
 
 if (maecs%PhosphorusOn) then 
-   phy%Q%P     = phy%P / phy%reg%C
+   phy%Q%P     = phy%reg%P / phy%reg%C
 ! added for mixing effects in estuaries kw Jul, 15 2013
-   phy%Q%P     = smooth_small(phy%Q%P, maecs%QP_phy_0+maecs%small * maecs%QP_phy_max)
+   phy%Q%P     = smooth_small(phy%Q%P, maecs%QP_phy_0 + maecs%small_finite * maecs%QP_phy_max)
 
    phy%relQ%P = ( phy%Q%P - maecs%QP_phy_0 ) * maecs%iK_QP
 
@@ -68,7 +68,7 @@ end if
 if (maecs%SiliconOn) then 
    phy%Q%Si    = phy%Si / phy%reg%C
 ! added for mixing effects in estuaries kw Jul, 15 2013
-   phy%Q%Si     = smooth_small(phy%Q%Si, maecs%QSi_phy_0)
+   phy%Q%Si     = smooth_small(phy%Q%Si, maecs%QSi_phy_0 + maecs%small_finite *  maecs%QSi_phy_max)
 
    phy%relQ%Si = ( phy%Q%Si - maecs%QSi_phy_0 ) /(maecs%QSi_phy_max-maecs%QSi_phy_0) 
 
@@ -186,6 +186,8 @@ real(rk) :: par, T_Kelv, NutF, affin, pmax
 logical      ::IsAdap = .true.
 
 if((maecs%adap_rub .lt. 0.001d0 .and. maecs%adap_theta.lt. 0.001d0) .or.  .not. maecs%PhotoacclimOn) IsAdap = .false. 
+! switch off affinity-transport flexibility depending on overall flexibility; TODO: add new switch
+if(IsAdap .and. maecs%tau_regV .lt. 90.0d0) IsAdap = .false. 
 !> @fn maecs_functions::calc_sensitivities()
 !> 1. calculate (sens\%) f\_T, P\_max\_T, a\_light, upt\_pot\%C 
 par          = maecs%frac_PAR * env%par ! use active  fraction frac_PAR of available radiation
@@ -314,7 +316,7 @@ subroutine queuefunc(n,x,qfunc,qderiv)
    real(rk), intent(out)         :: qfunc, qderiv
    real(rk)                      :: px
 
-   if(abs(_ONE_-x) .lt. 1E-3) then
+   if(abs(_ONE_-x) .lt. 1E-2) then
       qfunc  = n/(n+_ONE_)
       qderiv = qfunc/2 ! 1./(2*(1+hh)); 
    else
@@ -514,10 +516,14 @@ select case (mm_method)
    delta_N = 0.0_rk
   
    if (abs(delta_C) .gt. 1d-2*min_Cmass) then !.and. phy%N .lt. 1*min_Nmass
-      phy%reg%N = phy%N + 1*delta_C * maecs%aver_QN_phy
+      phy%reg%N = phy%N + delta_C * maecs%aver_QN_phy
+      if (maecs%PhosphorusOn) then
+         phy%reg%P = phy%P + delta_C *  maecs%aver_QP_phy
+      end if
       ischanged = .true. 
    else 
       phy%reg%N = smooth_small( phy%N , min_Nmass)
+      if (maecs%PhosphorusOn) phy%reg%P = smooth_small( phy%P , min_Cmass * maecs%aver_QP_phy)
       delta_N   = phy%reg%N - phy%N
       if (abs(delta_N) .gt. 1d-2*min_Nmass) then
          phy%reg%C = phy%C + delta_N / maecs%aver_QN_phy
