@@ -368,10 +368,22 @@ else
 end if
 
 ! ---- additional exudation to release unrealistic stoichiometry in depositional holes
+
 if( phy%relQ%N .gt. 0.95d0*self%MaxRelQ ) then
   ex = max(0.0d0,(phy%Q%N - self%QN_phy_0)* self%iK_QN - self%MaxRelQ)
   exud%N = exud%N + self%decay_nut * (exp(ex)-1.0d0) * phy%Q%N
 end if
+
+ex = self%QN_phy_0*phy%reg%C - phy%reg%N
+if( ex .gt. 0.0d0 ) then
+  ex = max(0.0d0,(phy%Q%N - self%QN_phy_0)* self%iK_QN - self%MaxRelQ)
+  exud%C = exud%C + self%decay_nut * (exp(ex * self%iK_QN)-1.0d0) 
+end if
+
+ 
+! added for mixing effects in estuaries kw Jul, 15 2013
+phy%Q%N  = smooth_small(phy%Q%N, maecs%QN_phy_0 + maecs%small_finite * maecs%QN_phy_max)
+
 
 if (self%PhosphorusOn) then
   if( phy%relQ%P .gt. 0.95d0*self%MaxRelQ ) then
