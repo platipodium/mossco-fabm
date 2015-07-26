@@ -164,6 +164,7 @@ fac_colim   = qp_X
 
 ! recursive product following from chain rule; first term : 1/LF
 prod_dq     = 1.0d0/smooth_small(qp_X,eps)
+prod_dn     = 1.0d0/smooth_small(qp_X,eps)
 
 ! derivative of f_V (fraction of nutrient uptake machinery) on f_R (PS) and theta (LHC)
 dfV_dfracR  = - acc%dRchl_dfracR * self%itheta_max - 1.0d0 
@@ -213,6 +214,7 @@ do i = 1, num_nut
    prod_dq   = prod_dq * dqp_X_dqp_Y(i)
 
    d_QX      = d_X* dbal_dv * elem(i)%iKQ + sigmv(i)* phy%Q%N * self%zeta_CN  ! 
+!TODO: include P-uptake resp  = self%zeta_CN * (upt_act%N + self%zstoich_PN * upt_act%P)  
 
 ! marginal use should converge towards zero at bad productivity conditions
 !   (refine assumption Q\mu=V in derivation of d_QX)
@@ -368,22 +370,15 @@ else
 end if
 
 ! ---- additional exudation to release unrealistic stoichiometry in depositional holes
+ex = self%QN_phy_0*phy%reg%C - phy%reg%N
+if( ex .gt. 0.0d0 ) then
+  exud%C = exud%C + self%decay_nut * (exp(ex * self%iK_QN/phy%reg%C)-1.0d0) 
+end if
 
 if( phy%relQ%N .gt. 0.95d0*self%MaxRelQ ) then
   ex = max(0.0d0,(phy%Q%N - self%QN_phy_0)* self%iK_QN - self%MaxRelQ)
   exud%N = exud%N + self%decay_nut * (exp(ex)-1.0d0) * phy%Q%N
 end if
-
-ex = self%QN_phy_0*phy%reg%C - phy%reg%N
-if( ex .gt. 0.0d0 ) then
-  ex = max(0.0d0,(phy%Q%N - self%QN_phy_0)* self%iK_QN - self%MaxRelQ)
-  exud%C = exud%C + self%decay_nut * (exp(ex * self%iK_QN)-1.0d0) 
-end if
-
- 
-! added for mixing effects in estuaries kw Jul, 15 2013
-phy%Q%N  = smooth_small(phy%Q%N, maecs%QN_phy_0 + maecs%small_finite * maecs%QN_phy_max)
-
 
 if (self%PhosphorusOn) then
   if( phy%relQ%P .gt. 0.95d0*self%MaxRelQ ) then
