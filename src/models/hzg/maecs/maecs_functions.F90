@@ -309,20 +309,23 @@ pure real(rk) function uptflex(Aff0, Vmax0, Nut, fAv)
 !> with the parameter n->inf :liebig and n~1:product
 !> \latexonly see: Section \ref{sec:colim} \endlatexonly \n
 !> @todo: add equations
-subroutine queuefunc(n,x,qfunc,qderiv)
+subroutine queuefunc(n,x,qfunc,dq_dx,dq_dn)
 
    implicit none
    real(rk), intent(in)          :: x, n
-   real(rk), intent(out)         :: qfunc, qderiv
-   real(rk)                      :: px
+   real(rk), intent(out)         :: qfunc, dq_dx, dq_dn
+   real(rk)                      :: px, dn
 
    if(abs(_ONE_-x) .lt. 1E-2) then
-      qfunc  = n/(n+_ONE_)
-      qderiv = qfunc/2 ! 1./(2*(1+hh)); 
+      qfunc = n/(n+_ONE_)
+      dq_dx = qfunc/2 ! 1./(2*(1+hh)); 
+      dq_dn = _ONE_/(n+_ONE_)**2
    else
-      px = x**(n+_ONE_)
-      qfunc =  (x-px)/(_ONE_-px)
-      qderiv = (_ONE_ -(n+_ONE_)*x**n+n*px)/(_ONE_-px)**2
+      px    = x**(n+_ONE_)
+      dn    = _ONE_ / (_ONE_-px)
+      qfunc =  (x-px) * dn
+      dq_dx = (_ONE_ -(n+_ONE_)*x**n+n*px)*dn*dn
+      dq_dn = px*(x-_ONE_)*dn*dn * log( x + 1E-4)
    endif
    end subroutine queuefunc
 
@@ -332,11 +335,11 @@ subroutine queuefunc(n,x,qfunc,qderiv)
 !> n->inf :liebig  n~1:product\n
 !> Here is an example of adding a snip of code:
 !> @snippet maecs_functions.F90 queuefunc1_snippet 
-subroutine queuefunc1(n,x,qfunc,qderiv)
+subroutine queuefunc1(n,x,qfunc,dq_dx)
 
    implicit none
    real(rk), intent(in)       :: x, n
-   real(rk), intent(out)      :: qfunc, qderiv
+   real(rk), intent(out)      :: qfunc, dq_dx
    real(rk)                   :: nn, hh,x0,en
 
    ! [queuefunc1_snippet]
@@ -345,7 +348,7 @@ subroutine queuefunc1(n,x,qfunc,qderiv)
    x0 = (log(exp(nn)-1))*hh
    en = exp(-nn*(x/(1+hh*x) - x0))
    qfunc =  1. - hh*log(1.+ en)
-   qderiv = 1. / ( (1. + hh * x)**2 * (1.+1./en))
+   dq_dx = 1. / ( (1. + hh * x)**2 * (1.+1./en))
    ! [queuefunc1_snippet]
    
    end subroutine queuefunc1
