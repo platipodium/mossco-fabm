@@ -41,32 +41,33 @@ real(rk) :: flex_theta , flex_fracR ! [...]
 real(rk) :: dfV_dfracR , dfV_dtheta
 real(rk) :: grossC, Pmaxc
 real(rk) :: dbal_dv, dmu_daV_tot
-real(rk) :: e_N0, e_N
 real(rk) :: syn_act, hh
 real(rk) :: f_Lip, q_Lip, q_NoLip 
-real(rk) :: sumrelQ
 real(rk) :: c_h1, c_hq           ! correction terms of queuing function 
 real(rk) :: fac_colim            ! colimitation factor (dimensionless)
 real(rk) :: q_X, qp_Y, qp_X      ! placeholder for nutrient availability
-real(rk) :: qfunc, deriv_qfunc   ! queuing function and derivative
-real(rk) :: prod_dq, d_X, d_QX, dmu_daV, act_V
-real(rk) :: resC, darkf
+real(rk) :: qfunc, d_qf_dx, d_qf_dn   ! queuing function and derivative
+real(rk) :: prod_dq, prod_dn
+real(rk) :: d_X, d_QX, dmu_daV, act_V, resp
+real(rk) :: resC, darkf, ex, fmaxf
 real(rk), dimension(5) :: sigmv ! relative quota-uptake feed-back 
-real(rk), dimension(5) :: dqp_X_dq_X, dqp_X_dqp_Y  ! derivatives
+real(rk), dimension(5) :: dqp_X_dq_X, dqp_X_dqp_Y, dqp_X_dn ! derivatives
 real(rk), dimension(5) :: zeta_X  ! C-costs of assimilation of nutrient X
 !real(rk), dimension(5) :: upt_act
 type (stoich_pointer), dimension(5)::elem ! struct-pointer addressing elements wthin loops
 !
-eps     =  self%small_finite ! just  a shorter namer for a small thing
+!eps     =  self%small_finite ! just  a shorter namer for a small thing
+eps     =  1E-2 ! just  a shorter namer for a small thing
 
 ! TODO: energetic costs of P-assimilation \partial (\zeta_CN V_N) / \partial V_P not
 !    resolved but assumed to be already included in protein synthesis
 ! prelim solution: stoichiometry in RNA (N:P ~ 4:1) and phospholipids (N:P~1:1)
 ! TODO: include proteins/mebranes (N:P >> 16:1) under low growth conditions 
 !  q_NoLip  = 3.8  ! P-stoichiometry of active compounds (DNA, RNA)  
-q_NoLip  = self%zstoich_PN !   16 : Redfield-stoichiometry 
+! zeta_CP    = self%zeta_CN * ((1.-f_Lip)*q_NoLip + f_Lip*q_Lip)
+!q_NoLip  = self%zstoich_PN !   16 : Redfield-stoichiometry 
 q_Lip    = 1.  ! 0.8 storage P-stoichiometry   
-f_Lip    = 1./(1.+exp(10*(1.-phy%relQ%P)))
+!f_Lip    = 1./(1.+exp(0*(1.-phy%relQ%P)))  f_Lip    = 0.5d0
 
 !> @fn maecs_primprod::photosynthesis()
 !> 1. Prepare loop over structure elements by assigning a pointer structure
@@ -80,15 +81,12 @@ num_nut  = self%nutind%nutnum  ! total number of nutrients
 !> @fn maecs_primprod::photosynthesis()
 !> 2. calculate the dchl/dtheta, dchl/dfracR, dchl/dQN, dbal/dv
 !if (self%PhotoacclimOn) then  
+! TODO complete derivatives for cases sigma .ne. 0 or 1
 acc%dRchl_dtheta = phy%rel_chloropl 
-acc%dRchl_dfracR = phy%theta * phy%relQ%N**self%sigma
+acc%dRchl_dfracR = phy%theta * phy%relQ%N**self%sigma !* (1.0d0-self%sigma)
 acc%dRchl_dQN    = phy%theta * phy%frac%Rub * self%sigma  * self%iK_QN
                      ! * phy%relQ%N**(self%sigma-1)
 !endif
-
-! partial derivative of the balance eq. to uptake V
-! equals ratio of gross to net primary production
-dbal_dv = 1.0d0 + phy%Q%N * self%zeta_CN  
 
 ! --- gross carbon uptake by phytoplankton (gross-primary production) ---------------
 !   phy%frac%Rub* sens%P_max_T* phy%relQ%N : carboxylation capacity = Rub * free proteins
@@ -100,12 +98,10 @@ dbal_dv = 1.0d0 + phy%Q%N * self%zeta_CN
 !> 3. if \mathrm{self\%syn\_nut<0}: synergy is assumed to increase with accumulated pool size 
 !> of N & P as major biochemical species and is proportional to f_V 
 !> @todo: explain & details         
-if (self%syn_nut .le. _ZERO_ ) then  !self%nutind%iP
-   sumrelQ = elem(self%nutind%iN)%relQ
-   if (self%PhosphorusOn) sumrelQ = sumrelQ + elem(self%nutind%iP)%relQ
-   if (self%SiliconOn)    sumrelQ = sumrelQ + elem(self%nutind%iSi)%relQ
-   syn_act = -self%syn_nut *(phy%frac%NutUpt * sumrelQ +eps)
-!   syn_act = -self%syn_nut * elem(self%nutind%nhi)%relQRub
+if (self%syn_nut .lt. -0.001 ) then  !self%nutind%iP
+!  synchrony increases with uptake machinery
+!   syn_act = -self%syn_nut * phy%frac%NutUpt
+   syn_act = smooth_small(-self%syn_nut * phy%frac%NutUpt * phy%relQ%N,eps)
 else
    syn_act  = self%syn_nut
 endif 
@@ -118,8 +114,9 @@ hh      = 1.0d0 / (syn_act + eps)
 ! one plus correction coefficient $c_h$ to ensure convergence to Liebig and product rule
  c_h1 = 1.0d0  + log( 1.0d0/(4**hh) + 0.5*hh );
 
-!  auxiliary variable expressing the ratio between gross and net production
-dbal_dv = 1.0d0 + phy%Q%N * self%zeta_CN
+! partial derivative of the balance eq. to uptake V
+! equals ratio of gross to net primary production
+dbal_dv = 1.0d0 + phy%Q%N * self%zeta_CN  ! TODO P-uptake?
 ! e_N0    = 1.0d0 / (phy%Q%N * dbal_dv) 
 
 !> @fn maecs_primprod::photosynthesis()
@@ -130,6 +127,8 @@ dbal_dv = 1.0d0 + phy%Q%N * self%zeta_CN
 qp_Y    = elem(num_nut)%relQ
 dqp_X_dq_X(num_nut)  = 1.0d0
 dqp_X_dqp_Y(num_nut) = 0.0d0
+dqp_X_dn(num_nut)    = 0.0d0
+
 if (num_nut .gt. 1) then
  ! loop over all nutrients starting from pre-final
  do i = num_nut-1, 1, -1  
@@ -140,21 +139,24 @@ if (num_nut .gt. 1) then
    c_hq  = c_h1 + hh * qp_Y * q_X
 
 ! qfunc: relative nutrient limitation due to shortage in other nutrients 
-   call queuefunc(syn_act, qp_Y / q_X, qfunc, deriv_qfunc)
+   call queuefunc(syn_act, qp_Y / q_X, qfunc, d_qf_dx, d_qf_dn)
 
 ! $d_\mathrm{N} = \fracd{1}{\fQ{N}} - \pdiff{g_h}{x}\fracd{q_2'}{g_h\fQ{N}^2} +\fracd{h q_2'}{c_{hq}}$
 
    qp_X  = q_X * qfunc * c_hq
 
 ! +++ derivative of C-uptake rate with respect to quota ++++++++++++++++++++++++++++++
-   qfunc = smooth_small(qfunc,eps)
-   q_X   = smooth_small(q_X,eps)
+!   qfunc = smooth_small(qfunc,eps)
+!   q_X   = smooth_small(q_X,eps)
 
-   dqp_X_dq_X(i)  = qp_X* ( 1.0d0/q_X + qp_Y *( hh/c_hq - deriv_qfunc/(qfunc*q_X*q_X) ))
+   dqp_X_dq_X(i)  = qp_X* ( 1.0d0/q_X + qp_Y *( hh/c_hq - d_qf_dx/(qfunc*q_X*q_X+1E-4) ))
 
-   dqp_X_dqp_Y(i) = qp_X *( hh*q_X/c_hq + deriv_qfunc/(qfunc*q_X) )
+   dqp_X_dqp_Y(i) = qp_X *( hh*q_X/c_hq + d_qf_dx/(qfunc*q_X+1E-4) )
 
-   qp_Y  = qp_X
+! +++ derivative of C-uptake rate with respect to exponent n ++++++++++++++++++++++++++++++
+   dqp_X_dn(i) = q_X * d_qf_dn * c_hq  ! TODO make diff calculus complete (c_hq)
+
+   qp_Y = qp_X
 
  end do
 else
@@ -170,13 +172,18 @@ fac_colim   = qp_X
 prod_dq     = 1.0d0/smooth_small(qp_X,eps)
 
 ! derivative of f_V (fraction of nutrient uptake machinery) on f_R (PS) and theta (LHC)
-dfV_dfracR  = - acc%dRchl_dfracR * self%itheta_max - 1.0d0 
-dfV_dtheta  = - acc%dRchl_dtheta * self%itheta_max
 
+dfV_dfracR  = - 1*acc%dRchl_dfracR * self%itheta_max - 1.0d0 
+dfV_dtheta  = - 2*(acc%dRchl_dtheta + 1*phy%frac%Rub)  * self%itheta_max 
+!dfV_dtheta  = - acc%dRchl_dtheta * self%itheta_max - phy%frac%Rub/(phy%theta + 1E-3)
+
+! phy%frac%Rub  
+
+! phy%frac%Rub* phy%relQ%N**maecs%sigma
 !  auxiliary variable for the feed-back of N-quota and N-uptake change
 ! \todo stability   sigmv(1)    =   acc%dRchl_dQN  * self%itheta_max / phy%frac%NutUpt
 sigmv(1:num_nut)  = 0.0d0
-
+sigmv(self%nutind%iN)    =   acc%dRchl_dQN * self%itheta_max / (phy%frac%NutUpt+eps)
 ! --- gross carbon uptake by phytoplankton (gross-primary production) ---------------
 ! I DONT UNDERSTAND THE FOLLOWING:
 ! phy%frac%Rub * sens%P_max_T* phy%rel_QN : carboxylation capacity = Rub * free proteins
@@ -191,7 +198,7 @@ sigmv(1:num_nut)  = 0.0d0
 Pmaxc     = (fac_colim-0*eps) * sens%P_max_T
 grossC    = phy%frac%Rub * Pmaxc * sens%upt_pot%C  ! primary production
 
-!resC      = 0.5d0/(1.0d0 + exp( 3.1415d0)) *self%V_NC_max* sens%f_T * self%zeta_CN 
+acc%fac1 = fac_colim
 
 ! "darkness correction": marginal use should converge towards zero at very low light
 !  offset (background respiration) derived from a_V(dmu_daV=0)*1/4*Vmax*zeta (f_A=f_V=1/2)
@@ -205,18 +212,25 @@ darkf     = 1.0d0 - exp(-grossC/self%res0)
 dmuQ_dfracR = 0.0d0
 dmuQ_dtheta = 0.0d0
 dmu_daV_tot = 0.0d0
+prod_dn     = 0.0d0
 
 do i = 1, num_nut 
  ! ------------------ derivatives of co-limited growth function ---------------------
    d_X       = prod_dq * dqp_X_dq_X(i)
+   prod_dn   = prod_dn + prod_dq * dqp_X_dn(i) ! integral diff wrt exponent for each quota
    prod_dq   = prod_dq * dqp_X_dqp_Y(i)
 !   e_N       = e_N0 + d_X * elem(i)%iKQ / elem(i)%relQ
+! contribution from synchrony
+   if (i .eq. self%nutind%iN .and.  self%syn_nut .lt. -0.001) then
+     d_X     = d_X + prod_dn * (-self%syn_nut) * phy%frac%NutUpt 
+   endif
 
    d_QX      = d_X* dbal_dv * elem(i)%iKQ + sigmv(i)* phy%Q%N * self%zeta_CN  ! 
+!TODO: include P-uptake resp  = self%zeta_CN * (upt_act%N + self%zstoich_PN * upt_act%P)  
 
 ! marginal use should converge towards zero at bad productivity conditions
 !   (refine assumption Q\mu=V in derivation of d_QX)
-   d_QX      = d_QX * darkf  
+!   d_QX      = d_QX * darkf  
 
 !   steady-state down-regulation of uptake I: balance of respiration and indirect benefits  
    dmu_dV    = (1.0d0 + zeta_X(i) * elem(i)%Q) * d_QX/(1.0d0 + elem(i)%Q * (d_QX + sigmv(i)))
@@ -248,17 +262,20 @@ end do
 !> calculate the derivative terms dmuQ/dfR, dmuQ/dtheta
 dmuQ_dfracR = 0.0d0
 dmuQ_dtheta = 0.0d0
+
 do i = 1, num_nut 
    act_V           = elem(i)%aV * elem(i)%dmudaV/ (dmu_daV_tot + eps)
 ! emulates passive Si diffusion through membrane (\todo not to be assimilated)
-   if (i .eq. self%nutind%iSi .and. act_V .lt. 0.333d0 .and. elem(i)%upt_pot .gt. eps) act_V = 0.333d0  !num_nut  
+   if (self%SiliconOn) then
+      if (i .eq. self%nutind%iSi .and. act_V .lt. 0.333d0 .and. elem(i)%upt_pot .gt. eps) act_V = 0.333d0  !num_nut  
+   endif
    elem(i)%aV      = act_V 
    elem(i)%upt_act = act_V * elem(i)%upt_pot
    elem(i)%upt     = phy%frac%NutUpt * elem(i)%upt_act  ! [(molX) (molC)^{-1} d{-1}]
 
 ! +++ derivative of C-uptake rate with respect to quota ++++++++++++++++++++++++++++++
-   dmuQ_dfracR     = dmuQ_dfracR + elem(i)%dmudV * (elem(i)%upt_act+1*eps) * dfV_dfracR
-   dmuQ_dtheta     = dmuQ_dtheta + elem(i)%dmudV * (elem(i)%upt_act+1*eps) * dfV_dtheta
+   dmuQ_dfracR     = dmuQ_dfracR + elem(i)%dmudV * (elem(i)%upt_act+0*eps) * dfV_dfracR
+   dmuQ_dtheta     = dmuQ_dtheta + elem(i)%dmudV * (elem(i)%upt_act+0*eps) * dfV_dtheta
 ! small *eps* correction at vanishing productivity since now aV=0 would entirely decouple regulation
 ! if (dmuQ_dfracR .lt. -20. .or. abs(dmuQ_dfracR+1.d0) .lt. 0.01) write (*,'(A,I3,10(F10.4))') 'Q',i,dmuQ_dfracR , elem(i)%dmudV , elem(i)%relQ,(elem(i)%upt_act+eps) , dfV_dfracR,act_V , elem(i)%upt_pot,Nut%P,Nut%N,grossC
 end do
@@ -266,14 +283,16 @@ end do
 
 !> @fn maecs_primprod::photosynthesis()
 !> 8. calculate phy%resp=f(uptake\%N), phy\%gpp=grossC-phy%resp, uptake\%C=grossC-phy%resp
-! ---  respiration due to N assimilation --------------------------------------
-phy%resp     = self%zeta_CN * uptake%N                           ! [d^{-1}]
+! ---  respiration due to N & P assimilation --------------------------------------
+phy%resp     = self%zeta_CN * (uptake%N + self%zstoich_PN * uptake%P)     ! [d^{-1}]
+acc%fac4 = phy%resp
 
 ! --- relative growth rate RGR: gross production - exudation - uptake respiration --  
 phy%gpp   = grossC
 !phy%gpp   = fac_colim
 uptake%C  = grossC - phy%resp     !* (1.0d0- self%exud_phy) ![d^{-1}]
 !write (*,'(A,6(F10.4))') 'upC ',phy%frac%Rub , Pmaxc, sens%upt_pot%C,grossC,phy%resp,  uptake%C
+!acc%fac4 = phy%resp
 
 ! --- photoacclimation and photosynthesis ------------------------------------            
 !     differential coupling between pigment synthesis and costs due to N-uptake     
@@ -283,20 +302,24 @@ uptake%C  = grossC - phy%resp     !* (1.0d0- self%exud_phy) ![d^{-1}]
 
 if (self%RubiscoOn) then
 ! --- derivatives of C-uptake rate  ------------------------------------------         
-   dmu_dfracR = Pmaxc * sens%upt_pot%C - self%zeta_CN * upt_act%N * dfV_dfracR
+   dmu_dfracR = Pmaxc * sens%upt_pot%C + 0*resp * dfV_dfracR
 
    grad_fracR = dmu_dfracR      &   ! marginal C gain of light independent processes 
               + dmuQ_dfracR         ! marginal loss due to reduced uptake 
 
-   acc%fac1 = dmuQ_dfracR
-!   acc%fac2 = dmuQ_dfracR
+!   acc%fac4 = dmuQ_dfracR
+!   acc%fac3 = dmu_dfracR
+! upper boundary for fractional variables: smoothly integrates constrain from 2nd fractional variable
+  fmaxf  = 1.0d0/(1.0d0+exp(2.0d0-20*grad_fracR/self%res0))
+! upper boundary for fractional variables: resulting flexibility
+  fmaxf  = max(1.0d0 - phy%frac%theta*fmaxf- phy%frac%Rub,0.0d0)
 
 ! --- regulation speed in Rubisco expression ------------------------------------ 
-   flex_fracR = self%adap_Rub * (1.0d0 - phy%frac%Rub ) * phy%frac%Rub
+   flex_fracR = self%adap_Rub * fmaxf * phy%frac%Rub
 ! \todo check old version: (phy%frac%Rub - self%rel_chloropl_min-self%small_finite)
 
 ! *** ADAPTIVE EQUATION FOR 'frac_R'
-   acc%dfracR_dt = flex_fracR * grad_fracR  
+   acc%dfracR_dt = flex_fracR * grad_fracR     
 end if
 !write (*,'(A,2(F10.3))') 'dfracR_dt: ',acc%dfracR_dt*1E3, grad_fracR *1E3
 
@@ -315,14 +338,21 @@ end if
 if (self%PhotoacclimOn) then
 ! --- derivatives of C-uptake rate  --------------------------------------------         
 !     positive gradient term due to PAR adsorption by CHL 
-   dmu_dtheta = Pmaxc* phy%frac%Rub * (1.0d0-sens%upt_pot%C)*sens%a_light & 
-                      - self%zeta_CN * upt_act%N * dfV_dtheta
+   dmu_dtheta = Pmaxc* phy%frac%Rub * exp(- sens%a_light * phy%theta) *sens%a_light & 
+                      + 0*resp * dfV_dtheta
 
    grad_theta = dmu_dtheta + dmuQ_dtheta  ! marginal C gain and indirect costs of chloroplasts
 
   ! --- regulation speed in photoacclimation  -----------------------------------
   !flex_theta  = self%adap_theta * ( self%theta_LHC - phy%theta) * phy%theta
-  flex_theta  = self%adap_theta * (self%theta_LHC/phy%rel_chloropl)**2 * (1- phy%frac%theta) * phy%frac%theta 
+!  flex_theta  = self%adap_theta * (1- phy%frac%theta) * phy%frac%theta 
+
+! upper boundary for fractional variables: smoothly integrates constrain from 2nd fractional variable
+  fmaxf  = 1.0d0/(1.0d0+exp(2.0d0-20*grad_theta/self%res0))
+! upper boundary for fractional variables: resulting flexibility
+  fmaxf  = max(1.0d0 - phy%frac%theta- phy%frac%Rub*fmaxf,0.0d0)
+
+  flex_theta  = self%adap_theta * (self%theta_LHC/phy%rel_chloropl)**2 * fmaxf * phy%frac%theta 
 
   ! *** ADAPTIVE EQUATION FOR 'theta'
    acc%dtheta_dt = flex_theta * grad_theta
@@ -336,14 +366,29 @@ exud%C      = self%exud_phy * grossC                        ![d^{-1}]
 
 ! --- carbon specific nitrogen & phosporus exudation   -------------------------
 exud%N      = self%exud_phy * uptake%N   ! [(mmolN) (mmolC)^{-1} d^{-1}]
+if (self%PhosphorusOn .and.  exud%N .gt. 0.0d0) then
+  exud%P      = phy%P / phy%reg%N * exud%N  
+else
+  exud%P      = 0.0d0
+end if
 
 ! ---- additional exudation to release unrealistic stoichiometry in depositional holes
-exud%N      = exud%N + self%decay_nut * (exp(phy%relQ%N)-1.0d0) * phy%N
+ex = self%QN_phy_0*phy%reg%C - phy%reg%N
+if( ex .gt. 0.0d0 ) then
+  exud%C = exud%C + self%decay_nut * (exp(ex * self%iK_QN/phy%reg%C)-1.0d0) 
+end if
+
+if( phy%relQ%N .gt. 0.95d0*self%MaxRelQ ) then
+  ex = max(0.0d0,(phy%Q%N - self%QN_phy_0)* self%iK_QN - self%MaxRelQ)
+  exud%N = exud%N + self%decay_nut * (exp(ex)-1.0d0) * phy%Q%N
+end if
 
 if (self%PhosphorusOn) then
-  exud%P      = phy%P / phy%reg%N * exud%N   ! [(mmolP) (mmolC)^{-1} d^{-1}]
-  exud%P      = exud%P + self%decay_nut * (exp(phy%relQ%P)-1.0d0) * phy%P
-endif
+  if( phy%relQ%P .gt. 0.95d0*self%MaxRelQ ) then
+    ex = max(0.0d0,(phy%Q%P - self%QP_phy_0)* self%iK_QP - self%MaxRelQ)
+    exud%P = exud%P + self%decay_nut * (exp(ex)-1.0d0) * phy%Q%P
+  end if
+end if
 
 ! set few volatile diag variables ___________________________________
 !if (self%DebugDiagOn) then
