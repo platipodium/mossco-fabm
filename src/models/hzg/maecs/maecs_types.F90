@@ -23,6 +23,7 @@ public type_maecs_sensitivities, type_maecs_om, &
 type type_maecs_nutindex
    integer :: iN, iP, iSi
    integer :: nutnum, nhi   
+   integer :: nfV, nSRN
 end type
 ! standard fabm model types
 type,extends(type_base_model),public :: type_maecs_base_model
@@ -36,6 +37,7 @@ type (type_maecs_nutindex) :: nutind
 type (type_state_variable_id)        :: id_nutN,id_nutP,id_nutS,id_phyC,id_phyN,id_phyP,id_phyS,id_zooC,id_detC,id_detN,id_detP,id_detS,id_domC,id_domN,id_domP,id_RNit,id_Rub,id_chl,id_nh3,id_oxy,id_odu
 type (type_dependency_id)            :: id_temp
 type (type_dependency_id)            :: id_par
+type (type_dependency_id)            :: id_CO2
 type (type_global_dependency_id)            :: id_doy
 type (type_dependency_id)            :: id_totC
 type (type_horizontal_dependency_id)            :: id_totC_vertint
@@ -57,20 +59,20 @@ type (type_horizontal_diagnostic_variable_id)            :: id_totP_vertint_diag
 type (type_horizontal_diagnostic_variable_id)            :: id_totS_vertint_diag
 type (type_horizontal_dependency_id)            :: id_zmax
 type (type_horizontal_diagnostic_variable_id)            :: id_O2flux_diag
-type (type_diagnostic_variable_id)   :: id_GPPR, id_Denitr, id_chl2C, id_Theta, id_fracR, id_fracT, id_fracNU, id_QN, id_QP, id_QSi, id_aVN, id_aVP, id_aVSi, id_faN, id_faP, id_faSi, id_rQN, id_rQP, id_rQSi, id_tmp, id_fac1, id_fac2, id_fac3, id_fac4, id_fac5, id_dPAR, id_phyUR, id_phyELR, id_phyALR, id_phyGLR, id_vsinkr, id_qualPOM, id_qualDOM, id_no3
+type (type_diagnostic_variable_id)   :: id_GPPR, id_Denitr, id_dPAR, id_chl2C, id_Theta, id_fracR, id_fracT, id_fracNU, id_DNP, id_QNP, id_QN, id_QP, id_QSi, id_aVN, id_aVP, id_aVSi, id_faN, id_faP, id_faSi, id_rQN, id_rQP, id_rQSi, id_tmp, id_fac1, id_fac2, id_fac3, id_fac4, id_fac5, id_phyUR, id_phyELR, id_phyALR, id_phyGLR, id_vsinkr, id_qualPOM, id_qualDOM, id_no3
 real(rk) ::  nutN_initial, nutP_initial, nutS_initial, phyC_initial, phyN_initial, phyP_initial, phyS_initial, zooC_initial, detC_initial, detN_initial, detP_initial, detS_initial, domC_initial, domN_initial, domP_initial, RNit_initial, frac_Rub_ini, frac_chl_ini, nh3_initial, oxy_initial, odu_initial
 real(rk) ::  P_max, alpha, sigma, theta_LHC, rel_chloropl_min, QN_phy_0, QN_phy_max, V_NC_max, AffN, zeta_CN, zstoich_PN, exud_phy, QP_phy_0, QP_phy_max, V_PC_max, AffP, QSi_phy_0, QSi_phy_max, V_SiC_max, AffSi, MaxRelQ, syn_nut, adap_rub, adap_theta, tau_regV, disease, mort_ODU, decay_pigm, decay_nut, phi_agg, agg_doc, sink_phys, vS_phy, vS_det, hydrol, remin, Nqual, remNP, denit, PON_denit, Q10, T_ref, NutOrder
 real(rk) ::  const_NC_zoo, const_PC_zoo, g_max, k_grazC, yield_zoo, basal_resp_zoo, mort_zoo, fT_exp_mort
-real(rk) ::  a_water, a_minfr, a_spm, a_chl, frac_PAR, small, maxVal, dil, ex_airsea, O2_sat, N_depo, P_depo
+real(rk) ::  a_water, a_minfr, a_spm, a_fz, a_chl, rel_co2, frac_PAR, small, maxVal, dil, ex_airsea, O2_sat, N_depo, P_depo
 real(rk) ::  rPAds, PAdsODU, rnit, ksO2nitri, rODUox, ksO2oduox, ksO2oxic, ksNO3denit, kinO2denit, kinNO3anox, kinO2anox, rAnammox
 real(rk) ::  rq10, res0, K_QN_phy, iK_QN, iK_QP, iK_QSi, itheta_max, aver_QN_phy, aver_QP_phy, small_finite
-logical  ::  RubiscoOn, PhotoacclimOn, PhosphorusOn, SiliconOn, GrazingOn, BioOxyOn, DiagOn, DebugDiagOn, ChemostatOn, NResOn, detritus_no_river_dilution, plankton_no_river_dilution
+logical  ::  RubiscoOn, PhotoacclimOn, PhosphorusOn, SiliconOn, GrazingOn, BioOxyOn, DebugDiagOn, Budget0DDiagOn, Budget2DDiagOn, BGC0DDiagOn, BGC2DDiagOn, PhysiolDiagOn, RateDiagOn, ChemostatOn, NResOn, detritus_no_river_dilution, plankton_no_river_dilution, nutrient_no_river_dilution
 integer  ::  kwFzmaxMeth
 end type type_maecs_base_model
 
 !
 type type_maecs_env
- real(rk) :: RNit, nh3, oxy, odu,  temp,par,doy,GPPR_dep,GPPR_vertint,GPPR_vertint_diag,Denitr_dep,Denitr_vertint,Denitr_vertint_diag,zmax,O2flux_diag
+ real(rk) :: RNit, nh3, oxy, odu,  temp,par,CO2,doy,GPPR_dep,GPPR_vertint,GPPR_vertint_diag,Denitr_dep,Denitr_vertint,Denitr_vertint_diag,zmax,O2flux_diag
 end type
 type type_maecs_rhs
  real(rk) :: nutN,nutP,nutS,phyC,phyN,phyP,phyS,zooC,detC,detN,detP,detS,domC,domN,domP,RNit,Rub,chl,nh3,oxy,odu
@@ -132,7 +134,7 @@ type type_maecs_traitdyn
       real(rk)   :: dRchl_dQN
       type (type_maecs_om) :: aV !instantaneously optimized trait: activity
       type (type_maecs_om) :: fA !instantaneously optimized trait: large fA-> affinity (i.e., uptake sites) vs small fA-> Vmax (i.e., transport)
-      real(rk)   :: tmp,fac1,fac2  ! for volatile diagnostics
+      real(rk)   :: tmp,fac1,fac2,fac3,fac4  ! for volatile diagnostics
 !      type (type_maecs_om) :: dV_dfracR, dV_dtheta
 end type
                                        

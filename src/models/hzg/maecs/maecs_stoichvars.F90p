@@ -1,7 +1,9 @@
 ! nitrogen
      i = self%nutind%iN
-elem(i)%relQ      = smooth_small(phy%relQ%N,eps)
-elem(i)%Q         = smooth_small(phy%Q%N,eps)
+!elem(i)%relQ      = smooth_small(phy%relQ%N,eps)
+! no lower boundary check needed because already done in calc_internal_states()
+elem(i)%Q         = phy%Q%N
+elem(i)%relQ      = phy%relQ%N
 elem(i)%upt_pot   => sens%upt_pot%N
 elem(i)%upt_act   => upt_act%N
 elem(i)%upt       => uptake%N
@@ -12,14 +14,18 @@ zeta_X(i)         = self%zeta_CN
 ! phosphorus
 if (self%PhosphorusOn) then
      i = self%nutind%iP
-elem(i)%relQ      = smooth_small(phy%relQ%P,eps)
-elem(i)%Q         = smooth_small(phy%Q%P,eps)
+!elem(i)%relQ      = smooth_small(phy%relQ%P,eps)
+!elem(i)%Q         = smooth_small(phy%Q%P,eps)
+elem(i)%relQ      = phy%relQ%P
+elem(i)%Q         = phy%Q%P
 elem(i)%upt_pot   => sens%upt_pot%P
 elem(i)%upt_act   => upt_act%P
 elem(i)%upt       => uptake%P
 elem(i)%iKQ       = self%iK_QP
 elem(i)%aV        => acc%aV%P
-zeta_X(i)         = self%zeta_CN * ((1.-f_Lip)*q_NoLip + f_Lip*q_Lip)
+!zeta_X(i)         = self%zeta_CN * ((1.-f_Lip)*q_NoLip + f_Lip*q_Lip)
+!zeta_X(i)         = self%zeta_CN * (q_Lip*(1.0d0 - exp(-phy%relQ%P)) + self%zstoich_PN)
+zeta_X(i)         = self%zeta_CN * (q_Lip + self%zstoich_PN)
 
 end if
 

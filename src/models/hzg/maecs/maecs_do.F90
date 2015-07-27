@@ -129,14 +129,22 @@ end if
 !#E_GET
 if (.not. self%GrazingOn) then
       zoo%C = self%zooC_initial
+      zoo%N = self%zooC_initial * self%const_NC_zoo
+      zoo%P = self%zooC_initial * self%const_PC_zoo
 end if
 
 !S_GED
   _GET_(self%id_temp, env%temp)  ! water temperature
   _GET_(self%id_par, env%par)  ! light photosynthetically active radiation
-!E_GED  ! list outcommented due to different usage of zmax and doy (see light extinction)
+  if (self%ChemostatOn) then
+    if (_AVAILABLE_(self%id_CO2)) then
+      _GET_(self%id_CO2, env%CO2)  ! CO2
+    else
+      env%CO2 = 0.0_rk ! todo: throw an error, if necessary dependency cannot be found 
+    end if
+  end if
 
-! write (*,'(A,2(F10.3))') 'par/T:',env%par,env%temp
+!E_GED  ! list outcommented due to different usage of zmax and doy (see light extinction)
 
 ! @ingroup main
 !> @fn fabm_hzg_maecs::maecs_do () 
@@ -160,6 +168,7 @@ else
 endif
 
 if(IsCritical .and. .not. self%ChemostatOn) then
+!if(IsCritical .or. (self%ChemostatOn .and. phy%N .lt. 1E-4) ) then
   rhsv%nutN=0.0d0
   rhsv%nutP=0.0d0
   rhsv%nutS=0.0d0
@@ -241,7 +250,7 @@ if (self%GrazingOn) then
 
 else
   graz_rate   = 0.0_rk
-  if (self%ChemostatOn .and. .not. IsCritical) graz_rate = 0.2*phy%C
+!  if (self%ChemostatOn .and. .not. IsCritical) graz_rate = 0.2*phy%C
   zoo_mort    = 0.0_rk
   lossZ       = type_maecs_om(0.0_rk, 0.0_rk, 0.0_rk, 0.0_rk)
   floppZ      = type_maecs_om(0.0_rk, 0.0_rk, 0.0_rk, 0.0_rk)
@@ -253,7 +262,6 @@ end if
 !aggreg_rate = self%phi_agg * dom%C * (phy%N + det%N)                    ! [d^{-1}] 
 
 !_GET_(self%id_fracR,phys_status )  
-!write (*,'(A,1(F10.3))') 'phys=',phys_status
 
 aggreg_rate = self%phi_agg * (1.0_rk - exp(-self%agg_doc*dom%C)) * (phy%N + det%N) 
 !         vS * exp(-4*phys_status )                ! [d^{-1}] 
@@ -307,7 +315,7 @@ rhsv%phyN =  uptake%N             * phy%C &
            - exud%N               * phy%C & 
            - aggreg_rate          * phy%N &
            - self%dil             * phy%N &          
-           - graz_rate * phy%Q%N       
+           - graz_rate * phy%Q%N       ! Q_N is bounded for safety reasons: TODO change grazing units to N
    
 !rhsv%phyN = 0.0_rk
 
@@ -335,20 +343,20 @@ rhsv%phyN =  uptake%N             * phy%C &
    dRchl_phyC_dt =  acclim%dRchl_dtheta * acclim%dtheta_dt   & 
                   + acclim%dRchl_dfracR * acclim%dfracR_dt   & 
                   + acclim%dRchl_dQN    * dQN_dt 
+
 ! pigment decay to relieve from artificially high pigm:C ratios at very low phyC
    decay = self%decay_pigm * (exp(phy%frac%theta)-1.0d0)
 
-!   rhsv%chl = phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC + dRchl_phyC_dt * phy%C
-   rhsv%chl = phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC &
-                   + dRchl_phyC_dt * phy%reg%C - decay * phy%chl
+   rhsv%chl = phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC  &
+               + dRchl_phyC_dt * phy%C  - decay * phy%chl
 
-if (rhsv%chl .lt. -200.d0) then
+!if (rhsv%chl .lt. -200.d0) then
 !  phy%theta     = phy%chl / (phy%rel_chloropl * phy%reg%C)   ! trait variable
 !  phy%frac%theta= phy%theta * phy%rel_chloropl * maecs%itheta_max ! []     no 
-  write (*,'(A,4(F14.3))') 'dChl=',rhsv%chl,phy%chl,dRchl_phyC_dt,rhsv%phyC,dQN_dt
-  write (*,'(A,6(F14.3))') 'aa=',acclim%dRchl_dtheta,acclim%dtheta_dt,acclim%dRchl_dfracR,acclim%dfracR_dt,acclim%dRchl_dQN, dQN_dt
-  write (*,'(A,2(F14.3))') 'dmdx=',acclim%fac1,acclim%fac2
-end if
+!  write (*,'(A,4(F14.3))') 'dChl=',rhsv%chl,phy%chl,dRchl_phyC_dt,rhsv%phyC,dQN_dt
+!  write (*,'(A,6(F14.3))') 'aa=',acclim%dRchl_dtheta,acclim%dtheta_dt,acclim%dRchl_dfracR,acclim%dfracR_dt,acclim%dRchl_dQN, dQN_dt
+!  write (*,'(A,2(F14.3))') 'dmdx=',acclim%fac1,acclim%fac2
+!end if
 
 !write (*,'(A,4(F10.3))') 'rhs chl=', phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC,dRchl_phyC_dt * phy%reg%C*1E1,phy%relQ%N**self%sigma,phy%theta
 
@@ -385,9 +393,9 @@ reminT      = self%remin  * sens%f_T * qualDOM
 
 !  ---  hydrolysis & remineralisation depend on quality, here propto N/C quota of OM
 !  acceleration: rate difference for N-pool
-ddegN       = self%hydrol * sens%f_T * smooth_small(1.0d0 - qualPOM, self%small_finite)
+ddegN       = self%hydrol * sens%f_T * max(1.0d0 - qualPOM, 0.0d0)
 ddegP       = self%remNP * ddegN       
-dremN       = self%remin * sens%f_T * smooth_small(1.0d0 - qualDOM, self%small_finite)
+dremN       = self%remin * sens%f_T * max(1.0d0 - qualDOM, 0.0d0)
 dremP       = self%remNP * dremN
 !________________________________________________________________________________
 !
@@ -445,6 +453,9 @@ rhsv%nutN   = -uptake%N            * phy%C    &
              + lossZ%N             * zoo%C    &
              + self%dil * (self%nutN_initial - nut%N) &
              + deporate
+
+if(self%ChemostatOn .and. self%remin .lt. 0.0001d0) rhsv%nutN = 0.0d0
+
 !________________________________________________________________________________
 !
 if (self%PhosphorusOn) then 
@@ -459,18 +470,23 @@ if (self%PhosphorusOn) then
               + aggreg_rate          * phy%P    &
               - self%dil             * det%P    &         
               + zoo_mort             * zoo%P    & 
-              - (degradT + ddegP)    * det%P    ! quality enhances P remin
+              - (degradT + ddegP)    * det%P    ! quality enhances P remin            
+              
   !  --- DOP
    Pprod     = (reminT + dremP)      * dom%P
    rhsv%domP = exud%P                * phy%C    &
               + (degradT + ddegP)    * det%P    &
               - self%dil             * dom%P    &              
               - Pprod
+             
   !  --- DIP
    rhsv%nutP = - uptake%P            * phy%C    & 
               + Pprod                           & 
               + lossZ%P              * zoo%C    &
               + self%dil * (self%nutP_initial - nut%P)
+
+   if(self%ChemostatOn .and. self%remin .lt. 0.0001d0) rhsv%nutP = 0.0d0
+           
 end if 
 !________________________________________________________________________________
 !
@@ -504,7 +520,7 @@ if (self%BioOxyOn) then
    f_T    = sens%f_T
 
 ! ---------- manages overlapping state variables 
-   no3    = smooth_small(nut%N - env%nh3,  self%small)
+   no3    = max(nut%N - env%nh3,  0.0d0)
 ! ---------- remineralisation limitations 
    Oxicminlim = env%oxy/(env%oxy+self%ksO2oxic+relaxO2*(env%nh3+env%odu))              
    Denitrilim = (1.0_rk-env%oxy/(env%oxy+self%kinO2denit)) * no3/(no3+self%ksNO3denit)
@@ -553,12 +569,16 @@ if (self%BioOxyOn) then
   Anammox    = self%rAnammox * Anoxiclim *Rescale * env%nh3 * no3/(no3+self%ksNO3denit)
 
 ! preference for NH3 in DIN-uptake of autotrophs
-  nh3f        = 1.0d0 - exp(-5*env%nh3/(nut%N+self%small))
+!  nh3f        = 1.0d0 -exp(-5*env%nh3/smooth_small(nut%N,self%small))
+!  nh3f        = 1.0d0/(1.0d0+exp(-30*(env%nh3/(nut%N + env%nh3+0.01d0 )-0.5d0)))
+  nh3f        = env%nh3/(nut%N+ env%nh3+0.1d0)
 !  dynamics of nh3 ~ dissolved ammonium
   rhsv%nh3    = Nprod - Nitri + lossZ%N * zoo%C  & !/ (1.0_rk + self%NH3Ads)
-               + (exud%N - nh3f*uptake%N) * phy%C &!env%nh3/(nut%N+self%small) *
+               - nh3f*uptake%N * phy%C &!env%nh3/(nut%N+self%small) *
                + self%dil * (self%nh3_initial - env%nh3) &
-               - Anammox
+               - Anammox - max(env%nh3 - nut%N,  0.0d0)
+             
+!  if(env%nh3 .lt. 0.1d0) write (*,'(A,11(F10.3))') 'nh3=', env%nh3,nut%N,rhsv%nh3,nh3f,- Nitri,uptake%N,- nh3f*uptake%N*phy%C,self%dil*(self%nh3_initial-env%nh3),(0.8d0 * Denitrific+Anammox)*1E5
 
   rhsv%nutN   = rhsv%nutN - 0.8d0 * Denitrific - Anammox
 
@@ -610,17 +630,17 @@ end if
 !#E_ODE
 
 ! artifical, serial nutrient input to illustrate co-limitation dynamics in 0D
-if (self%ChemostatOn) then
-  _GET_GLOBAL_ (self%id_doy,doy) !day of year
-  select case (doy)
-           case (89:92)
-            _SET_ODE_(self%id_nutP, 5*(1.0-nut%P) UNIT)
-           case (29:32)
-            _SET_ODE_(self%id_nutN, 5*(16.0-nut%N) UNIT)
-           case (59:62)
-            _SET_ODE_(self%id_nutS, 5*(16.0-nut%Si) UNIT)
-  end select
-endif
+!if (self%ChemostatOn) then
+!  _GET_GLOBAL_ (self%id_doy,doy) !day of year
+!  select case (doy)
+!           case (89:92)
+!            _SET_ODE_(self%id_nutP, 5*(1.0-nut%P) UNIT)
+!           case (29:32)
+!            _SET_ODE_(self%id_nutN, 5*(16.0-nut%N) UNIT)
+!           case (59:62)
+!            _SET_ODE_(self%id_nutS, 5*(16.0-nut%Si) UNIT)
+!  end select
+!endif
 
 !________________________________________________________________________________
 ! set diag variables, mostly from PrimProd module
@@ -628,45 +648,59 @@ endif
 !define _REPLNAN_(X) X !changes back to original code
 #define _REPLNAN_(X) nan_num(X)
 
-if (self%DebugDiagOn) then
 !#S_DIA
-  _SET_DIAGNOSTIC_(self%id_GPPR, _REPLNAN_(phy%gpp*phy%C))   !average gross primary production
-  _SET_DIAGNOSTIC_(self%id_Denitr, _REPLNAN_(0.8*Denitrific)) !average denitrification rate
-  _SET_DIAGNOSTIC_(self%id_chl2C, _REPLNAN_(phy%theta*phy%rel_chloropl/12)) !average chlorophyll:carbon ratio 
-  _SET_DIAGNOSTIC_(self%id_Theta, _REPLNAN_(phy%theta))      !average Theta
-  _SET_DIAGNOSTIC_(self%id_fracR, _REPLNAN_(phy%frac%Rub))   !average Rubisco fract
-  _SET_DIAGNOSTIC_(self%id_fracT, _REPLNAN_(phy%frac%theta)) !average LHC fract
-  _SET_DIAGNOSTIC_(self%id_fracNU, _REPLNAN_(phy%frac%NutUpt)) !average Nut
-  _SET_DIAGNOSTIC_(self%id_QN, _REPLNAN_(phy%Q%N))           !average N:C ratio
-  _SET_DIAGNOSTIC_(self%id_QP, _REPLNAN_(phy%Q%P))           !average P:C ratio
-  _SET_DIAGNOSTIC_(self%id_QSi, _REPLNAN_(phy%Q%Si))         !average Si:C ratio
-  _SET_DIAGNOSTIC_(self%id_aVN, _REPLNAN_(acclim%aV%N))      !average N-uptake activity
-  _SET_DIAGNOSTIC_(self%id_aVP, _REPLNAN_(acclim%aV%P))      !average P-uptake activity
-  _SET_DIAGNOSTIC_(self%id_aVSi, _REPLNAN_(acclim%aV%Si))    !average Si-uptake activity
-  _SET_DIAGNOSTIC_(self%id_faN, _REPLNAN_(acclim%fA%N))      !average N-uptake affinity allocation
-  _SET_DIAGNOSTIC_(self%id_faP, _REPLNAN_(acclim%fA%P))      !average P-uptake affinity allocation
-  _SET_DIAGNOSTIC_(self%id_faSi, _REPLNAN_(acclim%fA%Si))    !average Si-uptake affinity allocation
-  _SET_DIAGNOSTIC_(self%id_rQN, _REPLNAN_(phy%relQ%N))       !average Relative N-Quota
-  _SET_DIAGNOSTIC_(self%id_rQP, _REPLNAN_(phy%relQ%P))       !average Relative P-Quota
-  _SET_DIAGNOSTIC_(self%id_rQSi, _REPLNAN_(phy%relQ%Si))     !average Relative Si-Quota
-  _SET_DIAGNOSTIC_(self%id_tmp, _REPLNAN_(acclim%tmp))       !average Temporary diagnostic
-  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(dRchl_phyC_dt))   !average Auxiliary diagnostic 
-  _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(acclim%dRchl_dfracR*acclim%dfracR_dt)) !average Auxiliary diagnostic
-  _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%dRchl_dtheta*acclim%dtheta_dt)) !average Auxiliary diagnostic
-  _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(acclim%fac1))     !average dtheta
-  _SET_DIAGNOSTIC_(self%id_fac5, _REPLNAN_(acclim%fac2))     !average dtheta
-  _SET_DIAGNOSTIC_(self%id_dPAR, _REPLNAN_(env%par))         !average Photosynthetically Active Radiation
-  _SET_DIAGNOSTIC_(self%id_phyUR, _REPLNAN_(uptake%C))       !average Phytoplankton C Uptake Rate
-  _SET_DIAGNOSTIC_(self%id_phyELR, _REPLNAN_(-exud%C))       !average Phytoplankton Exudation Loss Rate
-  _SET_DIAGNOSTIC_(self%id_phyALR, _REPLNAN_(-aggreg_rate))  !average Phytoplankton Aggregation Loss Rate
-  _SET_DIAGNOSTIC_(self%id_phyGLR, _REPLNAN_(-graz_rate/phy%reg%C)) !average Phytoplankton Grazing Loss Rate
-  _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(exp(-self%sink_phys*phy%relQ%N*phy%relQ%P))) !average Relative Sinking Velocity
-  _SET_DIAGNOSTIC_(self%id_qualPOM, _REPLNAN_(qualPOM))      !average Quality of POM 
-  _SET_DIAGNOSTIC_(self%id_qualDOM, _REPLNAN_(qualDOM))      !average Quality of DOM 
-  _SET_DIAGNOSTIC_(self%id_no3, _REPLNAN_(no3))              !average Nitrate
-!#E_DIA
+if (self%DebugDiagOn) then
+  _SET_DIAGNOSTIC_(self%id_tmp, _REPLNAN_(acclim%tmp))       !average Temporary_diagnostic_
+!  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(dRchl_phyC_dt))   !average Auxiliary_diagnostic_
+!  _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(acclim%dRchl_dfracR*acclim%dfracR_dt)) !average Auxiliary_diagnostic_
+!  _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%dRchl_dtheta*acclim%dtheta_dt)) !average Auxiliary_diagnostic_
+!  _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(acclim%fac))     !average dtheta_dt_due_to_flex_theta_
+  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(acclim%fac1))     !average dtheta_dt_due_to_flex_theta_
+  _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(acclim%fac2))     !average dtheta_dt_due_to_flex_theta_
+  _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%fac3))     !average dtheta_dt_due_to_flex_theta_
+  _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(acclim%fac4))     !average dtheta_dt_due_to_flex_theta_
+  _SET_DIAGNOSTIC_(self%id_fac5, _REPLNAN_(acclim%fac2))     !average dtheta_dt_due_to_grad_theta_
 end if
-!write (*,'(A,3(F11.5))') 'RN,depo,denit=',env%RNit,deporate,denitrate
+if (self%BGC0DDiagOn) then
+  _SET_DIAGNOSTIC_(self%id_GPPR, _REPLNAN_(phy%gpp*phy%C))   !average gross_primary_production_
+  _SET_DIAGNOSTIC_(self%id_Denitr, _REPLNAN_(0.8*Denitrific)) !average denitrification_rate_
+  _SET_DIAGNOSTIC_(self%id_DNP, _REPLNAN_(nut%N/(nut%P+self%small)))   !average DIN:DIP_ratio_
+  _SET_DIAGNOSTIC_(self%id_QNP, _REPLNAN_(phy%Q%N/phy%Q%P))  !average N:P_ratio_
+  _SET_DIAGNOSTIC_(self%id_qualPOM, _REPLNAN_(qualPOM))      !average Quality_of_POM_
+  _SET_DIAGNOSTIC_(self%id_qualDOM, _REPLNAN_(qualDOM))      !average Quality_of_DOM_
+  if (self%BioOxyOn) then
+    _SET_DIAGNOSTIC_(self%id_no3, _REPLNAN_(no3))              !average Nitrate_
+  end if
+end if
+if (self%PhysiolDiagOn) then
+  _SET_DIAGNOSTIC_(self%id_dPAR, _REPLNAN_(env%par))         !average Photosynthetically_Active_Radiation_
+  _SET_DIAGNOSTIC_(self%id_chl2C, _REPLNAN_(phy%theta*phy%rel_chloropl)) !average chlorophyll:carbon_ratio_=_chl-a/chloroplast-C_*_chloroplast-C/phy-_
+  _SET_DIAGNOSTIC_(self%id_Theta, _REPLNAN_(phy%theta))      !average Theta_
+  _SET_DIAGNOSTIC_(self%id_fracR, _REPLNAN_(phy%frac%Rub))   !average Rubisco_fract._allocation_
+  _SET_DIAGNOSTIC_(self%id_fracT, _REPLNAN_(phy%frac%theta)) !average LHC_fract._allocation_
+  _SET_DIAGNOSTIC_(self%id_fracNU, _REPLNAN_(phy%frac%NutUpt)) !average Nut._Uptake_fract._allocation_
+  _SET_DIAGNOSTIC_(self%id_QN, _REPLNAN_(phy%Q%N))           !average N:C_ratio_
+  _SET_DIAGNOSTIC_(self%id_QP, _REPLNAN_(phy%Q%P))           !average P:C_ratio_
+  _SET_DIAGNOSTIC_(self%id_QSi, _REPLNAN_(phy%Q%Si))         !average Si:C_ratio_
+  _SET_DIAGNOSTIC_(self%id_aVN, _REPLNAN_(acclim%aV%N))      !average N-uptake_activity_
+  _SET_DIAGNOSTIC_(self%id_aVP, _REPLNAN_(acclim%aV%P))      !average P-uptake_activity_
+  _SET_DIAGNOSTIC_(self%id_aVSi, _REPLNAN_(acclim%aV%Si))    !average Si-uptake_activity_
+  _SET_DIAGNOSTIC_(self%id_faN, _REPLNAN_(acclim%fA%N))      !average N-uptake_affinity_allocation_
+  _SET_DIAGNOSTIC_(self%id_faP, _REPLNAN_(acclim%fA%P))      !average P-uptake_affinity_allocation_
+  _SET_DIAGNOSTIC_(self%id_faSi, _REPLNAN_(acclim%fA%Si))    !average Si-uptake_affinity_allocation_
+  _SET_DIAGNOSTIC_(self%id_rQN, _REPLNAN_(phy%relQ%N))       !average Relative_N-Quota_
+  _SET_DIAGNOSTIC_(self%id_rQP, _REPLNAN_(phy%relQ%P))       !average Relative_P-Quota_
+  _SET_DIAGNOSTIC_(self%id_rQSi, _REPLNAN_(phy%relQ%Si ))     !phy%relQ%Siaverage Relative_Si-Quota_
+end if
+if (self%RateDiagOn) then
+  _SET_DIAGNOSTIC_(self%id_phyUR, _REPLNAN_(uptake%C))       !average Phytoplankton_C_Uptake_Rate_
+  _SET_DIAGNOSTIC_(self%id_phyELR, _REPLNAN_(-exud%C))       !average Phytoplankton_Exudation_Loss_Rate_
+  _SET_DIAGNOSTIC_(self%id_phyALR, _REPLNAN_(-aggreg_rate))  !average Phytoplankton_Aggregation_Loss_Rate_
+  _SET_DIAGNOSTIC_(self%id_phyGLR, _REPLNAN_(-graz_rate/phy%reg%C)) !average Phytoplankton_Grazing_Loss_Rate_
+!  _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(exp(-self%sink_phys*phy%relQ%N*phy%relQ%P))) !average Relative_Sinking_Rate_
+end if
+!#E_DIA
+
 
 #if _DEBUG_
 write(*,'(A)') 'end DO'
@@ -706,6 +740,9 @@ REALTYPE, parameter :: secs_pr_day = 86400.d0
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+
+!define _REPLNAN_(X) X !changes back to original code
+#define _REPLNAN_(X) nan_num(X)
 
 _FABM_LOOP_BEGIN_
 
@@ -759,7 +796,10 @@ write(*,'(A)') 'begin vert_move'
 
    !SINKING AS A FUNCTION OF INTERNAL STATES
    vs_phy = -self%vS_phy * exp( -self%sink_phys * phyQstat)
-  _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(-vs_phy)) !average Relative Sinking Velocity
+   if (self%RateDiagOn) then 
+    write (*,'(A)',advance='no') '' ! Silly Fix to 'NETCDF: Numeric conversion not representable' problem ??
+     _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(vs_phy)) !average Relative Sinking Velocity
+   end if
 
    !CONSTANT SINKING
    !vs_phy = self%vS_phy
@@ -814,32 +854,36 @@ subroutine maecs_do_surface(self,_ARGUMENTS_DO_SURFACE_)
 write(*,'(A)') 'begin surface_DO'
 #endif
 
+      if (self%BGC2DDiagOn) then
+        _GET_HORIZONTAL_(self%id_GPPR_vertint,tot_vi_GPPR)
+        _SET_HORIZONTAL_DIAGNOSTIC_(self%id_GPPR_vertint_diag,_REPLNAN_(tot_vi_GPPR))
+        if (self%BioOxyOn) then
+          _GET_HORIZONTAL_(self%id_Denitr_vertint,tot_vi_Denitr)
+          _SET_HORIZONTAL_DIAGNOSTIC_(self%id_Denitr_vertint_diag, _REPLNAN_(tot_vi_Denitr))
+        end if
+      end if
+      
+      if (self%Budget2DDiagOn) then 
       _GET_HORIZONTAL_(self%id_totN_vertint,tot_vi_N)
       _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totN_vertint_diag,_REPLNAN_(tot_vi_N))
       _GET_HORIZONTAL_(self%id_totC_vertint,tot_vi_C)
       _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totC_vertint_diag,_REPLNAN_(tot_vi_C))
-      if (self%DiagOn) then
-        _GET_HORIZONTAL_(self%id_GPPR_vertint,tot_vi_GPPR)
-        _SET_HORIZONTAL_DIAGNOSTIC_(self%id_GPPR_vertint_diag,_REPLNAN_(tot_vi_GPPR))
-      end if
-      if (self%BioOxyOn) then
-        _GET_HORIZONTAL_(self%id_Denitr_vertint,tot_vi_Denitr)
-        _SET_HORIZONTAL_DIAGNOSTIC_(self%id_Denitr_vertint_diag, _REPLNAN_(tot_vi_Denitr))
-      end if
-     
       if (self%PhosphorusOn) then
          _GET_HORIZONTAL_(self%id_totP_vertint,tot_vi_P)
          _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totP_vertint_diag,_REPLNAN_(tot_vi_P))
-! --- atmospheric deposition of PO4
-         _SET_SURFACE_EXCHANGE_(self%id_nutP, self%P_depo UNIT)
       end if
       if (self%SiliconOn) then
          _GET_HORIZONTAL_(self%id_totS_vertint,tot_vi_S)
          _SET_HORIZONTAL_DIAGNOSTIC_(self%id_totS_vertint_diag,_REPLNAN_(tot_vi_S))
       end if
+      end if
 
 ! --- wet and dry deposition of NO3 
       _SET_SURFACE_EXCHANGE_(self%id_nutN, self%N_depo UNIT)
+! --- atmospheric deposition of PO4
+      if (self%PhosphorusOn) then
+         _SET_SURFACE_EXCHANGE_(self%id_nutP, self%P_depo UNIT)
+      end if
 
 ! --- oxygen flux between sea water and air -----
       if (self%BioOxyOn) then
@@ -854,7 +898,9 @@ write(*,'(A)') 'begin surface_DO'
 
         O2flux  = self%ex_airsea * (O2airbl - oxy)!
         _SET_SURFACE_EXCHANGE_(self%id_oxy, O2flux )
-        _SET_HORIZONTAL_DIAGNOSTIC_(self%id_O2flux_diag, _REPLNAN_(O2flux)) ! converts mmol/m2.s to mmol/m2.d
+        if (self%BGC2DDiagOn) then
+          _SET_HORIZONTAL_DIAGNOSTIC_(self%id_O2flux_diag, _REPLNAN_(O2flux)) ! converts mmol/m2.s to mmol/m2.d
+        end if
       endif
 
 #if _DEBUG_
