@@ -202,7 +202,8 @@ acc%fac1 = fac_colim
 
 ! "darkness correction": marginal use should converge towards zero at very low light
 !  offset (background respiration) derived from a_V(dmu_daV=0)*1/4*Vmax*zeta (f_A=f_V=1/2)
-darkf     = smooth_small(1.0d0 - exp(-1.*grossC/self%res0),eps)
+
+darkf    = smooth_small(1.0d0 - exp(-grossC/self%res0),eps)
 
 !> @fn maecs_primprod::photosynthesis()
 !> 6. Calculate (a first approximation of the ?!) activity @f$ a_{V,X} @f$, for each nutrient, X
@@ -315,9 +316,9 @@ resp  = self%zeta_CN * (upt_act%N + self%zstoich_PN * upt_act%P)
 
 if (self%RubiscoOn) then
 ! --- derivatives of C-uptake rate  ------------------------------------------         
-   dmu_dfracR = Pmaxc * sens%upt_pot%C - 0*resp * dfV_dfracR
+   dmu_dfracR = Pmaxc * sens%upt_pot%C - 1*resp * dfV_dfracR
 
-   dmuQ_dfracR = dmuQ_dfracR * darkf**(exp(-2*phy%frac%Rub))
+   dmuQ_dfracR = dmuQ_dfracR * darkf**(exp(-phy%frac%Rub))
 
    grad_fracR = dmu_dfracR      &   ! marginal C gain of light independent processes 
               + dmuQ_dfracR         ! marginal loss due to reduced uptake 
@@ -354,9 +355,9 @@ if (self%PhotoacclimOn) then
 ! --- derivatives of C-uptake rate  --------------------------------------------         
 !     positive gradient term due to PAR adsorption by CHL 
    dmu_dtheta = Pmaxc* phy%frac%Rub * exp(- sens%a_light * phy%theta) *sens%a_light & 
-                      -0*resp * dfV_dtheta
+                      -1*resp * dfV_dtheta
 
-   dmuQ_dtheta = dmuQ_dtheta* darkf**(exp(-2*phy%frac%theta))
+   dmuQ_dtheta = dmuQ_dtheta* darkf**(exp(-phy%frac%theta))
 
    grad_theta = dmu_dtheta + dmuQ_dtheta  ! marginal C gain and indirect costs of chloroplasts
 
