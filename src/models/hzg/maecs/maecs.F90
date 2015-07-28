@@ -593,7 +593,7 @@ end if
 
 !!------- derived parameters  ------- 
 self%rq10         = Q10
-self%res0         = 0.025d0*V_NC_max*zeta_CN
+self%res0         = 0.25d0*V_NC_max*zeta_CN
 self%K_QN_phy     = QN_phy_max-QN_phy_0
 self%iK_QN        = 1.0d0/self%K_QN_phy
 self%iK_QP        = 1.0d0/(QP_phy_max-QP_phy_0)

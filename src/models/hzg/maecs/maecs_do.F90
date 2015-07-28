@@ -346,6 +346,8 @@ rhsv%phyN =  uptake%N             * phy%C &
 
 ! pigment decay to relieve from artificially high pigm:C ratios at very low phyC
    decay = self%decay_pigm * (exp(phy%frac%theta)-1.0d0)
+  ! surge release at unrealistic partitioning (at sigma=1 and Q->Q0)
+   if(phy%frac%theta+phy%frac%Rub .gt. 0.98d0) decay = decay + 1.0d0/(1.0d0+exp(-20*(phy%frac%theta+phy%frac%Rub-1.0d0)))
 
    rhsv%chl = phy%theta * phy%frac%Rub * phy%relQ%N**self%sigma * rhsv%phyC  &
                + dRchl_phyC_dt * phy%C  - decay * phy%chl

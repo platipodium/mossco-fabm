@@ -174,7 +174,7 @@ prod_dq     = 1.0d0/smooth_small(qp_X,eps)
 ! derivative of f_V (fraction of nutrient uptake machinery) on f_R (PS) and theta (LHC)
 
 dfV_dfracR  = - 1*acc%dRchl_dfracR * self%itheta_max - 1.0d0 
-dfV_dtheta  = - 2*(acc%dRchl_dtheta + 1*phy%frac%Rub)  * self%itheta_max 
+dfV_dtheta  = - 1*(acc%dRchl_dtheta + 0.*phy%frac%Rub+ 1*phy%frac%theta)  * self%itheta_max 
 !dfV_dtheta  = - acc%dRchl_dtheta * self%itheta_max - phy%frac%Rub/(phy%theta + 1E-3)
 
 ! phy%frac%Rub  
@@ -202,7 +202,7 @@ acc%fac1 = fac_colim
 
 ! "darkness correction": marginal use should converge towards zero at very low light
 !  offset (background respiration) derived from a_V(dmu_daV=0)*1/4*Vmax*zeta (f_A=f_V=1/2)
-darkf     = 1.0d0 - exp(-grossC/self%res0)
+darkf     = smooth_small(1.0d0 - exp(-1.*grossC/self%res0),eps)
 
 !> @fn maecs_primprod::photosynthesis()
 !> 6. Calculate (a first approximation of the ?!) activity @f$ a_{V,X} @f$, for each nutrient, X
@@ -221,7 +221,7 @@ do i = 1, num_nut
    prod_dq   = prod_dq * dqp_X_dqp_Y(i)
 !   e_N       = e_N0 + d_X * elem(i)%iKQ / elem(i)%relQ
 ! contribution from synchrony
-   if (i .eq. self%nutind%iN .and.  self%syn_nut .lt. -0.001) then
+   if (i .eq. self%nutind%iN .and.  self%syn_nut .lt. -0.001.and. .true.) then
      d_X     = d_X + prod_dn * (-self%syn_nut) * phy%frac%NutUpt 
    endif
 
@@ -230,7 +230,7 @@ do i = 1, num_nut
 
 ! marginal use should converge towards zero at bad productivity conditions
 !   (refine assumption Q\mu=V in derivation of d_QX)
-!   d_QX      = d_QX * darkf  
+   d_QX      = d_QX * darkf  
 
 !   steady-state down-regulation of uptake I: balance of respiration and indirect benefits  
    dmu_dV    = (1.0d0 + zeta_X(i) * elem(i)%Q) * d_QX/(1.0d0 + elem(i)%Q * (d_QX + sigmv(i)))
@@ -246,7 +246,7 @@ do i = 1, num_nut
    dmu_daV   = abs(dmu_daV)
    dmu_daV_tot = dmu_daV_tot + act_V * dmu_daV
 
-   elem(i)%dmudV   = dmu_dV
+   elem(i)%dmudV   = dmu_dV !* darkf!sqrt(darkf)
    elem(i)%dmudaV  = dmu_daV
    elem(i)%aV      = act_V 
 end do
@@ -274,18 +274,29 @@ do i = 1, num_nut
    elem(i)%upt     = phy%frac%NutUpt * elem(i)%upt_act  ! [(molX) (molC)^{-1} d{-1}]
 
 ! +++ derivative of C-uptake rate with respect to quota ++++++++++++++++++++++++++++++
-   dmuQ_dfracR     = dmuQ_dfracR + elem(i)%dmudV * (elem(i)%upt_act+0*eps) * dfV_dfracR
-   dmuQ_dtheta     = dmuQ_dtheta + elem(i)%dmudV * (elem(i)%upt_act+0*eps) * dfV_dtheta
+   dmuQ_dfracR     = dmuQ_dfracR + elem(i)%dmudV * (elem(i)%upt_pot+0*eps) * dfV_dfracR
+   dmuQ_dtheta     = dmuQ_dtheta + elem(i)%dmudV * (elem(i)%upt_pot+0*eps) * dfV_dtheta
 ! small *eps* correction at vanishing productivity since now aV=0 would entirely decouple regulation
 ! if (dmuQ_dfracR .lt. -20. .or. abs(dmuQ_dfracR+1.d0) .lt. 0.01) write (*,'(A,I3,10(F10.4))') 'Q',i,dmuQ_dfracR , elem(i)%dmudV , elem(i)%relQ,(elem(i)%upt_act+eps) , dfV_dfracR,act_V , elem(i)%upt_pot,Nut%P,Nut%N,grossC
 end do
+
+! account for differential effect of f_V on synchrony
+if ( self%syn_nut .lt. -0.001 .and. .false.) then
+!   acc%fac2 = prod_dn
+   prod_dn = prod_dn * (-self%syn_nut)  * grossC *phy%relQ%N
+   dmuQ_dfracR = dmuQ_dfracR + prod_dn * dfV_dfracR
+   dmuQ_dtheta = dmuQ_dtheta + prod_dn * dfV_dtheta
+!   acc%fac3 = prod_dn 
+endif
+
 !if (self%SiliconOn) uptake%Si=uptake%Si + 0.5*sens%upt_pot%Si
 
 !> @fn maecs_primprod::photosynthesis()
 !> 8. calculate phy%resp=f(uptake\%N), phy\%gpp=grossC-phy%resp, uptake\%C=grossC-phy%resp
 ! ---  respiration due to N & P assimilation --------------------------------------
 phy%resp     = self%zeta_CN * (uptake%N + self%zstoich_PN * uptake%P)     ! [d^{-1}]
-acc%fac4 = phy%resp
+!acc%fac4 = phy%resp
+acc%fac4 = darkf
 
 ! --- relative growth rate RGR: gross production - exudation - uptake respiration --  
 phy%gpp   = grossC
@@ -299,10 +310,14 @@ uptake%C  = grossC - phy%resp     !* (1.0d0- self%exud_phy) ![d^{-1}]
 ! ---  partitioning to chloroplast and rubisco  -------------------------------
 !> @fn maecs_primprod::photosynthesis()
 !> 9. calculate (acc\%)dfR/dt
+! specific respiration, also accounting for P-uptake expenses
+resp  = self%zeta_CN * (upt_act%N + self%zstoich_PN * upt_act%P)  
 
 if (self%RubiscoOn) then
 ! --- derivatives of C-uptake rate  ------------------------------------------         
-   dmu_dfracR = Pmaxc * sens%upt_pot%C + 0*resp * dfV_dfracR
+   dmu_dfracR = Pmaxc * sens%upt_pot%C - 0*resp * dfV_dfracR
+
+   dmuQ_dfracR = dmuQ_dfracR * darkf**(exp(-2*phy%frac%Rub))
 
    grad_fracR = dmu_dfracR      &   ! marginal C gain of light independent processes 
               + dmuQ_dfracR         ! marginal loss due to reduced uptake 
@@ -339,7 +354,9 @@ if (self%PhotoacclimOn) then
 ! --- derivatives of C-uptake rate  --------------------------------------------         
 !     positive gradient term due to PAR adsorption by CHL 
    dmu_dtheta = Pmaxc* phy%frac%Rub * exp(- sens%a_light * phy%theta) *sens%a_light & 
-                      + 0*resp * dfV_dtheta
+                      -0*resp * dfV_dtheta
+
+   dmuQ_dtheta = dmuQ_dtheta* darkf**(exp(-2*phy%frac%theta))
 
    grad_theta = dmu_dtheta + dmuQ_dtheta  ! marginal C gain and indirect costs of chloroplasts
 
@@ -348,16 +365,16 @@ if (self%PhotoacclimOn) then
 !  flex_theta  = self%adap_theta * (1- phy%frac%theta) * phy%frac%theta 
 
 ! upper boundary for fractional variables: smoothly integrates constrain from 2nd fractional variable
-  fmaxf  = 1.0d0/(1.0d0+exp(2.0d0-20*grad_theta/self%res0))
+  fmaxf  = 1.0d0/(1.0d0+exp(1.0d0-99*grad_theta/self%res0))
 ! upper boundary for fractional variables: resulting flexibility
-  fmaxf  = max(1.0d0 - phy%frac%theta- phy%frac%Rub*fmaxf,0.0d0)
-
+  fmaxf  = max(1.0d0 - phy%frac%theta- phy%frac%Rub*fmaxf,-0.1)
   flex_theta  = self%adap_theta * (self%theta_LHC/phy%rel_chloropl)**2 * fmaxf * phy%frac%theta 
-
   ! *** ADAPTIVE EQUATION FOR 'theta'
-   acc%dtheta_dt = flex_theta * grad_theta
+     acc%dtheta_dt = flex_theta * grad_theta
+
    !for being able to save these intermediate quantities as diag vars:
-!   acc%fac1=flex_theta 
+   acc%fac3=fmaxf 
+!   acc%fac3=dmu_dtheta 
    acc%fac2=dmuQ_dtheta
 end if
 ! --- carbon exudation   -------------------------------------------------------
@@ -373,7 +390,7 @@ else
 end if
 
 ! ---- additional exudation to release unrealistic stoichiometry in depositional holes
-ex = self%QN_phy_0*phy%reg%C - phy%reg%N
+ex = self%QN_phy_0*phy%reg%C - phy%N + self%small_finite*self%QN_phy_max
 if( ex .gt. 0.0d0 ) then
   exud%C = exud%C + self%decay_nut * (exp(ex * self%iK_QN/phy%reg%C)-1.0d0) 
 end if
