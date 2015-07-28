@@ -195,7 +195,7 @@ sigmv(self%nutind%iN)    =   acc%dRchl_dQN * self%itheta_max / (phy%frac%NutUpt+
 !> - grossC=Pmaxc*fR*sens\%upt\_pot\%C
 !>   + sens\%upt\_pot\%C  : light harvesting (light limited growth)
 !> - darkf= 1-exp(-grossC/self\%res0)
-Pmaxc     = (fac_colim-0*eps) * sens%P_max_T
+Pmaxc     = fac_colim * sens%P_max_T
 grossC    = phy%frac%Rub * Pmaxc * sens%upt_pot%C  ! primary production
 
 acc%fac1 = fac_colim
@@ -203,7 +203,7 @@ acc%fac1 = fac_colim
 ! "darkness correction": marginal use should converge towards zero at very low light
 !  offset (background respiration) derived from a_V(dmu_daV=0)*1/4*Vmax*zeta (f_A=f_V=1/2)
 
-darkf    = smooth_small(1.0d0 - exp(-grossC/self%res0),eps)
+darkf    = smooth_small(1.0d0 - exp(-3*sens%upt_pot%C),eps)
 
 !> @fn maecs_primprod::photosynthesis()
 !> 6. Calculate (a first approximation of the ?!) activity @f$ a_{V,X} @f$, for each nutrient, X
