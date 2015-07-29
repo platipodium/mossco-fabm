@@ -217,6 +217,7 @@ if (maecs%ChemostatOn) then
     fA%C    = fOptUpt(affin ,pmax, NutF, IsAdap)
     acc%fA%C= fA%C
 ! write (*,'(A,5(F10.4))') 'co2 A f Pm-> ',env%CO2,affin,fA%C, sens%upt_pot%C,uptflex(affin ,sens%upt_pot%C, NutF, fA%C)
+    acc%fac3 = sens%upt_pot%C
     sens%upt_pot%C = uptflex(affin ,sens%upt_pot%C, NutF, fA%C)
   end if
 end if

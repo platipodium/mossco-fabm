@@ -990,7 +990,7 @@ else
 endif
 
 ! evaluate number of considered limiting nutrients  
-self%nutind%nutnum = 1
+self%nutind%nutnum = 2 ! N and C are mandatory
 if (self%PhosphorusOn) then
   self%nutind%nutnum = self%nutind%nutnum + 1
 end if
@@ -1010,7 +1010,7 @@ endif
 
 !write (*,'(A,5(I4))') 'No No N P Si:',nm,self%nutind%nutnum,self%nutind%iN,self%nutind%iP,self%nutind%iSi
  
-if (self%nutind%nutnum .gt. nm) call self%fatal_error('maecs_init','Not enough nutrient indices provided by NutOrder.')
+if (self%nutind%nutnum-1 .gt. nm) call self%fatal_error('maecs_init','Not enough nutrient indices provided by NutOrder.')
 
 ! build exponents from par value for experimental reshaping of synchrony function
 !if (self%maxVal .lt. -9.5d0) then 
