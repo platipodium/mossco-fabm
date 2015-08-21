@@ -100,7 +100,8 @@ acc%dRchl_dQN    = phy%theta * phy%frac%Rub * self%sigma  * self%iK_QN
 if (self%syn_nut .lt. -0.001 ) then  !self%nutind%iP
 !  synchrony increases with uptake machinery
 !   syn_act = -self%syn_nut * phy%frac%NutUpt
-   syn_act = smooth_small(-self%syn_nut * phy%frac%NutUpt * phy%relQ%N,eps)
+!   syn_act = smooth_small(-self%syn_nut * phy%frac%NutUpt * phy%relQ%N,eps)
+   syn_act = smooth_small(-self%syn_nut * phy%frac%NutUpt ,eps)
 else
    syn_act  = self%syn_nut
 endif 
@@ -293,7 +294,7 @@ end do
 !acc%fac1 = elem(self%nutind%iN)%dmudV * elem(self%nutind%iN)%upt_pot* dfV_dfracR
 
 ! account for differential effect of f_V on synchrony
-if ( self%syn_nut .lt. -0.001 .and. .true.) then
+if ( self%syn_nut .lt. -0.001 .and. .false.) then
 !   acc%fac2 = prod_dn
    prod_dn = prod_dn * (-self%syn_nut)  * grossC *phy%relQ%N
    dmuQ_dfracR = dmuQ_dfracR + prod_dn * dfV_dfracR
