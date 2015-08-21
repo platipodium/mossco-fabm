@@ -40,6 +40,8 @@ type (type_maecs_zoo), intent(inout) :: zoo
 !>   - phy\%relQ\%X= (phy\%Q\%X - maecs\%qN_phy_0) / maecs\%iK_QN where x=N,P,Si
 phy%Q%N    = phy%reg%N / phy%reg%C
 ! added for mixing effects in estuaries kw Jul, 15 2013
+!write (*,'(A,2(E19.5))') 'QN-1:',phy%Q%N,maecs%small_finite* maecs%QN_phy_max
+
 phy%Q%N  = smooth_small(phy%Q%N, maecs%QN_phy_0 + maecs%small_finite * maecs%QN_phy_max)
 
 ! fraction of free (biochemically available) intracellular nitrogen
@@ -567,13 +569,17 @@ pure real(rk) function smooth_small(x, eps)
 
    implicit none
    real(rk), intent(in)          :: x, eps
-   real(rk)                      :: arg, larger
+   real(rk)                      :: arg, larger, larger2
+!   integer                       :: na = 2
+   integer                       :: nb
+
 !--------------------------------------------------------------
-   
-   if (x .lt. 15*eps) then
+   nb      = 8
+   if (x .lt. nb*eps) then
      arg     = x/eps
-     larger  = exp(arg)
-     smooth_small  = eps + (x - eps) * larger / (larger + 1.0d0) 
+     larger  = exp(2*arg)
+     larger2 = exp(arg/2)   
+     smooth_small  = ((nb+larger2)*eps + x*larger)/(nb+larger) 
    else
     smooth_small  = x
    endif

@@ -166,7 +166,9 @@ end if
 !   final efficiency in interdependent multi-nutrient processing
 fac_colim   = qp_X
 
-acc%fac3 = fac_colim
+acc%fac1 = fac_colim
+acc%fac2 = elem(1)%relQ
+acc%fac3 = elem(2)%relQ
 
 ! phy%rel_phys= fac_colim * sens%upt_pot%C  ! auxiliary variable for sinking routine; not used?
 
@@ -237,10 +239,10 @@ do i = 1, num_nut-1 ! skip i=N:carbon
 ! marginal use should converge towards zero at bad productivity conditions
 !   (refine assumption Q\mu=V in derivation of d_QX)
    d_QX      = d_QX * darkf  
-if(i .eq. -self%nutind%iN) then
-  acc%fac1 = dqp_X_dq_X(i)
-  acc%fac2 = sens%upt_pot%C
-endif
+!if(i .eq. -self%nutind%iN) then
+!  acc%fac1 = dqp_X_dq_X(i)
+!  acc%fac2 = sens%upt_pot%C
+!endif
 
 !if(i .eq. self%nutind%iN) acc%fac2 = d_QX
 
@@ -368,10 +370,10 @@ if (self%PhotoacclimOn) then
    dmu_dtheta = Pmaxc* phy%frac%Rub * exp(- sens%a_light * phy%theta) *sens%a_light & 
                       -1*resp * dfV_dtheta
 
-   acc%fac1 = Pmaxc* phy%frac%Rub
-   acc%fac2 = exp(- sens%a_light * phy%theta) *sens%a_light
+!   acc%fac1 = Pmaxc* phy%frac%Rub
+!   acc%fac2 = exp(- sens%a_light * phy%theta) *sens%a_light
 !   acc%fac4 = -1*resp * dfV_dtheta
-   acc%fac4 = sens%a_light
+!   acc%fac4 = sens%a_light
 
 
    dmuQ_dtheta = dmuQ_dtheta !* darkf**(0*exp(-phy%frac%theta))

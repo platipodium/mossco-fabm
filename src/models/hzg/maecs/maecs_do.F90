@@ -168,7 +168,7 @@ else
 endif
 
 if(IsCritical .and. .not. self%ChemostatOn) then
-!if(IsCritical .or. (self%ChemostatOn .and. phy%N .lt. 1E-4) ) then
+!if(IsCritical .or. (self%ChemostatOn .and. (nut%P .lt. self%small_finite .or. nut%N .lt. self%small_finite) )) then
   rhsv%nutN=0.0d0
   rhsv%nutP=0.0d0
   rhsv%nutS=0.0d0
@@ -194,7 +194,7 @@ else
 ! --- stoichiometry of autotrophs (calculating QN_phy, frac_R, theta, and QP_phy)
 call calc_internal_states(self,phy,det,dom,zoo)
 
-!write (*,'(A,2(F10.3))') 'PAR, chl=',env%par, phy%chl
+!write (*,'(A,2(E12.2))') 'QN:',phy%Q%N,phy%relQ%N
 
 if (.not. self%PhotoacclimOn) then  
    phy%chl         = phy%C * self%frac_chl_ini   ! total Chl mg-CHL/m3
