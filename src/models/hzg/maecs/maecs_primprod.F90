@@ -100,8 +100,12 @@ acc%dRchl_dQN    = phy%theta * phy%frac%Rub * self%sigma  * self%iK_QN
 if (self%syn_nut .lt. -0.001 ) then  !self%nutind%iP
 !  synchrony increases with uptake machinery
 !   syn_act = -self%syn_nut * phy%frac%NutUpt
-!   syn_act = smooth_small(-self%syn_nut * phy%frac%NutUpt * phy%relQ%N,eps)
-   syn_act = smooth_small(-self%syn_nut * phy%frac%NutUpt ,eps)
+  if (self%MaxRelQ .gt. 1E3 ) then
+    syn_act = smooth_small(-self%syn_nut * (phy%relQ%N+0.5d0),eps)
+  else
+!   syn_act = smooth_small(-self%syn_nut * phy%frac%NutUpt* phy%frac%theta* phy%frac%Rub ,eps)
+    syn_act = smooth_small(-self%syn_nut * phy%frac%NutUpt ,eps)
+  endif
 else
    syn_act  = self%syn_nut
 endif 

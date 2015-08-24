@@ -46,6 +46,8 @@ phy%Q%N  = smooth_small(phy%Q%N, maecs%QN_phy_0 + maecs%small_finite * maecs%QN_
 
 ! fraction of free (biochemically available) intracellular nitrogen
 phy%relQ%N  = (phy%Q%N - maecs%QN_phy_0) * maecs%iK_QN
+phy%relQ%N  = smooth_small(phy%relQ%N,maecs%small)
+
 ! added for deep detritus traps with extreme quotas kw Jul, 16 2013
 if(  phy%relQ%N .gt. 0.95d0*maecs%MaxRelQ ) then
    phy%relQ%N  = maecs%MaxRelQ - smooth_small(maecs%MaxRelQ- phy%relQ%N, maecs%small_finite)
@@ -57,6 +59,7 @@ if (maecs%PhosphorusOn) then
    phy%Q%P     = smooth_small(phy%Q%P, maecs%QP_phy_0 + maecs%small_finite * maecs%QP_phy_max)
 
    phy%relQ%P = ( phy%Q%P - maecs%QP_phy_0 ) * maecs%iK_QP
+   phy%relQ%P  = smooth_small(phy%relQ%P,maecs%small)
 
 ! added for deep detritus traps with extreme quotas kw Jul, 16 2013
    if(  phy%relQ%P .gt. 0.95d0*maecs%MaxRelQ ) then
@@ -230,7 +233,8 @@ end if
 !>   - (acc\%)fA\%X= call: foptupt()
 !>   - (sens\%)upt\_pot\%X= call: uptflex()
 ! non-zero nutrient concentration for regulation
-NutF          = max(nut%N,0.0d0)
+!NutF          = max(nut%N,0.0d0)
+NutF          = smooth_small(nut%N,maecs%small)
 ! optimal partitioning between
 ! surface uptake sites and internal enzymes (for assimilation)
 fA%N          = fOptUpt(maecs%AffN,maecs%V_NC_max * sens%f_T, NutF, IsAdap)
@@ -300,7 +304,7 @@ pure real(rk) function uptflex(Aff0, Vmax0, Nut, fAv)
    Aff     = fAv * Aff0    ! nutrient affinity 
    Vmax    = (_ONE_-fAv) * Vmax0   ! maximal N-uptake rate 
 
-   uptflex = Vmax*Aff*Nut/(Aff*Nut + Vmax)
+   uptflex = Vmax*Aff*Nut/(Aff*Nut + Vmax + 1E-4)
 
    end function uptflex
 
@@ -532,8 +536,8 @@ select case (mm_method)
       if (maecs%PhosphorusOn) phy%reg%P = smooth_small( phy%P , min_Cmass * maecs%aver_QP_phy)
       delta_N   = phy%reg%N - phy%N
       if (abs(delta_N) .gt. 1d-2*min_Nmass) then
-         phy%reg%C = phy%C + delta_N / maecs%aver_QN_phy
-         delta_C   = phy%reg%C - phy%C
+         phy%reg%C = smooth_small(phy%C + delta_N / maecs%aver_QN_phy, min_Cmass)
+!         delta_C   = phy%reg%C - phy%C
          ischanged = .true.
       end if  
    end if
