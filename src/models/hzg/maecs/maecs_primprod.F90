@@ -100,11 +100,12 @@ acc%dRchl_dQN    = phy%theta * phy%frac%Rub * self%sigma  * self%iK_QN
 if (self%syn_nut .lt. -0.001 ) then  !self%nutind%iP
 !  synchrony increases with uptake machinery
 !   syn_act = -self%syn_nut * phy%frac%NutUpt
-  if (self%MaxRelQ .gt. 1E3 ) then
-    syn_act = smooth_small(-self%syn_nut * (phy%relQ%N+0.5d0),eps)
-  else
+!  if (self%MaxRelQ .lt. 1E3 ) then
+!    syn_act = smooth_small(-self%syn_nut * phy%frac%NutUpt ,eps)
+!  else
 !   syn_act = smooth_small(-self%syn_nut * phy%frac%NutUpt* phy%frac%theta* phy%frac%Rub ,eps)
-    syn_act = smooth_small(-self%syn_nut * phy%frac%NutUpt ,eps)
+    syn_act = smooth_small(-self%syn_nut * (phy%relQ%N+0.5d0),eps)
+!    if (self%MaxRelQ .gt. 2E3 ) syn_act = smooth_small(-self%syn_nut * phy%frac%Rub,eps)
   endif
 else
    syn_act  = self%syn_nut
@@ -233,8 +234,9 @@ do i = 1, num_nut-1 ! skip i=N:carbon
    prod_dq   = prod_dq * dqp_X_dqp_Y(i)
 !   e_N       = e_N0 + d_X * elem(i)%iKQ / elem(i)%relQ
 ! contribution from synchrony
-   if (i .eq. self%nutind%iN .and.  self%syn_nut .lt. -0.001.and. .false.) then
-     d_X     = d_X + prod_dn * (-self%syn_nut) * phy%frac%NutUpt 
+   if (i .eq. self%nutind%iN .and.  self%syn_nut .lt. -0.001.and. .true.) then
+!     d_X     = d_X + prod_dn * (-self%syn_nut) * phy%frac%NutUpt 
+     d_X     = d_X + prod_dn * (-self%syn_nut)  
    endif
 
    d_QX      = d_X* dbal_dv * elem(i)%iKQ + sigmv(i)* phy%Q%N * self%zeta_CN  ! 
