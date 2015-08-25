@@ -106,7 +106,7 @@ if (self%syn_nut .lt. -0.001 ) then  !self%nutind%iP
 !   syn_act = smooth_small(-self%syn_nut * phy%frac%NutUpt* phy%frac%theta* phy%frac%Rub ,eps)
     syn_act = smooth_small(-self%syn_nut * (phy%relQ%N+0.5d0),eps)
 !    if (self%MaxRelQ .gt. 2E3 ) syn_act = smooth_small(-self%syn_nut * phy%frac%Rub,eps)
-  endif
+!  endif
 else
    syn_act  = self%syn_nut
 endif 
