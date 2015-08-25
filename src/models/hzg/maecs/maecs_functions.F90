@@ -526,7 +526,7 @@ select case (mm_method)
    delta_N = 0.0_rk
   
    if (abs(delta_C) .gt. 1d-2*min_Cmass) then !.and. phy%N .lt. 1*min_Nmass
-      phy%reg%N = phy%N + delta_C * maecs%aver_QN_phy
+      phy%reg%N = smooth_small(phy%N + delta_C * maecs%aver_QN_phy, min_Nmass)
       if (maecs%PhosphorusOn) then
          phy%reg%P = phy%P + delta_C *  maecs%aver_QP_phy
       end if
