@@ -30,7 +30,7 @@
 &maecs_omex
    rPAds          = 0.0
    PAdsODU        = 12.
-   rnit           = 20.
+   rnit           = 12.
    ksO2nitri      = 20.
    rODUox         = 20.
    ksO2oduox      = 1.
