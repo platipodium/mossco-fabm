@@ -3,7 +3,7 @@
 !-------------------------------------------------------------------------------
 GPPR	mmolC/m**3/d average phy%gpp*phy%C gross primary production
 Denitr	mmol-N/m**3/d average 0.8*Denitrific denitrification rate
-chl2C	gCHL/m**3 average phy%theta*phy%rel_chloropl/12 chlorophyll:carbon ratio = chl-a/chloroplast-C * chloroplast-C/phy-molC * 1molC/12gC
+chl2C	gCHL/gC average phy%theta*phy%rel_chloropl/12 chlorophyll:carbon ratio = chl-a/chloroplast-C * chloroplast-C/phy-molC * 1molC/12gC
 fracR	- average phy%frac%Rub Rubisco fract. allocation
 fracT	- average phy%frac%theta LHC fract. allocation      
 Theta	- average phy%theta Theta
