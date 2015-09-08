@@ -167,7 +167,7 @@ else
   if(phy%chl .gt. self%maxVal .or. phy%Rub .gt. self%maxVal) IsCritical=.true.
 endif
 
-if(IsCritical .and. .not. self%ChemostatOn) then
+if(IsCritical .and. .not. self%ChemostatOn .and. .false.) then
 !if(IsCritical .or. (self%ChemostatOn .and. (nut%P .lt. self%small_finite .or. nut%N .lt. self%small_finite) )) then
   rhsv%nutN=0.0d0
   rhsv%nutP=0.0d0
@@ -337,7 +337,8 @@ rhsv%phyN =  uptake%N             * phy%C &
 
 ! PHYTOPLANKTON CHLa
      ! note that theta*rel_chloropl in units [mg Chla (mmol C)^{-1}] 
-   dQN_dt        = (rhsv%phyN * phy%reg%C - rhsv%phyC * phy%reg%N) / (phy%reg%C*phy%reg%C)
+!   dQN_dt        = (rhsv%phyN * phy%reg%C - rhsv%phyC * phy%reg%N) / (phy%reg%C*phy%reg%C)
+   dQN_dt        = (rhsv%phyN * phy%C - rhsv%phyC * phy%N) / (phy%reg%C*phy%reg%C)
 ! TODO: dangerous to work with RHS instead of net uptake rates (mortality has no physiological effect)
 
    dRchl_phyC_dt =  acclim%dRchl_dtheta * acclim%dtheta_dt   & 
@@ -345,7 +346,8 @@ rhsv%phyN =  uptake%N             * phy%C &
                   + acclim%dRchl_dQN    * dQN_dt 
 
 ! pigment decay to relieve from artificially high pigm:C ratios at very low phyC
-   decay = self%decay_pigm * (exp(phy%frac%theta)-1.0d0)
+!   decay = self%decay_pigm * (exp(phy%frac%theta)-1.1d0)
+   decay = self%decay_pigm * (phy%frac%theta-0.5d0)**5
   ! surge release at unrealistic partitioning (at sigma=1 and Q->Q0)
    if(phy%frac%theta+phy%frac%Rub .gt. 0.98d0) decay = decay + 1.0d0/(1.0d0+exp(-20*(phy%frac%theta+phy%frac%Rub-1.0d0)))
 
@@ -366,7 +368,8 @@ rhsv%phyN =  uptake%N             * phy%C &
  end if ! PhotoacclimOn
 
  if (self%RubiscoOn) then 
-   decay = self%decay_pigm * (exp(phy%frac%Rub)-1.0d0)
+!   decay = self%decay_pigm * (exp(phy%frac%Rub)-1.1d0)
+   decay = self%decay_pigm * (phy%frac%Rub-0.5d0)**5
    rhsv%Rub  = phy%Rub/phy%reg%C * rhsv%phyC + acclim%dfracR_dt * phy%C - decay*phy%Rub
  end if 
 !else  rhsv%Rub  = 0.0d0  rhsv%chl  = 0.0d0 
