@@ -126,7 +126,7 @@ phy%rel_chloropl = smooth_small(phy%frac%Rub* phy%relQ%N**maecs%sigma,maecs%rel_
 if (maecs%PhotoacclimOn) then  
 
   ! conversion of bulk chlorophyll concentration to chlorophyll content in chloroplasts  
-  phy%theta     = phy%chl / (phy%rel_chloropl * phy%reg%C)   ! trait variable
+  phy%theta     = smooth_small(phy%chl / (phy%rel_chloropl * phy%reg%C),maecs%rel_chloropl_min*maecs%theta_LHC)   ! trait variable
 
 ! cell specific CHL:C ratio of chloroplasts / carbon bound to LHC per CHL-pigment
   phy%frac%theta= phy%theta * phy%rel_chloropl * maecs%itheta_max ! []     no smaller than o(1.d-5)!
@@ -580,7 +580,7 @@ pure real(rk) function smooth_small(x, eps)
 !--------------------------------------------------------------
    nb      = 8
    if (x .lt. nb*eps) then
-     arg     = x/eps
+     arg     = x/(eps+1E-7)
      larger  = exp(2*arg)
      larger2 = exp(arg/2)   
      smooth_small  = ((nb+larger2)*eps + x*larger)/(nb+larger) 

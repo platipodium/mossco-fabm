@@ -345,7 +345,8 @@ if (self%RubiscoOn) then
  !  acc%fac3 = dmuQ_dfracR
 !   acc%fac3 = dmu_dfracR
 ! upper boundary for fractional variables: smoothly integrates constrain from 2nd fractional variable
-  fmaxf  = 1.0d0/(1.0d0+exp(2.0d0-20*grad_fracR/self%res0))
+  fmaxf  = 1.0d0/(1.0d0+exp(0.0d0-2*grad_fracR/self%res0))
+!  fmaxf  = 1.0d0
 ! upper boundary for fractional variables: resulting flexibility
   fmaxf  = max(1.0d0 - phy%frac%theta*fmaxf- phy%frac%Rub,0.0d0)
 
@@ -391,11 +392,12 @@ if (self%PhotoacclimOn) then
 !  flex_theta  = self%adap_theta * (1- phy%frac%theta) * phy%frac%theta 
 
 ! upper boundary for fractional variables: smoothly integrates constrain from 2nd fractional variable
-  fmaxf  = 1.0d0/(1.0d0+exp(1.0d0-10*grad_theta/self%res0))
+  fmaxf  = 1.0d0/(1.0d0+exp(0.0d0-2*grad_theta/self%res0))
+!  fmaxf  = 1.0d0
 ! upper boundary for fractional variables: resulting flexibility
   fmaxf  = max(1.0d0 - phy%frac%theta- phy%frac%Rub*fmaxf,0.0d0)
 
-  flex_theta  = self%adap_theta * (self%theta_LHC/phy%rel_chloropl)**2 * fmaxf * (phy%frac%theta -self%rel_chloropl_min)
+  flex_theta  = self%adap_theta * (self%theta_LHC/phy%rel_chloropl)**2 * fmaxf * max((phy%frac%theta -self%rel_chloropl_min),0.0d0)
 
   ! *** ADAPTIVE EQUATION FOR 'theta'
   acc%dtheta_dt = flex_theta * grad_theta
