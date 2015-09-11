@@ -636,7 +636,7 @@ end if
 
 if (self%PhotoacclimOn) then
     chl = frac_chl_ini * phyC_initial  ! trait times biomass
-    call self%register_state_variable(self%id_chl,   'chl','mg-Chla/mmol-C','Chl chl', &
+    call self%register_state_variable(self%id_chl,   'chl','mg-Chla/m**3','Chl chl', &
        chl, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution )
 end if
 
@@ -724,7 +724,7 @@ call self%register_diagnostic_variable(self%id_qualDOM, 'qualDOM','-', 'Quality_
 end if
 
 if (self%PhysiolDiagOn) then
-call self%register_diagnostic_variable(self%id_dPAR,    'dPAR','W/m**2', 'Photosynthetically_Active_Radiation_ dPAR', &
+call self%register_diagnostic_variable(self%id_dPAR,    'dPAR','µE/s.m**2', 'Photosynthetically_Active_Radiation_ dPAR', &
   output=DOUT)
 call self%register_diagnostic_variable(self%id_chl2C,   'chl2C','gCHL/m**3', 'chlorophyll_to_carbon_ratio', &
   output=DOUT) !=_chl-a/chloroplast-C_*_chloroplast-C/phy-molC_*_1molC/12gC_ chl2C

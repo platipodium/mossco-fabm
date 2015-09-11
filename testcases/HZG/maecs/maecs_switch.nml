@@ -36,7 +36,7 @@
 ! detritus_no_river_dilution [bool]
 !                  use riverine det import
 ! plankton_no_river_dilution [bool]
-!                  use riverine phy import
+!                  use riverine det import
 ! nutrient_no_river_dilution [bool]
 !                  use riverine nut import
 !-------------------------------------------------------------------------------
@@ -46,7 +46,7 @@
    PhotoacclimOn = .true.,
    PhosphorusOn = .true.,
    SiliconOn = .false., 
-   GrazingOn = .false.,
+   GrazingOn = .true.,
    BioOxyOn = .false.,
    DebugDiagOn = .false.,
    Budget0DDiagOn = .false.,
@@ -54,11 +54,10 @@
    BGC0DDiagOn = .false.,
    BGC2DDiagOn = .false.,
    PhysiolDiagOn = .false.,
-   DebugDiagOn = .false.,
    RateDiagOn = .false.,
-   ChemostatOn = .true.,
+   ChemostatOn = .false.,
    NResOn = .false.,
-   kwFzmaxMeth = 0,
+   kwFzmaxMeth = 3,
    detritus_no_river_dilution=.false.,
    plankton_no_river_dilution=.false.,
    nutrient_no_river_dilution=.false.,
