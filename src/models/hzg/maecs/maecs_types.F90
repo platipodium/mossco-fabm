@@ -114,7 +114,8 @@ type,extends(type_maecs_life) :: type_maecs_phy
       real(rk)   :: chl, Rub
       real(rk)   :: rel_chloropl
       real(rk)   :: theta
-      real(rk)   :: rel_phys ! physiological/energy/nutritional status 0...1
+      real(rk)   :: relax     ! relaxation at too low biomass
+!      real(rk)   :: rel_phys ! physiological/energy/nutritional status 0...1
       real(rk)   :: gpp ! gross primary production
       type (type_maecs_allocation_fractions) :: frac
 end type type_maecs_phy

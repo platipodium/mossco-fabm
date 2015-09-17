@@ -508,6 +508,10 @@ select case (mm_method)
       if (maecs%RubiscoOn) then 
          phy%Rub =  phy%reg%C * maecs%frac_Rub_ini
       end if
+      if (maecs%PhotoacclimOn) then 
+         phy%chl =  phy%reg%C * maecs%frac_chl_ini
+      end if
+
    else  ! additional check for Rub and P; TODO: omitt ??
        phy%Rub = smooth_small( phy%Rub , min_Cmass * maecs%frac_Rub_ini)
 !      if (maecs%PhosphorusOn)  phy%reg%P =  smooth_small(phy%P,min_Cmass * maecs%aver_QP_phy)
@@ -542,7 +546,8 @@ select case (mm_method)
       end if  
    end if
    if (ischanged) then
-     if (abs(phy%C-phy%reg%C) .gt. 1d-1*min_Cmass .or. abs(phy%N-phy%reg%N) .gt. 1d-1*min_Cmass* maecs%aver_QN_phy ) iscritical= .true.
+     if (abs(phy%C-phy%reg%C) .gt. 5d-1*min_Cmass .or. abs(phy%N-phy%reg%N) .gt. 5d-1*min_Cmass* maecs%aver_QN_phy ) iscritical= .true.
+     phy%relax = max(0.0d0,delta_C)/phy%reg%C
    endif
 !!      if (phy%reg%N .gt. 0.2 * phy%reg%C) phy%reg%N = 0.2 * phy%reg%C
 

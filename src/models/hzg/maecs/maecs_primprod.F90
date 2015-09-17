@@ -49,7 +49,7 @@ real(rk) :: q_X, qp_Y, qp_X      ! placeholder for nutrient availability
 real(rk) :: qfunc, d_qf_dx, d_qf_dn   ! queuing function and derivative
 real(rk) :: prod_dq, prod_dn
 real(rk) :: d_X, d_QX, dmu_daV, act_V, resp
-real(rk) :: resC, darkf, ex, fmaxf
+real(rk) :: resC, darkf, ex, fmaxf, maxrq
 real(rk), dimension(5) :: sigmv ! relative quota-uptake feed-back 
 real(rk), dimension(5) :: dqp_X_dq_X, dqp_X_dqp_Y, dqp_X_dn ! derivatives
 real(rk), dimension(5) :: zeta_X  ! C-costs of assimilation of nutrient X
@@ -57,8 +57,8 @@ real(rk), dimension(5) :: zeta_X  ! C-costs of assimilation of nutrient X
 type (stoich_pointer), dimension(5)::elem ! struct-pointer addressing elements wthin loops
 !
 !eps     =  self%small_finite ! just  a shorter namer for a small thing
-eps     =  1E-2 ! just  a shorter namer for a small thing
-
+eps     = 1E-2 ! just  a shorter namer for a small thing
+maxrq   = 1.0d0 ! self%MaxRelQ
 ! TODO: energetic costs of P-assimilation \partial (\zeta_CN V_N) / \partial V_P not
 !    resolved but assumed to be already included in protein synthesis
 ! prelim solution: stoichiometry in RNA (N:P ~ 4:1) and phospholipids (N:P~1:1)
@@ -408,12 +408,13 @@ if (self%PhotoacclimOn) then
 end if
 ! --- carbon exudation   -------------------------------------------------------
 !  TODO: discuss and adjust; data?
-exud%C      = self%exud_phy * grossC                        ![d^{-1}]
+exud%C      = self%exud_phy ! * grossC                        ![d^{-1}]
 
 ! --- carbon specific nitrogen & phosporus exudation   -------------------------
-exud%N      = self%exud_phy * uptake%N   ! [(mmolN) (mmolC)^{-1} d^{-1}]
+exud%N      = self%exud_phy * phy%Q%N ! * uptake%N   ! [(mmolN) (mmolC)^{-1} d^{-1}]
 if (self%PhosphorusOn .and.  exud%N .gt. 0.0d0) then
-  exud%P      = phy%P / phy%reg%N * exud%N  
+  exud%P      =  self%exud_phy * phy%Q%P 
+!  exud%P      = phy%P / phy%reg%N * exud%N  
 else
   exud%P      = 0.0d0
 end if
@@ -424,15 +425,13 @@ if( ex .gt. 0.0d0 ) then
   exud%C = exud%C + self%decay_nut * (exp(ex * self%iK_QN/phy%reg%C)-1.0d0) 
 end if
 
-if( phy%relQ%N .gt. 0.95d0*self%MaxRelQ ) then
-  ex = max(0.0d0,(phy%Q%N - self%QN_phy_0)* self%iK_QN - self%MaxRelQ)
-  exud%N = exud%N + self%decay_nut * (exp(ex)-1.0d0) * phy%Q%N
+if( phy%relQ%N .gt. maxrq ) then
+  exud%N = exud%N + self%decay_nut * (exp(phy%relQ%N- maxrq)-1.0d0) * phy%Q%N
 end if
 
 if (self%PhosphorusOn) then
-  if( phy%relQ%P .gt. 0.95d0*self%MaxRelQ ) then
-    ex = max(0.0d0,(phy%Q%P - self%QP_phy_0)* self%iK_QP - self%MaxRelQ)
-    exud%P = exud%P + self%decay_nut * (exp(ex)-1.0d0) * phy%Q%P
+  if( phy%relQ%P .gt. maxrq ) then
+    exud%P = exud%P + self%decay_nut * (exp(phy%relQ%P - maxrq)-1.0d0) * phy%Q%P
   end if
 end if
 

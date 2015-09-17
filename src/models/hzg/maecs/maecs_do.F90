@@ -76,7 +76,7 @@ real(rk) :: Cprod, Nprod, Pprod
 real(rk) :: AnoxicMin,Denitrific,OxicMin,Nitri,OduDepo,OduOx,pDepo, Anammox
 real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto,faeces, min_Cmass
 logical  :: IsCritical = .false. ! phyC and phyN below reasonable range ?
-#define _KAI_ 0
+#define _KAI_ 2
 #define _MARKUS_ 1
 #define _DEBUG_ 0
 ! #define UNIT / 86400
@@ -149,7 +149,7 @@ end if
 ! @ingroup main
 !> @fn fabm_hzg_maecs::maecs_do () 
 !> 1. Calculation of quotas, internal states, potential rates
-!>   - call min_mass with method=2, store phy\%C and \%N in phy\%reg 
+!>   - call min_mass with method=_KAI_, store phy\%C and \%N in phy\%reg 
 !>   - call calc_internal_states: retrieve phy\%Q\%X, phy\%theta, phy\%frac\%X 
 !>   - if PhotoacclimOn=.false., calculate: 
 !>     - phy\%chl=phy\%C * self\%frac_chl_ini 
@@ -159,15 +159,13 @@ end if
 !> @todo: min_mass correction of phy%\C and phy\%N at this stage requires specification of threshold values. What about back-calculating phy\%reg\%N from the smooth_small corrected phy\%Q\%N?
 
 ! --- checking and correcting extremely low state values  ------------  
-call min_mass(self,phy, min_Cmass, IsCritical, method=2) ! minimal reasonable Phy-C and -Nitrogen
+call min_mass(self,phy, min_Cmass, IsCritical, method=_KAI_) ! minimal reasonable Phy-C and -Nitrogen
 
-if(self%maxVal .lt. 0.0d0) then 
-  IsCritical=.false.
-else
+if(self%maxVal .gt. 0.0d0) then 
   if(phy%chl .gt. self%maxVal .or. phy%Rub .gt. self%maxVal) IsCritical=.true.
 endif
 
-if(IsCritical .and. .not. self%ChemostatOn .and. .false.) then
+if(IsCritical .and. .not. self%ChemostatOn ) then
 !if(IsCritical .or. (self%ChemostatOn .and. (nut%P .lt. self%small_finite .or. nut%N .lt. self%small_finite) )) then
   rhsv%nutN=0.0d0
   rhsv%nutP=0.0d0
@@ -346,8 +344,9 @@ rhsv%phyN =  uptake%N             * phy%C &
                   + acclim%dRchl_dQN    * dQN_dt 
 
 ! pigment decay to relieve from artificially high pigm:C ratios at very low phyC
-!   decay = self%decay_pigm * (exp(phy%frac%theta)-1.1d0)
-   decay = self%decay_pigm * (phy%frac%theta-0.5d0)**5
+   decay = self%decay_pigm * (phy%theta*phy%rel_chloropl*self%itheta_max-0.5d0)**5
+!   decay = self%decay_pigm * (phy%frac%theta-0.5d0)**5
+
   ! surge release at unrealistic partitioning (at sigma=1 and Q->Q0)
    if(phy%frac%theta+phy%frac%Rub .gt. 0.98d0) decay = decay + 1.0d0/(1.0d0+exp(-20*(phy%frac%theta+phy%frac%Rub-1.0d0)))
 
@@ -678,7 +677,7 @@ if (self%BGC0DDiagOn) then
   end if
 end if
 if (self%PhysiolDiagOn) then
-  _SET_DIAGNOSTIC_(self%id_dPAR, _REPLNAN_(env%par))         !average Photosynthetically_Active_Radiation_
+  _SET_DIAGNOSTIC_(self%id_dPAR, _REPLNAN_(1.0+env%par))         !average Photosynthetically_Active_Radiation_
   _SET_DIAGNOSTIC_(self%id_chl2C, _REPLNAN_(phy%theta*phy%rel_chloropl/12)) !average chlorophyll:carbon_ratio_=_chl-a/chloroplast-C_*_chloroplast-C/phy-_
   _SET_DIAGNOSTIC_(self%id_Theta, _REPLNAN_(phy%theta))      !average Theta_
   _SET_DIAGNOSTIC_(self%id_fracR, _REPLNAN_(phy%frac%Rub))   !average Rubisco_fract._allocation_
@@ -783,7 +782,7 @@ write(*,'(A)') 'begin vert_move'
    end if
 
    !write (*,'(A,2(F10.3))') 'Before: phy%C, phy%N=', phy%C, phy%N
-   call min_mass(self,phy, min_Cmass, IsCritical, method=2) 
+   call min_mass(self,phy, min_Cmass, IsCritical, method=_KAI_) 
    !write (*,'(A,2(F10.3))') 'After: phy%C, phy%N=', phy%C, phy%N
    call calc_internal_states(self,phy,det,dom,zoo) 
    !write (*,'(A,2(F10.3))') 'phy%relQ%N, phy%relQ%P=', phy%relQ%N, phy%relQ%P
