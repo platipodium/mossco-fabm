@@ -9,6 +9,7 @@ module shared
    type (type_model),pointer :: model
 
    real(rk),allocatable :: cc(:)
+   real(rk),allocatable :: diag(:)
 
    real(rk),target :: temp,salt,par
    real(rk)        :: latitude,longitude,column_depth

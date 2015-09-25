@@ -330,6 +330,10 @@
       call fabm_link_bulk_state_data(model,i,cc(i))
    end do
 
+   ! allocate array for time-integrated diagnostic data
+   allocate(diag(size(model%diagnostic_variables)))
+   diag=0.0_rk
+
    ! Create bottom-bound state variable vector, using the initial values specified by the model,
    ! and link state data to FABM.
    do i=1,size(model%bottom_state_variables)
@@ -379,6 +383,10 @@
    ! Allow the model to compute all diagnostics, so output for initial time contains sensible values.
    allocate(rhs(size(cc,1),0:1))
    call get_rhs(.true.,size(cc,1),cc,rhs)
+
+   do i=1,size(model%diagnostic_variables)
+     diag(i) = fabm_get_bulk_diagnostic_data(model,i)
+   end do
 
    ! Output variable values at initial time
    LEVEL1 'init_output'
@@ -651,6 +659,15 @@
 
       ! Integrate one time step
       call ode_solver(ode_method,size(model%state_variables)+size(model%bottom_state_variables),dt,cc,get_rhs,get_ppdd)
+
+      ! Update diagnostic variables
+      do i=1,size(model%diagnostic_variables)
+         if (model%diagnostic_variables(i)%output == output_instantaneous) then
+            diag(i) = fabm_get_bulk_diagnostic_data(model,i)
+         else
+            diag(i) = diag(i) + dt*fabm_get_bulk_diagnostic_data(model,i)
+         end if
+      end do
 
       ! ODE solver may have redirected the current state with to an array with intermediate values.
       ! Reset to global array.

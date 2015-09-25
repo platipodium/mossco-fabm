@@ -372,9 +372,16 @@
          end do
          if (add_diagnostic_variables) then
             do i=1,size(model%diagnostic_variables)
-               if (model%diagnostic_variables(i)%output/=output_none) &
-                  write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,fabm_get_bulk_diagnostic_data(model,i)
+               if (model%diagnostic_variables(i)%output/=output_none) then
+                  if (model%diagnostic_variables(i)%output == output_instantaneous) then
+                     write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,diag(i)
+                  else
+                     write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,diag(i)/(nsave*timestep)
+                     diag(i) = 0.0_rk
+                  end if
+               end if
             end do
+
             do i=1,size(model%horizontal_diagnostic_variables)
                if (model%horizontal_diagnostic_variables(i)%output/=output_none) &
                   write (out_unit,FMT='(A,E16.8E3)',ADVANCE='NO') separator,fabm_get_horizontal_diagnostic_data(model,i)
