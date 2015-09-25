@@ -262,7 +262,8 @@ do i = 1, num_nut-1 ! skip i=N:carbon
 
   
 !   smoothed version of step function, uses marginal gain to emulate a continuous response 
-   act_V     = 1.0d0/(1.0d0 + exp( 3.1415d0 - self%tau_regV * dmu_daV));  ! 0.02
+!   act_V     = 1.0d0/(1.0d0 + exp( 3.1415d0 - self%tau_regV * dmu_daV));  ! 0.02
+   act_V     = 1.0d0/(1.0d0 + exp( 1.0d0 - self%tau_regV * dmu_daV));  ! 0.02
 
    dmu_daV   = abs(dmu_daV)
    dmu_daV_tot = dmu_daV_tot + act_V * dmu_daV

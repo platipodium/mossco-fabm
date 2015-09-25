@@ -662,11 +662,11 @@ if (self%DebugDiagOn) then
   _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(acclim%fac1))     !average dtheta_dt_due_to_flex_theta_
   _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(acclim%fac2))     !average dtheta_dt_due_to_flex_theta_
   _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%fac3))     !average dtheta_dt_due_to_flex_theta_
-  _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(acclim%fac4))     !average dtheta_dt_due_to_flex_theta_
-  _SET_DIAGNOSTIC_(self%id_fac5, _REPLNAN_(acclim%fac2))     !average dtheta_dt_due_to_grad_theta_
+  _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(uptake%N))     !average dtheta_dt_due_to_flex_theta_
+  _SET_DIAGNOSTIC_(self%id_fac5, _REPLNAN_(phy%resp))     !average dtheta_dt_due_to_grad_theta_acclim%fac2
 end if
 if (self%BGC0DDiagOn) then
-  _SET_DIAGNOSTIC_(self%id_GPPR, _REPLNAN_(phy%gpp*phy%C))   !average gross_primary_production_
+  _SET_DIAGNOSTIC_(self%id_GPPR, _REPLNAN_(phy%gpp))   !*phy%Caverage gross_primary_production_
   _SET_DIAGNOSTIC_(self%id_Denitr, _REPLNAN_(0.8*Denitrific)) !average denitrification_rate_
   _SET_DIAGNOSTIC_(self%id_DNP, _REPLNAN_(nut%N/(nut%P+self%small)))   !average DIN:DIP_ratio_
   _SET_DIAGNOSTIC_(self%id_QNP, _REPLNAN_(phy%Q%N/phy%Q%P))  !average N:P_ratio_
