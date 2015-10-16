@@ -231,8 +231,9 @@
 
 ! PO4-adsorption ceases when critical capacity is reached
 ! [FeS] approximated by ODU
-   radsP  = self%PAds * self%rSlow * (po4*max(odu,self%PAdsODU))
-   rP    = self%rFast * (1.0_rk - Oxicminlim)
+
+   radsP  = self%PAds  * po4 * 1.0_rk/(1.0_rk+exp(1.0_rk-(odu-oxy)/self%PAdsODU)**2)
+   rP     = self%rFast * (1.0_rk - Oxicminlim)
    Pprod  = rP * pdet
 
 ! Oxic mineralisation, denitrification, anoxic mineralisation
