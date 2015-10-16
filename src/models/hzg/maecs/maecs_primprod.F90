@@ -211,7 +211,7 @@ grossC    = phy%frac%Rub * Pmaxc * sens%upt_pot%C  ! primary production
 ! "darkness correction": marginal use should converge towards zero at very low light
 !  offset (background respiration) derived from a_V(dmu_daV=0)*1/4*Vmax*zeta (f_A=f_V=1/2)
 
-darkf    = smooth_small(1.0d0 - exp(-2*fac_colim*sens%upt_pot%C),eps)
+!darkf    = smooth_small(1.0d0 - exp(-2*fac_colim*sens%upt_pot%C),eps)
 darkf = 1.0d0
 !> @fn maecs_primprod::photosynthesis()
 !> 6. Calculate (a first approximation of the ?!) activity @f$ a_{V,X} @f$, for each nutrient, X
@@ -226,7 +226,8 @@ prod_dn     = 0.0d0
 !acc%fac1 = prod_dq * dqp_X_dq_X(self%nutind%iN)
 !acc%f = darkf
 
-do i = 1, num_nut-1 ! skip i=N:carbon
+!do i = num_nut-1,1,-1 
+do i = 1,num_nut-1 ! skip i=N:carbon
  ! ------------------ derivatives of co-limited growth function ---------------------
    d_X       = prod_dq * dqp_X_dq_X(i)
 
@@ -284,7 +285,11 @@ dmuQ_dfracR = 0.0d0
 dmuQ_dtheta = 0.0d0
 
 do i = 1, num_nut-1 ! skip i=N:carbon
-   act_V           = elem(i)%aV * elem(i)%dmudaV/ (dmu_daV_tot + eps)
+  if( self%adap_rub .gt. 0.001 .or. self%adap_theta .gt. 0.001) then
+     act_V           = elem(i)%aV * elem(i)%dmudaV/ (dmu_daV_tot + eps)
+  else
+     act_V           = max(0.0d0, 1.0d0 - elem(i)%relQ )
+  endif
 ! emulates passive Si diffusion through membrane (\todo not to be assimilated)
    if (self%SiliconOn) then
       if (i .eq. self%nutind%iSi .and. act_V .lt. 0.333d0 .and. elem(i)%upt_pot .gt. eps) act_V = 0.333d0  !num_nut  

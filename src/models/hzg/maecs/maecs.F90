@@ -10,8 +10,8 @@ use fabm_types
 use maecs_types
 
 #define _DEBUG_ 0
-!#define DOUT output_time_step_averaged
-#define DOUT time_integrated
+#define DOUT output_time_step_averaged
+!#define DOUT time_integrated
 !#define DOUT output_time_step_integrated
 !#define DOUT output_instantaneous
 
