@@ -134,9 +134,9 @@ dqp_X_dq_X(num_nut)  = 1.0d0
 dqp_X_dqp_Y(num_nut) = 0.0d0
 dqp_X_dn(num_nut)    = 0.0d0
 
-if (num_nut .gt. 1) then
+!if (num_nut .gt. 1) then
  ! loop over all nutrients starting from pre-final
- do i = num_nut-1, 1, -1  
+do i = num_nut-1, 1, -1  
 
    q_X   = elem(i)%relQ
 
@@ -164,9 +164,9 @@ if (num_nut .gt. 1) then
    qp_Y = qp_X
 
  end do
-else
-   qp_X = qp_Y   ! initial value for num_nut=1
-end if
+!else
+!   qp_X = qp_Y   ! initial value for num_nut=1
+!end if
 
 !   final efficiency in interdependent multi-nutrient processing
 fac_colim   = qp_X

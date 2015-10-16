@@ -2,7 +2,7 @@
      i = self%nutind%nutnum
 elem(i)%Q         = 1.0d0
 elem(i)%relQ      = 1.0d0
-!zeta_X(i)         = 0.0d0
+zeta_X(i)         = 0.0d0
 
 ! nitrogen
      i = self%nutind%iN
