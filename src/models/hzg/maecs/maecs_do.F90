@@ -164,7 +164,7 @@ call min_mass(self,phy, min_Cmass, IsCritical, method=_KAI_) ! minimal reasonabl
 if(self%maxVal .gt. 0.0d0) then 
   if(phy%chl .gt. self%maxVal .or. phy%Rub .gt. self%maxVal) IsCritical=.true.
 endif
-if(IsCritical .and. env%par .gt. 30.0d0) IsCritical=.false.
+if(IsCritical .and. env%par*self%alpha .gt. 0.5d0) IsCritical=.false.
 
 if(IsCritical .and. .not. self%ChemostatOn ) then
 !if(IsCritical .or. (self%ChemostatOn .and. (nut%P .lt. self%small_finite .or. nut%N .lt. self%small_finite) )) then
