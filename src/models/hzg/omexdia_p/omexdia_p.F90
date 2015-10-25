@@ -197,6 +197,7 @@
    real(rk),parameter :: Q10b = 1.5_rk
    real(rk) :: CprodF,CprodS,Cprod,Nprod,Pprod
    real(rk) :: AnoxicMin,Denitrific,OxicMin,Nitri,OduDepo,OduOx,pDepo
+   real(rk) :: Cprod_max = 24.0 ! d^-1 maximal C-degrad rate for numeric stability
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -223,17 +224,22 @@
    Anoxiclim  = (1.0_rk-oxy/(oxy+self%kinO2anox)) * (1.0_rk-no3/(no3+self%kinNO3anox))
    Rescale    = 1.0_rk/(Oxicminlim+Denitrilim+Anoxiclim)
 
-   CprodF = self%rFast * fdet
-   CprodS = self%rSlow * sdet
+   CprodF = f_T * self%rFast * fdet
+   CprodS = f_T * self%rSlow * sdet
+
+! assume upper reactive surface area for POC hydrolysis
+   if (CprodS > Cprod_max) CprodS = Cprod_max
+   if (CprodF > Cprod_max) CprodF = Cprod_max
+
    Cprod  = CprodF + CprodS
    Nprod  = CprodF * self%NCrFdet + CprodS * self%NCrSdet
 
 
 ! PO4-adsorption ceases when critical capacity is reached
 ! [FeS] approximated by ODU
-
+! TODO: temperature dependency
    radsP  = self%PAds  * po4 * 1.0_rk/(1.0_rk+exp(1.0_rk-(odu-oxy)/self%PAdsODU)**2)
-   rP     = self%rFast * (1.0_rk - Oxicminlim)
+   rP     = f_T * self%rFast * (1.0_rk - Oxicminlim)
    Pprod  = rP * pdet
 
 ! Oxic mineralisation, denitrification, anoxic mineralisation
@@ -245,6 +251,7 @@
 ! reoxidation and ODU deposition
    Nitri      = f_T * self%rnit   * nh3 * oxy/(oxy + self%ksO2nitri + relaxO2*(fdet + odu))
    OduOx      = f_T * self%rODUox * odu * oxy/(oxy + self%ksO2oduox + relaxO2*(nh3 + fdet))
+   if (OduOx > Cprod_max) OduOx = Cprod_max
 
 !  pDepo      = min(1.0_rk,0.233_rk*(wDepo)**0.336_rk )
    pDepo      = 0.0_rk
@@ -252,14 +259,14 @@
 
 #define _CONV_UNIT_ /secs_pr_day
 ! reaction rates
-   _SET_ODE_(self%id_fdet, -f_T * CprodF _CONV_UNIT_)
-   _SET_ODE_(self%id_sdet, -f_T * CprodS _CONV_UNIT_)
+   _SET_ODE_(self%id_fdet, -CprodF _CONV_UNIT_)
+   _SET_ODE_(self%id_sdet, -CprodS _CONV_UNIT_)
    _SET_ODE_(self%id_oxy , (-OxicMin - 2.0_rk* Nitri - OduOx) _CONV_UNIT_) !RH 1.0->150/106*OxicMin (if [oxy]=mmolO2/m**3)
    _SET_ODE_(self%id_no3 , (-0.8_rk*Denitrific + Nitri) _CONV_UNIT_)     !RH 0.8-> ~104/106?
-   _SET_ODE_(self%id_nh3 , (f_T * Nprod - Nitri) / (1.0_rk + self%NH3Ads) _CONV_UNIT_)
+   _SET_ODE_(self%id_nh3 , (Nprod - Nitri) / (1.0_rk + self%NH3Ads) _CONV_UNIT_)
    _SET_ODE_(self%id_odu , (AnoxicMin - OduOx - OduDepo) _CONV_UNIT_)
-   _SET_ODE_(self%id_po4 , (f_T * Pprod - radsP) _CONV_UNIT_)
-   _SET_ODE_(self%id_pdet, (radsP - f_T * Pprod) _CONV_UNIT_)
+   _SET_ODE_(self%id_po4 , (Pprod - radsP) _CONV_UNIT_)
+   _SET_ODE_(self%id_pdet, (radsP - Pprod) _CONV_UNIT_)
 
    ! Export diagnostic variables
    _SET_DIAGNOSTIC_(self%id_denit,Denitrific)
