@@ -69,9 +69,13 @@
 
    integer, parameter, public :: domain_bulk = 4, domain_horizontal = 8, domain_scalar = 16, domain_bottom = 9, domain_surface = 10
 
-   integer, parameter, public :: source_unknown = 0, source_do = 1, source_do_column = 2, source_do_bottom = 3, source_do_surface = 4, source_none = 5
+   integer, parameter, public :: source_unknown = 0, source_do = 1, source_do_column = 2, source_do_bottom = 3, source_do_surface = 4, source_none = 5, source_get_vertical_movement = 6, source_do_horizontal = 7
 
    integer, parameter, public :: presence_internal = 1, presence_external_required = 2, presence_external_optional = 6
+
+   integer, parameter, public :: prefill_none = 0, prefill_missing_value = 1, prefill_previous_value = 2
+
+   integer, parameter, public :: access_none = 0, access_read = 1, access_set_source = 2, access_state = ior(access_read,access_set_source)
 !
 ! !PUBLIC TYPES:
 !
@@ -125,16 +129,18 @@
       class (type_standard_variable),pointer :: master_standard_variable => null()
       logical                                :: user_specified = .false.
       integer                                :: domain = domain_bulk
-      type (type_coupling_task), pointer     :: previous    => null()
-      type (type_coupling_task), pointer     :: next        => null()
+      class (type_coupling_task), pointer    :: previous    => null()
+      class (type_coupling_task), pointer    :: next        => null()
    end type
 
    type type_coupling_task_list
-      type (type_coupling_task),pointer :: first => null()
-      logical                           :: includes_custom = .false.
+      class (type_coupling_task),pointer :: first => null()
+      logical                            :: includes_custom = .false.
    contains
       procedure :: remove => coupling_task_list_remove
-      procedure :: add    => coupling_task_list_add
+      procedure :: add_for_link => coupling_task_list_add
+      procedure :: add_object => coupling_task_list_add_object
+      generic :: add => add_for_link, add_object
    end type
 
    ! ====================================================================================================
@@ -151,6 +157,7 @@
       integer  :: sms_index          = -1
       integer  :: surface_flux_index = -1
       integer  :: bottom_flux_index  = -1
+      integer  :: movement_index     = -1
       real(rk) :: background         = 0.0_rk
    end type
 
@@ -223,9 +230,9 @@
       type (type_bulk_standard_variable)         :: standard_variable
       type (type_contributing_variable),pointer  :: first_contributing_variable => null()
       type (type_aggregate_variable),   pointer  :: next                        => null()
-      logical                                    :: bulk_required               = .false.
-      logical                                    :: horizontal_required         = .false.
-      logical                                    :: bottom_required             = .false.
+      integer                                    :: bulk_access                 = access_none
+      integer                                    :: horizontal_access           = access_none
+      integer                                    :: bottom_access               = access_none
    end type
 
    type type_link_list
@@ -255,12 +262,14 @@
       integer                         :: presence       = presence_internal
       integer                         :: domain         = domain_bulk
       integer                         :: source         = source_unknown
+      integer                         :: prefill        = prefill_none
       class (type_base_model),pointer :: owner          => null()
       type (type_contribution_list)   :: contributions
 
       class (type_standard_variable), pointer :: standard_variable => null()
 
       logical :: fake_state_variable = .false.
+      logical :: can_be_slave = .false.
 
       ! Only used for bulk variables:
       real(rk) :: vertical_movement         = 0.0_rk
@@ -274,6 +283,7 @@
       type (type_integer_pointer_set) :: read_indices,state_indices,write_indices
       type (type_real_pointer_set)    :: background_values
       type (type_link_list)           :: sms_list,surface_flux_list,bottom_flux_list
+      type (type_link),pointer        :: movement_diagnostic => null()
    end type
 
    type type_link
@@ -478,6 +488,7 @@
       procedure :: do                       => base_do
       procedure :: do_bottom                => base_do_bottom
       procedure :: do_surface               => base_do_surface
+      procedure :: do_horizontal            => base_do_horizontal
       procedure :: do_ppdd                  => base_do_ppdd
       procedure :: do_bottom_ppdd           => base_do_bottom_ppdd
 
@@ -581,10 +592,10 @@
       _DECLARE_ARGUMENTS_DO_
    end subroutine
 
-
    subroutine base_do_ppdd(self,_ARGUMENTS_DO_PPDD_)
       class (type_base_model),intent(in) :: self
       _DECLARE_ARGUMENTS_DO_PPDD_
+      call self%do(_ARGUMENTS_DO_)
    end subroutine
 
    subroutine base_do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
@@ -603,6 +614,11 @@
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_SURFACE_
       call self%get_surface_exchange(_ARGUMENTS_DO_SURFACE_)
+   end subroutine
+
+   subroutine base_do_horizontal(self,_ARGUMENTS_HORIZONTAL_)
+      class (type_base_model),intent(in) :: self
+      _DECLARE_ARGUMENTS_HORIZONTAL_
    end subroutine
 
    ! Vertical movement, light attenuation, feedbacks to drag and albedo
@@ -731,9 +747,6 @@
       character(len=*),              intent(in)    :: name
       character(len=*),optional,     intent(in)    :: long_name
       integer,                       intent(in)    :: configunit
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !
       integer :: islash
       class (type_base_model),pointer :: parent
@@ -1038,7 +1051,7 @@ end subroutine link_list_finalize
 function create_coupling_task(self,link) result(task)
    class (type_base_model),intent(inout) :: self
    type (type_link),target,intent(inout) :: link
-   type (type_coupling_task),pointer :: task
+   class (type_coupling_task),pointer :: task
 
    type (type_link), pointer :: current_link
 
@@ -1066,7 +1079,7 @@ subroutine request_coupling_for_link(self,link,master)
    type (type_link),target,intent(inout) :: link
    character(len=*),       intent(in)    :: master
 
-   type (type_coupling_task),pointer :: task
+   class (type_coupling_task),pointer :: task
 
    ! Create a coupling task (reuse existing one if available, and not user-specified)
    task => create_coupling_task(self,link)
@@ -1112,7 +1125,7 @@ subroutine request_standard_coupling_for_link(self,link,master,domain)
    class (type_standard_variable),intent(in)    :: master
    integer,optional,              intent(in)    :: domain
 
-   type (type_coupling_task),pointer :: task
+   class (type_coupling_task),pointer :: task
 
    task => create_coupling_task(self,link)
    if (.not.associated(task)) return   ! We already have a user-specified task, which takes priority
@@ -1245,9 +1258,11 @@ subroutine real_pointer_set_set_value(self,value)
 
    integer :: i
 
-   do i=1,size(self%pointers)
-      self%pointers(i)%p = value
-   end do
+   if (allocated(self%pointers)) then
+      do i=1,size(self%pointers)
+         self%pointers(i)%p = value
+      end do
+   end if
 end subroutine real_pointer_set_set_value
 
 !-----------------------------------------------------------------------
@@ -1291,7 +1306,7 @@ end subroutine real_pointer_set_set_value
                                   standard_variable=standard_variable, presence=presence, &
                                   state_index=id%state_index, read_index=id%index, sms_index=id%sms_index, &
                                   surface_flux_index=id%surface_flux_index, bottom_flux_index=id%bottom_flux_index, &
-                                  background=id%background, link=id%link)
+                                  movement_index=id%movement_index, background=id%background, link=id%link)
 
    end subroutine register_bulk_state_variable
 !EOC
@@ -1471,6 +1486,7 @@ end subroutine real_pointer_set_set_value
          variable%write_index => write_index
          call variable%write_indices%append(write_index)
       end if
+      variable%can_be_slave = .not.present(write_index)
 
       ! Create a class pointer and use that to create a link.
       link_ => add_object(self,variable)
@@ -1489,7 +1505,7 @@ end subroutine real_pointer_set_set_value
                                           no_precipitation_dilution, no_river_dilution, standard_variable, presence, output, &
                                           time_treatment, act_as_state_variable, source, &
                                           read_index, state_index, write_index, sms_index, surface_flux_index, bottom_flux_index, &
-                                          background, link)
+                                          movement_index, background, link)
 !
 ! !DESCRIPTION:
 !  This function registers a new bulk variable. It is not predefined to be a state variable, diagnostic variable or dependency.
@@ -1507,7 +1523,7 @@ end subroutine real_pointer_set_set_value
       logical,                           intent(in),optional :: act_as_state_variable
 
       integer,                      target,optional :: read_index, state_index, write_index
-      integer,                      target,optional :: sms_index, surface_flux_index, bottom_flux_index
+      integer,                      target,optional :: sms_index, surface_flux_index, bottom_flux_index, movement_index
       real(rk),                     target,optional :: background
 
       type (type_link),pointer,optional :: link
@@ -1554,6 +1570,14 @@ end subroutine real_pointer_set_set_value
                                      0.0_rk, output=output_none, write_index=bottom_flux_index, link=link2, &
                                      domain=domain_bottom, source=source_do_bottom)
          link_dum => variable%bottom_flux_list%append(link2%target,link2%target%name)
+      end if
+      if (present(movement_index)) then
+         call self%add_bulk_variable(trim(link_%name)//'_w', 'm/s', trim(long_name)//' vertical movement', &
+                                     variable%vertical_movement, output=output_none, write_index=movement_index, link=link2, &
+                                     source=source_get_vertical_movement)
+         link2%target%can_be_slave = .true.
+         link2%target%prefill = prefill_missing_value
+         variable%movement_diagnostic => link2
       end if
 
       if (present(link)) link => link_
@@ -1740,9 +1764,6 @@ end subroutine real_pointer_set_set_value
       type (type_bulk_standard_variable), intent(in),optional :: standard_variable
       logical,                            intent(in),optional :: act_as_state_variable
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 !EOP
 !
 !-----------------------------------------------------------------------
@@ -1780,9 +1801,6 @@ end subroutine real_pointer_set_set_value
       real(rk),                                 intent(in),optional :: missing_value
       type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
       logical,                                  intent(in),optional :: act_as_state_variable
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1877,9 +1895,6 @@ end subroutine real_pointer_set_set_value
       logical,                            intent(in),optional :: required
       type (type_bulk_standard_variable), intent(in),optional :: standard_variable
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 !EOP
       integer :: presence
 !-----------------------------------------------------------------------
@@ -1915,9 +1930,6 @@ end subroutine real_pointer_set_set_value
       logical,                                  intent(in),optional :: required
       type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 !EOP
       integer :: presence
 !-----------------------------------------------------------------------
@@ -1951,9 +1963,6 @@ end subroutine real_pointer_set_set_value
       character(len=*),                         intent(in)          :: name,units,long_name
       logical,                                  intent(in),optional :: required
       type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !
 !EOP
       integer :: presence
@@ -2559,9 +2568,6 @@ end subroutine get_string_parameter
       type (type_model_list_node),pointer :: node
       integer                             :: istart,length
 !
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -2634,8 +2640,8 @@ function get_aggregate_variable(self,standard_variable,create) result(aggregate_
    ! Make sure that aggregate variables at the root level are computed.
    ! These are typically used by the host to check conservation.
    if (.not.associated(self%parent)) then !.and.standard_variable%conserved) then
-      aggregate_variable%bulk_required = .true.
-      aggregate_variable%horizontal_required = .true.
+      aggregate_variable%bulk_access = ior(aggregate_variable%bulk_access,access_read)
+      aggregate_variable%horizontal_access = ior(aggregate_variable%horizontal_access,access_read)
    end if
 
 end function get_aggregate_variable
@@ -2758,7 +2764,7 @@ end subroutine abstract_model_factory_create
 
    subroutine coupling_task_list_remove(self,task)
       class (type_coupling_task_list),intent(inout) :: self
-      type (type_coupling_task),pointer             :: task
+      class (type_coupling_task),pointer            :: task
       if (associated(task%previous)) then
          task%previous%next => task%next
       else
@@ -2768,37 +2774,63 @@ end subroutine abstract_model_factory_create
       deallocate(task)
    end subroutine
 
+   function coupling_task_list_add_object(self,task,always_create) result(used)
+      class (type_coupling_task_list),intent(inout) :: self
+      class (type_coupling_task),pointer            :: task
+      logical,                        intent(in)    :: always_create
+      logical                                       :: used
+
+      class (type_coupling_task),pointer            :: existing_task
+
+      ! First try to find an existing coupling task for this link. If one exists, we'll replace it.
+      used = .false.
+      existing_task => self%first
+      do while (associated(existing_task))
+         ! Check if we have found an existing task for the same link.
+         if (associated(existing_task%slave,task%slave)) then
+            ! If existing one has higher priority, do not add the new task and return (used=.false.)
+            if (existing_task%user_specified.and..not.always_create) return
+
+            ! We will overwrite the existing task - remove existing task and exit loop
+            call self%remove(existing_task)
+            exit
+         end if
+         existing_task => existing_task%next
+      end do
+
+      used = .true.
+      if (.not.associated(self%first)) then
+         ! Task list is empty - add first.
+         self%first => task
+         nullify(task%previous)
+      else
+         ! Task list contains items - append to tail.
+
+         ! Find tail of the list
+         existing_task => self%first
+         do while (associated(existing_task%next))
+            existing_task => existing_task%next
+         end do
+
+         existing_task%next => task
+         task%previous => existing_task
+      end if
+      nullify(task%next)
+   end function coupling_task_list_add_object
+
    function coupling_task_list_add(self,link,always_create) result(task)
       class (type_coupling_task_list),intent(inout)         :: self
       type (type_link),               intent(inout), target :: link
       logical,                        intent(in)            :: always_create
-      type (type_coupling_task),pointer                     :: task
+      class (type_coupling_task),pointer                    :: task
 
-      ! First try to find an existing coupling task for this link. If one exists, we'll replace it.
-      task => self%first
-      do while (associated(task))
-         if (associated(task%slave,link)) then
-            ! Found existing task
-            if (task%user_specified.and..not.always_create) then
-               nullify(task)
-               return
-            end if
-            task%master_name = ''
-            if (associated(task%master_standard_variable)) deallocate(task%master_standard_variable)
-            exit
-         end if
-         task => task%next
-      end do
+      logical :: used
 
-      if (.not.associated(task)) then
-         ! No existing coupling task found for this variable: prepend a new task to the head of the list.
-         allocate(task)
-         if (associated(self%first)) self%first%previous => task
-         task%next => self%first
-         self%first => task
-      end if
+      allocate(task)
       task%slave => link
       task%domain = link%target%domain
+      used = self%add(task,always_create)
+      if (.not.used) deallocate(task)
 
    end function coupling_task_list_add
 

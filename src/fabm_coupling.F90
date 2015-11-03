@@ -10,8 +10,51 @@ module fabm_coupling
    private
 
    public freeze_model_info, find_dependencies
+   public type_call_list_node, type_call_list, find_variable_dependencies
 
    logical,parameter :: debug_coupling = .false.
+
+   type type_copy_command
+      integer :: read_index
+      integer :: write_index
+   end type
+
+   type type_variable_set_node
+      type (type_internal_variable), pointer :: target => null()
+      type (type_variable_set_node), pointer :: next   => null()
+   end type
+
+   type type_variable_set
+      type (type_variable_set_node), pointer :: first => null()
+   contains
+      procedure :: add      => variable_set_add
+      procedure :: contains => variable_set_contains
+      procedure :: finalize => variable_set_finalize
+   end type
+
+   type type_call_list_node
+      class (type_base_model),          pointer :: model => null()
+      integer                                   :: source = source_unknown
+      type (type_copy_command), allocatable     :: copy_commands(:)
+      type (type_variable_set)                  :: written_variables
+      type (type_variable_set)                  :: computed_variables
+      type (type_call_list_node), pointer :: next => null()
+   contains
+      procedure :: finalize   => call_list_node_finalize
+   end type
+
+   type type_call_list
+      type (type_call_list_node), pointer :: first => null()
+   contains
+      procedure :: find       => call_list_find
+      procedure :: filter     => call_list_filter
+      procedure :: append     => call_list_append
+      procedure :: extend     => call_list_extend
+      procedure :: print      => call_list_print
+      procedure :: initialize => call_list_initialize
+      procedure :: finalize   => call_list_finalize
+      procedure :: computes   => call_list_computes
+   end type
 
 contains
 
@@ -31,9 +74,6 @@ contains
 !
 ! !INPUT/OUTPUT PARAMETER:
       class (type_base_model),intent(inout),target :: self
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -62,6 +102,7 @@ contains
       call create_aggregate_models(self)
 
       ! Repeat coupling because new aggregate variables are now available.
+      call process_coupling_tasks(self,1)
       call process_coupling_tasks(self,2)
 
       ! Allow inheriting models to perform additional tasks after coupling.
@@ -169,7 +210,7 @@ end subroutine
 
       type (type_link),         pointer :: link
       class (type_property),    pointer :: master_name
-      type (type_coupling_task),pointer :: task
+      class (type_coupling_task),pointer :: task
 
       link => self%links%first
       do while (associated(link))
@@ -210,7 +251,7 @@ end subroutine
 ! !LOCAL VARIABLES:
       class (type_base_model),      pointer :: root
       type (type_model_list_node),  pointer :: child
-      type (type_coupling_task),    pointer :: coupling, next_coupling
+      class (type_coupling_task),   pointer :: coupling, next_coupling
       type (type_internal_variable),pointer :: master
       type (type_link),             pointer :: link
 !
@@ -308,58 +349,93 @@ end subroutine
    end subroutine process_coupling_tasks
 !EOC
 
+   subroutine create_sum(parent,link_list,name)
+      class (type_base_model),intent(inout),target :: parent
+      type (type_link_list),  intent(in)           :: link_list
+      character(len=*),       intent(in)           :: name
+
+      type (type_weighted_sum),pointer :: sum
+      type (type_link),        pointer :: link
+
+      allocate(sum)
+      sum%result_output = output_none
+      link => link_list%first
+      do while (associated(link))
+         call sum%add_component(link%target%name)
+         link => link%next
+      end do
+      if (.not.sum%add_to_parent(parent,name)) deallocate(sum)
+   end subroutine create_sum
+
+   subroutine create_horizontal_sum(parent,link_list,name)
+      class (type_base_model),intent(inout),target :: parent
+      type (type_link_list),  intent(in)           :: link_list
+      character(len=*),       intent(in)           :: name
+
+      type (type_horizontal_weighted_sum),pointer :: sum
+      type (type_link),                   pointer :: link
+
+      allocate(sum)
+      sum%result_output = output_none
+      link => link_list%first
+      do while (associated(link))
+         call sum%add_component(link%target%name)
+         link => link%next
+      end do
+      if (.not.sum%add_to_parent(parent,name)) deallocate(sum)
+   end subroutine create_horizontal_sum
+
    function generate_master(self,name) result(master)
       class (type_base_model),intent(inout),target :: self
       character(len=*),       intent(in)           :: name
-
       type (type_internal_variable),pointer :: master
-      type (type_link),             pointer :: link
-      integer :: istart,n
-      type (type_weighted_sum),           pointer :: sum
-      type (type_horizontal_weighted_sum),pointer :: sum_hz
+
+      type (type_internal_variable),pointer :: originator
+      character(len=attribute_length)       :: local_name
+      integer :: n
 
       nullify(master)
       n = len_trim(name)
       if (n<8) return
-      if (name(n-7:n)=='_sms_tot') then
-         ! This is a link to the combined sources-sinks of a variable.
-         ! First locate the relevant variable, then create the necessary sms summation.
-         master => self%find_object(name(:n-8),recursive=.true.,exact=.false.)
-         if (associated(master)) then
-            if (.not.master%state_indices%is_empty().or.master%fake_state_variable) then
-               ! Master variable is indeed a state variable (or acts like one)
-               istart = index(master%name,'/',.true.)
-               select case (master%domain)
-                  case (domain_bulk)
-                     ! Create sum of sink-source terms for bulk variable.
-                     allocate(sum)
-                     sum%result_output = output_none
-                     link => master%sms_list%first
-                     do while (associated(link))
-                        call sum%add_component(link%target%name)
-                        link => link%next
-                     end do
-                     if (.not.sum%add_to_parent(master%owner,trim(master%name(istart+1:))//'_sms_tot')) deallocate(sum)
-                  case (domain_horizontal,domain_surface,domain_bottom)
-                     ! Create sum of sink-source terms for horizontal variable.
-                     allocate(sum_hz)
-                     sum_hz%result_output = output_none
-                     link => master%sms_list%first
-                     do while (associated(link))
-                        call sum_hz%add_component(link%target%name)
-                        link => link%next
-                     end do
-                     if (.not.sum_hz%add_to_parent(master%owner,trim(master%name(istart+1:))//'_sms_tot')) deallocate(sum_hz)
+      if (name(n-7:n)=='_sms_tot'.or.name(n-7:n)=='_sfl_tot'.or.name(n-7:n)=='_bfl_tot') then
+         ! This is can be a link to the sources-sinks, surface flux, or bottom flux of a state variable.
+         ! First locate the related variable (same name but without the postfix), then create the necessary summation.
+         originator => self%find_object(name(:n-8),recursive=.true.,exact=.false.)
+         if (associated(originator)) then
+            if (.not.originator%state_indices%is_empty().or.originator%fake_state_variable) then
+               ! Related variable without the postfix is indeed a state variable (or acts like one)
+               local_name = trim(originator%name(index(originator%name,'/',.true.)+1:))//name(n-7:n)
+
+               ! Now we know the full path of the target variable - try to resolve it.
+               ! (needed in case the derived quantity was requested for a slave)
+               master => originator%owner%find_object(local_name,recursive=.false.,exact=.false.)
+               if (associated(master)) return
+
+               ! Derived quantity does not exsit yet - create it.
+               select case (originator%domain)
+               case (domain_bulk)
+                  select case (name(n-7:n))
+                     case ('_sms_tot')
+                        call create_sum(originator%owner,originator%sms_list,local_name)
+                     case ('_sfl_tot')
+                        call create_horizontal_sum(originator%owner,originator%surface_flux_list,local_name)
+                     case ('_bfl_tot')
+                        call create_horizontal_sum(originator%owner,originator%bottom_flux_list,local_name)
+                  end select
+               case (domain_horizontal,domain_surface,domain_bottom)
+                  call create_horizontal_sum(originator%owner,originator%sms_list,local_name)
                end select
-               master => self%find_object(trim(master%name(istart+1:))//'_sms_tot',recursive=.true.,exact=.false.)
+
+               ! Get pointer to newly created derived quantity
+               master => originator%owner%find_object(local_name,recursive=.false.,exact=.false.)
             end if
          end if
       end if
    end function generate_master
 
    function generate_standard_master(self,task) result(master)
-      class (type_base_model),  intent(inout),target :: self
-      type (type_coupling_task),intent(inout)        :: task
+      class (type_base_model),   intent(inout),target :: self
+      class (type_coupling_task),intent(inout)        :: task
       type (type_internal_variable),pointer :: master
 
       type (type_aggregate_variable),   pointer :: aggregate_variable
@@ -372,11 +448,11 @@ end subroutine
                aggregate_variable => get_aggregate_variable(self,aggregate_standard_variable)
                select case (task%domain)
                   case (domain_bulk)
-                     aggregate_variable%bulk_required = .true.
+                     aggregate_variable%bulk_access = ior(aggregate_variable%bulk_access,access_read)
                      deallocate(task%master_standard_variable)
                      task%master_name = aggregate_variable%standard_variable%name
                   case (domain_bottom)
-                     aggregate_variable%bottom_required = .true.
+                     aggregate_variable%bottom_access = ior(aggregate_variable%bottom_access,access_read)
                      deallocate(task%master_standard_variable)
                      task%master_name = trim(aggregate_variable%standard_variable%name)//'_at_bottom'
                   case default
@@ -406,7 +482,7 @@ subroutine print_aggregate_variable_contributions(self)
       end do
       aggregate_variable => aggregate_variable%next
    end do
-end subroutine
+end subroutine print_aggregate_variable_contributions
 
 recursive subroutine build_aggregate_variables(self)
    class (type_base_model),intent(inout),target :: self
@@ -503,9 +579,9 @@ recursive subroutine create_aggregate_models(self)
    aggregate_variable => self%first_aggregate_variable
    do while (associated(aggregate_variable))
       nullify(sum,horizontal_sum,bottom_sum)
-      if (aggregate_variable%bulk_required)       allocate(sum)
-      if (aggregate_variable%horizontal_required) allocate(horizontal_sum)
-      if (aggregate_variable%bottom_required)     allocate(bottom_sum)
+      if (aggregate_variable%bulk_access/=access_none)       allocate(sum)
+      if (aggregate_variable%horizontal_access/=access_none) allocate(horizontal_sum)
+      if (aggregate_variable%bottom_access/=access_none)     allocate(bottom_sum)
 
       contributing_variable => aggregate_variable%first_contributing_variable
       do while (associated(contributing_variable))
@@ -538,16 +614,19 @@ recursive subroutine create_aggregate_models(self)
 
       if (associated(sum)) then
          sum%units = trim(aggregate_variable%standard_variable%units)
+         sum%access = aggregate_variable%bulk_access
          if (associated(self%parent)) sum%result_output = output_none
          if (.not.sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name))) deallocate(sum)
       end if
       if (associated(horizontal_sum)) then
          horizontal_sum%units = trim(aggregate_variable%standard_variable%units)//'*m'
+         horizontal_sum%access = aggregate_variable%horizontal_access
          if (associated(self%parent)) horizontal_sum%result_output = output_none
          if (.not.horizontal_sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name)//'_at_interfaces')) deallocate(horizontal_sum)
       end if
       if (associated(bottom_sum)) then
          bottom_sum%units = trim(aggregate_variable%standard_variable%units)//'*m'
+         bottom_sum%access = aggregate_variable%bottom_access
          if (associated(self%parent)) bottom_sum%result_output = output_none
          if (.not.bottom_sum%add_to_parent(self,trim(aggregate_variable%standard_variable%name)//'_at_bottom')) deallocate(bottom_sum)
       end if
@@ -562,7 +641,7 @@ recursive subroutine create_aggregate_models(self)
    end do
 end subroutine create_aggregate_models
 
-subroutine couple_variables(self,master,slave)
+recursive subroutine couple_variables(self,master,slave)
    class (type_base_model),     intent(inout),target :: self
    type (type_internal_variable),pointer             :: master,slave
 
@@ -573,10 +652,10 @@ subroutine couple_variables(self,master,slave)
    if (associated(slave,master)) return
 
    if (associated(self%parent)) call self%fatal_error('couple_variables','BUG: must be called on root node.')
-   if (.not.slave%write_indices%is_empty()) &
+   if (.not.slave%can_be_slave) &
       call fatal_error('couple_variables','Attempt to couple write-only variable ' &
          //trim(slave%name)//' to '//trim(master%name)//'.')
-   if (.not.slave%state_indices%is_empty().and.master%state_indices%is_empty().and..not.master%fake_state_variable) &
+   if ((slave%fake_state_variable.or..not.slave%state_indices%is_empty()).and.(master%state_indices%is_empty().and..not.master%fake_state_variable)) &
       call fatal_error('couple_variables','Attempt to couple state variable ' &
          //trim(slave%name)//' to non-state variable '//trim(master%name)//'.')
    !if (slave%domain/=master%domain.and..not.(slave%domain==domain_horizontal.and. &
@@ -590,6 +669,7 @@ subroutine couple_variables(self,master,slave)
    ! Merge all information from the slave into the master.
    call master%state_indices%extend(slave%state_indices)
    call master%read_indices%extend(slave%read_indices)
+   call master%write_indices%extend(slave%write_indices)
    call master%sms_list%extend(slave%sms_list)
    call master%background_values%extend(slave%background_values)
    call master%properties%update(slave%properties,overwrite=.false.)
@@ -600,6 +680,12 @@ subroutine couple_variables(self,master,slave)
    end do
    call master%surface_flux_list%extend(slave%surface_flux_list)
    call master%bottom_flux_list%extend(slave%bottom_flux_list)
+
+   ! For vertical movement rates only keep the master, which all models will (over)write.
+   ! NB if the slave has vertical movement but the master does not (e.g., if the master is
+   ! a fake state variable, the slaev variable can still be set, but won't be used).
+   if (associated(slave%movement_diagnostic).and.associated(master%movement_diagnostic)) &
+      call couple_variables(self,master%movement_diagnostic%target,slave%movement_diagnostic%target)
    if (master%presence==presence_external_optional.and.slave%presence/=presence_external_optional) &
       master%presence = presence_external_required
 
@@ -708,5 +794,372 @@ end subroutine find_dependencies
          child => child%next
       end do
    end subroutine check_coupling_units
+
+function call_list_find(self,model,source) result(node)
+   class (type_call_list), intent(in)        :: self
+   class (type_base_model),intent(in),target :: model
+   integer,                intent(in)        :: source
+
+   type (type_call_list_node),pointer :: node
+
+   node => self%first
+   do while (associated(node))
+      if (associated(node%model,model).and.node%source==source) return
+      node => node%next
+   end do
+end function call_list_find
+
+subroutine call_list_extend(self,other)
+   class (type_call_list), intent(inout) :: self
+   class (type_call_list), intent(in)    :: other
+
+   type (type_call_list_node),pointer :: last, node2
+
+   ! Find tail of the list [if any]
+   last => self%first
+   if (associated(last)) then
+      do while (associated(last%next))
+         last => last%next
+      end do
+   end if
+
+   node2 => other%first
+   do while (associated(node2))
+      if (associated(last)) then
+         ! List contains one or more items - append to tail.
+         allocate(last%next)
+         last => last%next
+      else
+         ! List is empty - create first node.
+         allocate(self%first)
+         last => self%first
+      end if
+      last%model => node2%model
+      last%source = node2%source
+      node2 => node2%next
+   end do
+end subroutine call_list_extend
+
+function call_list_append(self,model,source) result(node)
+   class (type_call_list), intent(inout)     :: self
+   class (type_base_model),intent(in),target :: model
+   integer,                intent(in)        :: source
+
+   type (type_call_list_node),pointer :: node
+
+   if (associated(self%first)) then
+      ! List contains one or more items - append to tail.
+      node => self%first
+      do while (associated(node%next))
+         node => node%next
+      end do
+      allocate(node%next)
+      node => node%next
+   else
+      ! List is empty - create first node.
+      allocate(self%first)
+      node => self%first
+   end if
+
+   ! Set new node
+   node%model => model
+   node%source = source
+end function call_list_append
+
+subroutine call_list_filter(self,source)
+   class (type_call_list), intent(inout) :: self
+   integer,                intent(in)    :: source
+
+   type (type_call_list_node),pointer :: node, previous, next
+
+   previous => null()
+   node => self%first
+   do while (associated(node))
+      next => node%next
+      if (node%source==source) then
+         if (.not.associated(previous)) then
+            self%first => next
+         else
+            previous%next => next
+         end if
+         call node%finalize()
+         deallocate(node)
+      else
+         previous => node
+      end if
+      node => next
+   end do
+end subroutine call_list_filter
+
+subroutine call_list_print(self)
+   class (type_call_list), intent(in) :: self
+
+   type (type_call_list_node),   pointer :: node
+   type (type_variable_set_node),pointer :: variable_list_node
+   integer                               :: n
+
+   node => self%first
+   do while (associated(node))
+      write (*,'(a,x,i0)') trim(node%model%get_path()),node%source
+      n = 0
+      variable_list_node => node%written_variables%first
+      do while (associated(variable_list_node))
+         n = n + 1
+         write (*,'(x,x,x,a,x,i0)') trim(variable_list_node%target%name)
+         variable_list_node => variable_list_node%next
+      end do
+      node => node%next
+   end do
+end subroutine call_list_print
+
+subroutine call_list_finalize(self)
+   class (type_call_list), intent(inout) :: self
+
+   type (type_call_list_node),pointer :: node,next
+
+   node => self%first
+   do while (associated(node))
+      next => node%next
+      call node%finalize()
+      deallocate(node)
+      node => next
+   end do
+   nullify(self%first)
+end subroutine call_list_finalize
+
+logical function call_list_computes(self,variable)
+   class (type_call_list), intent(inout) :: self
+   type (type_internal_variable),target  :: variable
+
+   type (type_call_list_node),pointer :: node
+
+   call_list_computes = .true.
+   node => self%first
+   do while (associated(node))
+      if (node%computed_variables%contains(variable)) return
+      node => node%next
+   end do
+   call_list_computes = .false.
+end function call_list_computes
+
+subroutine call_list_node_finalize(self)
+   class (type_call_list_node), intent(inout) :: self
+
+   if (allocated(self%copy_commands)) deallocate(self%copy_commands)
+   call self%written_variables%finalize()
+   call self%computed_variables%finalize()
+end subroutine call_list_node_finalize
+
+subroutine variable_set_finalize(self)
+   class (type_variable_set), intent(inout) :: self
+
+   type (type_variable_set_node),pointer :: node, next
+
+   node => self%first
+   do while (associated(node))
+      next => node%next
+      deallocate(node)
+      node => next
+   end do
+end subroutine variable_set_finalize
+
+recursive subroutine find_dependencies2(self,source,allowed_sources,list,forbidden,call_list_node)
+   class (type_base_model),     intent(in),target   :: self
+   integer,                     intent(in)          :: source
+   integer,                     intent(in)          :: allowed_sources(:)
+   type (type_call_list),       intent(inout)       :: list
+   type (type_call_list),       intent(in),optional :: forbidden
+   type (type_call_list_node),  pointer,   optional :: call_list_node
+
+   type (type_link),pointer           :: link
+   type (type_call_list)              :: forbidden_with_self
+   type (type_call_list_node),pointer :: node
+   character(len=2048)                :: chain
+   logical                            :: same_source
+
+   if (present(call_list_node)) nullify(call_list_node)
+
+   ! Do nothing if we are looking for constants.
+   if (source==source_none) return
+
+   ! Check whether we are already processed this call.
+   node => list%find(self,source)
+   if (associated(node)) then
+      if (present(call_list_node)) call_list_node => node
+      return
+   end if
+
+   ! Check the list of forbidden model (i.e., models that indirectly request the current model)
+   ! If the current model is on this list, there is a circular dependency between models.
+   if (present(forbidden)) then
+      node => forbidden%find(self,source)
+      if (associated(node)) then
+         ! Circular dependency found - report as fatal error.
+         chain = ''
+         do while (associated(node))
+            chain = trim(chain)//' '//trim(node%model%get_path())//' ->'
+            node => node%next
+         end do
+         call fatal_error('find_dependencies','circular dependency found: '//trim(chain(2:))//' '//trim(self%get_path()))
+      end if
+      call forbidden_with_self%extend(forbidden)
+   end if
+   node => forbidden_with_self%append(self,source)
+
+   ! Loop over all variables, and if they belong to some other model, first add that model to the dependency list.
+   link => self%links%first
+   do while (associated(link))
+      same_source = link%target%source==source .or. (link%target%source==source_unknown.and.(source==source_do_surface.or.source==source_do_bottom))
+      if (index(link%name,'/')==0 &                                        ! Our own link...
+          .and..not.link%target%write_indices%is_empty() &                 ! ...to a diagnostic variable...
+          .and..not.(associated(link%target%owner,self).and.same_source) & ! ...not set by ourselves...
+          .and.associated(link%original%read_index)) then                  ! ...and we do depend on its value
+
+         if (contains_value(allowed_sources,link%target%source)) &
+            call find_variable_dependencies(link%target,allowed_sources,list,copy_to_prefetch=.true.,forbidden=forbidden_with_self)
+      end if
+      link => link%next
+   end do
+
+   ! We're happy - add ourselves to the list of processed models.
+   node => list%append(self,source)
+   if (present(call_list_node)) call_list_node => node
+
+   ! Clean up our temporary list.
+   call forbidden_with_self%finalize()
+end subroutine find_dependencies2
+
+recursive subroutine find_variable_dependencies(variable,allowed_sources,list,copy_to_prefetch,forbidden)
+   type (type_internal_variable),intent(in)          :: variable
+   integer,                      intent(in)          :: allowed_sources(:)
+   type (type_call_list),        intent(inout)       :: list
+   logical,                      intent(in)          :: copy_to_prefetch
+   type (type_call_list),        intent(in),optional :: forbidden
+
+   type (type_call_list_node),pointer :: node
+
+   if (variable%source==source_unknown) then
+      if (contains_value(allowed_sources,source_do_surface)) then
+         call find_dependencies2(variable%owner,source_do_surface,allowed_sources,list,forbidden,call_list_node=node)
+         if (copy_to_prefetch.and.associated(node)) call node%written_variables%add(variable)
+         if (associated(node)) call node%computed_variables%add(variable)
+      end if
+      if (contains_value(allowed_sources,source_do_bottom)) then
+         call find_dependencies2(variable%owner,source_do_bottom,allowed_sources,list,forbidden,call_list_node=node)
+         if (copy_to_prefetch.and.associated(node)) call node%written_variables%add(variable)
+         if (associated(node)) call node%computed_variables%add(variable)
+      end if
+   else
+      call find_dependencies2(variable%owner,variable%source,allowed_sources,list,forbidden,call_list_node=node)
+      if (copy_to_prefetch.and.associated(node)) call node%written_variables%add(variable)
+      if (associated(node)) call node%computed_variables%add(variable)
+   end if
+end subroutine
+
+logical function contains_value(array,value)
+   integer,intent(in) :: array(:),value
+   integer :: i
+   contains_value = .true.
+   do i=1,size(array)
+      if (array(i)==value) return
+   end do
+   contains_value = .false.
+end function
+
+subroutine variable_set_add(self,variable)
+   class (type_variable_set),intent(inout) :: self
+   type (type_internal_variable),target    :: variable
+
+   type (type_variable_set_node), pointer :: node
+
+   node => self%first
+   do while (associated(node))
+      if (associated(node%target,variable)) return
+      node => node%next
+   end do
+   allocate(node)
+   node%target => variable
+   node%next => self%first
+   self%first => node
+end subroutine variable_set_add
+
+logical function variable_set_contains(self,variable)
+   class (type_variable_set),intent(inout) :: self
+   type (type_internal_variable),target    :: variable
+
+   type (type_variable_set_node), pointer :: node
+
+   variable_set_contains = .true.
+   node => self%first
+   do while (associated(node))
+      if (associated(node%target,variable)) return
+      node => node%next
+   end do
+   variable_set_contains = .false.
+end function variable_set_contains
+
+subroutine call_list_initialize(call_list)
+   class (type_call_list),intent(inout) :: call_list
+
+   type (type_call_list_node),pointer :: node
+
+   node => call_list%first
+   do while (associated(node))
+      call call_list_node_initialize(node)
+      node => node%next
+   end do
+end subroutine call_list_initialize
+
+subroutine call_list_node_initialize(call_list_node)
+   type (type_call_list_node),intent(inout) :: call_list_node
+
+   class (type_base_model),      pointer :: parent
+   class (type_model_list_node), pointer :: model_list_node
+   type (type_variable_set_node), pointer :: node
+   integer :: i, n, maxwrite
+
+   ! Make sure the pointer to the model has the highest class (and not a base class)
+   ! This is needed because model classes that use inheritance and call base class methods
+   ! may end up with model pointers that are base class specific (and do not reference
+   ! procedures overwritten at a higher level)
+   parent => call_list_node%model%parent
+   if (associated(parent)) then
+      model_list_node => parent%children%first
+      do while (associated(model_list_node))
+         if (associated(call_list_node%model,model_list_node%model)) then
+            ! Found ourselves in our parent - use the parent pointer to replace ours.
+            call_list_node%model => model_list_node%model
+            exit
+         end if
+         model_list_node => model_list_node%next
+      end do
+   end if
+
+   n = 0
+   maxwrite = -1
+   node => call_list_node%written_variables%first
+   do while (associated(node))
+      n = n + 1
+      if (node%target%write_indices%is_empty()) call driver%fatal_error('call_list_node_initialize','target without write indices')
+      maxwrite = max(maxwrite,node%target%write_indices%value)
+      node => node%next
+   end do
+
+   ! Create list of copy commands, sorted by write index
+   allocate(call_list_node%copy_commands(n))
+   n = 0
+   do i=1,maxwrite
+      node => call_list_node%written_variables%first
+      do while (associated(node))
+         if (node%target%write_indices%value==i) then
+            n = n + 1
+            call_list_node%copy_commands(n)%read_index = node%target%read_indices%value
+            call_list_node%copy_commands(n)%write_index = node%target%write_indices%value
+            exit
+         end if
+         node => node%next
+      end do
+   end do
+end subroutine
 
 end module

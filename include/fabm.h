@@ -175,6 +175,7 @@
 !  Interior slices MUST be 1D arrays; horizontal slices may be 0D or 1D
 !  Applies to all models with depth dimension. For instance, model with i,j,k [MOM,NEMO], i,k [FVCOM], or k [GOTM]
 #  define _VERTICAL_LOOP_END_ end do
+#  define _VERTICAL_LOOP_EXIT_ exit
 #  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
 #    define _VERTICAL_LOOP_BEGIN_ do _I_=_N_,1,-1
 #    define _CONCURRENT_VERTICAL_LOOP_BEGIN_ _DO_CONCURRENT_WITH_STRIDE_(_I_,_N_,1,-1)
@@ -198,6 +199,7 @@
 #  define _VERTICAL_LOOP_BEGIN_
 #  define _CONCURRENT_VERTICAL_LOOP_BEGIN_
 #  define _VERTICAL_LOOP_END_
+#  define _VERTICAL_LOOP_EXIT_
 #  ifdef _INTERIOR_IS_VECTORIZED_
 !    Interior slices are 1D arrays. Since the vectorized dimension is not depth, horizontal slices MUST be 1D arrays too
 !    Operate on their first element (_I_=1,_J_=1)
@@ -232,15 +234,15 @@
 #define _ARGUMENTS_DO_SURFACE_ _ARGUMENTS_HORIZONTAL_
 #define _ARGUMENTS_DO_BOTTOM_ _ARGUMENTS_HORIZONTAL_
 #define _ARGUMENTS_DO_BOTTOM_PPDD_ _ARGUMENTS_HORIZONTAL_,pp,dd,benthos_offset
-#define _ARGUMENTS_GET_VERTICAL_MOVEMENT_ _ARGUMENTS_INTERIOR_,velocity
+#define _ARGUMENTS_GET_VERTICAL_MOVEMENT_ _ARGUMENTS_INTERIOR_
 #define _ARGUMENTS_GET_EXTINCTION_ _ARGUMENTS_INTERIOR_,extinction
 #define _ARGUMENTS_GET_DRAG_ _ARGUMENTS_HORIZONTAL_,drag
 #define _ARGUMENTS_GET_ALBEDO_ _ARGUMENTS_HORIZONTAL_,albedo
 #define _ARGUMENTS_GET_CONSERVED_QUANTITIES_ _ARGUMENTS_INTERIOR_,sums
 #define _ARGUMENTS_GET_HORIZONTAL_CONSERVED_QUANTITIES_ _ARGUMENTS_HORIZONTAL_,sums
-#define _ARGUMENTS_CHECK_STATE_ _ARGUMENTS_INTERIOR_,repair,valid
-#define _ARGUMENTS_CHECK_SURFACE_STATE_ _ARGUMENTS_HORIZONTAL_,repair,valid
-#define _ARGUMENTS_CHECK_BOTTOM_STATE_ _ARGUMENTS_HORIZONTAL_,repair,valid
+#define _ARGUMENTS_CHECK_STATE_ _ARGUMENTS_INTERIOR_,repair,valid,set_interior
+#define _ARGUMENTS_CHECK_SURFACE_STATE_ _ARGUMENTS_HORIZONTAL_,repair,valid,set_horizontal,set_interior
+#define _ARGUMENTS_CHECK_BOTTOM_STATE_ _ARGUMENTS_HORIZONTAL_,repair,valid,set_horizontal,set_interior
 #define _ARGUMENTS_INITIALIZE_STATE_ _ARGUMENTS_INTERIOR_
 #define _ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_ _ARGUMENTS_HORIZONTAL_
 
@@ -250,15 +252,15 @@
 #define _DECLARE_ARGUMENTS_DO_BOTTOM_ _DECLARE_ARGUMENTS_HORIZONTAL_
 #define _DECLARE_ARGUMENTS_DO_BOTTOM_PPDD_ _DECLARE_ARGUMENTS_HORIZONTAL_;real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_2_,intent(inout) :: pp,dd;integer,intent(in) :: benthos_offset
 #define _DECLARE_ARGUMENTS_DO_SURFACE_ _DECLARE_ARGUMENTS_HORIZONTAL_
-#define _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_ _DECLARE_ARGUMENTS_INTERIOR_;real(rk) _DIMENSION_EXT_SLICE_PLUS_1_,intent(inout) :: velocity
+#define _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_ _DECLARE_ARGUMENTS_INTERIOR_
 #define _DECLARE_ARGUMENTS_GET_EXTINCTION_ _DECLARE_ARGUMENTS_INTERIOR_;real(rk) _DIMENSION_SLICE_,intent(inout) :: extinction
 #define _DECLARE_ARGUMENTS_GET_DRAG_ _DECLARE_ARGUMENTS_HORIZONTAL_;real(rk) _DIMENSION_HORIZONTAL_SLICE_,intent(inout) :: drag
 #define _DECLARE_ARGUMENTS_GET_ALBEDO_ _DECLARE_ARGUMENTS_HORIZONTAL_;real(rk) _DIMENSION_HORIZONTAL_SLICE_,intent(inout) :: albedo
 #define _DECLARE_ARGUMENTS_GET_CONSERVED_QUANTITIES_ _DECLARE_ARGUMENTS_INTERIOR_;real(rk) _DIMENSION_SLICE_PLUS_1_,intent(inout) :: sums
 #define _DECLARE_ARGUMENTS_GET_HORIZONTAL_CONSERVED_QUANTITIES_ _DECLARE_ARGUMENTS_HORIZONTAL_;real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(inout) :: sums
-#define _DECLARE_ARGUMENTS_CHECK_STATE_ _DECLARE_ARGUMENTS_INTERIOR_;logical,intent(in) :: repair;logical,intent(inout) :: valid
-#define _DECLARE_ARGUMENTS_CHECK_SURFACE_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_;logical,intent(in) :: repair;logical,intent(inout) :: valid
-#define _DECLARE_ARGUMENTS_CHECK_BOTTOM_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_;logical,intent(in) :: repair;logical,intent(inout) :: valid
+#define _DECLARE_ARGUMENTS_CHECK_STATE_ _DECLARE_ARGUMENTS_INTERIOR_;logical,intent(in) :: repair;logical,intent(inout) :: valid,set_interior
+#define _DECLARE_ARGUMENTS_CHECK_SURFACE_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_;logical,intent(in) :: repair;logical,intent(inout) :: valid,set_horizontal,set_interior
+#define _DECLARE_ARGUMENTS_CHECK_BOTTOM_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_;logical,intent(in) :: repair;logical,intent(inout) :: valid,set_horizontal,set_interior
 #define _DECLARE_ARGUMENTS_INITIALIZE_STATE_ _DECLARE_ARGUMENTS_INTERIOR_
 #define _DECLARE_ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_
 
@@ -274,7 +276,7 @@
 #define _SCALE_DRAG_(value) drag _INDEX_HORIZONTAL_SLICE_ = drag _INDEX_HORIZONTAL_SLICE_ * (value)
 #define _SET_ALBEDO_(value) albedo _INDEX_HORIZONTAL_SLICE_ = albedo _INDEX_HORIZONTAL_SLICE_ + (value)
 #define _SET_CONSERVED_QUANTITY_(variable,value) sums _INDEX_SLICE_PLUS_1_(variable%cons_index) = sums _INDEX_SLICE_PLUS_1_(variable%cons_index) + (value)
-#define _SET_VERTICAL_MOVEMENT_(variable,value) velocity _INDEX_EXT_SLICE_PLUS_1_(variable%state_index) = value/self%dt
+#define _SET_VERTICAL_MOVEMENT_(variable,value) environment%scratch _INDEX_SLICE_PLUS_1_(variable%movement_index) = value/self%dt
 #define _INVALIDATE_STATE_ valid = .false.
 #define _REPAIR_STATE_ repair
 
@@ -288,14 +290,14 @@
 ! For BGC models: macro to determine whether a variable identifier is in use (i.e., has been registered with FABM)
 #define _VARIABLE_REGISTERED_(variable) associated(variable%link)
 #define _AVAILABLE_(variable) variable%index/=-1
+#define _AVAILABLE_HORIZONTAL_(variable) variable%horizontal_index/=-1
 
 ! For BGC models: read/write variable access.
 #define _GET_(variable,target) target = environment%prefetch _INDEX_SLICE_PLUS_1_(variable%index)
 #define _GET_HORIZONTAL_(variable,target) target = environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_index)
 #define _GET_GLOBAL_(variable,target) target = environment%prefetch_scalar(variable%global_index)
-#define _SET_(variable,value) environment%prefetch _INDEX_SLICE_PLUS_1_(variable%index) = value
-#define _SET_HORIZONTAL_(variable,value) environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_index) = value
-#define _SET_GLOBAL_(variable,value) environment%prefetch_scalar(variable%global_index) = value
+#define _SET_(variable,value) set_interior=.true.;environment%prefetch _INDEX_SLICE_PLUS_1_(variable%index) = value
+#define _SET_HORIZONTAL_(variable,value) set_horizontal=.true.;environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_index) = value
 #define _SET_DIAGNOSTIC_(variable,value) environment%scratch _INDEX_SLICE_PLUS_1_(variable%diag_index) = value
 #define _SET_HORIZONTAL_DIAGNOSTIC_(variable,value) environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_diag_index) = value
 

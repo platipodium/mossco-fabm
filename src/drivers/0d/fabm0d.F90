@@ -22,6 +22,11 @@
    use fabm_expressions
    use fabm_config
 
+#ifdef NETCDF4
+   use register_all_variables, only: do_register_all_variables, fm
+   use output_manager_core, only:output_manager_host=>host, type_output_manager_host=>type_host
+   use output_manager
+#endif
    use shared
    use output
 
@@ -74,7 +79,13 @@
       procedure :: fatal_error => custom_fatal_error
       procedure :: log_message => custom_log_message
    end type
-
+#ifdef NETCDF4
+   type,extends(type_output_manager_host) :: type_0d_host
+   contains
+      procedure :: julian_day => a0d_host_julian_day
+      procedure :: calendar_date => a0d_host_calendar_date
+   end type
+#endif
 !EOP
 !-----------------------------------------------------------------------
 
@@ -389,9 +400,26 @@
    end do
 
    ! Output variable values at initial time
-   LEVEL1 'init_output'
-   call init_output(start)
-   call do_output(0_timestepkind)
+#ifndef NETCDF4
+    if (output_format .eq. 2) then
+       LEVEL0 'WARNING: NetCDF support not compiled in - setting output to ASCII'
+       output_format = 1
+    end if
+#endif
+   if (output_format .eq. 1) then
+      LEVEL1 'init_output'
+      call init_output(start)
+      call do_output(0_timestepkind)
+   else
+#ifdef NETCDF4
+      LEVEL1 'field_manager'
+      call do_register_all_variables(latitude,longitude,par,temp,salt,model,cc)
+      LEVEL1 'output_manager'
+      allocate(type_0d_host::output_manager_host)
+      call output_manager_init(fm)
+      call output_manager_save(julianday,secondsofday,0)
+#endif
+   endif
 
    STDERR LINE
 
@@ -639,17 +667,18 @@
    integer(timestepkind)     :: n
    logical                   :: valid_state
    character(len=10)         :: strstep
+   integer                   :: progress,k
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    LEVEL1 'time_loop'
 
+   progress = (MaxN-MinN+1)/10
+   k = 0
    do n=MinN,MaxN
-      if (mod(n-MinN+1,100000)==0) then
-         write (strstep,'(i0)') n
-         call write_time_string(julianday,secondsofday,timestr)
-         call log_message('     '//trim(timestr)//')')
-!         call log_message('     '//trim(timestr)//' (time step '//trim(strstep*1.0E-5)//')')
+      if(mod(n,progress) .eq. 0 .or. n .eq. MinN) then
+         LEVEL0 k,'%'
+         k = k+10
       end if
 
       ! Update time and all time-dependent inputs.
@@ -689,7 +718,13 @@
             &but this should be used with caution. Try and decrease the time step (dt) first - and see if that helps.')
 
       ! Do output
-      call do_output(n)
+      if (output_format .eq. 1) then
+         call do_output(n)
+      else
+#ifdef NETCDF4
+         call output_manager_save(julianday,secondsofday,int(n))
+#endif
+      end if
    end do
    STDERR LINE
 
@@ -718,8 +753,15 @@
 !BOC
    LEVEL1 'clean_up'
 
-   call clean_output(ignore_errors=ignore_errors)
    call close_input()
+   if (output_format .eq. 1) then
+      call clean_output(ignore_errors=ignore_errors)
+   else
+#ifdef NETCDF4
+      call output_manager_clean()
+      call fm%finalize()
+#endif
+   end if
 
    end subroutine clean_up
 !EOC
@@ -880,7 +922,7 @@
 
    ! Add change in pelagic variables.
    call update_depth(CENTER)
-   call fabm_do(model,rhs)
+   call fabm_do(model,rhs(1:n))
 
    end subroutine get_rhs
 !EOC
@@ -900,6 +942,23 @@
 
       write (*,*) trim(message)
    end subroutine
+
+#ifdef NETCDF4
+   subroutine a0d_host_julian_day(self,yyyy,mm,dd,julian)
+      class (type_0d_host), intent(in) :: self
+      integer, intent(in)  :: yyyy,mm,dd
+      integer, intent(out) :: julian
+      call julian_day(yyyy,mm,dd,julian)
+   end subroutine
+
+   subroutine a0d_host_calendar_date(self,julian,yyyy,mm,dd)
+      class (type_0d_host), intent(in) :: self
+      integer, intent(in)  :: julian
+      integer, intent(out) :: yyyy,mm,dd
+      call calendar_date(julian,yyyy,mm,dd)
+   end subroutine
+#endif
+
 
 !-----------------------------------------------------------------------
 

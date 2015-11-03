@@ -61,10 +61,6 @@
    ! Set spatial mask
    public fabm_set_mask
 #endif
-#if _FABM_BOTTOM_INDEX_==-1
-   ! Provide vertical indices of bottommost cells
-   public fabm_set_bottom_indices
-#endif
 
    ! For backward compatibility only (use fabm_do_surface and fabm_do_bottom instead)
    public fabm_get_surface_exchange, fabm_do_benthos
@@ -128,6 +124,7 @@
       logical                            :: no_river_dilution         = .false.
       type (type_bulk_variable_id)       :: globalid
       integer,allocatable, dimension(:)  :: sms_indices, surface_flux_indices, bottom_flux_indices
+      integer                            :: movement_index
    end type type_state_variable_info
 
    type,extends(type_external_variable) :: type_horizontal_state_variable_info
@@ -160,7 +157,7 @@
       type (type_aggregate_variable),pointer        :: aggregate_variable
       integer                                       :: index              = -1
       integer                                       :: horizontal_index   = -1
-      class (type_horizontal_weighted_sum),pointer  :: horizontal_sum     => null()
+      type (type_internal_variable),pointer         :: target_hz => null()
    end type type_conserved_quantity_info
 
    type type_bulk_data_pointer
@@ -176,7 +173,10 @@
    end type
 
    type type_environment_settings
-      logical,allocatable :: zero(:)
+      type (type_call_list) :: call_list
+      integer,allocatable :: prefill_type(:)
+      real(rk),allocatable :: prefill_values(:)
+      integer,allocatable :: prefill_index(:)
       integer,allocatable :: save_sources(:)
       integer,allocatable :: save_sources_hz(:)
    end type
@@ -209,8 +209,8 @@
       character(len=attribute_length),allocatable,dimension(:) :: dependencies_hz
       character(len=attribute_length),allocatable,dimension(:) :: dependencies_scalar
 
-      integer                :: extinction_index = -1
-      type (type_model_list) :: extinction_call_list, conserved_quantity_call_list
+      integer                                :: extinction_index = -1
+      type (type_internal_variable), pointer :: extinction_target => null()
 
       type (type_link_list) :: links_postcoupling
 
@@ -232,6 +232,10 @@
       type (type_environment_settings)                          :: do_bottom_ppdd_environment
       type (type_environment_settings)                          :: do_surface_environment
       type (type_environment_settings)                          :: get_light_environment
+      type (type_environment_settings)                          :: get_vertical_movement_environment
+      type (type_environment_settings)                          :: get_conserved_quantities_environment
+      type (type_environment_settings)                          :: get_horizontal_conserved_quantities_environment
+      type (type_environment_settings)                          :: get_light_extinction_environment
 
       ! Registry with pointers to global fields of readable variables.
       ! These pointers are accessed to fill the prefetch (see below).
@@ -240,19 +244,29 @@
       type (type_scalar_data_pointer),    allocatable :: data_scalar(:)
 
 #ifdef _HAS_MASK_
-#  ifdef _FABM_HORIZONTAL_MASK_
-      _FABM_MASK_TYPE_,pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: mask => null()
-#  else
+#  ifndef _FABM_HORIZONTAL_MASK_
       _FABM_MASK_TYPE_,pointer _DIMENSION_GLOBAL_ :: mask => null()
 #  endif
+      _FABM_MASK_TYPE_,pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: mask_hz => null()
 #endif
-#if _FABM_BOTTOM_INDEX_==-1
+
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+#  if _FABM_BOTTOM_INDEX_==0
+      integer :: bottom_index = -1
+#  elif _FABM_BOTTOM_INDEX_==-1
       integer,pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: bottom_indices => null()
+#  endif
+      integer :: surface_index = -1
 #endif
 
       integer :: nscratch = -1
       integer :: nscratch_hz = -1
    contains
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+      procedure :: set_bottom_index => fabm_set_bottom_index
+      procedure :: set_surface_index => fabm_set_surface_index
+#endif
+
       procedure :: link_bulk_data_by_variable => fabm_link_bulk_data_by_variable
       procedure :: link_bulk_data_by_id   => fabm_link_bulk_data_by_id
       procedure :: link_bulk_data_by_sn   => fabm_link_bulk_data_by_sn
@@ -545,12 +559,12 @@
       ! This variable is used from fabm_get_light_extinction.
       aggregate_variable => get_aggregate_variable(self%root, &
          standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
-      aggregate_variable%bulk_required = .true.
+      aggregate_variable%bulk_access = ior(aggregate_variable%bulk_access,access_read)
 
       ! Create placeholder variables for zero fields.
       ! Values for these fields will only be provided if actually used by one of the biogeochemical models.
-      call self%root%add_bulk_variable('zero')
-      call self%root%add_horizontal_variable('zero_hz')
+      call self%root%add_bulk_variable('zero',act_as_state_variable=.true.,source=source_none)
+      call self%root%add_horizontal_variable('zero_hz',act_as_state_variable=.true.,source=source_none)
 
       allocate(extinction_calculator)
       call self%root%add_child(extinction_calculator,'custom_extinction_calculator',configunit=-1)
@@ -566,7 +580,6 @@
       call classify_variables(self)
 
       call extinction_calculator%models%extend(self%models)
-      call add_to_model_call_list(self,'attenuation_coefficient_of_photosynthetic_radiative_flux',self%extinction_call_list)
 
       self%initialized = .true.
 
@@ -574,10 +587,10 @@
 !EOC
 
    subroutine filter_expressions(self)
-      class (type_model),intent(inout)           :: self
-      class (type_expression),           pointer :: current,previous,next
-      class (type_simple_depth_integral),pointer :: integral
-      logical                                    :: filter
+      class (type_model),intent(inout)    :: self
+      class (type_expression),    pointer :: current,previous,next
+      class (type_depth_integral),pointer :: integral
+      logical                             :: filter
 
       nullify(previous)
       current => self%root%first_expression
@@ -585,8 +598,6 @@
          filter = .false.
          select type (current)
             class is (type_vertical_integral)
-#ifndef _FABM_DEPTH_DIMENSION_INDEX_
-               ! For models without depth dimension, FABM can calculate depth averages and integrals itself.
                allocate(integral)
                integral%minimum_depth = current%minimum_depth
                integral%maximum_depth = current%maximum_depth
@@ -595,7 +606,6 @@
                call integral%request_coupling(integral%id_input,current%input_name)
                call self%root%request_coupling(current%output_name,integral%id_output%link%target%name)
                filter = .true.
-#endif
          end select
 
          ! If FABM handles this expression internally, remove it from the list.
@@ -685,7 +695,6 @@
    real(rk),optional,        intent(in)    :: seconds_per_time_unit
 !
 ! !LOCAL VARIABLES:
-  type (type_model_list_node), pointer :: node
   integer                              :: ivar,index
   class (type_expression),pointer      :: expression
   type (type_link),pointer             :: link
@@ -708,6 +717,22 @@
    allocate(self%zero_hz _INDEX_HORIZONTAL_LOCATION_)
    self%zero_hz = 0.0_rk
    call self%link_horizontal_data('zero_hz',self%zero_hz)
+
+   call append_to_call_list(self%do_interior_environment,self%links_postcoupling,source_do,(/source_do/))
+   call append_to_call_list(self%do_surface_environment,self%links_postcoupling,source_do_surface,(/source_do_surface,source_unknown,source_do_horizontal/))
+   call append_to_call_list(self%do_surface_environment,self%links_postcoupling,source_unknown,(/source_do_surface,source_unknown,source_do_horizontal/))
+   call append_to_call_list(self%do_surface_environment,self%links_postcoupling,source_do_horizontal,(/source_do_surface,source_unknown,source_do_horizontal/))
+   call append_to_call_list(self%do_bottom_environment,self%links_postcoupling,source_do_bottom,(/source_do_bottom,source_unknown,source_do_horizontal/))
+   call append_to_call_list(self%do_bottom_environment,self%links_postcoupling,source_unknown,(/source_do_bottom,source_unknown,source_do_horizontal/))
+   call append_to_call_list(self%get_light_environment,self%links_postcoupling,source_do_column,(/source_do_column/))
+   call append_to_call_list(self%get_light_extinction_environment,self%links_postcoupling,source_do_column,(/source_do_column,source_do/))
+   call self%get_light_extinction_environment%call_list%filter(source_do_column)
+   !call self%get_light_extinction_environment%call_list%print()
+   do ivar=1,size(self%conserved_quantities)
+      call append_variable_to_call_list(self%get_conserved_quantities_environment,self%conserved_quantities(ivar)%target,source_do,(/source_do/))
+      call append_variable_to_call_list(self%get_horizontal_conserved_quantities_environment,self%conserved_quantities(ivar)%target_hz,source_do_horizontal,(/source_do_bottom,source_unknown,source_do_horizontal/))
+   end do
+   call append_variable_to_call_list(self%get_light_extinction_environment,self%extinction_target,source_do,(/source_do/))
 
    ! Merge diagnostic variables that contribute to the same sink/source terms,
    ! surface fluxes, bottom fluxes, provided no other variables depend on them.
@@ -737,6 +762,7 @@
       call copy_write_indices(self%state_variables(ivar)%target%sms_list,         self%state_variables(ivar)%sms_indices)
       call copy_write_indices(self%state_variables(ivar)%target%surface_flux_list,self%state_variables(ivar)%surface_flux_indices)
       call copy_write_indices(self%state_variables(ivar)%target%bottom_flux_list, self%state_variables(ivar)%bottom_flux_indices)
+      self%state_variables(ivar)%movement_index = self%state_variables(ivar)%target%movement_diagnostic%target%write_indices%value
    end do
    do ivar=1,size(self%surface_state_variables)
       call copy_write_indices(self%surface_state_variables(ivar)%target%sms_list, self%surface_state_variables(ivar)%sms_indices)
@@ -746,23 +772,24 @@
    end do
 
    ! Flag all scratch variables that require zeroing before calling biogeochemical models
-   allocate(self%do_interior_environment%zero(self%nscratch))
-   allocate(self%do_surface_environment%zero(self%nscratch_hz))
-   allocate(self%do_bottom_environment%zero(self%nscratch_hz))
-   self%do_interior_environment%zero = .false.
-   self%do_surface_environment%zero = .false.
-   self%do_bottom_environment%zero = .false.
+   call initialize_prefill(self%do_interior_environment,self%nscratch,self%links_postcoupling,source_do,domain_bulk)
+   call initialize_prefill(self%do_surface_environment,self%nscratch_hz,self%links_postcoupling,source_do_surface,domain_horizontal)
+   call initialize_prefill(self%do_bottom_environment,self%nscratch_hz,self%links_postcoupling,source_do_bottom,domain_horizontal)
+   call initialize_prefill(self%get_vertical_movement_environment,self%nscratch,self%links_postcoupling,source_get_vertical_movement,domain_bulk)
+   call initialize_prefill(self%get_conserved_quantities_environment,self%nscratch,self%links_postcoupling,source_do,domain_bulk)
+   call initialize_prefill(self%get_horizontal_conserved_quantities_environment,self%nscratch_hz,self%links_postcoupling,source_do_bottom,domain_horizontal)
+   call initialize_prefill(self%get_light_extinction_environment,self%nscratch,self%links_postcoupling,source_do,domain_bulk)
    link => self%links_postcoupling%first
    do while (associated(link))
       select case (link%target%domain)
          case (domain_bulk)
-            call flag_write_indices(link%target%sms_list,         self%do_interior_environment%zero)
-            call flag_write_indices(link%target%bottom_flux_list, self%do_bottom_environment%zero)
-            call flag_write_indices(link%target%surface_flux_list,self%do_surface_environment%zero)
+            call flag_write_indices(self%do_interior_environment, link%target%sms_list)
+            call flag_write_indices(self%do_bottom_environment,   link%target%bottom_flux_list)
+            call flag_write_indices(self%do_surface_environment,  link%target%surface_flux_list)
          case (domain_bottom)
-            call flag_write_indices(link%target%sms_list,self%do_bottom_environment%zero)
+            call flag_write_indices(self%do_bottom_environment, link%target%sms_list)
          case (domain_surface)
-            call flag_write_indices(link%target%sms_list,self%do_surface_environment%zero)
+            call flag_write_indices(self%do_surface_environment, link%target%sms_list)
       end select
       link => link%next
    end do
@@ -771,8 +798,14 @@
    nsave = 0
    do ivar=1,size(self%diagnostic_variables)
       if (self%diagnostic_variables(ivar)%save.or.self%diagnostic_variables(ivar)%target%read_indices%value/=-1) then
+         ! This diagnostic must be saved for any of the following reasons:
+         ! (1) the user requested it, (2) another model needs it.
          nsave = nsave + 1
          self%diagnostic_variables(ivar)%save_index = nsave
+
+         ! Store index at which data will be saved, so we can access it when prefilling.
+         index = self%diagnostic_variables(ivar)%target%write_indices%value
+         self%do_interior_environment%prefill_index(index) = nsave
       end if
    end do
    allocate(self%diag(_PREARG_LOCATION_ 0:nsave))
@@ -782,65 +815,29 @@
    nsave_hz = 0
    do ivar=1,size(self%horizontal_diagnostic_variables)
       if (self%horizontal_diagnostic_variables(ivar)%save.or.self%horizontal_diagnostic_variables(ivar)%target%read_indices%value/=-1) then
+         ! This diagnostic must be saved for any of the following reasons:
+         ! (1) the user requested it, (2) another model needs it.
          nsave_hz = nsave_hz + 1
          self%horizontal_diagnostic_variables(ivar)%save_index = nsave_hz
+
+         ! Store index at which data will be saved, so we can access it when prefilling.
+         index = self%horizontal_diagnostic_variables(ivar)%target%write_indices%value
+         self%do_bottom_environment%prefill_index (index) = nsave_hz
+         self%do_surface_environment%prefill_index(index) = nsave_hz
       end if
    end do
    allocate(self%diag_hz(_PREARG_HORIZONTAL_LOCATION_ 0:nsave_hz))
    self%diag_hz = 0.0_rk
 
-   ! Create array with missing values for all stored interior diagnostics
+   ! Create arrays with missing values for all stored diagnostics (used as fill value for masked cells)
    allocate(self%diag_missing_value(nsave))
-   do ivar=1,size(self%diagnostic_variables)
-      if (self%diagnostic_variables(ivar)%save_index>0) &
-         self%diag_missing_value(self%diagnostic_variables(ivar)%save_index) = self%diagnostic_variables(ivar)%missing_value
-   end do
-
-   ! Create array with missing values for all stored horizontal diagnostics
    allocate(self%diag_hz_missing_value(nsave_hz))
-   do ivar=1,size(self%horizontal_diagnostic_variables)
-      if (self%horizontal_diagnostic_variables(ivar)%save_index>0) &
-         self%diag_hz_missing_value(self%horizontal_diagnostic_variables(ivar)%save_index) = self%horizontal_diagnostic_variables(ivar)%missing_value
-   end do
-
-   ! For each saved scratch variable, store its scratch index where the data can be found.
-   allocate(self%do_interior_environment%save_sources(nsave))
-   allocate(self%do_bottom_environment%save_sources_hz(nsave_hz))
-   allocate(self%do_surface_environment%save_sources_hz(nsave_hz))
-   allocate(self%get_light_environment%save_sources(nsave))
-   allocate(self%get_light_environment%save_sources_hz(nsave_hz))
-   self%do_interior_environment%save_sources = -1
-   self%do_bottom_environment%save_sources_hz = -1
-   self%do_surface_environment%save_sources_hz = -1
-   self%get_light_environment%save_sources = -1
-   self%get_light_environment%save_sources_hz = -1
-   do ivar=1,size(self%diagnostic_variables)
-      if (self%diagnostic_variables(ivar)%save_index>0) then
-         if (self%diagnostic_variables(ivar)%source==source_do) &
-            self%do_interior_environment%save_sources(self%diagnostic_variables(ivar)%save_index) = self%diagnostic_variables(ivar)%target%write_indices%value
-         if (self%diagnostic_variables(ivar)%source==source_do_column) &
-            self%get_light_environment%save_sources(self%diagnostic_variables(ivar)%save_index) = self%diagnostic_variables(ivar)%target%write_indices%value
-      end if
-   end do
-   do ivar=1,size(self%horizontal_diagnostic_variables)
-      if (self%horizontal_diagnostic_variables(ivar)%save_index>0) then
-         if (self%horizontal_diagnostic_variables(ivar)%source==source_do_surface.or.self%horizontal_diagnostic_variables(ivar)%source==source_unknown) &
-            self%do_surface_environment%save_sources_hz(self%horizontal_diagnostic_variables(ivar)%save_index) = self%horizontal_diagnostic_variables(ivar)%target%write_indices%value
-         if (self%horizontal_diagnostic_variables(ivar)%source==source_do_bottom.or.self%horizontal_diagnostic_variables(ivar)%source==source_unknown) &
-            self%do_bottom_environment%save_sources_hz(self%horizontal_diagnostic_variables(ivar)%save_index) = self%horizontal_diagnostic_variables(ivar)%target%write_indices%value
-         if (self%horizontal_diagnostic_variables(ivar)%source==source_do_column) &
-            self%get_light_environment%save_sources_hz(self%horizontal_diagnostic_variables(ivar)%save_index) = self%horizontal_diagnostic_variables(ivar)%target%write_indices%value
-      end if
-   end do
-   allocate(self%do_interior_ppdd_environment%save_sources(nsave))
-   allocate(self%do_bottom_ppdd_environment%save_sources_hz(nsave_hz))
-   self%do_interior_ppdd_environment%save_sources(:) = self%do_interior_environment%save_sources
-   self%do_bottom_ppdd_environment%save_sources_hz(:) = self%do_bottom_environment%save_sources_hz
 
    ! Initialize diagnostic variables to missing value.
    do ivar=1,size(self%diagnostic_variables)
       index = self%diagnostic_variables(ivar)%save_index
       if (index>0) then
+         self%diag_missing_value(index) = self%diagnostic_variables(ivar)%missing_value
          self%diag(_PREARG_LOCATION_DIMENSIONS_ index) = self%diagnostic_variables(ivar)%missing_value
          call fabm_link_bulk_data(self,self%diagnostic_variables(ivar)%target, self%diag(_PREARG_LOCATION_DIMENSIONS_ index))
       end if
@@ -848,6 +845,7 @@
    do ivar=1,size(self%horizontal_diagnostic_variables)
       index = self%horizontal_diagnostic_variables(ivar)%save_index
       if (index>0) then
+         self%diag_hz_missing_value(index) = self%horizontal_diagnostic_variables(ivar)%missing_value
          self%diag_hz(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ index) = self%horizontal_diagnostic_variables(ivar)%missing_value
          call fabm_link_horizontal_data(self,self%horizontal_diagnostic_variables(ivar)%target, self%diag_hz(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ index))
       end if
@@ -873,6 +871,85 @@
          expression => expression%next
       end do
    end if
+
+   call initialize_settings(self%do_interior_environment)
+   call initialize_settings(self%do_surface_environment)
+   call initialize_settings(self%do_bottom_environment)
+   call initialize_settings(self%get_conserved_quantities_environment)
+   call initialize_settings(self%get_horizontal_conserved_quantities_environment)
+   call initialize_settings(self%get_light_extinction_environment)
+   call initialize_settings(self%get_light_environment)
+   call initialize_settings(self%get_vertical_movement_environment)
+
+   !call describe_environment_settings(self%get_light_environment)
+
+   if (allocated(self%do_interior_environment%save_sources)) then
+      allocate(self%do_interior_ppdd_environment%save_sources(nsave))
+      self%do_interior_ppdd_environment%save_sources(:) = self%do_interior_environment%save_sources
+   end if
+   if (allocated(self%do_bottom_environment%save_sources_hz)) then
+      allocate(self%do_bottom_ppdd_environment%save_sources_hz(nsave_hz))
+      self%do_bottom_ppdd_environment%save_sources_hz(:) = self%do_bottom_environment%save_sources_hz
+   end if
+
+   contains
+
+   subroutine describe_environment_settings(settings)
+      type (type_environment_settings), intent(in) :: settings
+
+      integer :: isave,ivar
+
+      if (allocated(settings%save_sources)) then
+         write (*,'(a)') 'The following variables will be saved to the interior diagnostic store:'
+         do isave=1,size(settings%save_sources)
+            if (settings%save_sources(isave)/=-1) then
+               do ivar=1,size(self%diagnostic_variables)
+                  if (self%diagnostic_variables(ivar)%save_index==isave) exit
+               end do
+               write (*,'(a)') '  '//trim(self%diagnostic_variables(ivar)%name) 
+            end if
+         end do
+      end if
+      if (allocated(settings%save_sources_hz)) then
+         write (*,'(a)') 'The following variables will be saved to the horizontal diagnostic store:'
+         do isave=1,size(settings%save_sources_hz)
+            if (settings%save_sources_hz(isave)/=-1) then
+               do ivar=1,size(self%horizontal_diagnostic_variables)
+                  if (self%horizontal_diagnostic_variables(ivar)%save_index==isave) exit
+               end do
+               write (*,'(a)') '  '//trim(self%horizontal_diagnostic_variables(ivar)%name) 
+            end if
+         end do
+      end if
+   end subroutine describe_environment_settings
+
+   subroutine initialize_settings(settings)
+      type (type_environment_settings), intent(inout) :: settings
+
+      integer :: ivar
+
+      allocate(settings%save_sources(nsave))
+      settings%save_sources = -1
+      do ivar=1,size(self%diagnostic_variables)
+         if (self%diagnostic_variables(ivar)%save_index>0) then
+            if (settings%call_list%computes(self%diagnostic_variables(ivar)%target)) &
+               settings%save_sources(self%diagnostic_variables(ivar)%save_index) = self%diagnostic_variables(ivar)%target%write_indices%value
+         end if
+      end do
+      if (all(settings%save_sources==-1)) deallocate(settings%save_sources)
+
+      allocate(settings%save_sources_hz(nsave_hz))
+      settings%save_sources_hz = -1
+      do ivar=1,size(self%horizontal_diagnostic_variables)
+         if (self%horizontal_diagnostic_variables(ivar)%save_index>0) then
+            if (settings%call_list%computes(self%horizontal_diagnostic_variables(ivar)%target)) &
+               settings%save_sources_hz(self%horizontal_diagnostic_variables(ivar)%save_index) = self%horizontal_diagnostic_variables(ivar)%target%write_indices%value
+         end if
+      end do
+      if (all(settings%save_sources_hz==-1)) deallocate(settings%save_sources_hz)
+
+      call settings%call_list%initialize()
+   end subroutine initialize_settings
 
    end subroutine fabm_set_domain
 !EOC
@@ -909,15 +986,18 @@
 ! !IROUTINE: Provide FABM with the spatial mask.
 !
 ! !INTERFACE:
-   subroutine fabm_set_mask(self, mask)
+#  ifdef _FABM_HORIZONTAL_MASK_
+   subroutine fabm_set_mask(self, mask_hz)
+#  else
+   subroutine fabm_set_mask(self, mask, mask_hz)
+#  endif
 !
 ! !INPUT PARAMETERS:
    class (type_model),target,intent(inout)                            :: self
-#ifdef _FABM_HORIZONTAL_MASK_
-   _FABM_MASK_TYPE_, target, intent(in) _DIMENSION_GLOBAL_HORIZONTAL_ :: mask
-#else
+#  ifndef _FABM_HORIZONTAL_MASK_
    _FABM_MASK_TYPE_, target, intent(in) _DIMENSION_GLOBAL_            :: mask
-#endif
+#  endif
+   _FABM_MASK_TYPE_, target, intent(in) _DIMENSION_GLOBAL_HORIZONTAL_ :: mask_hz
 !
 ! !LOCAL VARIABLES:
    integer :: i
@@ -925,40 +1005,66 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#ifdef _FABM_HORIZONTAL_MASK_
-#if !defined(NDEBUG)&&_HORIZONTAL_DIMENSION_COUNT_>0
-   do i=1,size(self%horizontal_domain_size)
-      if (size(mask,i)/=self%horizontal_domain_size(i)) &
-         call fatal_error('fabm_set_mask','dimensions of FABM domain and provided mask do not match.')
-   end do
-#endif
-#else
-#if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_>0
+#  ifndef _FABM_HORIZONTAL_MASK_
+#    if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_>0
    do i=1,size(self%domain_size)
       if (size(mask,i)/=self%domain_size(i)) &
          call fatal_error('fabm_set_mask','dimensions of FABM domain and provided mask do not match.')
    end do
-#endif
-#endif
-
+#    endif
    self%mask => mask
+#  endif
+
+#  if !defined(NDEBUG)&&_HORIZONTAL_DIMENSION_COUNT_>0
+   do i=1,size(self%horizontal_domain_size)
+      if (size(mask_hz,i)/=self%horizontal_domain_size(i)) &
+         call fatal_error('fabm_set_mask','dimensions of FABM domain and provided horizontal mask do not match.')
+   end do
+#  endif
+   self%mask_hz => mask_hz
 
    end subroutine fabm_set_mask
 !EOC
 #endif
 
-#if _FABM_BOTTOM_INDEX_==-1
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+#  if _FABM_BOTTOM_INDEX_==-0
 !-----------------------------------------------------------------------
 !BOP
 !
 ! !IROUTINE: Provide FABM with the vertical indices of bottommost cells.
 !
 ! !INTERFACE:
-   subroutine fabm_set_bottom_indices(self, indices)
+   subroutine fabm_set_bottom_index(self, index)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),target,intent(inout)                   :: self
-   integer, target, intent(in) _DIMENSION_GLOBAL_HORIZONTAL_ :: indices
+   class (type_model),target,intent(inout) :: self
+   integer,                  intent(in)    :: index
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   if (index<1) &
+      call fatal_error('set_bottom_index','provided index must equal or exceed 1.')
+   if (index>self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)) &
+      call fatal_error('set_bottom_index','provided index exceeds size of the depth dimension.')
+
+   self%bottom_index = index
+
+   end subroutine fabm_set_bottom_index
+!EOC
+#  elif _FABM_BOTTOM_INDEX_==-1
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide FABM with the vertical indices of bottommost cells.
+!
+! !INTERFACE:
+   subroutine fabm_set_bottom_index(self, indices)
+!
+! !INPUT PARAMETERS:
+   class (type_model),target,intent(inout)                            :: self
+   integer,           target,intent(in) _DIMENSION_GLOBAL_HORIZONTAL_ :: indices
 !
 ! !LOCAL VARIABLES:
    integer :: i
@@ -966,16 +1072,42 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#if !defined(NDEBUG)&&_HORIZONTAL_DIMENSION_COUNT_>0
+#    if !defined(NDEBUG)&&_HORIZONTAL_DIMENSION_COUNT_>0
    do i=1,size(self%horizontal_domain_size)
       if (size(indices,i)/=self%horizontal_domain_size(i)) &
-         call fatal_error('fabm_set_bottom_indices','dimensions of FABM domain and provided index field do not match.')
+         call fatal_error('set_bottom_index','dimensions of FABM domain and provided index field do not match.')
    end do
-#endif
+#    endif
 
    self%bottom_indices => indices
 
-   end subroutine fabm_set_bottom_indices
+   end subroutine fabm_set_bottom_index
+!EOC
+#  endif
+
+!-----------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Provide FABM with the vertical indices of bottommost cells.
+!
+! !INTERFACE:
+   subroutine fabm_set_surface_index(self, index)
+!
+! !INPUT PARAMETERS:
+   class (type_model),target,intent(inout) :: self
+   integer,                  intent(in)    :: index
+!
+!EOP
+!-----------------------------------------------------------------------
+!BOC
+   if (index<1) &
+      call fatal_error('set_surface_index','provided index must equal or exceed 1.')
+   if (index>self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)) &
+      call fatal_error('set_surface_index','provided index exceeds size of the depth dimension.')
+
+   self%surface_index = index
+
+   end subroutine fabm_set_surface_index
 !EOC
 #endif
 
@@ -1000,8 +1132,32 @@
    ready = .true.
 
 #ifdef _HAS_MASK_
+#  ifndef _FABM_HORIZONTAL_MASK_
    if (.not.associated(self%mask)) then
-      call log_message('spatial mask has not been set.')
+      call log_message('spatial mask has not been set. Make sure to call fabm_set_mask.')
+      ready = .false.
+   end if
+#  endif
+   if (.not.associated(self%mask_hz)) then
+      call log_message('horizontal spatial mask has not been set. Make sure to call fabm_set_mask.')
+      ready = .false.
+   end if
+#endif
+
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+#  if _FABM_BOTTOM_INDEX_==0
+   if (self%bottom_index==-1) then
+      call log_message('bottom index has not been set. Make sure to call set_bottom_index.')
+      ready = .false.
+   end if
+#  elif _FABM_BOTTOM_INDEX_==-1
+   if (.not.associated(self%bottom_indices)) then
+      call log_message('bottom indices has not been set. Make sure to call set_bottom_index.')
+      ready = .false.
+   end if
+#  endif
+   if (self%surface_index==-1) then
+      call log_message('surface index has not been set. Make sure to call set_surface_index.')
       ready = .false.
    end if
 #endif
@@ -2021,7 +2177,7 @@ subroutine prefetch_interior(self,settings,environment _ARGUMENTS_INTERIOR_IN_)
    allocate(environment%mask(_N_))
    _DO_CONCURRENT_(_I_,1,_N_)
 #    ifdef _FABM_HORIZONTAL_MASK_
-      environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_HORIZONTAL_(loop_start+_I_-1))
+      environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask_hz _INDEX_GLOBAL_HORIZONTAL_(loop_start+_I_-1))
 #    else
       environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_INTERIOR_(loop_start+_I_-1))
 #    endif
@@ -2063,12 +2219,14 @@ subroutine prefetch_interior(self,settings,environment _ARGUMENTS_INTERIOR_IN_)
 #else
    allocate(environment%scratch(self%nscratch))
 #endif
-   if (allocated(settings%zero)) then
+   if (allocated(settings%prefill_type)) then
       do i=1,self%nscratch
-         if (settings%zero(i)) then
+         if (settings%prefill_type(i)==prefill_missing_value) then
             _CONCURRENT_LOOP_BEGIN_
-               environment%scratch _INDEX_SLICE_PLUS_1_(i) = 0.0_rk
+               environment%scratch _INDEX_SLICE_PLUS_1_(i) = settings%prefill_values(i)
             _LOOP_END_
+         elseif (settings%prefill_type(i)==prefill_previous_value) then
+            _PACK_GLOBAL_PLUS_1_(self%diag,settings%prefill_index(i),environment%scratch,i,environment%mask)
          end if
       end do
    end if
@@ -2088,15 +2246,62 @@ subroutine prefetch_horizontal(self,settings,environment _ARGUMENTS_HORIZONTAL_I
 #  ifdef _HAS_MASK_
    allocate(environment%mask(_N_))
    _DO_CONCURRENT_(_J_,1,_N_)
-#    ifdef _FABM_HORIZONTAL_MASK_
-      environment%mask _INDEX_HORIZONTAL_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_HORIZONTAL_(loop_start+_J_-1))
-#    else
-      environment%mask _INDEX_HORIZONTAL_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_INTERIOR_(loop_start+_J_-1))
-#    endif
+      environment%mask _INDEX_HORIZONTAL_SLICE_ = _IS_UNMASKED_(self%mask_hz _INDEX_GLOBAL_HORIZONTAL_(loop_start+_J_-1))
    end do
    _N_ = count(environment%mask)
 #  endif
 #endif
+
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+   allocate(environment%prefetch_hz(_N_,size(self%data_hz)))
+#else
+   allocate(environment%prefetch_hz(size(self%data_hz)))
+#endif
+   do i=1,size(self%data_hz)
+      if (associated(self%data_hz(i)%p)) then
+         _HORIZONTAL_PACK_GLOBAL_(self%data_hz(i)%p,environment%prefetch_hz,i,environment%mask)
+      end if
+   end do
+
+   ! Prefetch global scalars
+   allocate(environment%prefetch_scalar(size(self%data_scalar)))
+   do i=1,size(self%data_scalar)
+      if (associated(self%data_scalar(i)%p)) environment%prefetch_scalar(i) = self%data_scalar(i)%p
+   end do
+
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+   allocate(environment%scratch_hz(_N_,self%nscratch_hz))
+#else
+   allocate(environment%scratch_hz(self%nscratch_hz))
+#endif
+   if (allocated(settings%prefill_type)) then
+      do i=1,self%nscratch_hz
+         if (settings%prefill_type(i)==prefill_missing_value) then
+            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+               environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = settings%prefill_values(i)
+            _HORIZONTAL_LOOP_END_
+         elseif (settings%prefill_type(i)==prefill_previous_value) then
+            _HORIZONTAL_PACK_GLOBAL_PLUS_1_(self%diag_hz,settings%prefill_index(i),environment%scratch_hz,i,environment%mask)
+         end if
+      end do
+   end if
+end subroutine prefetch_horizontal
+
+subroutine prefetch_surface(self,settings,environment _ARGUMENTS_HORIZONTAL_IN_)
+   type (type_model),               intent(inout) :: self
+   type (type_environment_settings),intent(in)    :: settings
+   type (type_environment),         intent(out)   :: environment
+   _DECLARE_ARGUMENTS_HORIZONTAL_IN_
+   _DECLARE_HORIZONTAL_INDICES_
+
+   integer :: i
+
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+   integer :: _VERTICAL_ITERATOR_
+   _VERTICAL_ITERATOR_ = self%surface_index
+#endif
+
+   call prefetch_horizontal(self,settings,environment _ARGUMENTS_HORIZONTAL_IN_)
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
    allocate(environment%prefetch(_N_,size(self%data)))
@@ -2122,39 +2327,74 @@ subroutine prefetch_horizontal(self,settings,environment _ARGUMENTS_HORIZONTAL_I
 #endif
       end if
    end do
+end subroutine prefetch_surface
+   
+subroutine prefetch_bottom(self,settings,environment _ARGUMENTS_HORIZONTAL_IN_)
+   type (type_model),               intent(inout) :: self
+   type (type_environment_settings),intent(in)    :: settings
+   type (type_environment),         intent(out)   :: environment
+   _DECLARE_ARGUMENTS_HORIZONTAL_IN_
+   _DECLARE_HORIZONTAL_INDICES_
+
+   integer :: i
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+   integer :: _VERTICAL_ITERATOR_
+#endif
+#if _FABM_BOTTOM_INDEX_==-1
+   integer :: j
+#endif
+
+   call prefetch_horizontal(self,settings,environment _ARGUMENTS_HORIZONTAL_IN_)
+
+#if defined(_FABM_DEPTH_DIMENSION_INDEX_)&&_FABM_BOTTOM_INDEX_==0
+   _VERTICAL_ITERATOR_ = self%bottom_index
+#endif
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-   allocate(environment%prefetch_hz(_N_,size(self%data_hz)))
+   allocate(environment%prefetch(_N_,size(self%data)))
+#elif defined(_INTERIOR_IS_VECTORIZED_)
+   allocate(environment%prefetch(1,size(self%data)))
 #else
-   allocate(environment%prefetch_hz(size(self%data_hz)))
+   allocate(environment%prefetch(size(self%data)))
 #endif
-   do i=1,size(self%data_hz)
-      if (associated(self%data_hz(i)%p)) then
-         _HORIZONTAL_PACK_GLOBAL_(self%data_hz(i)%p,environment%prefetch_hz,i,environment%mask)
+   do i=1,size(self%data)
+      if (associated(self%data(i)%p)) then
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+#  ifdef _HAS_MASK_
+#    if _FABM_BOTTOM_INDEX_==-1
+         j = 0
+         do _J_=1,loop_stop-loop_start+1
+            if (environment%mask(_J_)) then
+               _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(loop_start+_J_-1)
+               j = j + 1
+               environment%prefetch(j,i) = self%data(i)%p _INDEX_GLOBAL_INTERIOR_(loop_start+_J_-1)
+            end if
+         end do
+#    else
+         environment%prefetch(:,i) = pack(self%data(i)%p _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop),environment%mask)
+#    endif
+#  else
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+#    if _FABM_BOTTOM_INDEX_==-1
+            _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(loop_start+_J_-1)
+#    endif
+            environment%prefetch _INDEX_SLICE_PLUS_1_(i) = self%data(i)%p _INDEX_GLOBAL_INTERIOR_(loop_start+_I_-1)
+         _HORIZONTAL_LOOP_END_
+#  endif
+#elif defined(_INTERIOR_IS_VECTORIZED_)
+#  if _FABM_BOTTOM_INDEX_==-1
+         _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_HORIZONTAL_LOCATION_
+#  endif
+         environment%prefetch(1,i) = self%data(i)%p _INDEX_LOCATION_
+#else
+#  if _FABM_BOTTOM_INDEX_==-1
+         _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_HORIZONTAL_LOCATION_
+#  endif
+         environment%prefetch(i) = self%data(i)%p _INDEX_LOCATION_
+#endif
       end if
    end do
-
-   ! Prefetch global scalars
-   allocate(environment%prefetch_scalar(size(self%data_scalar)))
-   do i=1,size(self%data_scalar)
-      if (associated(self%data_scalar(i)%p)) environment%prefetch_scalar(i) = self%data_scalar(i)%p
-   end do
-
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-   allocate(environment%scratch_hz(_N_,self%nscratch_hz))
-#else
-   allocate(environment%scratch_hz(self%nscratch_hz))
-#endif
-   if (allocated(settings%zero)) then
-      do i=1,self%nscratch_hz
-         if (settings%zero(i)) then
-            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-               environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = 0.0_rk
-            _HORIZONTAL_LOOP_END_
-         end if
-      end do
-   end if
-end subroutine prefetch_horizontal
+end subroutine prefetch_bottom
 
 subroutine prefetch_vertical(self,settings,environment _ARGUMENTS_VERTICAL_IN_)
    type (type_model),               intent(inout) :: self
@@ -2171,7 +2411,7 @@ subroutine prefetch_vertical(self,settings,environment _ARGUMENTS_VERTICAL_IN_)
    allocate(environment%mask(_N_))
    _DO_CONCURRENT_(_I_,1,_N_)
 #    ifdef _FABM_HORIZONTAL_MASK_
-      environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_HORIZONTAL_LOCATION_)
+      environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask_hz _INDEX_HORIZONTAL_LOCATION_)
 #    else
       environment%mask _INDEX_SLICE_ = _IS_UNMASKED_(self%mask _INDEX_GLOBAL_VERTICAL_(loop_start+_I_-1))
 #    endif
@@ -2280,7 +2520,7 @@ subroutine deallocate_prefetch_horizontal(self,settings,environment _ARGUMENTS_H
 #ifdef _HAS_MASK_
    deallocate(environment%mask)
 #endif
-   deallocate(environment%prefetch)
+   if (allocated(environment%prefetch)) deallocate(environment%prefetch)
    deallocate(environment%prefetch_hz)
    deallocate(environment%prefetch_scalar)
    deallocate(environment%scratch_hz)
@@ -2346,6 +2586,10 @@ end subroutine deallocate_prefetch_vertical
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#ifndef NDEBUG
+   call check_interior_location(self _ARGUMENTS_INTERIOR_IN_,'fabm_initialize_state')
+#endif
+
    call prefetch_interior(self,self%generic_environment,environment _ARGUMENTS_INTERIOR_IN_)
 
    do ivar=1,size(self%state_variables)
@@ -2394,7 +2638,11 @@ end subroutine deallocate_prefetch_vertical
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call prefetch_horizontal(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+#ifndef NDEBUG
+   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_initialize_bottom_state')
+#endif
+
+   call prefetch_bottom(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
    ! Initialize bottom variables
    do ivar=1,size(self%bottom_state_variables)
@@ -2443,7 +2691,11 @@ end subroutine deallocate_prefetch_vertical
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call prefetch_horizontal(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+#ifndef NDEBUG
+   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_initialize_surface_state')
+#endif
+
+   call prefetch_surface(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
    ! Initialize surface variables
    do ivar=1,size(self%surface_state_variables)
@@ -2488,33 +2740,36 @@ end subroutine deallocate_prefetch_vertical
    real(rk) _DIMENSION_EXT_SLICE_PLUS_1_, intent(inout) :: dy
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment)              :: environment
-   type (type_model_list_node), pointer :: node
-   integer                              :: i,j,k
+   type (type_environment)             :: environment
+   type (type_call_list_node), pointer :: node
+   integer                             :: i,j,k
    _DECLARE_INTERIOR_INDICES_
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#if !defined(NDEBUG)&&defined(_FABM_VECTORIZED_DIMENSION_INDEX_)
-   if (size(dy,1)/=loop_stop-loop_start+1) &
-      call fatal_error('fabm_do_rhs','Size of first dimension of dy should match loop length.')
+#ifndef NDEBUG
+   call check_interior_location(self _ARGUMENTS_INTERIOR_IN_,'fabm_do_rhs')
+#  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
+   call check_extents_2d(dy,loop_stop-loop_start+1,size(self%state_variables),'fabm_do_rhs','dy','stop-start+1, # interior state variables')
+#  else
+   call check_extents_1d(dy,size(self%state_variables),'fabm_do_rhs','dy','# interior state variables')
+#  endif
 #endif
+
    call prefetch_interior(self,self%do_interior_environment,environment _ARGUMENTS_INTERIOR_IN_)
 
-   node => self%models%first
+   node => self%do_interior_environment%call_list%first
    do while (associated(node))
       call node%model%do(_ARGUMENTS_INTERIOR_)
 
       ! Copy newly written diagnostics to prefetch so consecutive models can use it.
-      do i=1,size(node%model%reused_diag)
-         if (node%model%reused_diag(i)%source==source_do) then
-            j = node%model%reused_diag(i)%read_index
-            k = node%model%reused_diag(i)%write_index
-            _CONCURRENT_LOOP_BEGIN_
-               environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
-            _LOOP_END_
-         end if
+      _DO_CONCURRENT_(i,1,size(node%copy_commands))
+         j = node%copy_commands(i)%read_index
+         k = node%copy_commands(i)%write_index
+         _CONCURRENT_LOOP_BEGIN_
+            environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
+         _LOOP_END_
       end do
 
       ! Move to next model
@@ -2559,11 +2814,15 @@ end subroutine deallocate_prefetch_vertical
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#if !defined(NDEBUG)&&defined(_FABM_VECTORIZED_DIMENSION_INDEX_)
-   if (size(pp,1)/=loop_stop-loop_start+1) &
-      call fatal_error('fabm_do_ppdd','Size of first dimension of pp should match loop length.')
-   if (size(dd,1)/=loop_stop-loop_start+1) &
-      call fatal_error('fabm_do_ppdd','Size of first dimension of dd should match loop length.')
+#ifndef NDEBUG
+   call check_interior_location(self _ARGUMENTS_INTERIOR_IN_,'fabm_do_ppdd')
+#  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
+   call check_extents_3d(pp,loop_stop-loop_start+1,size(self%state_variables),size(self%state_variables),'fabm_do_ppdd','pp','stop-start+1, # interior state variables, # interior state variables')
+   call check_extents_3d(dd,loop_stop-loop_start+1,size(self%state_variables),size(self%state_variables),'fabm_do_ppdd','dd','stop-start+1, # interior state variables, # interior state variables')
+#  else
+   call check_extents_2d(pp,size(self%state_variables),size(self%state_variables),'fabm_do_ppdd','pp','# interior state variables, # interior state variables')
+   call check_extents_2d(dd,size(self%state_variables),size(self%state_variables),'fabm_do_ppdd','dd','# interior state variables, # interior state variables')
+#  endif
 #endif
 
    call prefetch_interior(self,self%do_interior_ppdd_environment,environment _ARGUMENTS_INTERIOR_IN_)
@@ -2612,19 +2871,25 @@ end subroutine deallocate_prefetch_vertical
    type (type_model_list_node), pointer :: node
    real(rk)                             :: value,minimum,maximum
    character(len=256)                   :: err
+   logical                              :: set_interior
    _DECLARE_INTERIOR_INDICES_
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#ifndef NDEBUG
+   call check_interior_location(self _ARGUMENTS_INTERIOR_IN_,'fabm_check_state')
+#endif
+
    valid = .true.
+   set_interior = .false.
 
    call prefetch_interior(self,self%generic_environment,environment _ARGUMENTS_INTERIOR_IN_)
 
    ! Allow individual models to check their state for their custom constraints, and to perform custom repairs.
    node => self%models%first
    do while (associated(node) .and. valid)
-      call node%model%check_state(_ARGUMENTS_INTERIOR_,repair,valid)
+      call node%model%check_state(_ARGUMENTS_INTERIOR_,repair,valid,set_interior)
       if (.not. (valid .or. repair)) return
       node => node%next
    end do
@@ -2642,6 +2907,7 @@ end subroutine deallocate_prefetch_vertical
          if (value<minimum.or.value>maximum) valid = .false.
       _LOOP_END_
    end do
+
    if (.not.valid) then
 
    ! Check boundaries for pelagic state variables specified by the models.
@@ -2652,31 +2918,38 @@ end subroutine deallocate_prefetch_vertical
       minimum = self%state_variables(ivar)%minimum
       maximum = self%state_variables(ivar)%maximum
 
-      _LOOP_BEGIN_
-         value = environment%prefetch _INDEX_SLICE_PLUS_1_(read_index)
-         if (value<minimum) then
-            ! State variable value lies below prescribed minimum.
-            if (.not.repair) then
+      if (repair) then
+         _CONCURRENT_LOOP_BEGIN_
+            value = environment%prefetch _INDEX_SLICE_PLUS_1_(read_index)
+            environment%prefetch _INDEX_SLICE_PLUS_1_(read_index) = max(minimum,min(maximum,value))
+         _LOOP_END_
+      else
+         _LOOP_BEGIN_
+            value = environment%prefetch _INDEX_SLICE_PLUS_1_(read_index)
+            if (value<minimum) then
+               ! State variable value lies below prescribed minimum.
                write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ',trim(self%state_variables(ivar)%name), &
                                                           & ' below minimum value ',minimum
                call log_message(err)
                return
-            end if
-            environment%prefetch _INDEX_SLICE_PLUS_1_(read_index) = minimum
-         elseif (value>maximum) then
-            ! State variable value exceeds prescribed maximum.
-            if (.not.repair) then
+            elseif (value>maximum) then
+               ! State variable value exceeds prescribed maximum.
                write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ',trim(self%state_variables(ivar)%name), &
                                                           & ' above maximum value ',maximum
                call log_message(err)
                return
             end if
-            environment%prefetch _INDEX_SLICE_PLUS_1_(read_index) = maximum
-         end if
-      _LOOP_END_
-      _UNPACK_TO_GLOBAL_(environment%prefetch,read_index,self%data(read_index)%p,environment%mask,self%state_variables(ivar)%missing_value)
+         _LOOP_END_
+      end if
    end do
 
+   end if
+
+   if (set_interior.or..not.valid) then
+      do ivar=1,size(self%state_variables)
+         read_index = self%state_variables(ivar)%globalid%read_index
+         _UNPACK_TO_GLOBAL_(environment%prefetch,read_index,self%data(read_index)%p,environment%mask,self%state_variables(ivar)%missing_value)
+      end do
    end if
 
    call deallocate_prefetch(self,self%generic_environment,environment _ARGUMENTS_INTERIOR_IN_)
@@ -2698,11 +2971,19 @@ end subroutine deallocate_prefetch_vertical
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    logical,                intent(in)    :: repair
    logical,                intent(out)   :: valid
+
+   type (type_environment) :: environment
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call internal_check_horizontal_state(self _ARGUMENTS_HORIZONTAL_IN_,2,self%bottom_state_variables,repair,valid)
+#ifndef NDEBUG
+   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_check_bottom_state')
+#endif
+
+   call prefetch_bottom(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+
+   call internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTAL_IN_,2,self%bottom_state_variables,repair,valid)
 
    end subroutine fabm_check_bottom_state
 !EOC
@@ -2721,41 +3002,56 @@ end subroutine deallocate_prefetch_vertical
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    logical,                intent(in)    :: repair
    logical,                intent(out)   :: valid
+
+   type (type_environment) :: environment
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call internal_check_horizontal_state(self _ARGUMENTS_HORIZONTAL_IN_,1,self%info%surface_state_variables,repair,valid)
+#ifndef NDEBUG
+   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_check_surface_state')
+#endif
+
+   call prefetch_surface(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+
+   call internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTAL_IN_,1,self%info%surface_state_variables,repair,valid)
 
    end subroutine fabm_check_surface_state
 !EOC
 
-subroutine internal_check_horizontal_state(self _ARGUMENTS_HORIZONTAL_IN_,flag,state_variables,repair,valid)
+subroutine internal_check_horizontal_state(self,environment _ARGUMENTS_HORIZONTAL_IN_,flag,state_variables,repair,valid)
    class (type_model),                        intent(inout) :: self
+   type (type_environment),                   intent(inout) :: environment
    _DECLARE_ARGUMENTS_HORIZONTAL_IN_
    integer,                                   intent(in)    :: flag
    type (type_horizontal_state_variable_info),intent(inout) :: state_variables(:)
    logical,                                   intent(in)    :: repair
    logical,                                   intent(out)   :: valid
 
-   type (type_environment)              :: environment
    type (type_model_list_node), pointer :: node
    integer                              :: ivar,read_index
    real(rk)                             :: value,minimum,maximum
    character(len=256)                   :: err
    _DECLARE_HORIZONTAL_INDICES_
-
-   call prefetch_horizontal(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   logical                              :: set_horizontal,set_interior
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+   integer :: _VERTICAL_ITERATOR_
+#endif
+#if _FABM_BOTTOM_INDEX_==-1&&defined(_HORIZONTAL_IS_VECTORIZED_)&&defined(_HAS_MASK_)
+   integer :: j
+#endif
 
    valid = .true.
+   set_horizontal = .false.
+   set_interior = .false.
 
    ! Allow individual models to check their state for their custom constraints, and to perform custom repairs.
    node => self%models%first
    do while (associated(node) .and. valid)
       if (flag==1) then
-         call node%model%check_surface_state(_ARGUMENTS_HORIZONTAL_,repair,valid)
+         call node%model%check_surface_state(_ARGUMENTS_HORIZONTAL_,repair,valid,set_horizontal,set_interior)
       else
-         call node%model%check_bottom_state(_ARGUMENTS_HORIZONTAL_,repair,valid)
+         call node%model%check_bottom_state(_ARGUMENTS_HORIZONTAL_,repair,valid,set_horizontal,set_interior)
       end if
       if (.not. (valid .or. repair)) return
       node => node%next
@@ -2797,10 +3093,72 @@ subroutine internal_check_horizontal_state(self _ARGUMENTS_HORIZONTAL_IN_,flag,s
       _HORIZONTAL_LOOP_END_
    end do
 
-   do ivar=1,size(state_variables)
-      read_index = state_variables(ivar)%globalid%read_index
-      _HORIZONTAL_UNPACK_TO_GLOBAL_(environment%prefetch_hz,read_index,self%data_hz(read_index)%p,environment%mask,state_variables(ivar)%missing_value)
-   end do
+   if (set_horizontal.or..not.valid) then
+      do ivar=1,size(state_variables)
+         read_index = state_variables(ivar)%globalid%read_index
+         _HORIZONTAL_UNPACK_TO_GLOBAL_(environment%prefetch_hz,read_index,self%data_hz(read_index)%p,environment%mask,state_variables(ivar)%missing_value)
+      end do
+   end if
+
+   if (set_interior) then
+      ! One or more models have provided new values for an interior state variable [at the interface]
+
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+      if (flag==1) then
+         _VERTICAL_ITERATOR_ = self%surface_index
+      else
+#  if _FABM_BOTTOM_INDEX_==0
+        _VERTICAL_ITERATOR_ = self%bottom_index
+#  elif !defined(_HORIZONTAL_IS_VECTORIZED_)
+         _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_HORIZONTAL_LOCATION_
+#  endif
+      end if
+#endif
+
+      do ivar=1,size(self%state_variables)
+         read_index = self%state_variables(ivar)%globalid%read_index
+
+#if _FABM_BOTTOM_INDEX_==-1&&defined(_HORIZONTAL_IS_VECTORIZED_)
+      if (flag==1) then
+#endif
+
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+#  ifdef _HAS_MASK_
+         self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(loop_start:loop_stop) = unpack(environment%prefetch(:,read_index),environment%mask,self%state_variables(ivar)%missing_value)
+#  else
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+            self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(loop_start+_I_-1) = environment%prefetch _INDEX_SLICE_PLUS_1_(read_index)
+         _HORIZONTAL_LOOP_END_
+#  endif
+#elif defined(_INTERIOR_IS_VECTORIZED_)
+         self%data(read_index)%p _INDEX_LOCATION_ = environment%prefetch(1,read_index)
+#else
+         self%data(read_index)%p _INDEX_LOCATION_ = environment%prefetch(read_index)
+#endif
+
+#if _FABM_BOTTOM_INDEX_==-1&&defined(_HORIZONTAL_IS_VECTORIZED_)
+      else
+         ! Special case for bottom if vertical index of bottom point is variable.
+#  ifdef _HAS_MASK_
+         j = 0
+         do _J_=1,loop_stop-loop_start+1
+            if (environment%mask(_J_)) then
+               _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(loop_start+_J_-1)
+               j = j + 1
+               self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(loop_start+_J_-1) = environment%prefetch(j,read_index)
+            end if
+         end do
+#  else
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+            _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(loop_start+_J_-1)
+            self%data(read_index)%p _INDEX_GLOBAL_INTERIOR_(loop_start+_I_-1) = environment%prefetch _INDEX_SLICE_PLUS_1_(read_index)
+         _HORIZONTAL_LOOP_END_
+#  endif
+   end if
+#endif
+
+      end do
+   end if
 
    call deallocate_prefetch_horizontal(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
@@ -2825,39 +3183,42 @@ end subroutine internal_check_horizontal_state
       real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(out),optional :: flux_sf
 !
 ! !LOCAL PARAMETERS:
-      type (type_environment)              :: environment
-      type (type_model_list_node), pointer :: node
-      integer                              :: i,j,k
+      type (type_environment)             :: environment
+      type (type_call_list_node), pointer :: node
+      integer                             :: i,j,k
       _DECLARE_HORIZONTAL_INDICES_
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-      call prefetch_horizontal(self,self%do_surface_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+#ifndef NDEBUG
+   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_do_surface')
+#  ifdef _HORIZONTAL_IS_VECTORIZED_
+   call check_extents_2d(flux_pel,loop_stop-loop_start+1,size(self%state_variables),'fabm_do_surface','flux_pel','stop-start+1, # interior state variables')
+   if (present(flux_sf)) call check_extents_2d(flux_sf,loop_stop-loop_start+1,size(self%surface_state_variables),'fabm_do_surface','flux_sf','stop-start+1, # surface state variables')
+#  else
+   call check_extents_1d(flux_pel,size(self%state_variables),'fabm_do_surface','flux_pel','# interior state variables')
+   if (present(flux_sf)) call check_extents_1d(flux_sf,size(self%surface_state_variables),'fabm_do_surface','flux_sf','# surface state variables')
+#  endif
+#endif
 
-      ! Copy the value of any horizontal diagnostics kept in global store to scratch space.
-      ! This is needed to preserve the value of bottom diagnostics.
-      do i=1,size(self%horizontal_diagnostic_variables)
-         k = self%horizontal_diagnostic_variables(i)%save_index
-         if (k/=0.and.self%horizontal_diagnostic_variables(i)%source==source_unknown) then
-            j = self%horizontal_diagnostic_variables(i)%target%write_indices%value
-            _HORIZONTAL_PACK_GLOBAL_PLUS_1_(self%diag_hz,k,environment%scratch_hz,j,environment%mask)
-         end if
-      end do
+      call prefetch_surface(self,self%do_surface_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
-      node => self%models%first
+      node => self%do_surface_environment%call_list%first
       do while (associated(node))
-         call node%model%do_surface(_ARGUMENTS_HORIZONTAL_)
+         if (node%source==source_do_horizontal) then
+            call node%model%do_horizontal(_ARGUMENTS_HORIZONTAL_)
+         else
+            call node%model%do_surface(_ARGUMENTS_HORIZONTAL_)
+         end if
 
          ! Copy newly written diagnostics to prefetch
-         do i=1,size(node%model%reused_diag_hz)
-            if (node%model%reused_diag_hz(i)%source==source_do_surface.or.node%model%reused_diag_hz(i)%source==source_unknown) then
-               j = node%model%reused_diag_hz(i)%read_index
-               k = node%model%reused_diag_hz(i)%write_index
-               _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-                  environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
-               _HORIZONTAL_LOOP_END_
-            end if
+         _DO_CONCURRENT_(i,1,size(node%copy_commands))
+            j = node%copy_commands(i)%read_index
+            k = node%copy_commands(i)%write_index
+            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+               environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
+            _HORIZONTAL_LOOP_END_
          end do
 
          node => node%next
@@ -2908,39 +3269,42 @@ end subroutine internal_check_horizontal_state
    real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(inout) :: flux_pel,flux_ben
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment)              :: environment
-   type (type_model_list_node), pointer :: node
-   integer                              :: i,j,k
+   type (type_environment)             :: environment
+   type (type_call_list_node), pointer :: node
+   integer                             :: i,j,k
    _DECLARE_HORIZONTAL_INDICES_
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call prefetch_horizontal(self,self%do_bottom_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+#ifndef NDEBUG
+   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_do_bottom_rhs')
+#  ifdef _HORIZONTAL_IS_VECTORIZED_
+   call check_extents_2d(flux_pel,loop_stop-loop_start+1,size(self%state_variables),'fabm_do_bottom_rhs','flux_pel','stop-start+1, # interior state variables')
+   call check_extents_2d(flux_ben,loop_stop-loop_start+1,size(self%bottom_state_variables),'fabm_do_bottom_rhs','flux_ben','stop-start+1, # bottom state variables')
+#  else
+   call check_extents_1d(flux_pel,size(self%state_variables),'fabm_do_bottom_rhs','flux_pel','# interior state variables')
+   call check_extents_1d(flux_ben,size(self%bottom_state_variables),'fabm_do_bottom_rhs','flux_ben','# bottom state variables')
+#  endif
+#endif
 
-   ! Copy the value of any horizontal diagnostics kept in global store to scratch space.
-   ! This is needed to preserve the value of surface diagnostics.
-   do i=1,size(self%horizontal_diagnostic_variables)
-      k = self%horizontal_diagnostic_variables(i)%save_index
-      if (k/=0.and.self%horizontal_diagnostic_variables(i)%source==source_unknown) then
-         j = self%horizontal_diagnostic_variables(i)%target%write_indices%value
-         _HORIZONTAL_PACK_GLOBAL_PLUS_1_(self%diag_hz,k,environment%scratch_hz,j,environment%mask)
-      end if
-   end do
+   call prefetch_bottom(self,self%do_bottom_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
-   node => self%models%first
+   node => self%do_bottom_environment%call_list%first
    do while (associated(node))
-      call node%model%do_bottom(_ARGUMENTS_HORIZONTAL_)
+      if (node%source==source_do_horizontal) then
+         call node%model%do_horizontal(_ARGUMENTS_HORIZONTAL_)
+      else
+         call node%model%do_bottom(_ARGUMENTS_HORIZONTAL_)
+      end if
 
       ! Copy newly written diagnostics to prefetch
-      do i=1,size(node%model%reused_diag_hz)
-         if (node%model%reused_diag_hz(i)%source==source_do_bottom.or.node%model%reused_diag_hz(i)%source==source_unknown) then
-            j = node%model%reused_diag_hz(i)%read_index
-            k = node%model%reused_diag_hz(i)%write_index
-            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-               environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
-            _HORIZONTAL_LOOP_END_
-         end if
+      _DO_CONCURRENT_(i,1,size(node%copy_commands))
+         j = node%copy_commands(i)%read_index
+         k = node%copy_commands(i)%write_index
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+            environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
+         _HORIZONTAL_LOOP_END_
       end do
 
       node => node%next
@@ -2995,17 +3359,11 @@ end subroutine internal_check_horizontal_state
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call prefetch_horizontal(self,self%do_bottom_ppdd_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+#ifndef NDEBUG
+   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_do_bottom_ppdd')
+#endif
 
-   ! Copy the value of any horizontal diagnostics kept in global store to scratch space.
-   ! This is needed to preserve the value of surface diagnostics.
-   do i=1,size(self%horizontal_diagnostic_variables)
-      k = self%horizontal_diagnostic_variables(i)%save_index
-      if (k/=0.and.self%horizontal_diagnostic_variables(i)%source==source_unknown) then
-         j = self%horizontal_diagnostic_variables(i)%target%write_indices%value
-         _HORIZONTAL_PACK_GLOBAL_PLUS_1_(self%diag_hz,k,environment%scratch_hz,j,environment%mask)
-      end if
-   end do
+   call prefetch_bottom(self,self%do_bottom_ppdd_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
    node => self%models%first
    do while (associated(node))
@@ -3045,58 +3403,42 @@ end subroutine internal_check_horizontal_state
    _DECLARE_ARGUMENTS_INTERIOR_IN_
 !
 ! !INPUT/OUTPUT PARAMETERS:
-   real(rk) _DIMENSION_EXT_SLICE_PLUS_1_,intent(out)  :: velocity
+   real(rk) _DIMENSION_EXT_SLICE_PLUS_1_,intent(out) :: velocity
 !
 ! !LOCAL PARAMETERS:
    type (type_environment)              :: environment
    type (type_model_list_node), pointer :: node
-   integer                              :: i
+   integer                              :: i,k
    _DECLARE_INTERIOR_INDICES_
-#ifdef _HAS_MASK_
-   real(rk),allocatable :: packed_velocity(:,:)
-#endif
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#if !defined(NDEBUG)&&defined(_FABM_VECTORIZED_DIMENSION_INDEX_)
-   if (size(velocity,1)/=loop_stop-loop_start+1) &
-      call fatal_error('fabm_get_vertical_movement','Size of first dimension of velocity should match loop length.')
+#ifndef NDEBUG
+   call check_interior_location(self _ARGUMENTS_INTERIOR_IN_,'fabm_get_vertical_movement')
+#  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
+   call check_extents_2d(velocity,loop_stop-loop_start+1,size(self%state_variables),'fabm_get_vertical_movement','velocity','stop-start+1, # interior state variables')
+#  else
+   call check_extents_1d(velocity,size(self%state_variables),'fabm_get_vertical_movement','velocity','# interior state variables')
+#  endif
 #endif
 
-   call prefetch_interior(self,self%generic_environment,environment _ARGUMENTS_INTERIOR_IN_)
-
-#ifdef _HAS_MASK_
-   allocate(packed_velocity(_N_,size(self%state_variables)))
-#  define _VELOCITY_ packed_velocity
-#else
-#  define _VELOCITY_ velocity
-#endif
-
-   ! First set constant sinking rates.
-   do i=1,size(self%state_variables)
-      ! Use variable-specific constant vertical velocities.
-      ! Automatic vectorization by compiler is possible without further modification (ifort 14.0, 2013-12-06)
-      _CONCURRENT_LOOP_BEGIN_
-         _VELOCITY_ _INDEX_EXT_SLICE_PLUS_1_(i) = self%state_variables(i)%vertical_movement
-      _LOOP_END_
-   end do
+   call prefetch_interior(self,self%get_vertical_movement_environment,environment _ARGUMENTS_INTERIOR_IN_)
 
    ! Now allow models to overwrite with spatially-varying sinking rates - if any.
    node => self%models%first
    do while (associated(node))
-      call node%model%get_vertical_movement(_ARGUMENTS_INTERIOR_,_VELOCITY_)
+      call node%model%get_vertical_movement(_ARGUMENTS_INTERIOR_)
       node => node%next
    end do
 
-#ifdef _HAS_MASK_
+   ! Compose total sources-sinks for each state variable, combining model-specific contributions.
    do i=1,size(self%state_variables)
-      _UNPACK_TO_PLUS_1_(packed_velocity,i,velocity,i,environment%mask,0.0_rk)
+      k = self%state_variables(i)%movement_index
+      _UNPACK_TO_PLUS_1_(environment%scratch,k,velocity,i,environment%mask,0.0_rk)
    end do
-#endif
-#undef _VELOCITY_
 
-   call deallocate_prefetch(self,self%generic_environment,environment _ARGUMENTS_INTERIOR_IN_)
+   call deallocate_prefetch(self,self%get_vertical_movement_environment,environment _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_get_vertical_movement
 !EOC
@@ -3111,40 +3453,40 @@ end subroutine internal_check_horizontal_state
    subroutine fabm_get_light_extinction(self _ARGUMENTS_INTERIOR_IN_,extinction)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),        intent(inout) :: self
+   class (type_model),            intent(inout) :: self
    _DECLARE_ARGUMENTS_INTERIOR_IN_
    real(rk) _DIMENSION_EXT_SLICE_,intent(out)   :: extinction
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment)              :: environment
-   type (type_model_list_node), pointer :: node
-   integer                              :: i,j,k
+   type (type_environment)             :: environment
+   type (type_call_list_node), pointer :: node
+   integer                             :: i,j,k
    _DECLARE_INTERIOR_INDICES_
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-#if !defined(NDEBUG)&&defined(_FABM_VECTORIZED_DIMENSION_INDEX_)
-   if (size(extinction,1)/=loop_stop-loop_start+1) &
-      call fatal_error('fabm_get_light_extinction','Size of first dimension of extinction should match loop length.')
+#ifndef NDEBUG
+   call check_interior_location(self _ARGUMENTS_INTERIOR_IN_,'fabm_get_light_extinction')
+#  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
+   call check_extents_1d(extinction,loop_stop-loop_start+1,'fabm_get_light_extinction','extinction','stop-start+1')
+#  endif
 #endif
 
-   call prefetch_interior(self,self%generic_environment,environment _ARGUMENTS_INTERIOR_IN_)
+   call prefetch_interior(self,self%get_light_extinction_environment,environment _ARGUMENTS_INTERIOR_IN_)
 
    ! Call all models that calculate extinction components to make sure the extinction diagnostic is up to date.
-   node => self%extinction_call_list%first
+   node => self%get_light_extinction_environment%call_list%first
    do while (associated(node))
       call node%model%do(_ARGUMENTS_INTERIOR_)
 
       ! Copy newly written diagnostics to prefetch so consecutive models can use it.
-      do i=1,size(node%model%reused_diag)
-         if (node%model%reused_diag(i)%source==source_do) then
-            j = node%model%reused_diag(i)%read_index
-            k = node%model%reused_diag(i)%write_index
-            _CONCURRENT_LOOP_BEGIN_
-               environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
-            _LOOP_END_
-         end if
+      _DO_CONCURRENT_(i,1,size(node%copy_commands))
+         j = node%copy_commands(i)%read_index
+         k = node%copy_commands(i)%write_index
+         _CONCURRENT_LOOP_BEGIN_
+            environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
+         _LOOP_END_
       end do
 
       ! Move to next model
@@ -3153,7 +3495,7 @@ end subroutine internal_check_horizontal_state
 
    _UNPACK_(environment%prefetch,self%extinction_index,extinction,environment%mask,0.0_rk)
 
-   call deallocate_prefetch(self,self%generic_environment,environment _ARGUMENTS_INTERIOR_IN_)
+   call deallocate_prefetch(self,self%get_light_extinction_environment,environment _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_get_light_extinction
 !EOC
@@ -3171,19 +3513,33 @@ end subroutine internal_check_horizontal_state
    _DECLARE_ARGUMENTS_VERTICAL_IN_
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment)              :: environment
-   type (type_model_list_node), pointer :: node
-   integer                              :: i,j,k
+   type (type_environment)             :: environment
+   type (type_call_list_node), pointer :: node
    _DECLARE_VERTICAL_INDICES_
+   integer :: i,j,k
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+#ifndef NDEBUG
+   call check_vertical_location(self _ARGUMENTS_VERTICAL_IN_,'fabm_get_light')
+#endif
+
    call prefetch_vertical(self,self%get_light_environment,environment _ARGUMENTS_VERTICAL_IN_)
 
-   node => self%models%first
+   node => self%get_light_environment%call_list%first
    do while (associated(node))
       call node%model%get_light(_ARGUMENTS_VERTICAL_)
+
+      ! Copy newly written diagnostics to prefetch so consecutive models can use it.
+      _DO_CONCURRENT_(i,1,size(node%copy_commands))
+         j = node%copy_commands(i)%read_index
+         k = node%copy_commands(i)%write_index
+         _CONCURRENT_VERTICAL_LOOP_BEGIN_
+            environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
+         _VERTICAL_LOOP_END_
+      end do
+
       node => node%next
    end do
 
@@ -3215,7 +3571,14 @@ end subroutine internal_check_horizontal_state
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call prefetch_horizontal(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+#ifndef NDEBUG
+   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_get_drag')
+#  ifdef _HORIZONTAL_IS_VECTORIZED_
+   call check_extents_1d(drag,loop_stop-loop_start+1,'fabm_get_drag','drag','stop-start+1')
+#  endif
+#endif
+
+   call prefetch_surface(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
    drag = 1.0_rk
    node => self%models%first
@@ -3251,7 +3614,14 @@ end subroutine internal_check_horizontal_state
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call prefetch_horizontal(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+#ifndef NDEBUG
+   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_get_albedo')
+#  ifdef _HORIZONTAL_IS_VECTORIZED_
+   call check_extents_1d(albedo,loop_stop-loop_start+1,'fabm_get_albedo','albedo','stop-start+1')
+#  endif
+#endif
+
+   call prefetch_surface(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
    albedo = 0.0_rk
    node => self%models%first
@@ -3274,34 +3644,41 @@ end subroutine internal_check_horizontal_state
    subroutine fabm_get_conserved_quantities(self _ARGUMENTS_INTERIOR_IN_,sums)
 !
 ! !INPUT PARAMETERS:
-   class (type_model),               intent(inout) :: self
+   class (type_model),                   intent(inout) :: self
    _DECLARE_ARGUMENTS_INTERIOR_IN_
    real(rk) _DIMENSION_EXT_SLICE_PLUS_1_,intent(out)   :: sums
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment)              :: environment
-   type (type_model_list_node), pointer :: node
+   type (type_environment)             :: environment
+   type (type_call_list_node), pointer :: node
    integer :: i,j,k
    _DECLARE_INTERIOR_INDICES_
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call prefetch_interior(self,self%generic_environment,environment _ARGUMENTS_INTERIOR_IN_)
+#ifndef NDEBUG
+   call check_interior_location(self _ARGUMENTS_INTERIOR_IN_,'fabm_get_conserved_quantities')
+#  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
+   call check_extents_2d(sums,loop_stop-loop_start+1,size(self%conserved_quantities),'fabm_get_conserved_quantities','sums','stop-start+1, # conserved quantities')
+#  else
+   call check_extents_1d(sums,size(self%conserved_quantities),'fabm_get_conserved_quantities','sums','# conserved quantities')
+#  endif
+#endif
 
-   node => self%conserved_quantity_call_list%first
+   call prefetch_interior(self,self%get_conserved_quantities_environment,environment _ARGUMENTS_INTERIOR_IN_)
+
+   node => self%get_conserved_quantities_environment%call_list%first
    do while (associated(node))
       call node%model%do(_ARGUMENTS_INTERIOR_)
 
       ! Copy newly written diagnostics to prefetch so consecutive models can use it.
-      do i=1,size(node%model%reused_diag)
-         if (node%model%reused_diag(i)%source==source_do) then
-            j = node%model%reused_diag(i)%read_index
-            k = node%model%reused_diag(i)%write_index
-            _CONCURRENT_LOOP_BEGIN_
-               environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
-            _LOOP_END_
-         end if
+      _DO_CONCURRENT_(i,1,size(node%copy_commands))
+         j = node%copy_commands(i)%read_index
+         k = node%copy_commands(i)%write_index
+         _CONCURRENT_LOOP_BEGIN_
+            environment%prefetch _INDEX_SLICE_PLUS_1_(j) = environment%scratch _INDEX_SLICE_PLUS_1_(k)
+         _LOOP_END_
       end do
 
       ! Move to next model
@@ -3312,7 +3689,7 @@ end subroutine internal_check_horizontal_state
       _UNPACK_TO_PLUS_1_(environment%prefetch,self%conserved_quantities(i)%index,sums,i,environment%mask,0.0_rk)
    end do
 
-   call deallocate_prefetch(self,self%generic_environment,environment _ARGUMENTS_INTERIOR_IN_)
+   call deallocate_prefetch(self,self%get_conserved_quantities_environment,environment _ARGUMENTS_INTERIOR_IN_)
 
    end subroutine fabm_get_conserved_quantities
 !EOC
@@ -3331,29 +3708,51 @@ end subroutine internal_check_horizontal_state
    real(rk) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(out)   :: sums
 !
 ! !LOCAL PARAMETERS:
-   type (type_environment) :: environment
-   integer                 :: i
+   type (type_environment)             :: environment
+   integer                             :: i,j,k
+   type (type_call_list_node), pointer :: node
    _DECLARE_HORIZONTAL_INDICES_
 !
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call prefetch_horizontal(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+#ifndef NDEBUG
+   call check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,'fabm_get_horizontal_conserved_quantities')
+#  ifdef _HORIZONTAL_IS_VECTORIZED_
+   call check_extents_2d(sums,loop_stop-loop_start+1,size(self%conserved_quantities),'fabm_get_horizontal_conserved_quantities','sums','stop-start+1, # conserved quantities')
+#  else
+   call check_extents_1d(sums,size(self%conserved_quantities),'fabm_get_horizontal_conserved_quantities','sums','# conserved quantities')
+#  endif
+#endif
 
-   do i=1,size(self%conserved_quantities)
-      if (associated(self%conserved_quantities(i)%horizontal_sum)) then
-         call self%conserved_quantities(i)%horizontal_sum%evaluate_horizontal(_ARGUMENTS_HORIZONTAL_)
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-            environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(self%conserved_quantities(i)%horizontal_index) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(self%conserved_quantities(i)%horizontal_sum%id_output%horizontal_diag_index)
-         _HORIZONTAL_LOOP_END_
+   call prefetch_horizontal(self,self%get_horizontal_conserved_quantities_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+
+   node => self%get_horizontal_conserved_quantities_environment%call_list%first
+   do while (associated(node))
+      if (node%source==source_do_horizontal) then
+         call node%model%do_horizontal(_ARGUMENTS_HORIZONTAL_)
+      else
+         call node%model%do_bottom(_ARGUMENTS_HORIZONTAL_)
       end if
+
+      ! Copy newly written diagnostics to prefetch so consecutive models can use it.
+      _DO_CONCURRENT_(i,1,size(node%copy_commands))
+         j = node%copy_commands(i)%read_index
+         k = node%copy_commands(i)%write_index
+         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+            environment%prefetch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = environment%scratch_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
+         _HORIZONTAL_LOOP_END_
+      end do
+
+      ! Move to next model
+      node => node%next
    end do
 
    do i=1,size(self%conserved_quantities)
       _HORIZONTAL_UNPACK_TO_PLUS_1_(environment%prefetch_hz,self%conserved_quantities(i)%horizontal_index,sums,i,environment%mask,0.0_rk)
    end do
 
-   call deallocate_prefetch_horizontal(self,self%generic_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
+   call deallocate_prefetch_horizontal(self,self%get_horizontal_conserved_quantities_environment,environment _ARGUMENTS_HORIZONTAL_IN_)
 
    end subroutine fabm_get_horizontal_conserved_quantities
 !EOC
@@ -3534,15 +3933,47 @@ subroutine copy_write_indices(source,target)
    end do
 end subroutine copy_write_indices
 
-subroutine flag_write_indices(source,target)
-   type (type_link_list),intent(in)    :: source
-   logical,              intent(inout) :: target(:)
+subroutine initialize_prefill(self,n,link_list,source,domain)
+   type (type_environment_settings),intent(inout) :: self
+   integer,                         intent(in)    :: n
+   type (type_link_list),           intent(in)    :: link_list
+   integer,                         intent(in)    :: source,domain
+
+   type (type_link),pointer :: link
+
+   allocate(self%prefill_type(n))
+   allocate(self%prefill_values(n))
+   allocate(self%prefill_index(n))
+   self%prefill_type = prefill_none
+   self%prefill_index = 0
+   link => link_list%first
+   do while (associated(link))
+      if (link%target%write_indices%value/=-1.and.iand(link%target%domain,domain)/=0) then
+         if (link%target%source==source) then
+            self%prefill_type(link%target%write_indices%value) = link%target%prefill
+         elseif (link%target%source==source_unknown) then
+            ! For diagnostics from unknown source, values will be saved after any call for the variable's domain.
+            ! To avoid saving uninitialized data, prefill the target field with the previous value before any such calls.
+            self%prefill_type(link%target%write_indices%value) = prefill_previous_value
+         end if
+         self%prefill_values(link%target%write_indices%value) = link%target%missing_value
+      end if
+      link => link%next
+   end do
+end subroutine initialize_prefill
+
+subroutine flag_write_indices(self,source)
+   type (type_environment_settings),intent(inout) :: self
+   type (type_link_list),           intent(in)    :: source
 
    type (type_link),pointer :: link
 
    link => source%first
    do while (associated(link))
-      if (.not.link%target%write_indices%is_empty()) target(link%target%write_indices%value) = .true.
+      if (.not.link%target%write_indices%is_empty()) then
+         self%prefill_type(link%target%write_indices%value) = prefill_missing_value
+         self%prefill_values(link%target%write_indices%value) = 0
+      end if
       link => link%next
    end do
 end subroutine flag_write_indices
@@ -3786,7 +4217,6 @@ subroutine classify_variables(self)
    type (type_conserved_quantity_info),            pointer :: consvar
    type (type_internal_variable),                  pointer :: object
    integer                                                 :: nstate,nstate_bot,nstate_surf,ndiag,ndiag_hz,ncons
-   class (type_base_model),                        pointer :: model
 
    type (type_aggregate_variable),    pointer :: aggregate_variable
    type (type_set) :: dependencies,dependencies_hz,dependencies_scalar
@@ -3836,39 +4266,23 @@ subroutine classify_variables(self)
          consvar%long_name = trim(consvar%standard_variable%name)
          consvar%path = trim(consvar%standard_variable%name)
          consvar%aggregate_variable => aggregate_variable
-
-         ! Get read index of the variable that will keep the total of conserved quantity in bulk domain.
-         ! If this variable is a diagnostic, add the source model and any dependencies to the call list
-         ! for conserved quantity calculations.
-         object => self%root%find_object(trim(aggregate_variable%standard_variable%name))
-         if (.not.associated(object)) call driver%fatal_error('classify_variables', &
+         consvar%target => self%root%find_object(trim(aggregate_variable%standard_variable%name))
+         if (.not.associated(consvar%target)) call driver%fatal_error('classify_variables', &
             'BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//' was not created')
-         call object%read_indices%append(consvar%index)
-         if (.not.object%write_indices%is_empty()) call find_dependencies(object%owner,self%conserved_quantity_call_list)
-
-         ! Store pointer to total of conserved quantity at surface + bottom.
-         object => self%root%find_object(trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
-         if (.not.associated(object)) call driver%fatal_error('classify_variables', &
+         call consvar%target%read_indices%append(consvar%index)
+         consvar%target_hz => self%root%find_object(trim(aggregate_variable%standard_variable%name)//'_at_interfaces')
+         if (.not.associated(consvar%target_hz)) call driver%fatal_error('classify_variables', &
             'BUG: conserved quantity '//trim(aggregate_variable%standard_variable%name)//'_at_interfaces was not created')
-         call object%read_indices%append(consvar%horizontal_index)
-
-         ! Store pointer to model that computes total of conserved quantity at surface + bottom, so we can force recomputation.
-         model => self%root%find_model(trim(aggregate_variable%standard_variable%name)//'_at_interfaces_calculator')
-         if (associated(model)) then
-            select type (model)
-               class is (type_horizontal_weighted_sum)
-                  consvar%horizontal_sum => model
-            end select
-         end if
+         call consvar%target_hz%read_indices%append(consvar%horizontal_index)
       end if
       aggregate_variable => aggregate_variable%next
    end do
 
    ! Get link to extinction variable.
-   object => self%root%find_object(trim(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux%name))
-   if (.not.associated(object)) call driver%fatal_error('classify_variables', &
+   self%extinction_target => self%root%find_object(trim(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux%name))
+   if (.not.associated(self%extinction_target)) call driver%fatal_error('classify_variables', &
       'BUG: variable attenuation_coefficient_of_photosynthetic_radiative_flux was not created')
-   call object%read_indices%append(self%extinction_index)
+   call self%extinction_target%read_indices%append(self%extinction_index)
 
    call set_diagnostic_indices(self%root)
 
@@ -3891,7 +4305,7 @@ subroutine classify_variables(self)
             if (.not.object%write_indices%is_empty()) then
                ! Bulk diagnostic variable.
                ndiag = ndiag+1
-            elseif (.not.object%state_indices%is_empty()) then
+            elseif (.not.object%state_indices%is_empty().and..not.object%fake_state_variable) then
                ! Bulk state variable.
                select case (object%presence)
                   case (presence_internal)
@@ -3908,7 +4322,7 @@ subroutine classify_variables(self)
             if (.not.object%write_indices%is_empty()) then
                ! Horizontal diagnostic variable.
                ndiag_hz = ndiag_hz+1
-            elseif (.not.object%state_indices%is_empty()) then
+            elseif (.not.object%state_indices%is_empty().and..not.object%fake_state_variable) then
                ! Horizontal state variable.
                select case (object%presence)
                   case (presence_internal)
@@ -3968,7 +4382,7 @@ subroutine classify_variables(self)
                diagvar%time_treatment    = output2time_treatment(diagvar%output)
                diagvar%save = diagvar%output/=output_none
                diagvar%source = object%source
-            elseif (object%presence==presence_internal.and..not.object%state_indices%is_empty()) then
+            elseif (object%presence==presence_internal.and..not.object%state_indices%is_empty().and..not.object%fake_state_variable) then
                ! Bulk state variable
                nstate = nstate + 1
                statevar => self%state_variables(nstate)
@@ -4000,7 +4414,7 @@ subroutine classify_variables(self)
                hz_diagvar%time_treatment    = output2time_treatment(hz_diagvar%output)
                hz_diagvar%save = hz_diagvar%output/=output_none
                hz_diagvar%source = object%source
-            elseif (object%presence==presence_internal.and..not.object%state_indices%is_empty()) then
+            elseif (object%presence==presence_internal.and..not.object%state_indices%is_empty().and..not.object%fake_state_variable) then
                ! Horizontal state variable
                select case (object%domain)
                   case (domain_bottom)
@@ -4138,6 +4552,162 @@ end subroutine
          node => node%next
       end do
    end subroutine build_call_list
+
+   subroutine append_to_call_list(self,link_list,routine_source,variable_sources)
+      type (type_environment_settings), intent(inout) :: self
+      type (type_link_list),            intent(in)    :: link_list
+      integer,                          intent(in)    :: routine_source
+      integer,                          intent(in)    :: variable_sources(:)
+
+      type (type_link), pointer :: link
+
+      link => link_list%first
+      do while (associated(link))
+         if (link%target%source==routine_source .and. .not. link%target%write_indices%is_empty()) &
+            call find_variable_dependencies(link%target,variable_sources,self%call_list,copy_to_prefetch=.false.)
+         link => link%next
+      end do
+   end subroutine append_to_call_list
+
+   subroutine append_variable_to_call_list(self,variable,routine_source,variable_sources)
+      type (type_environment_settings), intent(inout) :: self
+      type (type_internal_variable),    intent(in)    :: variable
+      integer,                          intent(in)    :: routine_source
+      integer,                          intent(in)    :: variable_sources(:)
+
+      if (variable%source==routine_source .and. .not. variable%write_indices%is_empty()) &
+         call find_variable_dependencies(variable,variable_sources,self%call_list,copy_to_prefetch=.true.)
+   end subroutine append_variable_to_call_list
+
+   subroutine check_interior_location(self _ARGUMENTS_INTERIOR_IN_,routine)
+      class (type_model),intent(in) :: self
+      _DECLARE_ARGUMENTS_INTERIOR_IN_
+      character(len=*), intent(in) :: routine
+
+#ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
+      call check_loop(loop_start,loop_stop,self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_),routine)
+#endif
+#if _FABM_DIMENSION_COUNT_>0&&_FABM_VECTORIZED_DIMENSION_INDEX_!=1
+      call check_index(i__,self%domain_size(1),routine,'i')
+#endif
+#if _FABM_DIMENSION_COUNT_>1&&_FABM_VECTORIZED_DIMENSION_INDEX_!=2
+      call check_index(j__,self%domain_size(2),routine,'j')
+#endif
+#if _FABM_DIMENSION_COUNT_>2&&_FABM_VECTORIZED_DIMENSION_INDEX_!=3
+      call check_index(k__,self%domain_size(3),routine,'k')
+#endif
+   end subroutine check_interior_location
+
+   subroutine check_horizontal_location(self _ARGUMENTS_HORIZONTAL_IN_,routine)
+      class (type_model),intent(in) :: self
+      _DECLARE_ARGUMENTS_HORIZONTAL_IN_
+      character(len=*), intent(in) :: routine
+
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+      call check_loop(loop_start,loop_stop,self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_),routine)
+#endif
+#if _FABM_DIMENSION_COUNT_>0&&_FABM_VECTORIZED_DIMENSION_INDEX_!=1&&_FABM_DEPTH_DIMENSION_INDEX_!=1
+      call check_index(i__,self%domain_size(1),routine,'i')
+#endif
+#if _FABM_DIMENSION_COUNT_>1&&_FABM_VECTORIZED_DIMENSION_INDEX_!=2&&_FABM_DEPTH_DIMENSION_INDEX_!=2
+      call check_index(j__,self%domain_size(2),routine,'j')
+#endif
+#if _FABM_DIMENSION_COUNT_>2&&_FABM_VECTORIZED_DIMENSION_INDEX_!=3&&_FABM_DEPTH_DIMENSION_INDEX_!=3
+      call check_index(k__,self%domain_size(3),routine,'k')
+#endif
+   end subroutine check_horizontal_location
+
+   subroutine check_vertical_location(self _ARGUMENTS_VERTICAL_IN_,routine)
+      class (type_model),intent(in) :: self
+      _DECLARE_ARGUMENTS_VERTICAL_IN_
+      character(len=*), intent(in) :: routine
+
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+      call check_loop(loop_start,loop_stop,self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_),routine)
+#endif
+#if _FABM_DIMENSION_COUNT_>0&&_FABM_DEPTH_DIMENSION_INDEX_!=1
+      call check_index(i__,self%domain_size(1),routine,'i')
+#endif
+#if _FABM_DIMENSION_COUNT_>1&&_FABM_DEPTH_DIMENSION_INDEX_!=2
+      call check_index(j__,self%domain_size(2),routine,'j')
+#endif
+#if _FABM_DIMENSION_COUNT_>2&&_FABM_DEPTH_DIMENSION_INDEX_!=3
+      call check_index(k__,self%domain_size(3),routine,'k')
+#endif
+   end subroutine check_vertical_location
+
+   subroutine check_extents_1d(array,required_size1,routine,array_name,shape_description)
+      real(rk),        intent(in) :: array(:)
+      integer,         intent(in) :: required_size1
+      character(len=*),intent(in) :: routine,array_name,shape_description
+      character(len=8) :: actual,required
+      if (size(array,1)/=required_size1) then
+         write (actual,  '(i0)') size(array,1)
+         write (required,'(i0)') required_size1
+         call fatal_error(routine,'shape of argument '//trim(array_name)//' is ('//trim(actual)//') but should be ('//trim(required)//') = '//trim(shape_description))
+      end if
+   end subroutine check_extents_1d
+
+   subroutine check_extents_2d(array,required_size1,required_size2,routine,array_name,shape_description)
+      real(rk),        intent(in) :: array(:,:)
+      integer,         intent(in) :: required_size1,required_size2
+      character(len=*),intent(in) :: routine,array_name,shape_description
+      character(len=17) :: actual,required
+      if (size(array,1)/=required_size1.or.size(array,2)/=required_size2) then
+         write (actual,  '(i0,a,i0)') size(array,1),',',size(array,2)
+         write (required,'(i0,a,i0)') required_size1,',',required_size2
+         call fatal_error(routine,'shape of argument '//trim(array_name)//' is ('//trim(actual)//') but should be ('//trim(required)//') = '//trim(shape_description))
+      end if
+   end subroutine check_extents_2d
+
+   subroutine check_extents_3d(array,required_size1,required_size2,required_size3,routine,array_name,shape_description)
+      real(rk),        intent(in) :: array(:,:,:)
+      integer,         intent(in) :: required_size1,required_size2,required_size3
+      character(len=*),intent(in) :: routine,array_name,shape_description
+      character(len=26) :: actual,required
+      if (size(array,1)/=required_size1.or.size(array,2)/=required_size2.or.size(array,3)/=required_size3) then
+         write (actual,  '(i0,a,i0,a,i0)') size(array,1),',',size(array,2),',',size(array,3)
+         write (required,'(i0,a,i0,a,i0)') required_size1,',',required_size2,',',required_size3
+         call fatal_error(routine,'shape of argument '//trim(array_name)//' is ('//trim(actual)//') but should be ('//trim(required)//') = '//trim(shape_description))
+      end if
+   end subroutine check_extents_3d
+
+   subroutine check_loop(loop_start,loop_stop,loop_max,routine)
+      integer,         intent(in) :: loop_start,loop_stop,loop_max
+      character(len=*),intent(in) :: routine
+
+      character(len=8) :: str1,str2
+
+      if (loop_start<1) then
+         write (str1,'(i0)') loop_start
+         call fatal_error(routine,'Loop start index '//trim(str1)//' is non-positive.')
+      end if
+      if (loop_stop>loop_max) then
+         write (str1,'(i0)') loop_stop
+         write (str2,'(i0)') loop_max
+         call fatal_error(routine,'Loop stop index '//trim(str1)//' exceeds size of vectorized dimension ('//trim(str2)//').')
+      end if
+      if (loop_start>loop_stop) then
+         write (str1,'(i0)') loop_start
+         write (str2,'(i0)') loop_stop
+         call fatal_error(routine,'Loop start index '//trim(str1)//' exceeds stop index '//trim(str2)//'.')
+      end if
+   end subroutine check_loop
+
+   subroutine check_index(i,i_max,routine,name)
+      integer,         intent(in) :: i,i_max
+      character(len=*),intent(in) :: routine,name
+      character(len=8) :: str1,str2
+      if (i<1) then
+         write (str1,'(i0)') i
+         call fatal_error(routine,'Index '//name//' = '//trim(str1)//' is non-positive.')
+      end if
+      if (i>i_max) then
+         write (str1,'(i0)') i
+         write (str2,'(i0)') i_max
+         call fatal_error(routine,'Index '//name//' = '//trim(str1)//' exceeds size of associated dimension ('//trim(str2)//').')
+      end if
+   end subroutine check_index
 
 end module fabm
 

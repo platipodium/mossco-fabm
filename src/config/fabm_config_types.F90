@@ -4,7 +4,9 @@ module fabm_config_types
 
    private
 
-   public type_node,type_dictionary,type_key_value_pair,type_scalar,type_null,type_error,real_kind
+   public type_node,type_scalar,type_null,type_error,real_kind
+   public type_dictionary,type_key_value_pair
+   public type_list,type_list_item
 
    integer,parameter :: string_length = 1024
    integer,parameter :: real_kind = 8
@@ -52,6 +54,7 @@ module fabm_config_types
       procedure :: get            => dictionary_get
       procedure :: get_scalar     => dictionary_get_scalar
       procedure :: get_dictionary => dictionary_get_dictionary
+      procedure :: get_list       => dictionary_get_list
       procedure :: get_string     => dictionary_get_string
       procedure :: get_logical    => dictionary_get_logical
       procedure :: get_integer    => dictionary_get_integer
@@ -63,6 +66,19 @@ module fabm_config_types
       procedure :: reset_accessed => dictionary_reset_accessed
       procedure :: set_path       => dictionary_set_path
       procedure :: finalize       => dictionary_finalize
+   end type
+
+   type type_list_item
+      class (type_node),    pointer :: node => null()
+      type (type_list_item),pointer :: next => null()
+   end type
+
+   type,extends(type_node) :: type_list
+      type (type_list_item),pointer :: first => null()
+   contains
+      procedure :: append   => list_append
+      procedure :: dump     => list_dump
+      procedure :: set_path => list_set_path
    end type
 
    type type_error
@@ -153,27 +169,43 @@ contains
    subroutine value_dump(self,unit,indent)
       class (type_scalar),intent(in) :: self
       integer,            intent(in) :: unit,indent
-      write (unit,*) repeat(' ',indent)//trim(self%string)
+      write (unit,'(a)') trim(self%string)
    end subroutine
 
    subroutine null_dump(self,unit,indent)
       class (type_null),intent(in) :: self
       integer,          intent(in) :: unit,indent
-      write (unit,*) repeat(' ',indent)//'null'
+      write (unit,'(a)') 'null'
    end subroutine
 
    recursive subroutine dictionary_dump(self,unit,indent)
       class (type_dictionary),intent(in) :: self
       integer,                intent(in) :: unit,indent
       type (type_key_value_pair),pointer :: pair
+
+      logical :: first
+
+      first = .true.
       pair => self%first
       do while (associated(pair))
+         if (first) then
+            first = .false.
+         else
+            write (unit,'(a)',advance='NO') repeat(' ',indent)
+         end if
+
          select type (value=>pair%value)
-            class is (type_scalar)
-               write (unit,*) repeat(' ',indent)//trim(pair%key)//': '//trim(value%string)
             class is (type_dictionary)
-               write (unit,*) repeat(' ',indent)//trim(pair%key)//':'
+               write (unit,'(a)') trim(pair%key)//':'
+               write (unit,'(a)',advance='NO') repeat(' ',indent+2)
                call value%dump(unit,indent+2)
+            class is (type_list)
+               write (unit,'(a)') trim(pair%key)//':'
+               write (unit,'(a)',advance='NO') repeat(' ',indent+2)
+               call value%dump(unit,indent+2)
+            class default
+               write (unit,'(a)',advance='NO') trim(pair%key)//': '
+               call value%dump(unit,indent+len_trim(pair%key)+2)
          end select
          pair => pair%next
       end do
@@ -286,6 +318,9 @@ contains
             class is (type_dictionary)
                allocate(error)
                error%message = trim(node%path)//' must be set to a scalar value, not to a dictionary.'
+            class is (type_list)
+               allocate(error)
+               error%message = trim(node%path)//' must be set to a scalar value, not to a list.'
          end select
       end if
    end function
@@ -297,7 +332,7 @@ contains
       type(type_error),pointer             :: error
       class (type_dictionary),pointer      :: dictionary
 
-      class (type_node),pointer          :: node
+      class (type_node),pointer :: node
 
       nullify(error)
       nullify(dictionary)
@@ -308,13 +343,42 @@ contains
       end if
       if (associated(node)) then
          select type (node)
-            class is (type_scalar)
-               allocate(error)
-               error%message = trim(node%path)//' must be a dictionary, not a single value.'
             class is (type_null)
                allocate(dictionary)
             class is (type_dictionary)
                dictionary => node
+            class default
+               allocate(error)
+               error%message = trim(node%path)//' must be a dictionary.'
+         end select
+      end if
+   end function
+
+   function dictionary_get_list(self,key,required,error) result(list)
+      class (type_dictionary),  intent(in) :: self
+      character(len=*),         intent(in) :: key
+      logical,                  intent(in) :: required
+      type(type_error),pointer             :: error
+      class (type_list),pointer            :: list
+
+      class (type_node),pointer :: node
+
+      nullify(error)
+      nullify(list)
+      node => self%get(key)
+      if (required.and..not.associated(node)) then
+         allocate(error)
+         error%message = trim(self%path)//' does not contain key "'//trim(key)//'".'
+      end if
+      if (associated(node)) then
+         select type (node)
+            class is (type_null)
+               allocate(list)
+            class is (type_list)
+               list => node
+            class default
+               allocate(error)
+               error%message = trim(node%path)//' must be a list.'
          end select
       end if
    end function
@@ -412,5 +476,66 @@ contains
       end do
       nullify(self%first)
    end subroutine dictionary_finalize
+
+   subroutine list_append(self,node)
+      class (type_list),intent(inout) :: self
+      class(type_node),target         :: node
+
+      type (type_list_item),pointer :: item
+
+      if (.not.associated(self%first)) then
+         ! This will be the first pair.
+         allocate(self%first)
+         self%first%node => node
+      else
+         ! Try to find a pair with the same key, or failing that, the last pair.
+         item => self%first
+         do while (associated(item%next))
+            item => item%next
+         end do
+         allocate(item%next)
+         item%next%node => node
+      end if
+   end subroutine list_append
+
+   recursive subroutine list_dump(self,unit,indent)
+      class (type_list),intent(in) :: self
+      integer,          intent(in) :: unit,indent
+
+      type (type_list_item),pointer :: item
+      logical :: first
+
+      first = .true.
+      item => self%first
+      do while (associated(item))
+         if (first) then
+            first = .false.
+         else
+            write (unit,'(a)',advance='NO') repeat(' ',indent)
+         end if
+         write (unit,'(a)',advance='NO') '- '
+         call item%node%dump(unit,indent+2)
+         item => item%next
+      end do
+   end subroutine list_dump
+
+   recursive subroutine list_set_path(self,path)
+      class (type_list),intent(inout) :: self
+      character(len=*), intent(in)    :: path
+
+      type (type_list_item),pointer :: item
+      integer :: inode
+      character(len=6) :: strindex
+
+      self%path = path
+      inode = 0
+      item => self%first
+      do while (associated(item))
+         write (strindex,'(i0)') inode
+         call item%node%set_path(trim(self%path)//'['//trim(strindex)//']')
+         inode = inode + 1
+         item => item%next
+      end do
+   end subroutine list_set_path
 
 end module fabm_config_types
