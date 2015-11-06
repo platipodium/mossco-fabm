@@ -389,10 +389,13 @@ end if
 
 ! ------------------------------------------------------------------
 !  ---  POM&DOM quality, relative to max N-quota of phytoplankton
-! qualPOM     = (1.0d0-self%Nqual) + self%Nqual * det%N /(det%C + self%small_finite)  * self%iK_QN
-! qualDOM     = (1.0d0-self%Nqual) + self%Nqual * dom%N /(dom%C + self%small_finite)  * self%iK_QN
- qualPOM     = (1.0d0-self%Nqual) + self%Nqual * det%P /(det%C + self%small_finite)  * self%iK_QP
- qualDOM     = (1.0d0-self%Nqual) + self%Nqual * dom%P /(dom%C + self%small_finite)  * self%iK_QP
+if (self%remNP .gt. -1E5) ! base variant: quality correlates with detritus N:C
+   qualPOM     = (1.0d0-self%Nqual) + self%Nqual * det%N /(det%C + self%small_finite)  * self%iK_QN
+   qualDOM     = (1.0d0-self%Nqual) + self%Nqual * dom%N /(dom%C + self%small_finite)  * self%iK_QN
+else                      ! alternative: quality correlates with detritus P:C
+   qualPOM     = (1.0d0-self%Nqual) + self%Nqual * det%P /(det%C + self%small_finite)  * self%iK_QP
+   qualDOM     = (1.0d0-self%Nqual) + self%Nqual * dom%P /(dom%C + self%small_finite)  * self%iK_QP
+end if 
 
 !  ---  hydrolysis & remineralisation rate (temp dependent)
 degradT     = self%hydrol * sens%f_T * qualPOM
@@ -400,14 +403,17 @@ reminT      = self%remin  * sens%f_T * qualDOM
 
 !  ---  hydrolysis & remineralisation depend on quality, here propto N/C quota of OM
 !  acceleration: rate difference for N-pool
-!ddegN       = self%hydrol * sens%f_T * max(1.0d0 - qualPOM, 0.0d0)
-!ddegP       = self%remNP * ddegN       
-!dremN       = self%remin * sens%f_T * max(1.0d0 - qualDOM, 0.0d0)
-!dremP       = self%remNP * dremN
-ddegP       = self%hydrol * sens%f_T * max(1.0d0 - qualPOM, 0.0d0)       
-ddegN       = self%remNP * ddegP
-dremP       = self%remin * sens%f_T * max(1.0d0 - qualDOM, 0.0d0)
-dremN       = self%remNP * dremP
+if (self%remNP .gt. -1E5) ! base variant: quality correlates with detritus N:C
+   ddegN       = self%hydrol * sens%f_T * max(1.0d0 - qualPOM, 0.0d0)
+   ddegP       = self%remNP * ddegN       
+   dremN       = self%remin * sens%f_T * max(1.0d0 - qualDOM, 0.0d0)
+   dremP       = self%remNP * dremN
+else                      ! alternative: quality correlates with detritus P:C
+   ddegP       = self%hydrol * sens%f_T * max(1.0d0 - qualPOM, 0.0d0)       
+   ddegN       = self%remNP * ddegP
+   dremP       = self%remin * sens%f_T * max(1.0d0 - qualDOM, 0.0d0)
+   dremN       = self%remNP * dremP
+end if 
 !________________________________________________________________________________
 !
 !  --- DETRITUS C
