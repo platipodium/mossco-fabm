@@ -389,7 +389,7 @@ end if
 
 ! ------------------------------------------------------------------
 !  ---  POM&DOM quality, relative to max N-quota of phytoplankton
-if (self%remNP .gt. -1E5) ! base variant: quality correlates with detritus N:C
+if (self%remNP .gt. -1E-5) then ! base variant: quality correlates with detritus N:C
    qualPOM     = (1.0d0-self%Nqual) + self%Nqual * det%N /(det%C + self%small_finite)  * self%iK_QN
    qualDOM     = (1.0d0-self%Nqual) + self%Nqual * dom%N /(dom%C + self%small_finite)  * self%iK_QN
 else                      ! alternative: quality correlates with detritus P:C
@@ -403,7 +403,7 @@ reminT      = self%remin  * sens%f_T * qualDOM
 
 !  ---  hydrolysis & remineralisation depend on quality, here propto N/C quota of OM
 !  acceleration: rate difference for N-pool
-if (self%remNP .gt. -1E5) ! base variant: quality correlates with detritus N:C
+if (self%remNP .gt. -1E-5) then ! base variant: quality correlates with detritus N:C
    ddegN       = self%hydrol * sens%f_T * max(1.0d0 - qualPOM, 0.0d0)
    ddegP       = self%remNP * ddegN       
    dremN       = self%remin * sens%f_T * max(1.0d0 - qualDOM, 0.0d0)
