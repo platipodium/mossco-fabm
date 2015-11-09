@@ -229,8 +229,8 @@
    CprodS = f_T * self%rSlow * sdet
 
 ! assume upper reactive surface area for POC hydrolysis
-   if (CprodS > CprodMax) CprodS = CprodMax
-   if (CprodF > CprodMax) CprodF = CprodMax
+   if (CprodS > self%CprodMax) CprodS = self%CprodMax
+   if (CprodF > self%CprodMax) CprodF = self%CprodMax
 
    Cprod  = CprodF + CprodS
    Nprod  = CprodF * self%NCrFdet + CprodS * self%NCrSdet
@@ -252,7 +252,7 @@
 ! reoxidation and ODU deposition
    Nitri      = f_T * self%rnit   * nh3 * oxy/(oxy + self%ksO2nitri + relaxO2*(fdet + odu))
    OduOx      = f_T * self%rODUox * odu * oxy/(oxy + self%ksO2oduox + relaxO2*(nh3 + fdet))
-   if (OduOx > CprodMax) OduOx = CprodMax
+   if (OduOx > self%CprodMax) OduOx = self%CprodMax
  
 !  pDepo      = min(1.0_rk,0.233_rk*(wDepo)**0.336_rk )
    pDepo      = 0.0_rk
