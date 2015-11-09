@@ -43,7 +43,7 @@
 !     Model parameters
       real(rk) :: rFast, rSlow, NCrFdet, NCrSdet
       real(rk) :: PCrFdet, PCrSdet, PAds, PAdsODU
-      real(rk) :: NH3Ads, rnit, ksO2nitri,rODUox
+      real(rk) :: NH3Ads, rnit, ksO2nitri,rODUox, CprodMax
       real(rk) :: ksO2oduox, ksO2oxic,ksNO3denit,kinO2denit,kinNO3anox,kinO2anox
 
       contains
@@ -80,13 +80,13 @@
 ! !LOCAL VARIABLES:
       real(rk) :: rFast, rSlow, NCrFdet, NCrSdet
       real(rk) :: PCrFdet,PCrSdet, PAds, PAdsODU
-      real(rk) :: NH3Ads, rnit, ksO2nitri,rODUox
+      real(rk) :: NH3Ads, rnit, ksO2nitri,rODUox, CprodMax=48.0
       real(rk) :: ksO2oduox,ksO2oxic,ksNO3denit,kinO2denit,kinNO3anox,kinO2anox
       real(rk) :: fdet_init,sdet_init,oxy_init,odu_init,no3_init,nh3_init
       real(rk) :: pdet_init,po4_init
 
    namelist /hzg_omexdia_p/  rFast, rSlow, NCrFdet, NCrSdet, &
-          PCrFdet, PCrSdet, PAds, PAdsODU, NH3Ads, rnit, ksO2nitri, &
+          PCrFdet, PCrSdet, PAds, PAdsODU, NH3Ads, CprodMax, rnit, ksO2nitri, &
           rODUox,ksO2oduox, ksO2oxic,ksNO3denit,kinO2denit,kinNO3anox, &
           kinO2anox,fdet_init,sdet_init,oxy_init,odu_init,no3_init,nh3_init, &
           pdet_init,po4_init
@@ -107,6 +107,7 @@
    self%PAds=PAds
    self%PAdsODU=PAdsODU
    self%NH3Ads=NH3Ads
+   self%CprodMax=CprodMax
    self%rnit=rnit
    self%ksO2nitri=ksO2nitri
    self%rODUox=rODUox
@@ -197,7 +198,7 @@
    real(rk),parameter :: Q10b = 1.5_rk
    real(rk) :: CprodF,CprodS,Cprod,Nprod,Pprod
    real(rk) :: AnoxicMin,Denitrific,OxicMin,Nitri,OduDepo,OduOx,pDepo
-   real(rk) :: Cprod_max = 24.0 ! d^-1 maximal C-degrad rate for numeric stability
+!   real(rk) :: CprodMax = 24.0 ! d^-1 maximal C-degrad rate for numeric stability
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -228,8 +229,8 @@
    CprodS = f_T * self%rSlow * sdet
 
 ! assume upper reactive surface area for POC hydrolysis
-   if (CprodS > Cprod_max) CprodS = Cprod_max
-   if (CprodF > Cprod_max) CprodF = Cprod_max
+   if (CprodS > CprodMax) CprodS = CprodMax
+   if (CprodF > CprodMax) CprodF = CprodMax
 
    Cprod  = CprodF + CprodS
    Nprod  = CprodF * self%NCrFdet + CprodS * self%NCrSdet
@@ -251,8 +252,8 @@
 ! reoxidation and ODU deposition
    Nitri      = f_T * self%rnit   * nh3 * oxy/(oxy + self%ksO2nitri + relaxO2*(fdet + odu))
    OduOx      = f_T * self%rODUox * odu * oxy/(oxy + self%ksO2oduox + relaxO2*(nh3 + fdet))
-   if (OduOx > Cprod_max) OduOx = Cprod_max
-
+   if (OduOx > CprodMax) OduOx = CprodMax
+ 
 !  pDepo      = min(1.0_rk,0.233_rk*(wDepo)**0.336_rk )
    pDepo      = 0.0_rk
    OduDepo    = AnoxicMin*pDepo
