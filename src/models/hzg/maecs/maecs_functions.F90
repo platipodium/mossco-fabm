@@ -202,6 +202,7 @@ T_Kelv       = env%Temp + 273.d0 ! temperature in Kelvin
 ! --- temperature dependence of metabolic rates (with T_ref given in units [Kelvin]) --------------
 !standard Q10 RULE
 sens%f_T     = maecs%rq10**((T_Kelv-maecs%T_ref)/10.0)
+sens%f_T2    = (2*maecs%rq10)**((T_Kelv-maecs%T_ref)/10.0)
 
 ! --- (potential) maximum photosynthetic rate -----------------------------------------------------
 sens%P_max_T = maecs%P_max * sens%f_T
@@ -237,17 +238,17 @@ end if
 NutF          = smooth_small(nut%N,maecs%small)
 ! optimal partitioning between
 ! surface uptake sites and internal enzymes (for assimilation)
-fA%N          = fOptUpt(maecs%AffN,maecs%V_NC_max * sens%f_T, NutF, IsAdap)
+fA%N          = fOptUpt(maecs%AffN,maecs%V_NC_max * sens%f_T2, NutF, IsAdap)
 acc%fA%N      = fA%N
-sens%upt_pot%N= uptflex(maecs%AffN,maecs%V_NC_max*sens%f_T,NutF, fA%N)
+sens%upt_pot%N= uptflex(maecs%AffN,maecs%V_NC_max*sens%f_T2,NutF, fA%N)
 
 !  P-uptake coefficients
 if (maecs%PhosphorusOn) then 
    NutF          = smooth_small(nut%P,maecs%small)
 ! optimal partitioning 
-   fA%P          = fOptUpt(maecs%AffP,maecs%V_PC_max * sens%f_T, NutF, IsAdap)
+   fA%P          = fOptUpt(maecs%AffP,maecs%V_PC_max * sens%f_T2, NutF, IsAdap)
    acc%fA%P      = fA%P
-   sens%upt_pot%P= uptflex(maecs%AffP,maecs%V_PC_max*sens%f_T,Nut%P,fA%P)
+   sens%upt_pot%P= uptflex(maecs%AffP,maecs%V_PC_max*sens%f_T2,Nut%P,fA%P)
 else
    acc%fA%P      = 0.5d0
    acc%Av%P      = 0.d0
@@ -257,9 +258,9 @@ end if
 if (maecs%SiliconOn) then 
    NutF          = smooth_small(nut%Si,maecs%small)
 ! optimal partitioning 
-   fA%Si         = fOptUpt(maecs%AffSi,maecs%V_SiC_max * sens%f_T, NutF, IsAdap)
+   fA%Si         = fOptUpt(maecs%AffSi,maecs%V_SiC_max * sens%f_T2, NutF, IsAdap)
    acc%fA%Si     = fA%Si
-   sens%upt_pot%Si= uptflex(maecs%AffSi,maecs%V_SiC_max * sens%f_T,nutF,fA%Si)
+   sens%upt_pot%Si= uptflex(maecs%AffSi,maecs%V_SiC_max * sens%f_T2,nutF,fA%Si)
 else
    acc%fA%Si     = 0.5d0
    acc%Av%Si     = 0.d0

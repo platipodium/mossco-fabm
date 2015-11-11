@@ -141,7 +141,7 @@ end type
                                        
 
 type type_maecs_sensitivities
-   real(rk) :: f_T       ! temperature dependency of metabolic rates
+   real(rk) :: f_T,f_T2       ! temperature dependency of metabolic rates
    real(rk) :: P_max_T  ! temperature dependent maximum photosynthetic rate                        [d^{-1}]
    real(rk) :: a_light  ! exponent of light limitation 'upt_pot%C'                             [dimensionless]
    type (type_maecs_om) :: upt_pot ! potential uptake rates
