@@ -398,20 +398,20 @@ else                      ! alternative: quality correlates with detritus P:C
 end if 
 
 !  ---  hydrolysis & remineralisation rate (temp dependent)
-degradT     = self%hydrol * sens%f_T2 * qualPOM
-reminT      = self%remin  * sens%f_T2 * qualDOM
+degradT     = self%hydrol * sens%f_T * qualPOM
+reminT      = self%remin  * sens%f_T * qualDOM
 
 !  ---  hydrolysis & remineralisation depend on quality, here propto N/C quota of OM
 !  acceleration: rate difference for N-pool
 if (self%remNP .gt. -1E-5) then ! base variant: quality correlates with detritus N:C
-   ddegN       = self%hydrol * sens%f_T2 * max(1.0d0 - qualPOM, 0.0d0)
+   ddegN       = self%hydrol * sens%f_T * max(1.0d0 - qualPOM, 0.0d0)
    ddegP       = self%remNP * ddegN       
-   dremN       = self%remin * sens%f_T2 * max(1.0d0 - qualDOM, 0.0d0)
+   dremN       = self%remin * sens%f_T * max(1.0d0 - qualDOM, 0.0d0)
    dremP       = self%remNP * dremN
 else                      ! alternative: quality correlates with detritus P:C
-   ddegP       = self%hydrol * sens%f_T2 * max(1.0d0 - qualPOM, 0.0d0)       
+   ddegP       = self%hydrol * sens%f_T * max(1.0d0 - qualPOM, 0.0d0)       
    ddegN       = self%remNP * ddegP
-   dremP       = self%remin * sens%f_T2 * max(1.0d0 - qualDOM, 0.0d0)
+   dremP       = self%remin * sens%f_T * max(1.0d0 - qualDOM, 0.0d0)
    dremN       = self%remNP * dremP
 end if 
 !________________________________________________________________________________
@@ -534,7 +534,7 @@ end if
 if (self%BioOxyOn) then
 
 ! ---------- temperature    TODO: retrieve from existing temp variables 
-   f_T    = sens%f_T2
+   f_T    = sens%f_T
 
 ! ---------- manages overlapping state variables 
    no3    = max(nut%N - env%nh3,  0.0d0)
