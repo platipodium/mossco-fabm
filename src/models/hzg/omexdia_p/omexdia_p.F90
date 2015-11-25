@@ -220,9 +220,13 @@
    E_a=0.1_rk*log(Q10b)*T0*(T0+10.0_rk);
    f_T = 1.0_rk*exp(-E_a*(1.0_rk/temp_kelvin - 1.0_rk/T0))
 
+   if (2*oxy < -self%kinO2anox) oxy = -self%kinO2anox/2
+
    Oxicminlim = oxy/(oxy+self%ksO2oxic+relaxO2*(nh3+odu))                ! limitation terms
+
    Denitrilim = (1.0_rk-oxy/(oxy+self%kinO2denit)) * NO3/(no3+self%ksNO3denit)
    Anoxiclim  = (1.0_rk-oxy/(oxy+self%kinO2anox)) * (1.0_rk-no3/(no3+self%kinNO3anox))
+   if(Oxicminlim - 1E-3 < -Denitrilim-Anoxiclim) Oxicminlim = 1E-3-Denitrilim-Anoxiclim
    Rescale    = 1.0_rk/(Oxicminlim+Denitrilim+Anoxiclim)
 
    CprodF = f_T * self%rFast * fdet
