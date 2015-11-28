@@ -5,6 +5,7 @@ add_library(fabm_models_hzg OBJECT
 	    n2pzdq/n2pzdq.F90
             Ndepoden/Ndepoden.F90
             benthic_pool/benthic_pool.F90
+	    medmac/medmac.F90
 	    maecs/maecs.F90
 	    maecs/maecs_types.F90
 	    #maecs/maecs_do.F90
