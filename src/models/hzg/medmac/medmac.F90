@@ -43,7 +43,7 @@
       
 !     Diagnostic variables
 
-      type (type_horizontal_diagnostic_variable_id)   :: id_f_do
+      type (type_horizontal_diagnostic_variable_id)   :: id_f_do, id_dofon, id_f_ondo
       type (type_horizontal_diagnostic_variable_id)   :: id_dif_N,id_adv_N,id_rem_N,id_rhs_ONbl,id_rhs_DINb
       type (type_horizontal_diagnostic_variable_id)   :: id_dif_P,id_adv_P,id_rem_P,id_rhs_OPbl,id_rhs_DIPb
       type (type_horizontal_diagnostic_variable_id)   :: id_denit_lim,id_denit_rate                                                
@@ -52,11 +52,11 @@
       !type (type_horizontal_dependency_id) :: id_depth
       !type (type_diagnostic_variable_id)   :: id_ninflux
 !     Model parameters: maximum grazing rate, half-saturation prey density, loss rate
-      real(rk) :: v_d,depth_ben,r_Q10,temp_ref
-      integer  :: Rmeth_N,Rmeth_P
+      real(rk) :: v_d,depth_ben,r_Q10,temp_ref,K_on2do,K_doin,K_ondo
+      integer  :: Rmeth_N,Rmeth_P,den_dometh
       logical  :: use_Temp,use_DINp,use_PONp,use_DIPp,use_POPp,do_denit,do_Psorp
-      real(rk) :: DINp_presc,PONp_presc,DswN,rN,kN,K_ondo,K_denit
-      real(rk) :: DIPp_presc,POPp_presc,DswP,rP,kP,Rsorp
+      real(rk) :: DINp_presc,PONp_presc,DswN,rN,kN,K_denit
+      real(rk) :: DIPp_presc,POPp_presc,DswP,rP,kP,Rsorp,K_sorp
       
       !     Model procedures
       contains
@@ -95,20 +95,20 @@
 ! !LOCAL VARIABLES:
    character(len=64) :: DINp_variable='',PONp_variable='',DIPp_variable='',POPp_variable=''
    real(rk) :: DINb0=16.0,ONbl0=16.0,DIPb0=1.0,OPbl0=1.0,sorpP0=1.0
-   real(rk) :: v_d=0.5,depth_ben=0.1,r_Q10=2.0, temp_ref=10.0
-   real(rk) :: DswN=1e-5,DINp_presc=16.0,PONp_presc=16.0,rN=0.05,kN=8.0,K_ondo=1000.0,K_denit=30.0 !kN 
-   real(rk) :: DswP=1e-5,DIPp_presc=1.0,POPp_presc=1.0,rP=0.05,kP=0.5,Rsorp=0.5 
-   integer  :: Rmeth_N=1,Rmeth_P=1          ! remin method
+   real(rk) :: v_d=0.5,depth_ben=0.1,r_Q10=2.0, temp_ref=10.0,K_on2do,K_doin,K_ondo=1000.0
+   real(rk) :: DswN=1e-5,DINp_presc=16.0,PONp_presc=16.0,rN=0.05,kN=8.0,K_denit=30.0 !kN 
+   real(rk) :: DswP=1e-5,DIPp_presc=1.0,POPp_presc=1.0,rP=0.05,kP=0.5,Rsorp=0.5,K_sorp=0.5 
+   integer  :: Rmeth_N=1,Rmeth_P=1,den_dometh=1          ! remin method
    logical  :: do_denit=.False., do_Psorp=.False.
  
    real(rk), parameter :: secs_pr_day = 86400.
    namelist /hzg_medmac/  &
-   v_d,depth_ben,r_Q10,temp_ref, &
+   v_d,depth_ben,r_Q10,temp_ref,K_on2do,K_doin,K_ondo, &
    DINp_variable, PONp_variable,DINp_presc,PONp_presc,&
-   DINb0, ONbl0,DswN,rN,kN,Rmeth_N,do_denit,K_denit,K_ondo, &
+   DINb0, ONbl0,DswN,rN,kN,Rmeth_N,do_denit,K_denit,den_dometh, &
    DIPp_variable, POPp_variable,DIPp_presc,POPp_presc,&
-   DIPb0, OPbl0,DswP,rP,kP,Rmeth_P,do_Psorp,Rsorp,sorpP0
-      
+   DIPb0, OPbl0,DswP,rP,kP,Rmeth_P,do_Psorp,Rsorp,sorpP0,K_sorp
+
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -122,6 +122,9 @@
    call self%get_parameter(self%depth_ben,     'depth_ben',     default=depth_ben)
    call self%get_parameter(self%r_Q10,         'r_Q10',         default=r_Q10)
    call self%get_parameter(self%temp_ref,      'temp_ref',      default=temp_ref)
+   call self%get_parameter(self%K_doin,        'K_doin',        default=K_doin)
+   call self%get_parameter(self%K_on2do,       'K_on2do',       default=K_on2do)
+   call self%get_parameter(self%K_ondo,        'K_ondo',        default=K_ondo)
    !N-pars:
    call self%get_parameter(self%DswN,          'DswN',          default=DSwn,        scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%DINp_presc,    'DINp_presc',    default=DINp_presc)
@@ -131,7 +134,7 @@
    call self%get_parameter(self%Rmeth_N,       'Rmeth_N',       default=Rmeth_N)
    call self%get_parameter(self%do_denit,      'do_denit',      default=do_denit)
    call self%get_parameter(self%K_denit,       'K_denit',       default=K_denit)
-   call self%get_parameter(self%K_ondo,        'K_ondo',        default=K_ondo)
+   call self%get_parameter(self%den_dometh,    'den_dometh',    default=den_dometh)
    !P-pars
    call self%get_parameter(self%DswP,          'DswP',          default=DSwP,        scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%DIPp_presc,    'DIPp_presc',    default=DIPp_presc)
@@ -141,6 +144,7 @@
    call self%get_parameter(self%Rmeth_P,       'Rmeth_P',       default=Rmeth_P)
    call self%get_parameter(self%do_Psorp,      'do_Psorp',      default=do_Psorp)
    call self%get_parameter(self%Rsorp,         'Rsorp',         default=Rsorp,       scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%K_sorp,        'K_sorp',        default=K_sorp)
    
    ! Register state variables
    !N-variables
@@ -241,7 +245,7 @@
 !  Original author(s): Onur Kerimoglu
 !
 ! !LOCAL VARIABLES:
-   real(rk)                   ::temp,f_T,f_do
+   real(rk)                   ::temp,f_T,f_do,dofon,den_do_in,f_ondo
    real(rk)                   ::DINp,PONp,DINb,ONbl,denit_rate,denit_lim
    real(rk)                   ::DIPp,POPp,DIPb,OPbl,sorpP,sorp_rate,desorp_rate,sorpdesorp_rate
    real(rk)                   ::advN,difN,remN,rhs_DINb,rhs_ONbl
@@ -249,6 +253,7 @@
    
    !,sink,diffusion,remin,ddet,dnut!,nut_loss_rate
    real(rk), parameter        :: secs_pr_day = 86400.
+   real(rk), parameter        :: do_max = 300.0 !max. DO concentration
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -297,8 +302,12 @@
     
    ! Calculate kinetic rates:
    
-   !oxygen function:->1 in high DO, ->0 in low DO
-   f_do=(1-exp(-ONbl/self%K_ondo))
+   !oxygen inhibition function: lowON -> high DO -> low f_do 
+   f_ondo=(1-exp(-ONbl/self%K_ondo))
+  
+   !estimate do from on, then calculate 
+   dofon=do_max*exp(-ONbl/self%K_on2do)
+   f_do=1.0-dofon/(dofon+self%K_doin)
    
    !N
    !todo: R as a function of OCbl
@@ -310,7 +319,13 @@
    
    !denitrification
    if (self%do_denit) then
-     denit_lim = f_do * DINb/(DINb+self%K_denit) 
+     if (self%den_dometh .eq. 1) then
+       den_do_in= f_ondo
+     else if (self%den_dometh .eq. 2) then
+       den_do_in = f_do 
+     end if
+     denit_lim=den_do_in*DINb/(DINb+self%K_denit)
+     
      denit_rate= denit_lim * remN    * 6.625       * 1         * 0.116
            !             mmolN/m2/s  * molC/molN  * molO/molC * molNdenitrified/molOconsumed 
                          !(Seitzinger & Giblin,1996)  
@@ -329,8 +344,8 @@
    !phosphorus sorption
    if (self%do_Psorp) then
      _GET_HORIZONTAL_(self%id_sorpP,sorpP) ! nutrient density - benthic
-     sorp_rate=self%Rsorp*f_do*DIPb
-     desorp_rate=self%Rsorp*(1.0-f_do)*sorpP
+     sorp_rate=self%Rsorp*(1.0-f_do)*DIPb/(self%K_sorp+DIPb)*DIPb !i.e., higher the oxygen, lower the f_do, higher the sorption
+     desorp_rate=self%Rsorp*f_do*sorpP/(self%K_sorp+sorpP)*sorpP !i.e., higher the oxygen, lower the f_do, lower the desorption
    else
      sorp_rate=0.0
      desorp_rate=0.0
@@ -377,7 +392,9 @@
 
    ! Export diagnostic variables
    !common
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_dofon,dofon)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_f_do,f_do)
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_f_ondo,f_ondo)
    !N
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_adv_N,advN*secs_pr_day)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_dif_N,difN*secs_pr_day)

@@ -1,0 +1,68 @@
+&fabm_nml
+ models = 'hzg_medmac'
+/
+
+! v_d = m/d, sinking velocity of detritus in the pelagic
+! depth_ben = m, depth on benthos (used to calculate gradients)
+! r_Q10: q10 value for temperature sensitivity
+! T_ref= temperature at which kinetic paramters are provided
+! T_presc= temperature to use if no target was provided 
+! K_on2do = constant for estimating DO from ON
+! K_doin = half-sat constant for do inhibition of denitrification and sorption
+! K_ondo= coeffiecent for estimating DO inhibition based on ON, if den_dometh=1
+! parameters available for all nutrients:
+! DIXp_variable = target dissolved nutrient variable in the pelagic 
+! PONp_variable = target detrital nutrient variable in the pelagic 
+! DIXp_presc = M, if not coupled to a dynamic pelagic model, constant concentration of the pelagic_nutrient_variable
+! POXp_presc= M, if not coupled to a dynamic pelagic model, constant concentration of the pelagic_detritus_variable
+! DIXb0 = initial value of the detrital nutrient variable in benthos
+! OXbl0 = initial value of the dissolved nutrient variable in benthos
+! DswX = m2/d, diffusion coefficient across the pelagic-benthic interface
+! rX = /d, remineralization rate in benthos 
+! kX = mmol/m2, half sat. constant for the saturating remineralization function in benthos 
+! Rmeth_X = Remineralization method. 1:linear 2:saturating (kX) 
+! do_denit= do denitrification
+! nutrient specific parameters
+! K_denit= coefficient for estimating denitrification limitation as a function of DIN
+! den_dometh = 1: based on ON function; 2: based on DO=f(ON)
+! do_Psorp= do Phosphorus-sorption
+! sorpP0= initial value for sorped-P pool
+! Rsorp= specific sorption rate
+! K_sorp = half-sat constant for of DIP limitation of P-sorption 
+
+&hzg_medmac
+   v_d = 4.0 
+   depth_ben = 0.2 
+   r_Q10 = 2.0
+   temp_ref= 10.0
+   K_on2do = 10 
+   K_doin = 10 
+   K_ondo=500.0
+   DINp_variable = 'hzg_maecs_nutN' 
+   PONp_variable = 'hzg_maecs_detN' 
+   DINp_presc=1.6
+   PONp_presc=1.6
+   DINb0 = 35 
+   ONbl0 = 70
+   DswN=5e-4
+   rN=0.03
+   kN=8.0
+   Rmeth_N=1
+   do_denit=.True.
+   K_denit=30.0
+   den_dometh = 2 
+   DIPp_variable = 'hzg_maecs_nutP' 
+   POPp_variable = 'hzg_maecs_detP' 
+   DIPp_presc=0.1
+   POPp_presc=0.1
+   DIPb0 = 3.0 
+   OPbl0 = 1.5
+   DswP=5e-4
+   rP=0.03
+   kP=0.5
+   Rmeth_P=1
+   do_Psorp=.False.
+   sorpP0=1.0
+   Rsorp=0.2
+   K_sorp = 0.5 
+/ 
