@@ -1,6 +1,5 @@
 #include "fabm_driver.h"
 
-!todo: DO=f(det)
 !todo: Pon, Non
 !todo: OXb: refractory
    
@@ -177,7 +176,11 @@
    
    !common diags
    call self%register_diagnostic_variable(self%id_f_do,'f_do','-', &
-                                          'oxygen function', output=output_time_step_averaged)
+                                          'oxygen inhibition', output=output_time_step_averaged)
+   call self%register_diagnostic_variable(self%id_dofon,'dofon','-', &
+                                          'DO estimated from ON', output=output_time_step_averaged)
+   call self%register_diagnostic_variable(self%id_f_ondo,'f_ondo','-', &
+                                          'oxygen inhibition mimicked by ON', output=output_time_step_averaged)                                       
    !N diags
    call self%register_diagnostic_variable(self%id_dif_N,'difN','mmol/m**2/d', &
                                           'diffusive flux rate of DIN at soil surface', output=output_time_step_averaged)
