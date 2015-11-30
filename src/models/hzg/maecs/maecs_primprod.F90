@@ -286,7 +286,7 @@ dmuQ_dtheta = 0.0d0
 
 do i = 1, num_nut-1 ! skip i=N:carbon
   if( self%adap_rub .gt. 0.001 .or. self%adap_theta .gt. 0.001) then
-     act_V           = elem(i)%aV * elem(i)%dmudaV/ (dmu_daV_tot + eps)
+     act_V           = elem(i)%aV**2 * elem(i)%dmudaV/ (dmu_daV_tot + eps)
   else
      act_V           = max(0.0d0, 1.0d0 - elem(i)%relQ )
   endif

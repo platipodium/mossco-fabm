@@ -67,6 +67,7 @@ real(rk) :: aggreg_rate ! aggregation among phytoplankton and between phytoplank
 logical  :: out = .true.
 !   if(36000.eq.secondsofday .and. mod(julianday,1).eq.0 .and. outn) out=.true.    
 real(rk) :: pdet, no3
+real(rk) :: QP_phy_max, rqn
 real(rk) :: det_prod, nh3f
 real(rk) :: radsP,Oxicminlim,Denitrilim,Anoxiclim,Rescale,rP
 real(rk),parameter :: relaxO2=0.04_rk
@@ -193,6 +194,14 @@ else
 ! --- stoichiometry of autotrophs (calculating QN_phy, frac_R, theta, and QP_phy)
 call calc_internal_states(self,phy,det,dom,zoo)
 
+! trait-hack: QmxaP ~ QN
+rqn  = phy%relQ%N 
+if(rqn .gt. 1.0) rqn = 1.0
+if(rqn .lt. 0.05) rqn = 0.05
+
+QP_phy_max = self%QP_phy_0+ rqn*(self%QP_phy_max*self%QP_phy_0)
+phy%relQ%P = ( phy%Q%P - self%QP_phy_0 )/( rqn * self%QP_phy_max)
+
 !write (*,'(A,2(E12.2))') 'QN:',phy%Q%N,phy%relQ%N
 
 if (.not. self%PhotoacclimOn) then  
@@ -210,7 +219,7 @@ call calc_sensitivities(self,sens,phy,env,nut,acclim)
 !end if
 !if (phy%chl .lt. 0.01d0) then
 !  phy%theta     = phy%chl / (phy%rel_chloropl * phy%reg%C)   ! trait variable
-!  phy%frac%theta= phy%theta * phy%rel_chloropl * maecs%itheta_max ! []     no 
+!  phy%frac%theta= phy%theta * phy%rel_chloropl * self%itheta_max ! []     no 
 !  write (*,'(A,3(F10.3))') 'fT=',phy%chl,phy%reg%C,phy%Rub end if
 !write (*,'(A,4(F10.3))') 'PAR, T, th, P =',env%par,env%temp,phy%theta, sens%upt_pot%C 
 
@@ -356,7 +365,7 @@ rhsv%phyN =  uptake%N             * phy%C &
 
 !if (rhsv%chl .lt. -200.d0) then
 !  phy%theta     = phy%chl / (phy%rel_chloropl * phy%reg%C)   ! trait variable
-!  phy%frac%theta= phy%theta * phy%rel_chloropl * maecs%itheta_max ! []     no 
+!  phy%frac%theta= phy%theta * phy%rel_chloropl * self%itheta_max ! []     no 
 !  write (*,'(A,4(F14.3))') 'dChl=',rhsv%chl,phy%chl,dRchl_phyC_dt,rhsv%phyC,dQN_dt
 !  write (*,'(A,6(F14.3))') 'aa=',acclim%dRchl_dtheta,acclim%dtheta_dt,acclim%dRchl_dfracR,acclim%dfracR_dt,acclim%dRchl_dQN, dQN_dt
 !  write (*,'(A,2(F14.3))') 'dmdx=',acclim%fac1,acclim%fac2

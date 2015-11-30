@@ -187,7 +187,7 @@ type (type_maecs_om),intent(in) :: nut
 type (type_maecs_traitdyn), intent(out) :: acc
 
 type (type_maecs_om) :: fA
-real(rk) :: par, T_Kelv, NutF, affin, pmax
+real(rk) :: par, T_Kelv, NutF, affin, pmax, rqn
 logical      ::IsAdap = .true.
 
 if((maecs%adap_rub .lt. 0.001d0 .and. maecs%adap_theta.lt. 0.001d0) .or.  .not. maecs%PhotoacclimOn) IsAdap = .false. 
@@ -238,9 +238,15 @@ end if
 NutF          = smooth_small(nut%N,maecs%small)
 ! optimal partitioning between
 ! surface uptake sites and internal enzymes (for assimilation)
-fA%N          = fOptUpt(maecs%AffN,maecs%V_NC_max * sens%f_T2, NutF, IsAdap)
+
+! trait-hack: QmxaP ~ QN
+rqn  = phy%relQ%N 
+if(rqn .gt. 1.0) rqn = 1.0
+if(rqn .lt. 0.1) rqn = 0.1
+
+fA%N          = fOptUpt(maecs%AffN/rqn,maecs%V_NC_max * sens%f_T2, NutF, IsAdap)
 acc%fA%N      = fA%N
-sens%upt_pot%N= uptflex(maecs%AffN,maecs%V_NC_max*sens%f_T2,NutF, fA%N)
+sens%upt_pot%N= uptflex(maecs%AffN/rqn,maecs%V_NC_max*sens%f_T2,NutF, fA%N)
 
 !  P-uptake coefficients
 if (maecs%PhosphorusOn) then 
