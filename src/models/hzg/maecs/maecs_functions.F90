@@ -240,7 +240,7 @@ NutF          = smooth_small(nut%N,maecs%small)
 ! surface uptake sites and internal enzymes (for assimilation)
 
 ! trait-hack: QmxaP ~ QN
-if(self%mort_ODU .gt. 0.99) then
+if(maecs%mort_ODU .gt. 0.99) then
   rqn  = phy%relQ%N 
   if(rqn .gt. 1.0d0) rqn = 1.0d0
   if(rqn .lt. 0.1d0) rqn = 0.1d0
