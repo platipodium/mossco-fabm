@@ -195,12 +195,14 @@ else
 call calc_internal_states(self,phy,det,dom,zoo)
 
 ! trait-hack: QmxaP ~ QN
-rqn  = phy%relQ%N 
-if(rqn .gt. 1.0) rqn = 1.0
-if(rqn .lt. 0.05) rqn = 0.05
+if(self%mort_ODU .gt. 0.99) then
+  rqn  = phy%relQ%N 
+  if(rqn .gt. 1.0) rqn = 1.0
+  if(rqn .lt. 0.05) rqn = 0.05
 
-QP_phy_max = self%QP_phy_0+ rqn*(self%QP_phy_max*self%QP_phy_0)
-phy%relQ%P = ( phy%Q%P - self%QP_phy_0 )/( rqn * self%QP_phy_max)
+  QP_phy_max = self%QP_phy_0+ rqn*(self%QP_phy_max*self%QP_phy_0)
+  phy%relQ%P = ( phy%Q%P - self%QP_phy_0 )/( rqn * self%QP_phy_max)
+endif
 
 !write (*,'(A,2(E12.2))') 'QN:',phy%Q%N,phy%relQ%N
 
