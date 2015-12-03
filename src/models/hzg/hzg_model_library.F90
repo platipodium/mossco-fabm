@@ -2,7 +2,7 @@ module hzg_model_library
 
    use fabm_types, only: type_base_model_factory,type_base_model
    
-   !use hzg_omexdia_p !this is currently in fabm_library.F90.in
+   use hzg_omexdia_p
    use hzg_omexdia_p_mpb   
    use hzg_jelly 
    use hzg_n2pzdq   
@@ -32,7 +32,7 @@ contains
      class (type_base_model),pointer :: model
 
      select case (name)
-         !case ('hzg_omexdia_p'); allocate(type_hzg_omexdia::model) !!this is currently in fabm_library.F90.in
+         case ('omexdia_p'); allocate(type_hzg_omexdia_p::model)
          case ('omexdia_p_mpb'); allocate(type_hzg_omexdia_p_mpb::model)
          case ('jelly'); allocate(type_hzg_jelly::model)
          case ('n2pzdq'); allocate(type_hzg_n2pzdq::model)
