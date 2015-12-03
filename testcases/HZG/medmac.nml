@@ -38,8 +38,8 @@
    K_on2do = 10 
    K_doin = 10 
    K_ondo=500.0
-   DINp_variable = 'hzg_maecs_nutN' 
-   PONp_variable = 'hzg_maecs_detN' 
+   DINp_variable = '' !'hzg_maecs_nutN' 
+   PONp_variable = '' !'hzg_maecs_detN' 
    DINp_presc=1.6
    PONp_presc=1.6
    DINb0 = 35 
@@ -51,8 +51,8 @@
    do_denit=.True.
    K_denit=30.0
    den_dometh = 2 
-   DIPp_variable = 'hzg_maecs_nutP' 
-   POPp_variable = 'hzg_maecs_detP' 
+   DIPp_variable = '' !'hzg_maecs_nutP' 
+   POPp_variable = '' !'hzg_maecs_detP' 
    DIPp_presc=0.1
    POPp_presc=0.1
    DIPb0 = 3.0 
@@ -61,7 +61,7 @@
    rP=0.03
    kP=0.5
    Rmeth_P=1
-   do_Psorp=.False.
+   do_Psorp=.True.
    sorpP0=1.0
    Rsorp=0.2
    K_sorp = 0.5 
