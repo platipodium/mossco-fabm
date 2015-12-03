@@ -882,14 +882,14 @@ subroutine maecs_do_surface(self,_ARGUMENTS_DO_SURFACE_)
 write(*,'(A)') 'begin surface_DO'
 #endif
 
-      if (self%BGC2DDiagOn) then
-        _GET_HORIZONTAL_(self%id_GPPR_vertint,tot_vi_GPPR)
-        _SET_HORIZONTAL_DIAGNOSTIC_(self%id_GPPR_vertint_diag,_REPLNAN_(tot_vi_GPPR))
-        if (self%BioOxyOn) then
-          _GET_HORIZONTAL_(self%id_Denitr_vertint,tot_vi_Denitr)
-          _SET_HORIZONTAL_DIAGNOSTIC_(self%id_Denitr_vertint_diag, _REPLNAN_(tot_vi_Denitr))
-        end if
-      end if
+      !if (self%BGC2DDiagOn) then
+        !_GET_HORIZONTAL_(self%id_GPPR_vertint,tot_vi_GPPR)
+        !_SET_HORIZONTAL_DIAGNOSTIC_(self%id_GPPR_vertint_diag,_REPLNAN_(tot_vi_GPPR))
+        !if (self%BioOxyOn) then
+        !  _GET_HORIZONTAL_(self%id_Denitr_vertint,tot_vi_Denitr)
+        !  _SET_HORIZONTAL_DIAGNOSTIC_(self%id_Denitr_vertint_diag, _REPLNAN_(tot_vi_Denitr))
+        !end if
+      !end if
       
       if (self%Budget2DDiagOn) then 
       _GET_HORIZONTAL_(self%id_totN_vertint,tot_vi_N)

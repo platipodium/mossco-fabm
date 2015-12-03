@@ -808,12 +808,12 @@ if (self%Budget2DDiagOn) then
 end if
 
 if (self%BGC2DDiagOn) then
-    call self%register_dependency(self%id_GPPR_dep,'GPPR')
-    call self%register_dependency(self%id_GPPR_vertint,vertical_integral(self%id_GPPR_dep))
-    call self%register_horizontal_diagnostic_variable(self%id_GPPR_vertint_diag,'GPPR_vertint','mmol-C/m**2/d','vertical_integral_gross_primary_production', output=DOUT)
-    call self%register_dependency(self%id_Denitr_dep,'Denitr')
-    call self%register_dependency(self%id_Denitr_vertint,vertical_integral(self%id_Denitr_dep))
-    call self%register_horizontal_diagnostic_variable(self%id_Denitr_vertint_diag,'Denitr_vertint','mmol-N/m**2/d','vertical_integral_Denitrification', output=DOUT)
+    !call self%register_dependency(self%id_GPPR_dep,'GPPR')
+    !call self%register_dependency(self%id_GPPR_vertint,vertical_integral(self%id_GPPR_dep))
+    !call self%register_horizontal_diagnostic_variable(self%id_GPPR_vertint_diag,'GPPR_vertint','mmol-C/m**2/d','vertical_integral_gross_primary_production', output=DOUT)
+    !call self%register_dependency(self%id_Denitr_dep,'Denitr')
+    !call self%register_dependency(self%id_Denitr_vertint,vertical_integral(self%id_Denitr_dep))
+    !call self%register_horizontal_diagnostic_variable(self%id_Denitr_vertint_diag,'Denitr_vertint','mmol-N/m**2/d','vertical_integral_Denitrification', output=DOUT)
     call self%register_horizontal_diagnostic_variable(self%id_O2flux_diag,'O2flux','mmol-O2/m**2/d','oxygen_flux_between_sea_water_and_air', output=DOUT)
 end if
 
