@@ -4,26 +4,26 @@ cmake_minimum_required(VERSION 2.8.8)
 # When adding new institutes to the source tree, please add them here as well.
 # You can exclude institute directories from compilation by commenting them out.
 set(DEFAULT_INSTITUTES
-    au           # University of Aarhus, Denmark
-    bb           # Bolding & Bruggeman - formerly Bolding & Burchard
+    #au           # University of Aarhus, Denmark
+    #bb           # Bolding & Bruggeman - formerly Bolding & Burchard
     examples     # Examples supplied with FABM itself
     gotm         # Models ported from original GOTM/BIO library
     hzg          # Helmholtz-Zentrum Geesthacht, Germany
-    pclake       # The PCLake model - reference implementation
-    pml          # Plymouth Marine Laboratory, United Kingdom
-    ersem        # European Regional Seas Ecosytem Model
-    niva         # Norsk Institutt for Vannforskning, Norway
+    #pclake       # The PCLake model - reference implementation
+    #pml          # Plymouth Marine Laboratory, United Kingdom
+    #ersem        # European Regional Seas Ecosytem Model
+    #niva         # Norsk Institutt for Vannforskning, Norway
 )
 
 # List of institutes that use manual edits to fabm_library.F90.
 # This is DEPRECATED. Please use the new conventions described on
 # this wiki and add your institute to the above FABM_INSTITUTES instead.
 set(FABM_INSTITUTES_OLD
-    aed          # Aquatic Eco Dynamics, University of Western Australia
+    #aed          # Aquatic Eco Dynamics, University of Western Australia
     iow          # Leibniz Institute for Baltic Sea Research, Germany
-    klimacampus  # KlimaCampus Hamburg, Germany
-    metu         # Middle East Technical University, Turkey
-    msi          # Marine Systems Institute, Tallinn University of Technology, Estonia
+    #klimacampus  # KlimaCampus Hamburg, Germany
+    #metu         # Middle East Technical University, Turkey
+    #msi          # Marine Systems Institute, Tallinn University of Technology, Estonia
    )
 
 set(FABM_INSTITUTES ${DEFAULT_INSTITUTES} CACHE STRING "Institute directories to include during compilation.")
