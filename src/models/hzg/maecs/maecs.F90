@@ -5,7 +5,7 @@
 !> @brief This is the module registered in FABM
 !> @details all the maecs_types are made available to this module
 !! @todo cross-check the new units and long names of id_Rub (bulk), id_chl (bulk), id_chl2 (diag, chl:c ratio) 
-module fabm_hzg_maecs
+module hzg_maecs
 use fabm_types
 use maecs_types
 
@@ -1031,4 +1031,4 @@ end subroutine maecs_init_stoichvars
 
 #include "maecs_do.F90"
 
-end module fabm_hzg_maecs
+end module hzg_maecs

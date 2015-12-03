@@ -8,6 +8,7 @@ set(DEFAULT_INSTITUTES
     bb           # Bolding & Bruggeman - formerly Bolding & Burchard
     examples     # Examples supplied with FABM itself
     gotm         # Models ported from original GOTM/BIO library
+    hzg          # Helmholtz-Zentrum Geesthacht, Germany
     pclake       # The PCLake model - reference implementation
     pml          # Plymouth Marine Laboratory, United Kingdom
     ersem        # European Regional Seas Ecosytem Model
@@ -19,7 +20,6 @@ set(DEFAULT_INSTITUTES
 # this wiki and add your institute to the above FABM_INSTITUTES instead.
 set(FABM_INSTITUTES_OLD
     aed          # Aquatic Eco Dynamics, University of Western Australia
-    hzg          # Helmholtz-Zentrum Geesthacht, Germany
     iow          # Leibniz Institute for Baltic Sea Research, Germany
     klimacampus  # KlimaCampus Hamburg, Germany
     metu         # Middle East Technical University, Turkey

@@ -4,7 +4,7 @@
 ! Size- & distribution based ctenophore model
 ! kai wirtz Apr 2014
 ! --------------------------------------------
-module fabm_hzg_jelly
+module hzg_jelly
 !
 ! !USES:
   use fabm_types
@@ -1090,5 +1090,5 @@ implicit none
 end subroutine errfunc
 
 !EOC
-end module fabm_hzg_jelly
+end module hzg_jelly
 !:#endif

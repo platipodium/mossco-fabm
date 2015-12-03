@@ -1,4 +1,5 @@
 add_library(fabm_models_hzg OBJECT
+            hzg_model_library.F90
             omexdia_p/omexdia_p.F90
             omexdia_p_mpb/omexdia_p_mpb.F90
             jelly/jelly.F90

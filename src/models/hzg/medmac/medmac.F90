@@ -65,7 +65,7 @@
    end type type_hzg_medmac
 !
 ! !REVISION HISTORY:!
-!  Original author(s): Lena Spruch, Kai Wirtz, Onur Kerimoglu
+!  Original author(s): Onur Kerimoglu
 !
 !EOP
 !-----------------------------------------------------------------------

@@ -8,7 +8,7 @@
 !> @author Lena Spruch, Kai Wirtz, Onur Kerimoglu
 !> @copyright HZG
 !> @details See Section 1 for a general overview to see what the model is about.
-   module fabm_hzg_n2pzdq
+   module hzg_n2pzdq
 
 ! !USES:
    use fabm_types
@@ -39,8 +39,7 @@
       real(rk) :: dic_per_n
       logical  :: use_dic 
       
-            contains
-
+  contains
 !     Model procedures
       procedure :: initialize 
       procedure :: do         
@@ -581,7 +580,7 @@
 !EOC
 !-----------------------------------------------------------------------
 
-   end module fabm_hzg_n2pzdq
+   end module hzg_n2pzdq
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org

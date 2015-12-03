@@ -6,7 +6,7 @@
 ! !MODULE: fabm_hzg_omexdia_p_mpb --- Fortran 2003 version of OMEXDIA+P biogeochemical model
 !
 ! !INTERFACE:
-   module fabm_hzg_omexdia_p_mpb
+   module hzg_omexdia_p_mpb
 !
 ! !DESCRIPTION:
 !
@@ -661,5 +661,5 @@ end if
    end subroutine get_conserved_quantities
 !EOC
 
-   end module fabm_hzg_omexdia_p_mpb
+   end module hzg_omexdia_p_mpb
 

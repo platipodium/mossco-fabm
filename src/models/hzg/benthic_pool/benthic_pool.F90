@@ -6,7 +6,7 @@
 ! !MODULE: fabm_hzg_benthic_predator --- test for benthic interfaces in FABM
 !
 ! !INTERFACE:
-   module fabm_hzg_benthic_pool
+   module hzg_benthic_pool
 !
 ! !DESCRIPTION:
 ! This is a very simple model for a benthic predator, grazing according to a
@@ -296,7 +296,7 @@ diff,v_d,d_ben,const_nut,const_det,remin_const,remin_max,k_remin,do_sat_remin!,g
 
 !-----------------------------------------------------------------------
 
-   end module fabm_hzg_benthic_pool
+   end module hzg_benthic_pool
 
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org

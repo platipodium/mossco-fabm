@@ -6,7 +6,7 @@
 ! !MODULE: fabm_hzg_Ndepoden --- test for surface interfaces in FABM
 !
 ! !INTERFACE:
-   module fabm_hzg_Ndepoden
+   module hzg_Ndepoden
 !
 ! !DESCRIPTION:
 ! This is a very simple model for pelagic consumption (eg., of det-N) & surface deposition (eg., of nut-N)
@@ -442,7 +442,7 @@ pure real(rk) function denitrify(self,det_pel,f_T)
  end function f_temp
 !-----------------------------------------------------------------------
 
- end module fabm_hzg_Ndepoden
+ end module hzg_Ndepoden
 !-----------------------------------------------------------------------
 ! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
 !-----------------------------------------------------------------------
