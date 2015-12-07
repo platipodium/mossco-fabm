@@ -5,11 +5,13 @@
 !            background attenuation coefficient
 ! a_minfr  [float, unit = -]
 !            heuristic depth-dep attenuation
-! a_spm    [float, unit = m**3/m.mmolC] *0.007 0.028 4
+! a_spm    [float, unit = m**2/m.mmolC] *0.007 0.028 4
 !            attenuation coefficient of SPM
+! a_doc    [float, unit = m**2/m.mmolC] 
+!            attenuation coefficient of DOC 
 ! a_fz    [float, unit = -]
 !            depth dependent turbidity gradient
-! a_chl    [float, unit = m**3/m.mgChl] *0.002 0.008 2
+! a_chl    [float, unit = m**2/m.mgChl] *0.002 0.008 2
 !            attenuation coefficient due to Chl absorption
 ! rel_co2  [float, unit = -]  *25 50 2
 !            relative CO2 conc in sea water 
@@ -35,6 +37,8 @@
    a_water = 1.,
    a_minfr = 0.2 
    a_spm = 0.004, 
+   a_spm = 0.03,   ![0.018-0.046] 1molC/1000mmolC*12gC/1molC*[1.5-3.8] m2/gC  (oubelkheir et al. 2005, 1.5:non-algal particles, 3.8:Diatoms)
+   a_doc = 0.0035,  !1molC/1000mmolC*12gC/1molC*0.29 m2/gC (Stedmon et al. 2000) 
    a_fz = 7.55,
  a_chl = 0.004, 
    rel_co2 =  -1,
