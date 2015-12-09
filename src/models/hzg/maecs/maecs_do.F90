@@ -135,17 +135,19 @@ if (.not. self%GrazingOn) then
 end if
 
 !S_GED
-  _GET_(self%id_temp, env%temp)  ! water temperature
-  _GET_(self%id_par, env%par)  ! light photosynthetically active radiation
-  if (self%ChemostatOn) then
-    if (_AVAILABLE_(self%id_CO2)) then
-      _GET_(self%id_CO2, env%CO2)  ! CO2
-    else
-      env%CO2 = 0.0_rk ! todo: throw an error, if necessary dependency cannot be found 
-    end if
+_GET_(self%id_temp, env%temp)  ! water temperature
+_GET_(self%id_par, env%par)  ! light photosynthetically active radiation
+if (self%ChemostatOn) then
+  if (_AVAILABLE_(self%id_CO2)) then
+    _GET_(self%id_CO2, env%CO2)  ! CO2
+  else
+    env%CO2 = 0.0_rk ! todo: throw an error, if necessary dependency cannot be found 
   end if
+end if
 
 !E_GED  ! list outcommented due to different usage of zmax and doy (see light extinction)
+! get attenuation to be used for zoo mortality (fish avoids turbid waters)
+_GET_(self%id_att_dep, att)  
 
 ! @ingroup main
 !> @fn fabm_hzg_maecs::maecs_do () 
@@ -255,8 +257,11 @@ if (self%GrazingOn) then
   call grazing_losses(zoo,zoo_respC,nquot,lossZ,floppZ, mswitch) 
 !  --- transform from specific to bulk grazing rate
   graz_rate   = graz_rate * zoo%C 
+
 !  --- quadratic closure term
-  zoo_mort    = self%mort_zoo * sens%f_T**self%fT_exp_mort  * zoo%C
+! light attenuation as proxy for zoo mortality (fish avoids turbid waters)
+
+  zoo_mort    = self%mort_zoo * sens%f_T**self%fT_exp_mort*(1.0d0+ 1.0/(att+0.05))  * zoo%C
 
 else
   graz_rate   = 0.0_rk
@@ -701,7 +706,6 @@ if (self%BGC0DDiagOn) then
   end if
 end if
 if (self%PhysiolDiagOn) then
-  _GET_(self%id_att_dep, att)  
   _SET_DIAGNOSTIC_(self%id_aVSi, att)    !
 
   _SET_DIAGNOSTIC_(self%id_dPAR, _REPLNAN_(1.0+env%par))         !average Photosynthetically_Active_Radiation_

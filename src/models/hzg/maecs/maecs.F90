@@ -928,7 +928,7 @@ end subroutine initialize
     !parameters below were fitted by J.Maerz using the scanfish data from the German Bight
     A=8.036
     B=9.78
-    L=102.42
+    L=72.42
     ft= 0.05*(A*sin(2.0*doy*Pi/365.0 +2.0*L*Pi/365.0)+B)
     !write (*,'(A, F7.6)') 'ft term: ',0.05*(A*sin(2.0*doy*Pi/365.0 +2.0*L*Pi/365.0)+B)
     
@@ -942,7 +942,7 @@ end subroutine initialize
    kw=self%a_water*fz*ft
    !write (*,'(A, 2(F5.2), I4, 3(F5.2))') 'zmax,t,meth,fz,ft,kw: ',zmax,doy,self%kwFzmaxMeth,fz,ft,kw
    
-  _SET_DIAGNOSTIC_(self%id_att, kw)         !attenuation as a diag
+  _SET_DIAGNOSTIC_(self%id_att, fz*ft)       !relative attenuation as a diag
 
    ! Attenuation as a result of background turbidity and self-shading of phytoplankton.
    _SET_EXTINCTION_(kw + self%a_spm*(p+d+z) + self%a_chl*chl )
