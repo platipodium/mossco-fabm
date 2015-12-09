@@ -10,10 +10,10 @@ use fabm_types
 use maecs_types
 
 #define _DEBUG_ 0
-#define DOUT output_time_step_averaged
+!#define DOUT output_time_step_averaged
 !#define DOUT time_integrated
 !#define DOUT output_time_step_integrated
-!#define DOUT output_instantaneous
+#define DOUT output_instantaneous
 
 !implicit none
 
@@ -691,6 +691,9 @@ end if
 
 !!------- Register diagnostic variables  ------- 
 
+call self%register_diagnostic_variable(self%id_att,     'att','1/m', 'light_attenuation att', output=DOUT)
+call self%register_dependency(self%id_att_dep,'att','1/m','light_attenuation_in_water') 
+
 if (self%DebugDiagOn) then
 call self%register_diagnostic_variable(self%id_tmp,     'tmp','-', 'Temporary_diagnostic_ tmp', &
   output=DOUT)
@@ -939,6 +942,8 @@ end subroutine initialize
    kw=self%a_water*fz*ft
    !write (*,'(A, 2(F5.2), I4, 3(F5.2))') 'zmax,t,meth,fz,ft,kw: ',zmax,doy,self%kwFzmaxMeth,fz,ft,kw
    
+  _SET_DIAGNOSTIC_(self%id_att, kw)         !attenuation as a diag
+
    ! Attenuation as a result of background turbidity and self-shading of phytoplankton.
    _SET_EXTINCTION_(kw + self%a_spm*(p+d+z) + self%a_chl*chl )
 

@@ -59,7 +59,8 @@ type (type_horizontal_diagnostic_variable_id)            :: id_totP_vertint_diag
 type (type_horizontal_diagnostic_variable_id)            :: id_totS_vertint_diag
 type (type_horizontal_dependency_id)            :: id_zmax
 type (type_horizontal_diagnostic_variable_id)            :: id_O2flux_diag
-type (type_diagnostic_variable_id)   :: id_GPPR, id_Denitr, id_dPAR, id_chl2C, id_Theta, id_fracR, id_fracT, id_fracNU, id_DNP, id_QNP, id_QN, id_QP, id_QSi, id_aVN, id_aVP, id_aVSi, id_faN, id_faP, id_faSi, id_rQN, id_rQP, id_rQSi, id_tmp, id_fac1, id_fac2, id_fac3, id_fac4, id_fac5, id_phyUR, id_phyELR, id_phyALR, id_phyGLR, id_vsinkr, id_qualPOM, id_qualDOM, id_no3
+type (type_diagnostic_variable_id)   :: id_GPPR, id_Denitr, id_dPAR, id_chl2C, id_Theta, id_fracR, id_fracT, id_fracNU, id_DNP, id_QNP, id_QN, id_QP, id_QSi, id_aVN, id_aVP, id_aVSi, id_faN, id_faP, id_faSi, id_rQN, id_rQP, id_rQSi, id_tmp, id_fac1, id_fac2, id_fac3, id_fac4, id_fac5, id_phyUR, id_phyELR, id_phyALR, id_phyGLR, id_vsinkr, id_qualPOM, id_qualDOM, id_no3, id_att
+type (type_dependency_id)            :: id_att_dep
 real(rk) ::  nutN_initial, nutP_initial, nutS_initial, phyC_initial, phyN_initial, phyP_initial, phyS_initial, zooC_initial, detC_initial, detN_initial, detP_initial, detS_initial, domC_initial, domN_initial, domP_initial, RNit_initial, frac_Rub_ini, frac_chl_ini, nh3_initial, oxy_initial, odu_initial
 real(rk) ::  P_max, alpha, sigma, theta_LHC, rel_chloropl_min, QN_phy_0, QN_phy_max, V_NC_max, AffN, zeta_CN, zstoich_PN, exud_phy, QP_phy_0, QP_phy_max, V_PC_max, AffP, QSi_phy_0, QSi_phy_max, V_SiC_max, AffSi, MaxRelQ, syn_nut, adap_rub, adap_theta, tau_regV, disease, mort_ODU, decay_pigm, decay_nut, phi_agg, agg_doc, sink_phys, vS_phy, vS_det, hydrol, remin, Nqual, remNP, denit, PON_denit, Q10, T_ref, NutOrder
 real(rk) ::  const_NC_zoo, const_PC_zoo, g_max, k_grazC, yield_zoo, basal_resp_zoo, mort_zoo, fT_exp_mort

@@ -67,7 +67,7 @@ real(rk) :: aggreg_rate ! aggregation among phytoplankton and between phytoplank
 logical  :: out = .true.
 !   if(36000.eq.secondsofday .and. mod(julianday,1).eq.0 .and. outn) out=.true.    
 real(rk) :: pdet, no3
-real(rk) :: QP_phy_max, rqn
+real(rk) :: QP_phy_max, rqn, att
 real(rk) :: det_prod, nh3f
 real(rk) :: radsP,Oxicminlim,Denitrilim,Anoxiclim,Rescale,rP
 real(rk),parameter :: relaxO2=0.04_rk
@@ -701,6 +701,9 @@ if (self%BGC0DDiagOn) then
   end if
 end if
 if (self%PhysiolDiagOn) then
+  _GET_(self%id_att_dep, att)  
+  _SET_DIAGNOSTIC_(self%id_aVSi, att)    !
+
   _SET_DIAGNOSTIC_(self%id_dPAR, _REPLNAN_(1.0+env%par))         !average Photosynthetically_Active_Radiation_
   _SET_DIAGNOSTIC_(self%id_chl2C, _REPLNAN_(phy%theta*phy%rel_chloropl/12)) !average chlorophyll:carbon_ratio_=_chl-a/chloroplast-C_*_chloroplast-C/phy-_
   _SET_DIAGNOSTIC_(self%id_Theta, _REPLNAN_(phy%theta))      !average Theta_
@@ -712,7 +715,7 @@ if (self%PhysiolDiagOn) then
   _SET_DIAGNOSTIC_(self%id_QSi, _REPLNAN_(phy%Q%Si))         !average Si:C_ratio_
   _SET_DIAGNOSTIC_(self%id_aVN, _REPLNAN_(acclim%aV%N))      !average N-uptake_activity_
   _SET_DIAGNOSTIC_(self%id_aVP, _REPLNAN_(acclim%aV%P))      !average P-uptake_activity_
-  _SET_DIAGNOSTIC_(self%id_aVSi, _REPLNAN_(acclim%aV%Si))    !average Si-uptake_activity_
+!  _SET_DIAGNOSTIC_(self%id_aVSi, _REPLNAN_(acclim%aV%Si))    !average Si-uptake_activity_
   _SET_DIAGNOSTIC_(self%id_faN, _REPLNAN_(acclim%fA%N))      !average N-uptake_affinity_allocation_
   _SET_DIAGNOSTIC_(self%id_faP, _REPLNAN_(acclim%fA%P))      !average P-uptake_affinity_allocation_
   _SET_DIAGNOSTIC_(self%id_faSi, _REPLNAN_(acclim%fA%Si))    !average Si-uptake_affinity_allocation_
