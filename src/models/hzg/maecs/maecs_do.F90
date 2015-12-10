@@ -67,7 +67,7 @@ real(rk) :: aggreg_rate ! aggregation among phytoplankton and between phytoplank
 logical  :: out = .true.
 !   if(36000.eq.secondsofday .and. mod(julianday,1).eq.0 .and. outn) out=.true.    
 real(rk) :: pdet, no3
-real(rk) :: QP_phy_max, rqn, att
+real(rk) :: QP_phy_max, rqn, att, relmort
 real(rk) :: det_prod, nh3f
 real(rk) :: radsP,Oxicminlim,Denitrilim,Anoxiclim,Rescale,rP
 real(rk),parameter :: relaxO2=0.04_rk
@@ -103,7 +103,7 @@ if (self%RubiscoOn) then
       _GET_(self%id_Rub, phy%Rub)  ! fraction of Rubisco in -
 end if
 if (self%PhotoacclimOn) then
-      _GET_(self%id_chl, phy%chl)  ! Chl in mg-Chla/mmol-C
+      _GET_(self%id_chl, phy%chl)  ! Chl in mg-Chl/m**3
 end if
 if (self%PhosphorusOn) then
       _GET_(self%id_nutP, nut%P)  ! Dissolved Inorganic Phosphorus DIP in mmol-P/m**3
@@ -146,8 +146,6 @@ if (self%ChemostatOn) then
 end if
 
 !E_GED  ! list outcommented due to different usage of zmax and doy (see light extinction)
-! get attenuation to be used for zoo mortality (fish avoids turbid waters)
-_GET_(self%id_att_dep, att)  
 
 ! @ingroup main
 !> @fn fabm_hzg_maecs::maecs_do () 
@@ -259,10 +257,14 @@ if (self%GrazingOn) then
   graz_rate   = graz_rate * zoo%C 
 
 !  --- quadratic closure term
+  relmort = 1.0d0
+  if (self%GrazTurbOn) then
 ! light attenuation as proxy for zoo mortality (fish avoids turbid waters)
-
-  zoo_mort    = self%mort_zoo * sens%f_T**self%fT_exp_mort*(1.0d0+ 1.0/(att+0.05))  * zoo%C
-
+! get attenuation to be used for zoo mortality (fish avoids turbid waters)
+    _GET_(self%id_att_dep, att) 
+    relmort = 1.0d0 + 1.0/(att+self%mort_zatt)  
+  endif
+  zoo_mort    = self%mort_zoo * sens%f_T**self%fT_exp_mort*relmort  * zoo%C
 else
   graz_rate   = 0.0_rk
 !  if (self%ChemostatOn .and. .not. IsCritical) graz_rate = 0.2*phy%C
@@ -675,6 +677,9 @@ end if
 !  end select
 !endif
 
+_SET_DIAGNOSTIC_(self%id_vphys, exp(-self%sink_phys*phy%relQ%N * phy%relQ%P))       !average Temporary_diagnostic_
+
+
 !________________________________________________________________________________
 ! set diag variables, mostly from PrimProd module
 
@@ -684,32 +689,24 @@ end if
 !#S_DIA
 if (self%DebugDiagOn) then
   _SET_DIAGNOSTIC_(self%id_tmp, _REPLNAN_(acclim%tmp))       !average Temporary_diagnostic_
-!  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(dRchl_phyC_dt))   !average Auxiliary_diagnostic_
-!  _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(acclim%dRchl_dfracR*acclim%dfracR_dt)) !average Auxiliary_diagnostic_
-!  _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%dRchl_dtheta*acclim%dtheta_dt)) !average Auxiliary_diagnostic_
-!  _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(acclim%fac))     !average dtheta_dt_due_to_flex_theta_
-  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(acclim%fac1))     !average dtheta_dt_due_to_flex_theta_
-  _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(acclim%fac2))     !average dtheta_dt_due_to_flex_theta_
-  _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%fac3))     !average dtheta_dt_due_to_flex_theta_
-  _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(uptake%N))     !average dtheta_dt_due_to_flex_theta_
-  _SET_DIAGNOSTIC_(self%id_fac5, _REPLNAN_(phy%resp))     !average dtheta_dt_due_to_grad_theta_acclim%fac2
+  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(dRchl_phyC_dt))   !average Auxiliary_diagnostic_
+  _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(acclim%dRchl_dfracR*acclim%dfracR_dt)) !average Auxiliary_diagnostic_
+  _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%dRchl_dtheta*acclim%dtheta_dt)) !average Auxiliary_diagnostic_
+  _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(acclim%fac1))     !average dtheta_dt_due_to_flex_theta_
+  _SET_DIAGNOSTIC_(self%id_fac5, _REPLNAN_(acclim%fac2))     !average dtheta_dt_due_to_grad_theta_
 end if
 if (self%BGC0DDiagOn) then
-  _SET_DIAGNOSTIC_(self%id_GPPR, _REPLNAN_(phy%gpp))   !*phy%Caverage gross_primary_production_
+  _SET_DIAGNOSTIC_(self%id_GPPR, _REPLNAN_(phy%gpp*phy%C))   !average gross_primary_production_
   _SET_DIAGNOSTIC_(self%id_Denitr, _REPLNAN_(0.8*Denitrific)) !average denitrification_rate_
-  _SET_DIAGNOSTIC_(self%id_DNP, _REPLNAN_(nut%N/(nut%P+self%small)))   !average DIN:DIP_ratio_
+  _SET_DIAGNOSTIC_(self%id_dPAR, _REPLNAN_(env%par))         !average Photosynthetically_Active_Radiation_
+  _SET_DIAGNOSTIC_(self%id_DNP, _REPLNAN_(nut%N/(nut%P+self%small))) !average DIN:DIP_ratio_
   _SET_DIAGNOSTIC_(self%id_QNP, _REPLNAN_(phy%Q%N/phy%Q%P))  !average N:P_ratio_
   _SET_DIAGNOSTIC_(self%id_qualPOM, _REPLNAN_(qualPOM))      !average Quality_of_POM_
   _SET_DIAGNOSTIC_(self%id_qualDOM, _REPLNAN_(qualDOM))      !average Quality_of_DOM_
-  if (self%BioOxyOn) then
-    _SET_DIAGNOSTIC_(self%id_no3, _REPLNAN_(no3))              !average Nitrate_
-  end if
+  _SET_DIAGNOSTIC_(self%id_no3, _REPLNAN_(no3))              !average Nitrate_
 end if
 if (self%PhysiolDiagOn) then
-  _SET_DIAGNOSTIC_(self%id_aVSi, att)    !
-
-  _SET_DIAGNOSTIC_(self%id_dPAR, _REPLNAN_(1.0+env%par))         !average Photosynthetically_Active_Radiation_
-  _SET_DIAGNOSTIC_(self%id_chl2C, _REPLNAN_(phy%theta*phy%rel_chloropl/12)) !average chlorophyll:carbon_ratio_=_chl-a/chloroplast-C_*_chloroplast-C/phy-_
+  _SET_DIAGNOSTIC_(self%id_chl2C, _REPLNAN_(phy%theta*phy%rel_chloropl/12)) !average chlorophyll:carbon_ratio_=_chl-a/chloroplast-C_*_chloroplast-C/phy-molC_*_1molC/12gC_
   _SET_DIAGNOSTIC_(self%id_Theta, _REPLNAN_(phy%theta))      !average Theta_
   _SET_DIAGNOSTIC_(self%id_fracR, _REPLNAN_(phy%frac%Rub))   !average Rubisco_fract._allocation_
   _SET_DIAGNOSTIC_(self%id_fracT, _REPLNAN_(phy%frac%theta)) !average LHC_fract._allocation_
@@ -719,20 +716,20 @@ if (self%PhysiolDiagOn) then
   _SET_DIAGNOSTIC_(self%id_QSi, _REPLNAN_(phy%Q%Si))         !average Si:C_ratio_
   _SET_DIAGNOSTIC_(self%id_aVN, _REPLNAN_(acclim%aV%N))      !average N-uptake_activity_
   _SET_DIAGNOSTIC_(self%id_aVP, _REPLNAN_(acclim%aV%P))      !average P-uptake_activity_
-!  _SET_DIAGNOSTIC_(self%id_aVSi, _REPLNAN_(acclim%aV%Si))    !average Si-uptake_activity_
+  _SET_DIAGNOSTIC_(self%id_aVSi, _REPLNAN_(acclim%aV%Si))    !average Si-uptake_activity_
   _SET_DIAGNOSTIC_(self%id_faN, _REPLNAN_(acclim%fA%N))      !average N-uptake_affinity_allocation_
   _SET_DIAGNOSTIC_(self%id_faP, _REPLNAN_(acclim%fA%P))      !average P-uptake_affinity_allocation_
   _SET_DIAGNOSTIC_(self%id_faSi, _REPLNAN_(acclim%fA%Si))    !average Si-uptake_affinity_allocation_
   _SET_DIAGNOSTIC_(self%id_rQN, _REPLNAN_(phy%relQ%N))       !average Relative_N-Quota_
   _SET_DIAGNOSTIC_(self%id_rQP, _REPLNAN_(phy%relQ%P))       !average Relative_P-Quota_
-  _SET_DIAGNOSTIC_(self%id_rQSi, _REPLNAN_(phy%relQ%Si ))     !phy%relQ%Siaverage Relative_Si-Quota_
+  _SET_DIAGNOSTIC_(self%id_rQSi, _REPLNAN_(phy%relQ%Si))     !average Relative_Si-Quota_
 end if
 if (self%RateDiagOn) then
   _SET_DIAGNOSTIC_(self%id_phyUR, _REPLNAN_(uptake%C))       !average Phytoplankton_C_Uptake_Rate_
   _SET_DIAGNOSTIC_(self%id_phyELR, _REPLNAN_(-exud%C))       !average Phytoplankton_Exudation_Loss_Rate_
   _SET_DIAGNOSTIC_(self%id_phyALR, _REPLNAN_(-aggreg_rate))  !average Phytoplankton_Aggregation_Loss_Rate_
   _SET_DIAGNOSTIC_(self%id_phyGLR, _REPLNAN_(-graz_rate/phy%reg%C)) !average Phytoplankton_Grazing_Loss_Rate_
-  _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(-self%vS_phy *exp(-self%sink_phys*phy%relQ%N*phy%relQ%P))) !average Relative_Sinking_Rate_
+  _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(exp(-self%sink_phys*phy%relQ%N*phy%relQ%P))) !average Relative_Sinking_Rate_
 end if
 !#E_DIA
 

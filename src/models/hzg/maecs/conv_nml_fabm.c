@@ -60,7 +60,10 @@ char init_varincl[3*NAML]= "call maecs_init_stoichvars(self)"; /* line included 
 char vstructn[NAML]	= "env";/* name of the major variable structure */ 
 char vstructc[4]   	= "E";	/* elements major variable structure
           A: all state variables T: traits  E: environmental forcing N: nutrients */ 
-char env_add[3*NAML] 	= "";	/* additional variable as member of the env structure (e.g., non-mass,non-trait MAECS variables*/        
+char env_add[3*NAML] 	= "";	/* additional variable as member of the env structure (e.g., non-mass,non-trait MAECS variables*/ 
+/* dependencies in switches */
+char swi1[7][NAML]	= {"BGC2DDiagOn","Budget2DDiagOn","PhysiolDiagOn","BGC0DDiagOn","BGC0DDiagOn","-"};
+char swi2[7][NAML]	= {"BGC0DDiagOn","Budget0DDiagOn","PhotoacclimOn","PhosphorusOn","BioOxyOn",""};
 
 /* ------------------------------------------------------------------- */
 /*            do not edit below ...                                    */
@@ -77,6 +80,7 @@ char pref[NAML],pnam[NAML],ptyp[NAML],pvals[NAML],outn[256],outn2[256],ttn[NAML]
 char nmlname[MI][NAML],nmlfname[MI][NAML];//"switch",
 char nmlt[3][NAML] = {"par","init","switch"}; // 3 nml groups: parameters, init=states, logical switches
 char numt[4][NAML] = {"real(rk)","logical","integer","character(len=64)"};
+char sinit[4][NAML] = {"0.0",".false.","0",""};
 char yesno[2][NAML] = {"false","true"};
 char tdb[2][4]={"","_sf"},tcb[2]={',','\n'};
 char parname[MI][MAXP][NAML],snameshort[MAXP][NAML],snameshort2[MAXP][NAML],
@@ -356,19 +360,21 @@ for(nls=0,ni=nir;nls<2+AUX;nls++,ni++)
   while(lr!=NULL && pi<MAXP && eoi==0)
     {
 // ----  retrieve info line per line 
-    sscanf(line,"%s %s %s %s %[ a-z:-#A-Z]\n",parname[ni][pi],punit[ni][pi],
+//    sscanf(line,"%s %s %s %s %[ a-z:-#A-Z]\n",parname[ni][pi],punit[ni][pi],
+    sscanf(line,"%s %s %s %s %s\n",parname[ni][pi],punit[ni][pi],
 	   partypen[ni][pi],pmapstring[ni][pi],pcom[ni][pi]);
-    if(out) printf("%d %s unit=%s\t # %s\n",pi,parname[ni][pi],punit[ni][pi],pcom[ni][pi]);
+    if(out) printf("%d %s unit=%s\t\tpc=%s\n",pi,parname[ni][pi],punit[ni][pi],pcom[ni][pi]);
 //  ----  check for switch-dependency
     swi[ni][pi]=-1;
     cp=strchr(pcom[ni][pi],'#'); 
     if(cp!=NULL && nis>=0)
       {
       strcpy(swin[ni][pi],cp+1);
-      if(out) printf("*** switch-dependency %s %s...\n",parname[ni][pi],swin[ni][pi]);
+      if(out) printf("*** switch-dependency %s:  %s (%ls, %s)\n",parname[ni][pi],swin[ni][pi],cp,cp);
       for(pj=0;pj<nump[nis];pj++)
         if(strcmp(swin[ni][pi],parname[nis][pj])==0) swi[ni][pi]=pj, pj=nump[nis]+3;  
       if(pj<nump[nis]+3) printf("\nnot found in switch-namelist !!\n\n");
+      *cp='\0';
       }
     lr=fgets(line,256,sp);
     pi++;  
@@ -659,7 +665,7 @@ if((ni=nis)>=0)
   for(pj=0;pj<nump[ni];pj++)
     {
     sprintf(line,"%s",parname[ni][pj]);/*,parvals[ni][pj]*/
-    fprintf(sp,"%s%s   :: %s%s! %s\n",indent0,numt[partype[ni][pj]],line,fil(sc,line,13),pcom[ni][pj]); 
+    fprintf(sp,"%s%s   :: %s%s=%s! %s\n",indent0,numt[partype[ni][pj]],line,fil(sc,line,13),sinit[partype[ni][pj]],pcom[ni][pj]); 
 //  if(out) printf("switch  %s\t:: %s  ! %s\n",numt[partype[ni][pj]],line,pcom[ni][pj]); 
     }
   }
@@ -732,7 +738,7 @@ for(ni=0;ni<nir;ni++)
     if(swi[ni][pj]==pjs)
       {
       if(sws==0 && pjs>=0 && ni!=ni0)
-         fprintf(sp,"if (%s) then\n",swin[ni][pj]), sws=1; 
+         fprintf(sp,"if (self%c%s) then\n",'%',swin[ni][pj]), sws=1; 
       sprintf(line,"%s",parname[ni][pj]);/*,parvals[ni][pj]*/
       strcpy(line2, fil(sc,line,13) );
       strcat(line,line2);
@@ -798,14 +804,16 @@ for(pjs=-1;pjs<nump[nis];pjs++)
       else
         fprintf(sp,"%s   %s",tabs[(pjs<0)],parname[ni][pj]); 
       
-      ss=1;
-      if(SED==0 && snameshort2[pj][1]=='o') ss=1; 
+      ss=0;
+      if(SED==0 && snameshort2[pj][0]=='o') ss=1; 
       if(strcmp(modname,"maecs")==0)
         {
         if(trait[pj]==1 || strncmp(snameshort2[pj],"phy",3)==0 || strncmp(snameshort2[pj],"zoo",3)==0)
           fprintf(sp,", minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution "); 
-        else if (strncmp(snameshort2[pj],"det",3)==0)
+        else if (strncmp(snameshort2[pj],"det",3)==0 ) // || strncmp(snameshort2[pj],"dom",3)==0
           fprintf(sp,", minimum=_ZERO_, no_river_dilution=detritus_no_river_dilution "); 
+        else if (strncmp(snameshort2[pj],"nut",3)==0)
+          fprintf(sp,", minimum=_ZERO_, no_river_dilution=nutrient_no_river_dilution "); 
         else
 	 fprintf(sp,", minimum=_ZERO_, no_river_dilution=.%s. ",yesno[ss]); 
 	}
@@ -841,19 +849,29 @@ for(pjs=-1;pjs<nump[nis];pjs++)
 if (bdim>1)
   fprintf(sp,"end do\n");
 fprintf(sp,"\n!!------- Register diagnostic variables  ------- \n");
-if(strcmp(modname,"maecs")==0)  fprintf(sp,"if (self%cDebugDiagOn) then\n",'%');
+//if(strcmp(modname,"maecs")==0)  fprintf(sp,"if (self%cDebugDiagOn) then\n",'%');
 ni=nir+1;
-for(pj=0;pj<nump[ni];pj++)
-  {
-  fprintf(sp,"%scall self%cregister_diagnostic_variable(self%cid_%s,%s'%s',",indent0,'%','%',
-    parname[ni][pj],fil(sc,parname[ni][pj],8),parname[ni][pj]);
-  fprintf(sp,"'%s', '%s %s', &\n%s  ",punit[ni][pj],pcom[ni][pj],parname[ni][pj],indent0);
+for(pjs=-1;pjs<nump[nis];pjs++)
+ {
+ for(pj=0,sws=0;pj<nump[ni];pj++)
+  if(swi[ni][pj]==pjs)
+    {
+    sl[pj]= ' '; if(strlen(snameshort2[pj])<7) sl[pj]='\t';
+    if(sws==0 && pjs>=0)
+      fprintf(sp,"\nif (self%c%s) then\n",'%',swin[ni][pj]), sws=1;
+
+    fprintf(sp,"%scall self%cregister_diagnostic_variable(self%cid_%s,%s'%s',",indent0,'%','%',
+      parname[ni][pj],fil(sc,parname[ni][pj],8),parname[ni][pj]);
+    fprintf(sp,"'%s', '%s %s', &\n%s  ",punit[ni][pj],pcom[ni][pj],parname[ni][pj],indent0);
 //  fprintf(sp,"time_treatment=time_treatment_%s)\n",partypen[ni][pj]);  
 //  fprintf(sp,"output=output_instantaneous)\n");  
-  fprintf(sp,"output=output_time_step_averaged)\n");  
-  if(out)printf(" reg_diag(self%cid_%s,'%s',...\n",'%',parname[ni][pj],parname[ni][pj]);
-  }
-if(strcmp(modname,"maecs")==0)  fprintf(sp,"end if\n");
+//    fprintf(sp,"output=output_time_step_averaged)\n");  
+    fprintf(sp,"output=DOUT)\n");  
+    if(out)printf(" reg_diag(self%cid_%s,'%s',...\t%s\n",'%',parname[ni][pj],parname[ni][pj],swin[ni][pj]);
+    }
+ if( sws==1) fprintf(sp,"end if\n");
+ }  
+//if(strcmp(modname,"maecs")==0)  fprintf(sp,"end if\n");
  /*
 if(nelements>0)
   {
@@ -863,8 +881,18 @@ if(nelements>0)
      indent0,'%','%',elements[pi],elements[pi],elements[pi],elements[pi]);
   }
     */
-fprintf(sp,"\n!!------- Register environmental dependencies  ------- \n");
+pi=0;
+if(strcmp(modname,"maecs")==0)
+  {
+  if(swi1[pi][0]!='-')  fprintf(sp,"\n! ------ check dependencies in diag switches -------\n");
+  while(swi1[pi][0]!='-')
+   {
+   fprintf(sp,"if (self%c%s .and. .not. self%c%s) call self%cfatal_error('maecs_init','%s=TRUE requires %s=TRUE')\n",'%',swi1[pi],'%',swi2[pi],'%',swi1[pi],swi2[pi]);
+   pi++;  
+   }
+  }
 ni=nir;
+fprintf(sp,"\n!!------- Register environmental dependencies  ------- \n");
 
 for(pjs=-1;pjs<nump[nis];pjs++)
   for(pj=0,sws=0;pj<nump[ni];pj++)
@@ -872,7 +900,7 @@ for(pjs=-1;pjs<nump[nis];pjs++)
      if(swi[ni][pj]==pjs)
        {      
        if(sws==0 && pjs>=0)
-         fprintf(sp,"if (%s) then\n",swin[ni][pj]), sws=1;
+         fprintf(sp,"\nif (self%c%s) then\n",'%',swin[ni][pj]), sws=1;
 //   fprintf(sp,"%scall self%cregister_dependency(self%cid_%s,varname_%s%s)\n",'%','%',
 //       if(partypen[ni][pj][0]=='h' && strstr(parname[ni][pj],"tot")!=NULL )
        strcpy(line2,FabmDepVarName),strcpy(line,partypen[ni][pj]);  
@@ -883,7 +911,8 @@ for(pjs=-1;pjs<nump[nis];pjs++)
          if(strstr(parname[ni][pj],"diag")==NULL) 
 	   strcpy(line,"dependency");
 	 else
-	   strcat(line1,", output=output_time_step_averaged");
+	   strcat(line1,", output=DOUT");
+//	   strcat(line1,", output=output_time_step_averaged");
 	 }
 
        if(out) printf(" reg dep(self%cid_%s,varname_%s) \t switch=%d %d %d\n",'%',parname[ni][pj],pmapstring[ni][pj] ,swi[ni][pj],sws,pjs);
@@ -1087,14 +1116,21 @@ for(d=0;d<1+0*NewModF90;d++)
 	  }
 //            fprintf(spv[d],"  _GET_(self%cid_%s, var%c%s)  ! %s\n",'%',parname[ni][pj],'%',parname[ni][pj],pcom[ni][pj]);
       if(pc==6) 
-        for(ni=nir+1,pj=0;pj<nump[ni];pj++)
-	 if(strstr(parname[ni][pj],"tot")==NULL ) // total nut assumed horizontal
-	  {
-	  sprintf(line2,"%s, _REPLNAN_(%s",parname[ni][pj], pmapstring[ni][pj]);
-	  if(found_rate[ni][pj]==1 && SCALEFAC && strstr(pcom[ni][pj],"RHS")!=NULL )  strcat(line2,"*secs_pr_day");  
-          fprintf(spv[d],"  _SET_DIAGNOSTIC_(self%cid_%s",'%',line2);
-          fprintf(spv[d],"))%s!%s %s\n",fil(sc,line2,32),partypen[ni][pj],pcom[ni][pj]);
-	  }
+	for(ni=nir+1,pjs=-1;pjs<nump[nis];pjs++)
+	 { 
+         for(pj=0,sws=0;pj<nump[ni];pj++)
+	  if(strstr(parname[ni][pj],"tot")==NULL && strstr(pmapstring[ni][pj],"NOLIST")==NULL) // total nut assumed horizontal
+           if(swi[ni][pj]==pjs)
+            {
+            if(sws==0 && pjs>=0)
+              fprintf(spv[d],"if (self%c%s) then\n",'%',swin[ni][pj]), sws=1;  
+	    sprintf(line2,"%s, _REPLNAN_(%s",parname[ni][pj], pmapstring[ni][pj]);
+	    if(found_rate[ni][pj]==1 && SCALEFAC && strstr(pcom[ni][pj],"RHS")!=NULL )  strcat(line2,"*secs_pr_day");  
+            fprintf(spv[d],"  _SET_DIAGNOSTIC_(self%cid_%s",'%',line2);
+            fprintf(spv[d],"))%s!%s %s\n",fil(sc,line2,32),partypen[ni][pj],pcom[ni][pj]);
+	    }
+	  if(sws==1) fprintf(sp,"end if\n");
+	  } 
       if(pc==7) /* get_conserved_quantities */
         {
         fprintf(spv[d]," real(rk) :: ");
