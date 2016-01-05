@@ -1,4 +1,4 @@
-! #include "fabm_driver.h"
+!#include "fabm_driver.h"
 
 !> @brief This is the main routine where right-hand-sides are calculated
 !> @details
@@ -67,7 +67,8 @@ real(rk) :: aggreg_rate ! aggregation among phytoplankton and between phytoplank
 logical  :: out = .true.
 !   if(36000.eq.secondsofday .and. mod(julianday,1).eq.0 .and. outn) out=.true.    
 real(rk) :: pdet, no3
-real(rk) :: QP_phy_max, rqn, att, relmort
+real(rk) :: attf, fa, relmort
+real(rk) :: QP_phy_max, rqn
 real(rk) :: det_prod, nh3f
 real(rk) :: radsP,Oxicminlim,Denitrilim,Anoxiclim,Rescale,rP
 real(rk),parameter :: relaxO2=0.04_rk
@@ -144,6 +145,9 @@ if (self%ChemostatOn) then
     env%CO2 = 0.0_rk ! todo: throw an error, if necessary dependency cannot be found 
   end if
 end if
+
+! get attenuation function (0-1) to be used for zoo mortality (fish avoids turbid waters)
+_GET_(self%id_attf_dep, attf)
 
 !E_GED  ! list outcommented due to different usage of zmax and doy (see light extinction)
 
@@ -257,14 +261,15 @@ if (self%GrazingOn) then
   graz_rate   = graz_rate * zoo%C 
 
 !  --- quadratic closure term
-  relmort = 1.0d0
-  if (self%GrazTurbOn) then
-! light attenuation as proxy for zoo mortality (fish avoids turbid waters)
-! get attenuation to be used for zoo mortality (fish avoids turbid waters)
-    _GET_(self%id_att_dep, att) 
-    relmort = 1.0d0 + 1.0/(att+self%mort_zatt)  
-  endif
-  zoo_mort    = self%mort_zoo * sens%f_T**self%fT_exp_mort*relmort  * zoo%C
+  if (self%mort_zoo .gt. 0.0) then
+    zoo_mort    = self%mort_zoo * sens%f_T**self%fT_exp_mort  * zoo%C
+  else
+    !zoo_mort    = (-1.0*self%mort_zoo) * sens%f_T**self%fT_exp_mort*(1.0d0+ 0.02*1.0/(att+0.05))  * zoo%C
+
+    fa= 1.0_rk + self%zm_fa_delmax* (1.0_rk-1.0_rk/(1.0_rk+exp(10.0_rk*(self%zm_fa_inf-att))))
+    zoo_mort    = fa * (-1.0*self%mort_zoo) *  sens%f_T**self%fT_exp_mort  * zoo%C
+  end if
+
 else
   graz_rate   = 0.0_rk
 !  if (self%ChemostatOn .and. .not. IsCritical) graz_rate = 0.2*phy%C
@@ -730,6 +735,7 @@ if (self%RateDiagOn) then
   _SET_DIAGNOSTIC_(self%id_phyALR, _REPLNAN_(-aggreg_rate))  !average Phytoplankton_Aggregation_Loss_Rate_
   _SET_DIAGNOSTIC_(self%id_phyGLR, _REPLNAN_(-graz_rate/phy%reg%C)) !average Phytoplankton_Grazing_Loss_Rate_
   _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(exp(-self%sink_phys*phy%relQ%N*phy%relQ%P))) !average Relative_Sinking_Rate_
+  _SET_DIAGNOSTIC_(self%id_zoomort, _REPLNAN_(zoo_mort))       !average Zoo mort rate
 end if
 !#E_DIA
 
@@ -946,4 +952,3 @@ end subroutine maecs_do_surface
 ! O2airbl	mmol-C/m**3 horizontal_dependency O2airbl surface_molecular_oxygen_partial_pressure_difference_between_sea_water_and_air #BioOxyOn
 !N2air	mmol-C/m**3 horizontal_dependency N2air mole_concentration_of_atomic_nitrogen_in_air  
 !N2flux	mmol-N/m**2/d horizontal_diagnostic_variable  'N2flux','mmol-N/m**2/d','nitrogen_flux_between_sea_water_and_air' 
-  

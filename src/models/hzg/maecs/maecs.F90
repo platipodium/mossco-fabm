@@ -250,6 +250,8 @@ real(rk)  :: k_grazC      ! half saturation graing
 real(rk)  :: yield_zoo    ! yield of herbivory
 real(rk)  :: basal_resp_zoo ! basal respiration
 real(rk)  :: mort_zoo     ! quadratic mortality
+real(rk)  :: zm_fa_delmax ! max attenuation-dependent increase in quadratic mortality
+real(rk)  :: zm_fa_inf    ! infliction point (0-1) of the sigmoidal attenuation factor for quadratic mortality
 real(rk)  :: mort_zatt    ! mortality dep on attenuation 
 real(rk)  :: fT_exp_mort  ! exponent temperature dep. mortality (1: standard)
 !!------- Parameters from nml-list maecs_env ------- 
@@ -328,7 +330,7 @@ namelist /maecs_pars/ &
 
 namelist /maecs_graz/ &
   const_NC_zoo, const_PC_zoo, g_max, k_grazC, yield_zoo, basal_resp_zoo, &
-  mort_zoo, mort_zatt, fT_exp_mort
+  mort_zoo, fT_exp_mort, zm_fa_delmax, zm_fa_inf
 
 namelist /maecs_env/ &
   a_water, a_minfr, a_spm, a_fz, a_chl, rel_co2, frac_PAR, small, maxVal, dil, &
@@ -408,8 +410,9 @@ g_max        = 1._rk              ! per d
 k_grazC      = 3.0_rk             ! mmolN/m**3
 yield_zoo    = 0.4_rk             ! 
 basal_resp_zoo = 0.025_rk           ! per d
-mort_zoo     = 0.025_rk           ! m**3/mmolN.d
-mort_zatt    = 0.0_rk             ! m**3/mmolN.d
+mort_zoo     = 0.025_rk            ! m**3/mmolN.d
+zm_fa_delmax = 0.02_rk            ! m**3/mmolN.d
+zm_fa_inf    = 0.5_rk             ! -
 fT_exp_mort  = 1.0_rk             ! m**3/mmolN.d
 a_water      = 1._rk              ! 1/m
 a_minfr      = 0.1_rk             ! -
@@ -473,7 +476,6 @@ call self%get_parameter(self%PhysiolDiagOn,  'PhysiolDiagOn',  default=PhysiolDi
 call self%get_parameter(self%RateDiagOn,    'RateDiagOn',    default=RateDiagOn)
 call self%get_parameter(self%ChemostatOn,   'ChemostatOn',   default=ChemostatOn)
 call self%get_parameter(self%SwitchOn,      'SwitchOn',      default=SwitchOn)
-call self%get_parameter(self%GrazTurbOn,    'GrazTurbOn',    default=GrazTurbOn)
 call self%get_parameter(self%NResOn,        'NResOn',        default=NResOn)
 call self%get_parameter(self%kwFzmaxMeth,   'kwFzmaxMeth',   default=kwFzmaxMeth)
 call self%get_parameter(self%genMeth,       'genMeth',       default=genMeth)
@@ -568,10 +570,9 @@ if (self%GrazingOn) then
     call self%get_parameter(self%yield_zoo    ,'yield_zoo',     default=yield_zoo)
     call self%get_parameter(self%basal_resp_zoo ,'basal_resp_zoo',  default=basal_resp_zoo)
     call self%get_parameter(self%mort_zoo     ,'mort_zoo',      default=mort_zoo)
+    call self%get_parameter(self%zm_fa_delmax     ,'zm_fa_delmax',      default=zm_fa_delmax)
+    call self%get_parameter(self%zm_fa_inf     ,'zm_fa_inf',      default=zm_fa_inf)
     call self%get_parameter(self%fT_exp_mort  ,'fT_exp_mort',   default=fT_exp_mort)
-end if
-if (self%GrazTurbOn) then
-    call self%get_parameter(self%mort_zatt    ,'mort_zatt',     default=mort_zatt)
 end if
 
 !!------- model parameters from nml-list maecs_env ------- 
@@ -788,6 +789,8 @@ call self%register_diagnostic_variable(self%id_phyGLR,  'phyGLR','1/d', 'Phytopl
   output=DOUT)
 call self%register_diagnostic_variable(self%id_vsinkr,  'vsinkr','-', 'Relative_Sinking_Rate_ vsinkr', &
   output=DOUT)
+call self%register_diagnostic_variable(self%id_zoomort,  'zoomort','1/d', 'Zooplankton_Mortality_rate', &
+  output=DOUT)
 end if
 
 if (self%GrazTurbOn) then
@@ -842,7 +845,7 @@ if (self%ChemostatOn) then
 end if
 
 if (self%GrazTurbOn) then
-    call self%register_dependency(self%id_att_dep,'att','1/m','light_attenuation_in_water')
+    call self%register_dependency(self%id_attf_dep,'att','1/m','light_attenuation_in_water')
 end if
 
 ! extra lines included from maecs_incl.lst 
@@ -963,11 +966,12 @@ end subroutine initialize
    
    kw=self%a_water*fz*ft
    !write (*,'(A, 2(F5.2), I4, 3(F5.2))') 'zmax,t,meth,fz,ft,kw: ',zmax,doy,self%kwFzmaxMeth,fz,ft,kw
-   
-  _SET_DIAGNOSTIC_(self%id_att, fz*ft)       !relative attenuation as a diag
 
    ! Attenuation as a result of background turbidity and self-shading of phytoplankton.
    _SET_EXTINCTION_(kw + self%a_spm*(p+d+z) + self%a_chl*chl )
+	
+   _SET_DIAGNOSTIC_(self%id_att, kw + self%a_spm*(p+d+z) + self%a_chl*chl)         !total attenuation as a diag
+   _SET_DIAGNOSTIC_(self%id_attf, fz)         !(relative) attenuation function as a diag
 
 #if _DEBUG_
 write(*,'(A)') 'end light_ext'
