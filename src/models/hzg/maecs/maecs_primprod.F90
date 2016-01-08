@@ -64,8 +64,7 @@ maxrq   = 2.0d0 ! self%MaxRelQ
 ! prelim solution: stoichiometry in RNA (N:P ~ 4:1) and phospholipids (N:P~1:1)
 ! TODO: include proteins/mebranes (N:P >> 16:1) under low growth conditions 
 !  q_NoLip  = 3.8  ! P-stoichiometry of active compounds (DNA, RNA)  
-! zeta_CP    = self%zeta_CN * ((1.-f_Lip)*q_NoLip + f_Lip*q_Lip)
-!q_NoLip  = self%zstoich_PN !   16 : Redfield-stoichiometry 
+! q_NoLip  = self%zstoich_PN !   16 : Redfield-stoichiometry 
 q_Lip    = 1.  ! 0.8 storage P-stoichiometry   
 !f_Lip    = 1./(1.+exp(0*(1.-phy%relQ%P)))  f_Lip    = 0.5d0
 
@@ -84,8 +83,7 @@ num_nut  = self%nutind%nutnum  ! total number of nutrients
 ! TODO complete derivatives for cases sigma .ne. 0 or 1
 acc%dRchl_dtheta = phy%rel_chloropl 
 acc%dRchl_dfracR = phy%theta * phy%relQ%N**self%sigma !* (1.0d0-self%sigma)
-acc%dRchl_dQN    = phy%theta * phy%frac%Rub * self%sigma  * self%iK_QN
-                     ! * phy%relQ%N**(self%sigma-1)
+acc%dRchl_dQN    = phy%theta * phy%frac%Rub * self%sigma  * self%iK_QN !* phy%relQ%N**(self%sigma-1.0d0)
 !endif
 
 ! --- gross carbon uptake by phytoplankton (gross-primary production) ---------------
@@ -121,7 +119,7 @@ hh      = 1.0d0 / (syn_act + eps)
 
 ! partial derivative of the balance eq. to uptake V
 ! equals ratio of gross to net primary production
-dbal_dv = 1.0d0 + phy%Q%N * self%zeta_CN  ! TODO P-uptake?
+dbal_dv = 1.0d0 + phy%Q%N * zeta_X(self%nutind%iN)  ! TODO P-uptake?
 ! e_N0    = 1.0d0 / (phy%Q%N * dbal_dv) 
 
 !> @fn maecs_primprod::photosynthesis()
@@ -183,7 +181,7 @@ prod_dq     = 1.0d0/smooth_small(qp_X,eps)
 ! derivative of f_V (fraction of nutrient uptake machinery) on f_R (PS) and theta (LHC)
 
 dfV_dfracR  = - 1*acc%dRchl_dfracR * self%itheta_max - 1.0d0 
-dfV_dtheta  = - 1*(acc%dRchl_dtheta + 0.*phy%frac%Rub+ 0*phy%frac%theta)  * self%itheta_max 
+dfV_dtheta  = - (acc%dRchl_dtheta + 0.*phy%frac%Rub+ 0*phy%frac%theta)  * self%itheta_max 
 !dfV_dtheta  = - acc%dRchl_dtheta * self%itheta_max - phy%frac%Rub/(phy%theta + 1E-3)
 
 ! phy%frac%Rub  
@@ -240,8 +238,8 @@ do i = 1,num_nut-1 ! skip i=N:carbon
      d_X     = d_X + prod_dn * (-self%syn_nut)  
    endif
 
-   d_QX      = d_X* dbal_dv * elem(i)%iKQ + sigmv(i)* phy%Q%N * self%zeta_CN  ! 
-!TODO: include P-uptake resp  = self%zeta_CN * (upt_act%N + self%zstoich_PN * upt_act%P)  
+   d_QX      = d_X* dbal_dv * elem(i)%iKQ + sigmv(i)* phy%Q%N * zeta_X(self%nutind%iN)  ! 
+!TODO: include P-uptake resp  = zeta_X(self%nutind%iN) * (upt_act%N + self%zstoich_PN * upt_act%P)  
 
 ! marginal use should converge towards zero at bad productivity conditions
 !   (refine assumption Q\mu=V in derivation of d_QX)
@@ -321,7 +319,7 @@ endif
 !> @fn maecs_primprod::photosynthesis()
 !> 8. calculate phy%resp=f(uptake\%N), phy\%gpp=grossC-phy%resp, uptake\%C=grossC-phy%resp
 ! ---  respiration due to N & P assimilation --------------------------------------
-phy%resp     = self%zeta_CN * (uptake%N + self%zstoich_PN * uptake%P)     ! [d^{-1}]
+phy%resp     = zeta_X(self%nutind%iN) * (uptake%N + self%zstoich_PN * uptake%P)     ! [d^{-1}]
 !acc%fac4 = phy%resp
 
 ! --- relative growth rate RGR: gross production - exudation - uptake respiration --  
@@ -337,7 +335,7 @@ uptake%C  = grossC - phy%resp     !* (1.0d0- self%exud_phy) ![d^{-1}]
 !> @fn maecs_primprod::photosynthesis()
 !> 9. calculate (acc\%)dfR/dt
 ! specific respiration, also accounting for P-uptake expenses
-resp  = self%zeta_CN * (upt_act%N + self%zstoich_PN * upt_act%P)  
+resp  = zeta_X(self%nutind%iN) * (upt_act%N + self%zstoich_PN * upt_act%P)  
 
 if (self%RubiscoOn) then
 ! --- derivatives of C-uptake rate  ------------------------------------------         

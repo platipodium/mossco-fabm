@@ -104,6 +104,7 @@ end if
 ! a counterpart of smooth-small, could be called smooth-at-one;
 ! ensures that f_R is always somewhat smaller than one, since it
 ! leaves a minimal fraction of resources to other compartments (f_V)
+phy%frac%Rub = smooth_small(phy%frac%Rub , maecs%rel_chloropl_min)
 phy%frac%Rub = _ONE_ - smooth_small(_ONE_- phy%frac%Rub ,maecs%small_finite + maecs%rel_chloropl_min)
 
 !> @fn maecs_functions::calc_internal_states()

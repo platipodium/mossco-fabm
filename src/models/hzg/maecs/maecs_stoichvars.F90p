@@ -15,7 +15,12 @@ elem(i)%upt_act   => upt_act%N
 elem(i)%upt       => uptake%N
 elem(i)%iKQ       = self%iK_QN
 elem(i)%aV        => acc%aV%N
-zeta_X(i)         = self%zeta_CN
+if (self%sigma .lt. 0.5d0 .or. self%zeta_CN .gt. 2.0d0)
+  zeta_X(i)         = self%zeta_CN 
+else
+ ! N2-fixing cyanobacteria: increase N-uptake cost prop to P:C
+  zeta_X(i)  = self%zeta_CN + (phy%relQ%P-1.0d0)
+end if
 
 ! phosphorus
 if (self%PhosphorusOn) then
@@ -30,8 +35,7 @@ if (self%PhosphorusOn) then
   elem(i)%iKQ       = self%iK_QP
   elem(i)%aV        => acc%aV%P
 !zeta_X(i)         = self%zeta_CN * ((1.-f_Lip)*q_NoLip + f_Lip*q_Lip)
-!zeta_X(i)         = self%zeta_CN * (q_Lip*(1.0d0 - exp(-phy%relQ%P)) + self%zstoich_PN)
-  zeta_X(i)         = self%zeta_CN * (q_Lip + self%zstoich_PN)
+  zeta_X(i)        = zeta_X(self%nutind%iN) * (q_Lip + self%zstoich_PN)
 end if
 
 ! silicon
