@@ -15,7 +15,7 @@ elem(i)%upt_act   => upt_act%N
 elem(i)%upt       => uptake%N
 elem(i)%iKQ       = self%iK_QN
 elem(i)%aV        => acc%aV%N
-if (self%sigma .lt. 0.5d0 .or. self%zeta_CN .gt. 2.0d0)
+if (self%sigma .lt. 0.5d0 .or. self%zeta_CN .gt. 2.0d0) then
   zeta_X(i)         = self%zeta_CN 
 else
  ! N2-fixing cyanobacteria: increase N-uptake cost prop to P:C

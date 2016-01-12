@@ -139,7 +139,6 @@ contains
 !> \describepar{yield\_zoo    , \mathrm{yield_zoo}    , yield of herbivory, 0.4 }
 !> \describepar{basal\_resp\_zoo , \mathrm{basal_resp_zoo} , basal respiration, 0.025 per d}
 !> \describepar{mort\_zoo     , \mathrm{mort_zoo}     , quadratic mortality, 0.025 m**3/mmolN.d}
-!> \describepar{mort\_zatt    , \mathrm{mort_zatt}    , mortality dep on attenuation , 0.0 m**3/mmolN.d}
 !> \describepar{fT\_exp\_mort  , \mathrm{fT_exp_mort}  , exponent temperature dep. mortality (1: standard), 1.0 m**3/mmolN.d}
 !> \describepar{a\_water      , \mathrm{a_water}      , background attenuation coefficient, 1. 1/m}
 !> \describepar{a\_minfr      , \mathrm{a_minfr}      , heuristic depth-dep attenuation, 0.1 -}
@@ -252,7 +251,6 @@ real(rk)  :: basal_resp_zoo ! basal respiration
 real(rk)  :: mort_zoo     ! quadratic mortality
 real(rk)  :: zm_fa_delmax ! max attenuation-dependent increase in quadratic mortality
 real(rk)  :: zm_fa_inf    ! infliction point (0-1) of the sigmoidal attenuation factor for quadratic mortality
-real(rk)  :: mort_zatt    ! mortality dep on attenuation 
 real(rk)  :: fT_exp_mort  ! exponent temperature dep. mortality (1: standard)
 !!------- Parameters from nml-list maecs_env ------- 
 real(rk)  :: a_water      ! background attenuation coefficient
