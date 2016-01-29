@@ -275,7 +275,7 @@
    _SET_ODE_(self%id_pdet, (radsP - Pprod) _CONV_UNIT_)
 
    ! Export diagnostic variables
-   _SET_DIAGNOSTIC_(self%id_denit,Denitrific)
+   _SET_DIAGNOSTIC_(self%id_denit,0.8_rk*Denitrific)
    _SET_DIAGNOSTIC_(self%id_adsp ,radsP)
 
    ! Leave spatial loops (if any)
