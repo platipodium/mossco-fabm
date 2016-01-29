@@ -27,6 +27,7 @@
 !
 ! !PRIVATE DATA MEMBERS:
    real(rk), parameter :: secs_pr_day = 86400.0_rk
+   real(rk), parameter :: one_pr_day = 1.0_rk / 86400.0_rk
 !
 ! !REVISION HISTORY:!
 !  Original author(s): Richard Hofmeister & Kai Wirtz
@@ -262,7 +263,7 @@
    pDepo      = 0.0_rk
    OduDepo    = AnoxicMin*pDepo
 
-#define _CONV_UNIT_ /secs_pr_day
+#define _CONV_UNIT_ *one_pr_day
 ! reaction rates
    _SET_ODE_(self%id_fdet, -CprodF _CONV_UNIT_)
    _SET_ODE_(self%id_sdet, -CprodS _CONV_UNIT_)
