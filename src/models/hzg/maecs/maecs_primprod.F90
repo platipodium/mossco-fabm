@@ -103,7 +103,6 @@ if (self%syn_nut .lt. -0.001 ) then  !self%nutind%iP
 !  else
 !   syn_act = smooth_small(-self%syn_nut * phy%frac%NutUpt* phy%frac%theta* phy%frac%Rub ,eps)
     syn_act = smooth_small(-self%syn_nut * (phy%relQ%N+0.5d0),eps)
-!    if (self%MaxRelQ .gt. 2E3 ) syn_act = smooth_small(-self%syn_nut * phy%frac%Rub,eps)
 !  endif
 else
    syn_act  = self%syn_nut
@@ -285,9 +284,11 @@ dmuQ_dtheta = 0.0d0
 do i = 1, num_nut-1 ! skip i=N:carbon
   if( self%adap_rub .gt. 0.001 .or. self%adap_theta .gt. 0.001) then
      act_V           = elem(i)%aV**2 * elem(i)%dmudaV/ (dmu_daV_tot + eps)
+!     act_V           = elem(i)%aV
   else
      act_V           = max(0.0d0, 1.0d0 - elem(i)%relQ )
   endif
+!  if (act_V .lt. 0.1 .and. i .eq. self%nutind%iN) act_V=0.1d0
 ! emulates passive Si diffusion through membrane (\todo not to be assimilated)
    if (self%SiliconOn) then
       if (i .eq. self%nutind%iSi .and. act_V .lt. 0.333d0 .and. elem(i)%upt_pot .gt. eps) act_V = 0.333d0  !num_nut  
