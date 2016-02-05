@@ -905,7 +905,7 @@ end subroutine initialize
    class(type_hzg_maecs),intent(in)          :: self 
    _DECLARE_ARGUMENTS_GET_EXTINCTION_
    
-   real(rk) :: p,d,z,chl,kw,zmax,doy,fz,ft,A,B,L,fz1,fz2
+   real(rk) :: p,d,z,chl,kw,zmax,doy,fz,ft,A,B,L,fz1,fz2,attv
    real(rk), PARAMETER ::  Pi = 3.1415927_rk
    
    ! Enter spatial loops (if any)
@@ -968,9 +968,10 @@ end subroutine initialize
    !write (*,'(A, 2(F5.2), I4, 3(F5.2))') 'zmax,t,meth,fz,ft,kw: ',zmax,doy,self%kwFzmaxMeth,fz,ft,kw
 
    ! Attenuation as a result of background turbidity and self-shading of phytoplankton.
-   _SET_EXTINCTION_(kw + self%a_spm*(p+d+z) + self%a_chl*chl )
+   attv = kw + self%a_spm*(p+d+z) + self%a_chl*chl
+   _SET_EXTINCTION_(attv )
 	
-   _SET_DIAGNOSTIC_(self%id_att, kw + self%a_spm*(p+d+z) + self%a_chl*chl)         !total attenuation as a diag
+   _SET_DIAGNOSTIC_(self%id_att, attv)         !total attenuation as a diag
    
    if (self%GrazTurbOn .eq. 1) then
      _SET_DIAGNOSTIC_(self%id_attf, fz)         !(relative) attenuation function as a diag
