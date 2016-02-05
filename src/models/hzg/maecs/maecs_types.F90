@@ -68,8 +68,8 @@ real(rk) ::  const_NC_zoo, const_PC_zoo, g_max, k_grazC, yield_zoo, basal_resp_z
 real(rk) ::  a_water, a_minfr, a_spm, a_fz, a_chl, rel_co2, frac_PAR, small, maxVal, dil, ex_airsea, O2_sat, N_depo, P_depo
 real(rk) ::  rPAds, PAdsODU, rnit, ksO2nitri, rODUox, ksO2oduox, ksO2oxic, ksNO3denit, kinO2denit, kinNO3anox, kinO2anox, rAnammox
 real(rk) ::  rq10, res0, K_QN_phy, iK_QN, iK_QP, iK_QSi, itheta_max, aver_QN_phy, aver_QP_phy, small_finite
-logical  ::  RubiscoOn, PhotoacclimOn, PhosphorusOn, SiliconOn, GrazingOn, BioOxyOn, DebugDiagOn, Budget0DDiagOn, Budget2DDiagOn, BGC0DDiagOn, BGC2DDiagOn, PhysiolDiagOn, RateDiagOn, ChemostatOn, SwitchOn, GrazTurbOn, NResOn, detritus_no_river_dilution, plankton_no_river_dilution, nutrient_no_river_dilution
-integer  ::  kwFzmaxMeth, genMeth
+logical  ::  RubiscoOn, PhotoacclimOn, PhosphorusOn, SiliconOn, GrazingOn, BioOxyOn, DebugDiagOn, Budget0DDiagOn, Budget2DDiagOn, BGC0DDiagOn, BGC2DDiagOn, PhysiolDiagOn, RateDiagOn, ChemostatOn, SwitchOn, NResOn, detritus_no_river_dilution, plankton_no_river_dilution, nutrient_no_river_dilution
+integer  ::  kwFzmaxMeth, genMeth, GrazTurbOn
 end type type_maecs_base_model
 
 !

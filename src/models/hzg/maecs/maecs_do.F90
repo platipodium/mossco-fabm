@@ -146,8 +146,6 @@ if (self%ChemostatOn) then
   end if
 end if
 
-! get attenuation function (0-1) to be used for zoo mortality (fish avoids turbid waters)
-_GET_(self%id_attf_dep, attf)
 
 !E_GED  ! list outcommented due to different usage of zmax and doy (see light extinction)
 
@@ -261,13 +259,15 @@ if (self%GrazingOn) then
   graz_rate   = graz_rate * zoo%C 
 
 !  --- quadratic closure term
-  if (self%mort_zoo .gt. 0.0) then
+  if (self%GrazTurbOn .eq. 0) then
     zoo_mort    = self%mort_zoo * sens%f_T**self%fT_exp_mort  * zoo%C
-  else
-    !zoo_mort    = (-1.0*self%mort_zoo) * sens%f_T**self%fT_exp_mort*(1.0d0+ 0.02*1.0/(att+0.05))  * zoo%C
-
-    fa= 1.0_rk + self%zm_fa_delmax* (1.0_rk-1.0_rk/(1.0_rk+exp(10.0_rk*(self%zm_fa_inf-att))))
-    zoo_mort    = fa * (-1.0*self%mort_zoo) *  sens%f_T**self%fT_exp_mort  * zoo%C
+  else if (self%GrazTurbOn .eq. 1) then
+    _GET_(self%id_attf_dep, attf)
+    fa= 1.0_rk + self%zm_fa_delmax* (1.0_rk-1.0_rk/(1.0_rk+exp(10.0_rk*(self%zm_fa_inf-attf))))
+    zoo_mort    = fa * (self%mort_zoo) *  sens%f_T**self%fT_exp_mort  * zoo%C
+  else if (self%GrazTurbOn .eq. 2) then
+    _GET_(self%id_attf_dep, attf)
+    zoo_mort    = self%mort_zoo * sens%f_T**self%fT_exp_mort*(1.0d0+ 0.02*1.0/(attf+0.05))  * zoo%C
   end if
 
 else

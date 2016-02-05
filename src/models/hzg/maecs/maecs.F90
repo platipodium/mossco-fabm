@@ -296,8 +296,8 @@ logical   :: PhysiolDiagOn =.false.! output of ecophysiological/allocation/accli
 logical   :: RateDiagOn   =.false.! output of phytoplankton growth and loss rate contributions
 logical   :: ChemostatOn  =.false.! use Chemostat mode 
 logical   :: SwitchOn     =.false.! use experimental mode 1
-logical   :: GrazTurbOn   =.false.! use water clarity as proxy for top-predation 
 logical   :: NResOn       =.false.! use long-term N-reservoir
+integer   :: GrazTurbOn   =0 ! 0: standard, 1-2: use water clarity as proxy for top-predation 
 integer   :: kwFzmaxMeth  =0! background extinction method
 integer   :: genMeth      =0! dummy method switch
 logical   :: detritus_no_river_dilution =.false.! use riverine det import
@@ -571,6 +571,7 @@ if (self%GrazingOn) then
     call self%get_parameter(self%zm_fa_delmax     ,'zm_fa_delmax',      default=zm_fa_delmax)
     call self%get_parameter(self%zm_fa_inf     ,'zm_fa_inf',      default=zm_fa_inf)
     call self%get_parameter(self%fT_exp_mort  ,'fT_exp_mort',   default=fT_exp_mort)
+    call self%get_parameter(self%GrazTurbOn  ,'GrazTurbOn',   default=GrazTurbOn)
 end if
 
 !!------- model parameters from nml-list maecs_env ------- 
@@ -704,6 +705,7 @@ end if
 !!------- Register diagnostic variables  ------- 
 call self%register_diagnostic_variable(self%id_vphys,   'vphys','-', ' vphys', &
   output=DOUT)
+call self%register_diagnostic_variable(self%id_att,     'att','1/m', ' att', output=DOUT)
 
 if (self%DebugDiagOn) then
 call self%register_diagnostic_variable(self%id_tmp,     'tmp','-', 'Temporary_diagnostic_ tmp', &
@@ -791,11 +793,6 @@ call self%register_diagnostic_variable(self%id_zoomort,  'zoomort','1/d', 'Zoopl
   output=DOUT)
 end if
 
-if (self%GrazTurbOn) then
-call self%register_diagnostic_variable(self%id_att,     'att','1/m', ' att', &
-  output=DOUT)
-end if
-
 ! ------ check dependencies in diag switches -------
 if (self%BGC2DDiagOn .and. .not. self%BGC0DDiagOn) call self%fatal_error('maecs_init','BGC2DDiagOn=TRUE requires BGC0DDiagOn=TRUE')
 if (self%Budget2DDiagOn .and. .not. self%Budget0DDiagOn) call self%fatal_error('maecs_init','Budget2DDiagOn=TRUE requires Budget0DDiagOn=TRUE')
@@ -842,8 +839,13 @@ if (self%ChemostatOn) then
     call self%register_dependency(self%id_CO2,standard_variables%practical_salinity)
 end if
 
-if (self%GrazTurbOn) then
-    call self%register_dependency(self%id_attf_dep,'att','1/m','light_attenuation_in_water')
+if (self%GrazTurbOn .gt. 0)  then
+  call self%register_diagnostic_variable(self%id_attf, 'attf','1/m', ' attf', output=DOUT)
+  if (self%GrazTurbOn .eq. 1)  then ! zooplankton mortality as a funcion of depth-dependent turbidity function
+    call self%register_dependency(self%id_attf_dep,'attf','1/m','light_attenuation_function_in_water')
+  else if (self%GrazTurbOn .eq. 2)  then ! zooplankton mortality as a funcion of attenuation coefficient itself
+    call self%register_dependency(self%id_attf_dep,'att','1/m','light_attenuation_function_in_water')
+  end if
 end if
 
 ! extra lines included from maecs_incl.lst 
@@ -969,8 +971,11 @@ end subroutine initialize
    _SET_EXTINCTION_(kw + self%a_spm*(p+d+z) + self%a_chl*chl )
 	
    _SET_DIAGNOSTIC_(self%id_att, kw + self%a_spm*(p+d+z) + self%a_chl*chl)         !total attenuation as a diag
-   _SET_DIAGNOSTIC_(self%id_attf, fz)         !(relative) attenuation function as a diag
-
+   
+   if (self%GrazTurbOn .eq. 1) then
+     _SET_DIAGNOSTIC_(self%id_attf, fz)         !(relative) attenuation function as a diag
+   end if
+   
 #if _DEBUG_
 write(*,'(A)') 'end light_ext'
 #endif
