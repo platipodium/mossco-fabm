@@ -18,6 +18,8 @@
 
 !  default: all is private.
    private
+! !REVISION HISTORY:!
+!  Original author(s): Evgeniy Yakushev, Jorn Bruggeman
 
 ! !PUBLIC DERIVED TYPES:
    type,extends(type_base_model),public :: type_niva_brom_salt
@@ -25,14 +27,15 @@
       type (type_state_variable_id)        :: id_Na,id_Cl,id_NaCl
       type (type_bottom_state_variable_id) :: id_NaCl_bot
       type (type_dependency_id)            :: id_temp
-            
+
       type (type_diagnostic_variable_id)            :: id_psu
       type (type_diagnostic_variable_id)            :: id_NaCl_sat
       type (type_horizontal_diagnostic_variable_id) :: id_h_bot
 
       real(rk) :: K_NaCl
-      real(rk) :: K_NaCl_diss
-      real(rk) :: K_NaCl_form
+      real(rk) :: k_diss
+      real(rk) :: k_prec
+      real(rk) :: k_diss_bot
       real(rk) :: w
       real(rk) :: porosity
 
@@ -48,6 +51,8 @@
 
    type (type_bulk_standard_variable),parameter :: total_sodium   = type_bulk_standard_variable(name='total_sodium',  units='mmol/m**3', aggregate_variable=.true., conserved=.true.)
    type (type_bulk_standard_variable),parameter :: total_chloride = type_bulk_standard_variable(name='total_chloride',units='mmol/m**3', aggregate_variable=.true., conserved=.true.)
+   type (type_bulk_standard_variable),parameter :: mass_concentration_of_solute = type_bulk_standard_variable(name='mass_concentration_of_solute',units='kg/m**3', aggregate_variable=.true.)
+   type (type_bulk_standard_variable),parameter :: volume_fraction_of_particulates = type_bulk_standard_variable(name='volume_fraction_of_particulates',units='-', aggregate_variable=.true.)
 !EOP
 !-----------------------------------------------------------------------
 
@@ -74,11 +79,12 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   call self%get_parameter(self%K_NaCl,     'K_NaCl',     'mmol**2/m**6','NaCl conditional equilibrium constant',default=37.19e12_rk)
-   call self%get_parameter(self%K_NaCl_diss,'k_NaCl_diss','mmol/m**3/d', 'Specific rate of dissolution of NaCl',default=1._rk,scale_factor=1._rk/86400._rk)
-   call self%get_parameter(self%K_NaCl_form,'k_NaCl_form','mmol/m**3/d', 'Specific rate of formation of NaCl',default=1._rk,scale_factor=1._rk/86400._rk)
-   call self%get_parameter(self%w,          'w',          'm/d',         'Sedimentation rate for particulate NaCl',default=1._rk,scale_factor=1._rk/86400._rk)
-   call self%get_parameter(self%porosity,   'porosity',   '-',           'Porosity of precipitated NaCl',default=0.5_rk,scale_factor=1._rk/86400._rk)
+   call self%get_parameter(self%K_NaCl,     'K_NaCl',    'mmol**2/m**6','NaCl solubility',default=37.19e12_rk)
+   call self%get_parameter(self%k_diss,     'k_diss',    '1/d',         'maximum specific dissolution rate of pelagic NaCl',default=1._rk,scale_factor=1._rk/86400._rk)
+   call self%get_parameter(self%k_diss_bot, 'k_diss_bot','mmol/m**2/d', 'maximum dissolution rate of bottom NaCl',default=0.2e6_rk,scale_factor=1._rk/86400._rk)
+   call self%get_parameter(self%k_prec,     'k_prec',    'mmol/m**3/d', 'NaCl precipitation rate',default=1._rk,scale_factor=1._rk/86400._rk)
+   call self%get_parameter(self%w,          'w',         'm/d',         'Sedimentation rate for particulate NaCl',default=1._rk,scale_factor=1._rk/86400._rk)
+   call self%get_parameter(self%porosity,   'porosity',  '-',           'Porosity of precipitated NaCl',default=0.5_rk,scale_factor=1._rk/86400._rk)
 
    call self%register_state_variable(self%id_Na,   'Na',   'mmol/m**3','sodium',   minimum=0.0_rk)
    call self%register_state_variable(self%id_Cl,   'Cl',   'mmol/m**3','chloride', minimum=0.0_rk)
@@ -96,6 +102,11 @@
    call self%add_to_aggregate_variable(total_chloride, self%id_Cl)
    call self%add_to_aggregate_variable(total_chloride, self%id_NaCl)
    call self%add_to_aggregate_variable(total_chloride, self%id_NaCl_bot)
+
+   ! Let Na and Cl ions contribute to salinity metric, and bottom-bound particulate NaCL to bottom thickness
+   call self%add_to_aggregate_variable(mass_concentration_of_solute, self%id_Na, scale_factor=u_Na*1e-6_rk)
+   call self%add_to_aggregate_variable(mass_concentration_of_solute, self%id_Cl, scale_factor=u_Cl*1e-6_rk)
+   call self%add_to_aggregate_variable(volume_fraction_of_particulates, self%id_NaCl_bot, scale_factor=(u_Na+u_Cl)/1000/NaCl_density/(1-self%porosity))
 
    call self%register_dependency(self%id_temp,standard_variables%temperature)
 
@@ -141,8 +152,8 @@
    _SET_DIAGNOSTIC_(self%id_NaCl_sat,Om_NaCl)
 
    ! Precipitation/dissolution
-   NaCl_prec=self%K_NaCl_form*max(0._rk,(Om_NaCl-1._rk))
-   NaCl_diss=self%K_NaCl_diss*max(0._rk,(1._rk-Om_NaCl))
+   NaCl_prec=self%k_prec*max(0._rk,(Om_NaCl-1._rk))
+   NaCl_diss=self%k_diss*max(0._rk,(1._rk-Om_NaCl))*NaCl
 
    _SET_ODE_(self%id_Na,  -NaCl_prec+NaCl_diss)
    _SET_ODE_(self%id_Cl,  -NaCl_prec+NaCl_diss)
@@ -177,7 +188,9 @@
 !  Original author(s): 
 !
 ! !LOCAL VARIABLES:
-   real(rk) :: NaCl,NaCl_bot
+   real(rk) :: Na,Cl,NaCl,NaCl_bot
+   real(rk) :: Om_NaCl,NaCl_diss
+   real(rk),parameter :: max_dt = 6*3600 ! Maximum time step = minimum time needed to dissolve bottom salt layer
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -185,11 +198,19 @@
    _HORIZONTAL_LOOP_BEGIN_
 
    ! Environment
+   _GET_(self%id_Na,Na)
+   _GET_(self%id_Cl,Cl)
    _GET_(self%id_NaCl,NaCl)
    _GET_HORIZONTAL_(self%id_NaCl_bot,NaCl_bot)
 
    _SET_BOTTOM_EXCHANGE_(self%id_NaCl,-self%w*NaCl)
    _SET_BOTTOM_ODE_(self%id_NaCl_bot, +self%w*NaCl)
+
+   Om_NaCl=Na*Cl/(self%K_NaCl)
+   NaCl_diss=min(self%k_diss_bot,NaCl_bot/max_dt)*max(0._rk,(1._rk-Om_NaCl))
+   _SET_BOTTOM_ODE_(self%id_NaCl_bot,-NaCl_diss)
+   _SET_BOTTOM_EXCHANGE_(self%id_Na,  NaCl_diss)
+   _SET_BOTTOM_EXCHANGE_(self%id_Cl,  NaCl_diss)
 
    ! From mmol/m2 to thickness: first to g/m2 (multiply by molecuar weight), then to m by dividing by density in g/m3, accounting for porosity (void fraction)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_h_bot,NaCl_bot*(u_Na+u_Cl)/1000/NaCl_density/(1-self%porosity))
