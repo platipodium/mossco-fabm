@@ -168,9 +168,9 @@ do i = num_nut-1, 1, -1
 !   final efficiency in interdependent multi-nutrient processing
 fac_colim   = qp_X
 
-acc%fac1 = fac_colim
-acc%fac2 = elem(1)%relQ
-acc%fac3 = elem(2)%relQ
+!acc%fac1 = fac_colim
+!acc%fac2 = elem(1)%relQ
+!acc%fac3 = elem(2)%relQ
 
 ! phy%rel_phys= fac_colim * sens%upt_pot%C  ! auxiliary variable for sinking routine; not used?
 
@@ -257,7 +257,10 @@ do i = 1,num_nut-1 ! skip i=N:carbon
 
 !   steady-state down-regulation of uptake I: balance of respiration and indirect benefits  
    dmu_daV   = (-zeta_X(i) + dmu_dV) * phy%frac%NutUpt * elem(i)%upt_pot  
-
+if(i .eq. self%nutind%iN) then
+  acc%fac1 = -zeta_X(i)* phy%frac%NutUpt * elem(i)%upt_pot
+  acc%fac2 = dmu_dV* phy%frac%NutUpt * elem(i)%upt_pot
+endif
   
 !   smoothed version of step function, uses marginal gain to emulate a continuous response 
 !   act_V     = 1.0d0/(1.0d0 + exp( 3.1415d0 - self%tau_regV * dmu_daV));  ! 0.02
@@ -284,7 +287,7 @@ dmuQ_dtheta = 0.0d0
 do i = 1, num_nut-1 ! skip i=N:carbon
   if( self%adap_rub .gt. 0.001 .or. self%adap_theta .gt. 0.001) then
      act_V           = elem(i)%aV**2 * elem(i)%dmudaV/ (dmu_daV_tot + eps)
-!     act_V           = elem(i)%aV
+!    act_V           = elem(i)%aV
   else
      act_V           = max(0.0d0, 1.0d0 - elem(i)%relQ )
   endif

@@ -260,15 +260,15 @@ if (self%GrazingOn) then
 
 !  --- quadratic closure term
 
-  if (self%GrazTurbOn .eq. 0) then
-     relmort = 1.0d0
-  else if (self%GrazTurbOn .eq. 1) then
+  relmort = 1.0d0
+  if (self%GrazTurbOn .gt. 0) then
     _GET_(self%id_attf_dep, att_f)
-    relmort = 1.0_rk + self%zm_fa_delmax* (1.0_rk-1.0_rk/(1.0_rk+exp(10.0_rk*(self%zm_fa_inf-att_f))))
+    if (self%GrazTurbOn .eq. 1) then
+      relmort = 1.0_rk + self%zm_fa_delmax* (1.0_rk-1.0_rk/(1.0_rk+exp(10.0_rk*(self%zm_fa_inf-att_f))))
  !  write (*,'(A,2(F11.3))') 'att=',att_f,fa
-  else if (self%GrazTurbOn .eq. 2) then
-    _GET_(self%id_attf_dep, att_f)
-    relmort = 1.0d0 + self%zm_fa_delmax/(att_f+self%zm_fa_inf)
+    else if (self%GrazTurbOn .eq. 2) then
+      relmort = 1.0d0 + self%zm_fa_delmax/(att_f+self%zm_fa_inf)
+    end if
   end if
   zoo_mort   = self%mort_zoo * relmort* sens%f_T**self%fT_exp_mort  * zoo%C
 
@@ -699,7 +699,7 @@ if (self%DebugDiagOn) then
   _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(dRchl_phyC_dt))   !average Auxiliary_diagnostic_
   _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(acclim%dRchl_dfracR*acclim%dfracR_dt)) !average Auxiliary_diagnostic_
   _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%dRchl_dtheta*acclim%dtheta_dt)) !average Auxiliary_diagnostic_
-  _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(att_f))     !average dtheta_dt_due_to_flex_theta_
+  _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(acclim%fac1))     !average dtheta_dt_due_to_flex_theta_
   _SET_DIAGNOSTIC_(self%id_fac5, _REPLNAN_(acclim%fac2))     !average dtheta_dt_due_to_grad_theta_
 end if
 if (self%BGC0DDiagOn) then
