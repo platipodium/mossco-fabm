@@ -239,6 +239,7 @@ do i = 1,num_nut-1 ! skip i=N:carbon
 
    d_QX      = d_X* dbal_dv * elem(i)%iKQ + sigmv(i)* phy%Q%N * zeta_X(self%nutind%iN)  ! 
 !TODO: include P-uptake resp  = zeta_X(self%nutind%iN) * (upt_act%N + self%zstoich_PN * upt_act%P)  
+!if (phy%Q%P .gt. 0.01 .and. i .eq. self%nutind%iP) write (0,'(A,4(F9.4))') 'dQP=',d_X,dbal_dv,d_X* dbal_dv,sigmv(i)* phy%Q%N * zeta_X(self%nutind%iN)
 
 ! marginal use should converge towards zero at bad productivity conditions
 !   (refine assumption Q\mu=V in derivation of d_QX)
@@ -256,7 +257,8 @@ do i = 1,num_nut-1 ! skip i=N:carbon
 !   dmu_dV    = dmu_dV * e_N / (e_N + sigmv(i))
 
 !   steady-state down-regulation of uptake I: balance of respiration and indirect benefits  
-   dmu_daV   = (-zeta_X(i) + dmu_dV) * phy%frac%NutUpt * elem(i)%upt_pot  
+   dmu_daV   = (-zeta_X(i) + dmu_dV) * phy%frac%NutUpt * elem(i)%upt_pot
+!if (phy%Q%P .gt. 0.015 .and. i .eq. self%nutind%iP) write (0,'(A,5(F9.4))') 'aP=',dmu_daV,-zeta_X(i),dmu_dV,d_QX,d_QX/(1.0d0 + elem(i)%Q * (d_QX + sigmv(i)))
 if(i .eq. self%nutind%iN) then
   acc%fac1 = -zeta_X(i)* phy%frac%NutUpt * elem(i)%upt_pot
   acc%fac2 = dmu_dV* phy%frac%NutUpt * elem(i)%upt_pot
@@ -429,12 +431,14 @@ end if
 
 ! ---- additional exudation to release unrealistic stoichiometry in depositional holes
 ex = self%QN_phy_0*phy%reg%C - phy%N ! + self%small_finite*self%QN_phy_max
+!  write (0,'(A,4(F9.4))') 'exC0=', self%QN_phy_0*phy%reg%C,phy%N,ex,(exp(ex * self%iK_QN/phy%reg%C)-1.0d0)
 if( ex .gt. 0.0d0 ) then
   exud%C = exud%C + self%decay_nut * (exp(ex * self%iK_QN/phy%reg%C)-1.0d0) 
 end if
 
 if( phy%relQ%N .gt. maxrq ) then
   exud%N = exud%N + self%decay_nut * (exp(phy%relQ%N- maxrq)-1.0d0) * phy%Q%N
+!  write (0,'(A,4(F9.4))') 'exN=',phy%relQ%N- maxrq,exp(phy%relQ%N- maxrq)-1.0d0,self%decay_nut * (exp(phy%relQ%N- maxrq)-1.0d0) * phy%Q%N,elem(self%nutind%iN)%aV 
 end if
 
 if (self%PhosphorusOn) then

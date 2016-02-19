@@ -742,7 +742,7 @@ call self%register_diagnostic_variable(self%id_no3,     'no3','mmol-N/m**3', 'Ni
 end if
 
 if (self%PhysiolDiagOn) then
-call self%register_diagnostic_variable(self%id_chl2C,   'chl2C','gCHL/gC', 'chlorophyll:carbon_ratio_=_chl-a/chloroplast-C_*_chloroplast-C/phy-molC_*_1molC/12gC_ chl2C', &
+call self%register_diagnostic_variable(self%id_chl2C,   'chl2C','gCHL/gC', 'chlorophyll2C', &
   output=DOUT)
 call self%register_diagnostic_variable(self%id_Theta,   'Theta','-', 'Theta_ Theta', &
   output=DOUT)
