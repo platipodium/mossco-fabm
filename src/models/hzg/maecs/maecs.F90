@@ -841,10 +841,10 @@ end if
 
 if (self%GrazTurbOn .gt. 0)  then
   call self%register_diagnostic_variable(self%id_attf, 'attf','1/m', ' attf', output=DOUT)
-  if (self%GrazTurbOn .eq. 1)  then ! zooplankton mortality as a funcion of depth-dependent turbidity function
+  if (self%GrazTurbOn .gt. 0)  then ! zooplankton mortality as a funcion of depth-dependent turbidity function
     call self%register_dependency(self%id_attf_dep,'attf','1/m','light_attenuation_function_in_water')
-  else if (self%GrazTurbOn .eq. 2)  then ! zooplankton mortality as a funcion of attenuation coefficient itself
-    call self%register_dependency(self%id_attf_dep,'att','1/m','light_attenuation_function_in_water')
+!  else if (self%GrazTurbOn .eq. 2)  then ! zooplankton mortality as a funcion of attenuation coefficient itself
+!    call self%register_dependency(self%id_attf_dep,'att','1/m','light_attenuation_function_in_water')
   end if
 end if
 
@@ -971,11 +971,10 @@ end subroutine initialize
    attv = kw + self%a_spm*(p+d+z) + self%a_chl*chl
    _SET_EXTINCTION_(attv )
 	
-   _SET_DIAGNOSTIC_(self%id_att, attv)         !total attenuation as a diag
-   
-   if (self%GrazTurbOn .eq. 1) then
-     _SET_DIAGNOSTIC_(self%id_attf, fz)         !(relative) attenuation function as a diag
-   end if
+   _SET_DIAGNOSTIC_(self%id_attf, attv)         !total attenuation as a diag 
+!   if (self%GrazTurbOn .eq. 1) then
+!     _SET_DIAGNOSTIC_(self%id_attf, attv)         !(relative) attenuation function as a diag
+!   end if
    
 #if _DEBUG_
 write(*,'(A)') 'end light_ext'
