@@ -35,8 +35,8 @@
       type (type_horizontal_dependency_id) :: id_deporate_dep!, id_denitrate_dep ! id_intpeldenit_dep, id_totNpel
       type (type_horizontal_dependency_id) :: id_bendetrem
 !     Model parameters:
-      real(rk) :: Ntot0,Ndef0,const_det,rq10,T_ref,K_det,K_nut,denit,depocoef,depoconst
-      logical  :: use_det,NdepodenitON,Ndef_dyn
+      real(rk) :: Ntot0,Ndef0,const_det,const_nut,rq10,T_ref,K_det,K_nut,denit,depocoef,depoconst
+      logical  :: use_det,use_nut,NdepodenitON,Ndef_dyn
       integer  :: depometh,denitmeth
       
       !     Model procedures
@@ -75,10 +75,10 @@
 ! !LOCAL VARIABLES:
    character(len=64)         :: pelagic_detritus_variable='',pelagic_nutrient_variable='',benthic_detrem_variable=''
    logical                   :: NdepodenitON=.true., Ndef_dyn=.true.
-   real(rk)                  :: Ntot0=100.,Ndef0=5.,const_det=10.,rq10=2.,T_ref=288.,K_det=3.,K_nut=5.,denit=0.024,depocoef=4.0,depoconst=0.1
+   real(rk)                  :: Ntot0=100.,Ndef0=5.,const_det=10.,const_nut=10.,rq10=2.,T_ref=288.,K_det=3.,K_nut=5.,denit=0.024,depocoef=4.0,depoconst=0.1
    integer                   :: depometh=1, denitmeth=1
    real(rk), parameter :: secs_pr_day = 86400.
-   namelist /hzg_Ndepoden/  pelagic_detritus_variable,pelagic_nutrient_variable,benthic_detrem_variable,Ntot0,Ndef0,NdepodenitON,const_det,rq10,T_ref,K_det,K_nut,denit,denitmeth,depocoef,depoconst,depometh
+   namelist /hzg_Ndepoden/  pelagic_detritus_variable,pelagic_nutrient_variable,benthic_detrem_variable,Ntot0,Ndef0,NdepodenitON,const_det,const_nut,rq10,T_ref,K_det,K_nut,denit,denitmeth,depocoef,depoconst,depometh
                                     
 !EOP
 !-----------------------------------------------------------------------
@@ -108,7 +108,8 @@
    self%use_det = pelagic_detritus_variable/=''
    if (self%use_det) call self%register_state_dependency(self%id_det_pel,pelagic_detritus_variable)    
    
-   call self%register_state_dependency(self%id_nut_pel,pelagic_nutrient_variable)
+   self%use_nut = pelagic_nutrient_variable/=''
+   if (self%use_nut) call self%register_state_dependency(self%id_nut_pel,pelagic_nutrient_variable)
    
    
    ! Register state variables
@@ -215,7 +216,12 @@
 	!write(*,'(A,2(F16.14 ))')'bendetrem,denitrilim,denitrate:',bendetrem, denitrate	 
      else if (self%denitmeth .eq. 4) then
        _GET_HORIZONTAL_(self%id_bendetrem, bendetrem) !mmolN/m2/d
+     if (self%use_nut) then
        _GET_(self%id_nut_pel,nut_pel)      ! detritus concentration at the bottom (?)
+     else
+       nut_pel = self%const_nut            ! no coupling - constant pelagic nutrient concentration
+     end if
+
        !this is how omexdia calculates:
        !Denitrilim = (1.0_rk-oxy/(oxy+self%kinO2denit)) * NO3/(no3+self%ksNO3denit)
        !Denitrific = (self%rFast * fdet + self%rSlow * sdet)*Denitrilim*Rescale        ! Denitrification
