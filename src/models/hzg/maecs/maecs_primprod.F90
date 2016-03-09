@@ -49,7 +49,7 @@ real(rk) :: q_X, qp_Y, qp_X      ! placeholder for nutrient availability
 real(rk) :: qfunc, d_qf_dx, d_qf_dn   ! queuing function and derivative
 real(rk) :: prod_dq, prod_dn
 real(rk) :: d_X, d_QX, dmu_daV, act_V, resp
-real(rk) :: resC, darkf, ex, fmaxf, maxrq
+real(rk) :: resC, darkf, ex, fmaxf, maxrq,safe
 real(rk), dimension(5) :: sigmv ! relative quota-uptake feed-back 
 real(rk), dimension(5) :: dqp_X_dq_X, dqp_X_dqp_Y, dqp_X_dn ! derivatives
 real(rk), dimension(5) :: zeta_X  ! C-costs of assimilation of nutrient X
@@ -257,7 +257,8 @@ do i = 1,num_nut-1 ! skip i=N:carbon
 !   dmu_dV    = dmu_dV * e_N / (e_N + sigmv(i))
 
 !   steady-state down-regulation of uptake I: balance of respiration and indirect benefits  
-   dmu_daV   = (-zeta_X(i) + dmu_dV) * phy%frac%NutUpt * elem(i)%upt_pot
+   safe      = 1.0d0 + max(0.0d0,(elem(i)%relQ-1.0d0)/maxrq)**3 * exp(-1*sens%P_max_T/self%res0)
+   dmu_daV   = (-zeta_X(i)*safe + dmu_dV) * phy%frac%NutUpt * elem(i)%upt_pot
 !if (phy%Q%P .gt. 0.015 .and. i .eq. self%nutind%iP) write (0,'(A,5(F9.4))') 'aP=',dmu_daV,-zeta_X(i),dmu_dV,d_QX,d_QX/(1.0d0 + elem(i)%Q * (d_QX + sigmv(i)))
 if(i .eq. self%nutind%iN) then
   acc%fac1 = -zeta_X(i)* phy%frac%NutUpt * elem(i)%upt_pot
