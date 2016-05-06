@@ -263,15 +263,18 @@ if (self%GrazingOn) then
   relmort = 1.0d0
   if (self%GrazTurbOn .gt. 0) then
     _GET_(self%id_attf_dep, att_f)
-    if (self%GrazTurbOn .eq. 1) then
-      relmort = 1.0_rk + self%zm_fa_delmax* (1.0_rk-1.0_rk/(1.0_rk+exp(10.0_rk*(self%zm_fa_inf-att_f))))
+!  _GET_GLOBAL_ (self%id_doy,doy) !day of year
+   select case (self%GrazTurbOn)
+     case (1)
+       relmort = 1.0_rk + self%zm_fa_delmax* (1.0_rk-1.0_rk/(1.0_rk+exp(10.0_rk*(self%zm_fa_inf-att_f))))
  !  write (*,'(A,2(F11.3))') 'att=',att_f,fa
-    else if (self%GrazTurbOn .eq. 2) then
-      relmort = 1.0d0 + self%zm_fa_delmax/(att_f+self%zm_fa_inf)
-    end if
-  end if
+     case (2)
+       relmort = 1.0d0 + self%zm_fa_delmax/(att_f+self%zm_fa_inf)
+     case (3)
+       relmort = 1.0d0 + sens%f_T2*self%zm_fa_delmax/(att_f+self%zm_fa_inf) ! assumes greater fish/larvae abundance in summer
+    end select
+  end if !self%GrazTurbOn .gt. 0
   zoo_mort   = self%mort_zoo * relmort* sens%f_T**self%fT_exp_mort  * zoo%C
-
 else
   graz_rate   = 0.0_rk
 !  if (self%ChemostatOn .and. .not. IsCritical) graz_rate = 0.2*phy%C
