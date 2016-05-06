@@ -58,7 +58,7 @@ type (stoich_pointer), dimension(5)::elem ! struct-pointer addressing elements w
 !
 !eps     =  self%small_finite ! just  a shorter namer for a small thing
 eps     = 1E-2 ! just  a shorter namer for a small thing
-maxrq   = 2.0d0 ! self%MaxRelQ
+maxrq   = 1.0d0 ! self%MaxRelQ
 ! TODO: energetic costs of P-assimilation \partial (\zeta_CN V_N) / \partial V_P not
 !    resolved but assumed to be already included in protein synthesis
 ! prelim solution: stoichiometry in RNA (N:P ~ 4:1) and phospholipids (N:P~1:1)
@@ -258,7 +258,7 @@ do i = 1,num_nut-1 ! skip i=N:carbon
 
 !   steady-state down-regulation of uptake I: balance of respiration and indirect benefits  
    safe      = 1.0d0 + max(0.0d0,(elem(i)%relQ-1.0d0)/maxrq)**3 * exp(-1*sens%P_max_T/self%res0)
-   dmu_daV   = (-zeta_X(i)*safe + dmu_dV) * phy%frac%NutUpt * elem(i)%upt_pot
+   dmu_daV   = (-zeta_X(i)*safe + dmu_dV/safe) * phy%frac%NutUpt * elem(i)%upt_pot
 !if (phy%Q%P .gt. 0.015 .and. i .eq. self%nutind%iP) write (0,'(A,5(F9.4))') 'aP=',dmu_daV,-zeta_X(i),dmu_dV,d_QX,d_QX/(1.0d0 + elem(i)%Q * (d_QX + sigmv(i)))
 if(i .eq. self%nutind%iN) then
   acc%fac1 = -zeta_X(i)* phy%frac%NutUpt * elem(i)%upt_pot
