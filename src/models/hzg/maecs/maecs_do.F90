@@ -839,6 +839,9 @@ write(*,'(A)') 'begin vert_move'
 
    !SINKING AS A FUNCTION OF INTERNAL STATES
    vs_phy = -self%vS_phy * exp( -self%sink_phys * phyQstat)
+   if(self%SwitchOn) then
+     vs_phy = vs_phy + self%vS_phy * exp(-2)
+   end  
    !if (self%RateDiagOn) then 
    ! write (*,'(A)',advance='no') '' ! Silly Fix to 'NETCDF: Numeric conversion not representable' problem ??
    !  _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(vs_phy)) !average Relative Sinking Velocity
