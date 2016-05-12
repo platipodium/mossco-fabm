@@ -245,7 +245,7 @@
 ! [FeS] approximated by ODU
 ! TODO: temperature dependency
    radsP  = self%PAds  * po4 * 1.0_rk/(1.0_rk+exp(1.0_rk-(odu-oxy)/self%PAdsODU)**2)
-   rP     = f_T * self%rFast * (1.0_rk - Oxicminlim)
+   rP     = f_T * self%rFast * 2 ! (1.0_rk - Oxicminlim)
    Pprod  = rP * pdet
 
 ! Oxic mineralisation, denitrification, anoxic mineralisation
