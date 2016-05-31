@@ -438,9 +438,9 @@ if (self%remNP .gt. -1E-5) then ! base variant: quality correlates with detritus
    dremP       = self%remNP * dremN
 else                      ! alternative: quality correlates with detritus P:C
    ddegP       = self%hydrol * sens%f_T * max(1.0d0 - qualPOM, 0.0d0)       
-   ddegN       = self%remNP * ddegP
+   ddegN       = -self%remNP * ddegP
    dremP       = self%remin * sens%f_T * max(1.0d0 - qualDOM, 0.0d0)
-   dremN       = self%remNP * dremP
+   dremN       = -self%remNP * dremP
 end if 
 !________________________________________________________________________________
 !
