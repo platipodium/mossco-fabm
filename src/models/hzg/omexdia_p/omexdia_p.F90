@@ -244,7 +244,7 @@
 ! PO4-adsorption ceases when critical capacity is reached
 ! [FeS] approximated by ODU
 ! TODO: temperature dependency
-   radsP  = self%PAds  * po4 * 1.0_rk/(1.0_rk+exp(-5.0_rk+s(odu-oxy)/self%PAdsODU))
+   radsP  = self%PAds  * po4 * 1.0_rk/(1.0_rk+exp(-5.0_rk+(odu-oxy)/self%PAdsODU))
    rP     = f_T * self%rFast * 2 ! (1.0_rk - Oxicminlim)
    Pprod  = rP * pdet
 
