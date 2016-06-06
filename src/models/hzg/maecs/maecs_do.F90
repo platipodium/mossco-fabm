@@ -64,6 +64,8 @@ real(rk) :: qualDOM, dremN, dremP     !  DOM quality -> degradation
 real(rk) :: secs_pr_day = 86400.0_rk
 ! --- AGGREGATION 
 real(rk) :: aggreg_rate ! aggregation among phytoplankton and between phytoplankton & detritus [d^{-1}]    
+real(rk) :: viral_rate ! loss rate due to viral/parasite infections  [d^{-1}]    
+real(rk) :: vir_lysis = 0.5_rk  !assumes that virally infected cells equally fuel POM and DOM pools
 logical  :: out = .true.
 !   if(36000.eq.secondsofday .and. mod(julianday,1).eq.0 .and. outn) out=.true.    
 real(rk) :: pdet, no3
@@ -267,7 +269,6 @@ if (self%GrazingOn) then
    select case (self%GrazTurbOn)
      case (1)
        relmort = 1.0_rk + self%zm_fa_delmax* (1.0_rk-1.0_rk/(1.0_rk+exp(10.0_rk*(self%zm_fa_inf-att_f))))
- !  write (*,'(A,2(F11.3))') 'att=',att_f,fa
      case (2)
        relmort = 1.0d0 + self%zm_fa_delmax/(att_f+self%zm_fa_inf)
      case (3)
@@ -275,6 +276,7 @@ if (self%GrazingOn) then
     end select
   end if !self%GrazTurbOn .gt. 0
   zoo_mort   = self%mort_zoo * relmort* sens%f_T**self%fT_exp_mort  * zoo%C
+!!  write (*,'(A,4(F11.3))') 'Zm=',att_f,relmort,zoo%C,zoo_mort
 else
   graz_rate   = 0.0_rk
 !  if (self%ChemostatOn .and. .not. IsCritical) graz_rate = 0.2*phy%C
@@ -736,11 +738,13 @@ if (self%PhysiolDiagOn) then
 end if
 if (self%RateDiagOn) then
   _SET_DIAGNOSTIC_(self%id_phyUR, _REPLNAN_(uptake%C))       !average Phytoplankton_C_Uptake_Rate_
-  _SET_DIAGNOSTIC_(self%id_phyELR, _REPLNAN_(phy%resp))       !average Phytoplankton_Exudation_Loss_Rate_
+  _SET_DIAGNOSTIC_(self%id_phyRER, _REPLNAN_(-phy%resp))     !average Phytoplankton_Respiration_Rate_
+  _SET_DIAGNOSTIC_(self%id_phyELR, _REPLNAN_(-exud%C))       !average Phytoplankton_Exudation_Loss_Rate_
   _SET_DIAGNOSTIC_(self%id_phyALR, _REPLNAN_(-aggreg_rate))  !average Phytoplankton_Aggregation_Loss_Rate_
+  _SET_DIAGNOSTIC_(self%id_phyVLR, _REPLNAN_(-viral_rate))   !average Phytoplankton_Viral_Loss_Rate_
   _SET_DIAGNOSTIC_(self%id_phyGLR, _REPLNAN_(-graz_rate/phy%reg%C)) !average Phytoplankton_Grazing_Loss_Rate_
   _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(exp(-self%sink_phys*phy%relQ%N*phy%relQ%P))) !average Relative_Sinking_Rate_
-  _SET_DIAGNOSTIC_(self%id_zoomort, _REPLNAN_(zoo_mort))       !average Zoo mort rate
+  _SET_DIAGNOSTIC_(self%id_zoomort, _REPLNAN_(zoo_mort))     !average Zooplankton_Mortality_Rate_
 end if
 !#E_DIA
 
