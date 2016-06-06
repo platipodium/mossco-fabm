@@ -301,6 +301,17 @@ if (self%BioOxyOn) then
    aggreg_rate = aggreg_rate + self%mort_ODU* env%odu
 endif
 
+! --- phytoplankton viral losses : static approach --------------------------------
+viral_rate  = self%vir_loss* (self%vir_bmass*log10(phy%C) - (uptake%C - exud%C - aggreg_rate))
+!write (*,'(A,5(F9.4))') 'vir=',log10(phy%C),uptake%C- exud%C - aggreg_rate, phy%C,self%rODUox,viral_rate
+! TODO: no explicit temp dependency
+if (viral_rate .lt. 0.0_rk) viral_rate = 0.0_rk
+aggreg_rate = aggreg_rate + (1.0_rk-vir_lysis)* viral_rate ! assumes that 50% of virally infected cells goes into dead  meaterial
+exud%C      = exud%C + vir_lysis* viral_rate ! the remainder is lysis.C
+exud%N      = exud%N + vir_lysis* viral_rate * phy%Q%N ! the remainder is lysis.N
+if (self%PhosphorusOn) then 
+   exud%P      = exud%P + vir_lysis* viral_rate * phy%Q%P ! the remainder is lysis.P
+endif
 !_____________________________________________________________________________
 !
 !      turnover of long-term N-reservoir (denitrification + wet N-deposition)

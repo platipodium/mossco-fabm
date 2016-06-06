@@ -120,6 +120,8 @@ contains
 !> \describepar{decay\_nut    , \mathrm{decay_nut}    , non-carbon structure decay rate , 0.12 1/d}
 !> \describepar{phi\_agg      , \mathrm{phi_agg}      , quadratic aggregation rate, 15E-4 m^6 mmol-N^{-2} d^{-1}}
 !> \describepar{agg\_doc      , \mathrm{agg_doc}      , DOC multiplier in coagulation term, 1. m^-3 mmol-C}
+!> \describepar{vir\_loss     , \mathrm{vir_loss}     , specific viral loss/exudation rate, 0. - }
+!> \describepar{vir\_bmass    , \mathrm{vir_bmass}    , density dependency of viral loss, 0.5 1/d}
 !> \describepar{sink\_phys    , \mathrm{sink_phys}    , sinking sensitivity on physiological status, 4. }
 !> \describepar{vS\_phy       , \mathrm{vS_phy}       , sinking velocity for phytoplankton, 0. m d^{-1}}
 !> \describepar{vS\_det       , \mathrm{vS_det}       , sinking velocity for detritus, 0. m d^{-1}}
@@ -231,6 +233,8 @@ real(rk)  :: decay_pigm   ! pigment decay rate
 real(rk)  :: decay_nut    ! non-carbon structure decay rate 
 real(rk)  :: phi_agg      ! quadratic aggregation rate
 real(rk)  :: agg_doc      ! DOC multiplier in coagulation term
+real(rk)  :: vir_loss     ! specific viral loss/exudation rate
+real(rk)  :: vir_bmass    ! density dependency of viral loss
 real(rk)  :: sink_phys    ! sinking sensitivity on physiological status
 real(rk)  :: vS_phy       ! sinking velocity for phytoplankton
 real(rk)  :: vS_det       ! sinking velocity for detritus
@@ -325,8 +329,8 @@ namelist /maecs_pars/ &
   V_NC_max, AffN, zeta_CN, zstoich_PN, exud_phy, QP_phy_0, QP_phy_max, V_PC_max, &
   AffP, QSi_phy_0, QSi_phy_max, V_SiC_max, AffSi, MaxRelQ, syn_nut, adap_rub, &
   adap_theta, tau_regV, disease, mort_ODU, decay_pigm, decay_nut, phi_agg, &
-  agg_doc, sink_phys, vS_phy, vS_det, hydrol, remin, Nqual, remNP, denit, PON_denit, &
-  Q10, T_ref, NutOrder
+  agg_doc, vir_loss, vir_bmass, sink_phys, vS_phy, vS_det, hydrol, remin, Nqual, &
+  remNP, denit, PON_denit, Q10, T_ref, NutOrder
 
 namelist /maecs_graz/ &
   const_NC_zoo, const_PC_zoo, g_max, k_grazC, yield_zoo, basal_resp_zoo, &
@@ -392,6 +396,8 @@ decay_pigm   = 0.0_rk             ! 1/d
 decay_nut    = 0.12_rk            ! 1/d
 phi_agg      = 15E-4_rk           ! m^6 mmol-N^{-2} d^{-1}
 agg_doc      = 1._rk              ! m^-3 mmol-C
+vir_loss     = 0._rk              ! - 
+vir_bmass    = 0.5_rk             ! 1/d
 sink_phys    = 4._rk              ! 
 vS_phy       = 0._rk              ! m d^{-1}
 vS_det       = 0._rk              ! m d^{-1}
@@ -527,6 +533,8 @@ call self%get_parameter(self%disease      ,'disease',       default=disease)
 call self%get_parameter(self%decay_nut    ,'decay_nut',     default=decay_nut)
 call self%get_parameter(self%phi_agg      ,'phi_agg',       default=phi_agg)
 call self%get_parameter(self%agg_doc      ,'agg_doc',       default=agg_doc)
+call self%get_parameter(self%vir_loss     ,'vir_loss',      default=vir_loss)
+call self%get_parameter(self%vir_bmass    ,'vir_bmass',     default=vir_bmass)
 call self%get_parameter(self%sink_phys    ,'sink_phys',     default=sink_phys)
 call self%get_parameter(self%vS_phy       ,'vS_phy',        default=vS_phy)
 call self%get_parameter(self%vS_det       ,'vS_det',        default=vS_det)
