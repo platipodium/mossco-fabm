@@ -71,7 +71,7 @@ logical  :: out = .true.
 real(rk) :: pdet, no3
 real(rk) :: att_f, fa, relmort
 real(rk) :: QP_phy_max, rqn
-real(rk) :: det_prod, nh3f
+real(rk) :: det_prod, dom_dep, nh3f
 real(rk) :: radsP,Oxicminlim,Denitrilim,Anoxiclim,Rescale,rP
 real(rk),parameter :: relaxO2=0.04_rk
 real(rk),parameter :: T0 = 288.15_rk ! reference Temperature fixed to 15 degC
@@ -292,7 +292,8 @@ end if
 
 !_GET_(self%id_fracR,phys_status )  
 
-aggreg_rate = self%phi_agg * (1.0_rk - exp(-self%agg_doc*dom%C)) * (phy%N + det%N) 
+dom_dep     = self%agg_doc*dom%C/(1.0_rk+self%agg_doc*dom%C) 
+aggreg_rate = self%phi_agg * dom_dep * (phy%N + det%N) 
 !         vS * exp(-4*phys_status )                ! [d^{-1}] 
 !aggreg_rate = aggreg_rate * exp(-4*phy%rel_phys ) TODO: DOM quality as proxy for TEP
 
@@ -302,10 +303,13 @@ if (self%BioOxyOn) then
 endif
 
 ! --- phytoplankton viral losses : static approach --------------------------------
-viral_rate  = self%vir_loss* (self%vir_bmass*log10(phy%C) - (uptake%C - exud%C - aggreg_rate))
+dom_dep     = 1.0_rk/(1.0_rk+self%agg_doc*dom%C) 
+viral_rate  = self%vir_loss* dom_dep * (self%vir_bmass*log10(phy%C) - (uptake%C - exud%C - aggreg_rate))
 !write (*,'(A,5(F9.4))') 'vir=',log10(phy%C),uptake%C- exud%C - aggreg_rate, phy%C,self%rODUox,viral_rate
 ! TODO: no explicit temp dependency
 if (viral_rate .lt. 0.0_rk) viral_rate = 0.0_rk
+viral_rate  = viral_rate + self%vir_loss*dom_dep*viral_rate 
+
 aggreg_rate = aggreg_rate + (1.0_rk-vir_lysis)* viral_rate ! assumes that 50% of virally infected cells goes into dead  meaterial
 exud%C      = exud%C + vir_lysis* viral_rate ! the remainder is lysis.C
 exud%N      = exud%N + vir_lysis* viral_rate * phy%Q%N ! the remainder is lysis.N
