@@ -304,7 +304,7 @@ endif
 
 ! --- phytoplankton viral losses : static approach --------------------------------
 dom_dep     = 1.0_rk/(1.0_rk+self%agg_doc*dom%C) 
-viral_rate  = self%vir_loss* dom_dep * (self%vir_bmass*log10(phy%C) - (uptake%C - exud%C - aggreg_rate))
+viral_rate  = self%vir_loss* dom_dep * (self%vir_bmass*log10(phy%reg%C) - (uptake%C - exud%C - aggreg_rate))
 !write (*,'(A,5(F9.4))') 'vir=',log10(phy%C),uptake%C- exud%C - aggreg_rate, phy%C,self%rODUox,viral_rate
 ! TODO: no explicit temp dependency
 if (viral_rate .lt. 0.0_rk) viral_rate = 0.0_rk
