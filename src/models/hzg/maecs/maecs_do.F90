@@ -821,7 +821,7 @@ write(*,'(A)') 'begin vert_move'
    !Calculate manually
    _GET_(self%id_phyC, phy%C)  ! Phytplankton Carbon in mmol-C/m**3
    _GET_(self%id_phyN, phy%N)  ! Phytplankton Nitrogen in mmol-N/m**3
-!   _GET_(self%id_detC, det%C)  ! Detritus Nitrogen in mmol-N/m**3
+   _GET_(self%id_detC, det%C)  ! Detritus Nitrogen in mmol-N/m**3
 !   _GET_(self%id_detN, det%N)  ! Detritus Nitrogen in mmol-N/m**3
    _GET_(self%id_domC, dom%C)  ! DONitrogen in mmol-N/m**3
 !    aggf = det%C/106+det%N/16
@@ -873,7 +873,9 @@ write(*,'(A)') 'begin vert_move'
    !write (*,'(A,2(F10.3))') 'phyQstat, vs_phy=', phyQstat, vs_phy
 !   vs_det = -self%vS_det*aggf/secs_pr_day
    vs_det = -1.0_rk*self%vS_det/secs_pr_day
-   !set the rates
+! slowing down of vertical velocity at high concentration to smooth numerical problems in shallow, pesitional boxes
+   vs_det = vs_det * 1.0_rk/(1.0_rk+(0.004*det%C)**4)
+  !set the rates
    _SET_VERTICAL_MOVEMENT_(self%id_detC,vs_det)
    _SET_VERTICAL_MOVEMENT_(self%id_detN,vs_det)
    _SET_VERTICAL_MOVEMENT_(self%id_phyN,vs_phy)
