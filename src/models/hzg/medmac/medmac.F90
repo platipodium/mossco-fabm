@@ -207,7 +207,7 @@
                                           'rhs of ON in soil', output=output_time_step_averaged)
    call self%register_diagnostic_variable(self%id_rhs_DINb,'rhsDINb','mmol/m**2/d', &
                                           'rhs of DIN in soil', output=output_time_step_averaged)
-   if (do_denit) then
+   if (self%do_denit) then
      call self%register_diagnostic_variable(self%id_f_doin_den,'f_doin_den','-', &
                                           'oxygen inhibition of denitrification', output=output_time_step_averaged)
      call self%register_diagnostic_variable(self%id_f_ondo,'f_ondo','-', &
@@ -230,7 +230,7 @@
    call self%register_diagnostic_variable(self%id_rhs_DIPb,'rhsDIPb','mmol/m**2/d', &
                                           'rhs of DIP in soil', output=output_time_step_averaged)
 
-   if (do_Psorp) then
+   if (self%do_Psorp) then
      if (self%sorpmeth .eq. 1) then
       call self%register_diagnostic_variable(self%id_f_do_sorp,'f_do_sorp','-', &
 					  'oxygen limitation(inhibition) of sorption(desorption)', output=output_time_step_averaged)
