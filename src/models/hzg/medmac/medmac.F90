@@ -53,7 +53,7 @@
 !     Model parameters: maximum grazing rate, half-saturation prey density, loss rate
       real(rk) :: v_d,depth_ben,r_Q10,temp_ref,K_on2do,K_T2do
       integer  :: Rmeth_N,Rmeth_P,dometh,den_dometh,sorpmeth
-      logical  :: use_Temp,use_DINp,use_PONp,use_DIPp,use_POPp,do_denit,do_Psorp
+      logical  :: use_Temp,couple_pelN,couple_pelP,do_denit,do_Psorp
       real(rk) :: DINp_presc,PONp_presc,DswN,rN,kN,K_denit,K_doin_den,K_ondo
       real(rk) :: DIPp_presc,POPp_presc,DswP,rP,kP,Rsorp,K_sorp,K_do_sorp,do_sorpeq
       
@@ -98,21 +98,21 @@
    real(rk) :: DswN=1e-5,DINp_presc=16.0,PONp_presc=16.0,rN=0.05,kN=8.0,K_denit=30.0,K_doin_den=10.0,K_ondo=1000.0
    real(rk) :: DswP=1e-5,DIPp_presc=1.0,POPp_presc=1.0,rP=0.05,kP=0.5,Rsorp=0.5,K_sorp=0.5,K_do_sorp=50.0,do_sorpeq=150.0
    integer  :: Rmeth_N=1,Rmeth_P=1,dometh=2,den_dometh=1,sorpmeth=2
-   logical  :: do_denit=.False., do_Psorp=.False.
+   logical  :: do_denit=.False., do_Psorp=.False., couple_pelN=.False., couple_pelP=.False.
  
    real(rk), parameter :: secs_pr_day = 86400.
-   namelist /hzg_medmac/  &
-   v_d,depth_ben,r_Q10,temp_ref,K_on2do,K_T2do,dometh, &
-   DINp_variable, PONp_variable,DINp_presc,PONp_presc,&
-   DINb0, ONbl0,DswN,rN,kN,Rmeth_N,do_denit,K_denit,den_dometh,K_doin_den,K_ondo, &
-   DIPp_variable, POPp_variable,DIPp_presc,POPp_presc,&
-   DIPb0, OPbl0,DswP,rP,kP,Rmeth_P,do_Psorp,sorpmeth,Rsorp,sorpP0,K_sorp,K_do_sorp,do_sorpeq
+   !namelist /hzg_medmac/  &
+   !v_d,depth_ben,r_Q10,temp_ref,K_on2do,K_T2do,dometh, &
+   !DINp_variable, PONp_variable,DINp_presc,PONp_presc,&
+   !DINb0, ONbl0,DswN,rN,kN,Rmeth_N,do_denit,K_denit,den_dometh,K_doin_den,K_ondo, &
+   !DIPp_variable, POPp_variable,DIPp_presc,POPp_presc,&
+   !DIPb0, OPbl0,DswP,rP,kP,Rmeth_P,do_Psorp,sorpmeth,Rsorp,sorpP0,K_sorp,K_do_sorp,do_sorpeq
 
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    ! Read the namelist
-   read(configunit,nml=hzg_medmac,err=99,end=100)
+   !if (configunit .gt. 0) read(configunit,nml=hzg_medmac,err=99,end=100)
 
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
@@ -125,6 +125,7 @@
    call self%get_parameter(self%K_T2do,       'K_T2do',       default=K_T2do)
    call self%get_parameter(self%dometh,       'dometh',       default=dometh)
    !N-pars:
+   call self%get_parameter(self%couple_pelN,   'couple_pelN',   default=couple_pelN)
    call self%get_parameter(self%DswN,          'DswN',          default=DSwn,        scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%DINp_presc,    'DINp_presc',    default=DINp_presc)
    call self%get_parameter(self%PONp_presc,    'PONp_presc',    default=PONp_presc)
@@ -137,6 +138,7 @@
    call self%get_parameter(self%K_doin_den,    'K_doin_den',    default=K_doin_den)
    call self%get_parameter(self%K_ondo,        'K_ondo',        default=K_ondo)
    !P-pars
+   call self%get_parameter(self%couple_pelP,   'couple_pelP',   default=couple_pelP)
    call self%get_parameter(self%DswP,          'DswP',          default=DSwP,        scale_factor=1.0_rk/secs_pr_day)
    call self%get_parameter(self%DIPp_presc,    'DIPp_presc',    default=DIPp_presc)
    call self%get_parameter(self%POPp_presc,    'POPp_presc',    default=POPp_presc)
@@ -154,18 +156,18 @@
    ! Register state variables
    !N-variables
    call self%register_state_variable(self%id_DINb, 'DIN','mmol/m**2',&
-                                     'benthic DIN', DINb0, minimum=_ZERO_)
+                                     'benthic DIN', 0.0_rk, minimum=_ZERO_)
    call self%register_state_variable(self%id_ONbl, 'ON','mmol/m**2',&
-                                     'benthic ON', ONbl0, minimum=_ZERO_)
+                                     'benthic ON', 0.0_rk, minimum=_ZERO_)
    !P-variables
    call self%register_state_variable(self%id_DIPb, 'DIP','mmol/m**2',&
-                                     'benthic DIP', DIPb0, minimum=_ZERO_)
+                                     'benthic DIP', 0.0_rk, minimum=_ZERO_)
    call self%register_state_variable(self%id_OPbl, 'OP','mmol/m**2',&
-                                     'benthic OP', OPbl0, minimum=_ZERO_) 
+                                     'benthic OP', 0.0_rk, minimum=_ZERO_) 
    if (self%do_Psorp) then
       if (self%sorpmeth .eq. 1) then
         call self%register_state_variable(self%id_sorpP, 'sorpP','mmol/m**2',&
-                                     'benthic sorbed P', sorpP0, minimum=_ZERO_)
+                                     'benthic sorbed P', 0.0_rk, minimum=_ZERO_)
       else if (self%sorpmeth .eq. 2) then
         call self%register_diagnostic_variable(self%id_sorpPd,'sorpP','mmol/m**2/d', &
                                                'benthic sorbed P', output=output_time_step_averaged)
@@ -174,19 +176,20 @@
    
    ! Register links to external temperature field
    call self%register_dependency(self%id_temp,standard_variables%temperature)
-   ! Register links to external pelagic detritus and mineral pools, if coupling to pelagic model
-   !N dependencies
-   self%use_DINp = DINp_variable/=''
-   if (self%use_DINp) call self%register_state_dependency(self%id_DINp,DINp_variable)
-   self%use_PONp = PONp_variable/=''
-   if (self%use_PONp) call self%register_state_dependency(self%id_PONp,PONp_variable)
-
-   !P dependencies
-   self%use_DIPp = DIPp_variable/=''
-   if (self%use_DIPp) call self%register_state_dependency(self%id_DIPp,DIPp_variable)
-   self%use_POPp = POPp_variable/=''
-   if (self%use_POPp) call self%register_state_dependency(self%id_POPp,POPp_variable)
    
+   ! Register links to external pelagic detritus and mineral pools, if coupling to pelagic model is requested
+   !N dependencies
+   if (self%couple_pelN) then
+     call self%register_state_dependency(self%id_DINp,'DINp_variable','mmol m-3','pelagic DIN')
+     call self%register_state_dependency(self%id_PONp,'PONp_variable','mmol m-3','pelagic PON')
+   end if 
+   
+   !P dependencies
+   if (self%couple_pelP) then
+     call self%register_state_dependency(self%id_DIPp,'DIPp_variable','mmol m-3','pelagic DIP')
+     call self%register_state_dependency(self%id_POPp,'POPp_variable','mmol m-3','pelagic POP')
+   end if 
+ 
    !common diags
    call self%register_diagnostic_variable(self%id_tempd,'temp','-', &
                                           'temp at soil surface', output=output_time_step_averaged)
@@ -291,26 +294,20 @@
    
    ! Retrieve pelagic state variable values.
    ! N- variables
-   if (self%use_DINp) then
+   if (self%couple_pelN) then
     _GET_(self%id_DINp,DINp)      ! pelagic concentration
-   else
-    DINp = self%DINp_presc         ! no coupling - constant  concentration 
-   end if
-   if (self%use_PONp) then
     _GET_(self%id_PONp,PONp)      ! pelagic concentration
    else
+    DINp = self%DINp_presc         ! no coupling - constant  concentration 
     PONp = self%PONp_presc         ! no coupling - constant  concentration 
    end if
+   
    ! P- variables
-
-   if (self%use_DIPp) then
+   if (self%couple_pelP) then
     _GET_(self%id_DIPp,DIPp)      ! pelagic concentration
-   else
-    DIPp = self%DIPp_presc         ! no coupling - constant  concentration 
-   end if
-   if (self%use_POPp) then
     _GET_(self%id_POPp,POPp)      ! pelagic concentration
    else
+    DIPp = self%DIPp_presc         ! no coupling - constant  concentration 
     POPp = self%POPp_presc         ! no coupling - constant  concentration 
    end if
    
@@ -424,17 +421,13 @@
    end if
 
    ! Set bottom fluxes of pelagic variables (these mirror local benthic derivatives), if coupled
-   if (self%use_DINp) then
+   if (self%couple_pelN) then
     _SET_BOTTOM_EXCHANGE_(self%id_DINp,-difN)
-   end if 
-   if (self%use_PONp) then
     _SET_BOTTOM_EXCHANGE_(self%id_PONp,-advN)
-   end if
-
-   if (self%use_DIPp) then
-    _SET_BOTTOM_EXCHANGE_(self%id_DIPp,-difP)
    end if 
-   if (self%use_POPp) then
+
+   if (self%couple_pelP) then
+    _SET_BOTTOM_EXCHANGE_(self%id_DIPp,-difP)
     _SET_BOTTOM_EXCHANGE_(self%id_POPp,-advP)
    end if 
 
