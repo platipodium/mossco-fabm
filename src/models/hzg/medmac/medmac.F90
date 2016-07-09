@@ -422,13 +422,13 @@
 
    ! Set bottom fluxes of pelagic variables (these mirror local benthic derivatives), if coupled
    if (self%couple_pelN) then
-    _SET_BOTTOM_EXCHANGE_(self%id_DINp,-difN)
-    _SET_BOTTOM_EXCHANGE_(self%id_PONp,-advN)
+    _SET_BOTTOM_EXCHANGE_(self%id_DINp,0.0-difN)
+    _SET_BOTTOM_EXCHANGE_(self%id_PONp,0.0-advN)
    end if 
 
    if (self%couple_pelP) then
-    _SET_BOTTOM_EXCHANGE_(self%id_DIPp,-difP)
-    _SET_BOTTOM_EXCHANGE_(self%id_POPp,-advP)
+    _SET_BOTTOM_EXCHANGE_(self%id_DIPp,0.0-difP)
+    _SET_BOTTOM_EXCHANGE_(self%id_POPp,0.0-advP)
    end if 
 
    ! Export diagnostic variables
