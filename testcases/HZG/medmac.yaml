@@ -51,4 +51,4 @@ instances:
       K_sorp : 0.5         # mmolP/m2, [if sorpmeth=1] half-sat constant for of DIP limitation of P-sorption 
       K_do_sorp: 80.       # mmolO/m3, [if sorpmeth=1] half-sat constant for do limitation of P-sorption
       do_sorpeq : 200      # mmol/m3, [if sorpmeth=2] DO threshold at which sorption exceeds desorption 
-      POCp_presc: 0.1      # mmol/m3, if not coupled to a dynamic pelagic model, constant concentration of the pelagic_nutrient_variable
+      POCp_presc: 10       # mmol/m3, if not coupled to a dynamic pelagic model, constant concentration of the pelagic_nutrient_variable
