@@ -36,6 +36,7 @@
 !     Fabm variables to couple
       type (type_state_variable_id)        :: id_DINp,id_PONp !nitrogen forms in pelagic
       type (type_state_variable_id)        :: id_DIPp,id_POPp !phosphorus forms in pelagic
+      type (type_state_variable_id)        :: id_POCp !id_DICp carbon forms in pelagic
 
 !     External dependencies
       type (type_dependency_id)            :: id_temp
@@ -45,6 +46,7 @@
       type (type_horizontal_diagnostic_variable_id)   :: id_tempd,id_do_est
       type (type_horizontal_diagnostic_variable_id)   :: id_dif_N,id_adv_N,id_rem_N,id_rhs_ONbl,id_rhs_DINb, id_f_ondo,id_f_doin_den
       type (type_horizontal_diagnostic_variable_id)   :: id_dif_P,id_adv_P,id_rem_P,id_rhs_OPbl,id_rhs_DIPb,id_f_do_sorp
+      type (type_horizontal_diagnostic_variable_id)   :: id_adv_C
       type (type_horizontal_diagnostic_variable_id)   :: id_denit_lim,id_denit_rate                                                
       type (type_horizontal_diagnostic_variable_id)   :: id_sorp_rate,id_desorp_rate,id_net_sorp_rate,id_sorpPd,id_fsorbed
       
@@ -53,10 +55,10 @@
 !     Model parameters: maximum grazing rate, half-saturation prey density, loss rate
       real(rk) :: v_d,depth_ben,r_Q10,temp_ref,K_on2do,K_T2do
       integer  :: Rmeth_N,Rmeth_P,dometh,den_dometh,sorpmeth
-      logical  :: use_Temp,couple_pelN,couple_pelP,do_denit,do_Psorp
+      logical  :: use_Temp,couple_pelN,couple_pelP,couple_pelC,do_denit,do_Psorp
       real(rk) :: DINp_presc,PONp_presc,DswN,rN,kN,K_denit,K_doin_den,K_ondo
       real(rk) :: DIPp_presc,POPp_presc,DswP,rP,kP,Rsorp,K_sorp,K_do_sorp,do_sorpeq
-      
+      real(rk) :: POCp_presc !DICp_presc,DswC
       !     Model procedures
       contains
       procedure :: initialize
@@ -92,13 +94,14 @@
 !  Original author(s): Onur Kerimoglu
 !
 ! !LOCAL VARIABLES:
-   character(len=64) :: DINp_variable='',PONp_variable='',DIPp_variable='',POPp_variable=''
+   character(len=64) :: DINp_variable='',PONp_variable='',DIPp_variable='',POPp_variable='',POCp_variable=''!,DICp_variable=''
    real(rk) :: DINb0=16.0,ONbl0=16.0,DIPb0=1.0,OPbl0=1.0,sorpP0=1.0
    real(rk) :: v_d=0.5,depth_ben=0.1,r_Q10=2.0, temp_ref=10.0,K_on2do=30.0,K_T2do=15.0
    real(rk) :: DswN=1e-5,DINp_presc=16.0,PONp_presc=16.0,rN=0.05,kN=8.0,K_denit=30.0,K_doin_den=10.0,K_ondo=1000.0
    real(rk) :: DswP=1e-5,DIPp_presc=1.0,POPp_presc=1.0,rP=0.05,kP=0.5,Rsorp=0.5,K_sorp=0.5,K_do_sorp=50.0,do_sorpeq=150.0
+   real(rk) :: POCp_presc=1.0 !,DICp_presc=1.0,DswC=1e-5,
    integer  :: Rmeth_N=1,Rmeth_P=1,dometh=2,den_dometh=1,sorpmeth=2
-   logical  :: do_denit=.False., do_Psorp=.False., couple_pelN=.False., couple_pelP=.False.
+   logical  :: do_denit=.False., do_Psorp=.False., couple_pelN=.False., couple_pelP=.False., couple_pelC=.False.
  
    real(rk), parameter :: secs_pr_day = 86400.
    !namelist /hzg_medmac/  &
@@ -151,6 +154,11 @@
    call self%get_parameter(self%K_sorp,        'K_sorp',        default=K_sorp)
    call self%get_parameter(self%K_do_sorp,     'K_do_sorp',     default=K_do_sorp)
    call self%get_parameter(self%do_sorpeq,     'do_sorpeq',     default=do_sorpeq)
+   !C-pars
+   call self%get_parameter(self%couple_pelC,   'couple_pelC',   default=couple_pelC)
+   call self%get_parameter(self%POCp_presc,    'POCp_presc',    default=POCp_presc)
+   !call self%get_parameter(self%DswC,          'DswC',          default=DSwC,        scale_factor=1.0_rk/secs_pr_day)
+   !call self%get_parameter(self%DIPp_presc,    'DICp_presc',    default=DIPp_presc)
 
 
    ! Register state variables
@@ -182,15 +190,21 @@
    if (self%couple_pelN) then
      call self%register_state_dependency(self%id_DINp,'DINp_variable','mmol m-3','pelagic DIN')
      call self%register_state_dependency(self%id_PONp,'PONp_variable','mmol m-3','pelagic PON')
-   end if 
-   
+   end if
+
    !P dependencies
    if (self%couple_pelP) then
      call self%register_state_dependency(self%id_DIPp,'DIPp_variable','mmol m-3','pelagic DIP')
      call self%register_state_dependency(self%id_POPp,'POPp_variable','mmol m-3','pelagic POP')
    end if 
  
-   !common diags
+   !C dependencies
+   if (self%couple_pelC) then
+     !call self%register_state_dependency(self%id_DICp,'DICp_variable','mmol m-3','pelagic DIC')
+     call self%register_state_dependency(self%id_POCp,'POCp_variable','mmol m-3','pelagic POC')
+   end if
+
+!common diags
    call self%register_diagnostic_variable(self%id_tempd,'temp','-', &
                                           'temp at soil surface', output=output_time_step_averaged)
    call self%register_diagnostic_variable(self%id_do_est,'do_est','-', &
@@ -229,6 +243,10 @@
                                           'rhs of OP in soil', output=output_time_step_averaged)
    call self%register_diagnostic_variable(self%id_rhs_DIPb,'rhsDIPb','mmol/m**2/d', &
                                           'rhs of DIP in soil', output=output_time_step_averaged)
+
+   !C diags
+   call self%register_diagnostic_variable(self%id_adv_C,'advC','mmol/m**2/d', &
+                                          'advective flux rate of POC', output=output_time_step_averaged)
 
    if (self%do_Psorp) then
      if (self%sorpmeth .eq. 1) then
@@ -277,8 +295,10 @@
    real(rk)                   ::temp,f_T,f_doin_den,f_do_sorp,do_est,den_do_in,f_ondo
    real(rk)                   ::DINp,PONp,DINb,ONbl,denit_rate,denit_lim
    real(rk)                   ::DIPp,POPp,DIPb,OPbl,sorpP,sorp_rate,desorp_rate,net_sorp_rate,fsorbed
+   real(rk)                   ::POCp !,DICp,DICb,OCbl
    real(rk)                   ::advN,difN,remN,rhs_DINb,rhs_ONbl
    real(rk)                   ::advP,difP,remP,rhs_DIPb,rhs_OPbl
+   real(rk)                   ::advC !,difP,remP,rhs_DIPb,rhs_OPbl
    
    !,sink,diffusion,remin,ddet,dnut!,nut_loss_rate
    real(rk), parameter        :: secs_pr_day = 86400.
@@ -311,6 +331,15 @@
     POPp = self%POPp_presc         ! no coupling - constant  concentration 
    end if
    
+   ! C- variables
+   if (self%couple_pelC) then
+    !_GET_(self%id_DICp,DICp)      ! pelagic concentration
+    _GET_(self%id_POCp,POCp)      ! pelagic concentration
+   else
+    !DICp = self%DICp_presc         ! no coupling - constant  concentration
+    POCp = self%POCp_presc         ! no coupling - constant  concentration
+   end if
+
    ! Retrieve local state variable values
    ! N-
    _GET_HORIZONTAL_(self%id_ONbl,ONbl) ! detritus density - benthic
@@ -318,6 +347,9 @@
    ! P-
    _GET_HORIZONTAL_(self%id_OPbl,OPbl) ! detritus density - benthic
    _GET_HORIZONTAL_(self%id_DIPb,DIPb) ! nutrient density - benthic
+   ! C-
+   !_GET_HORIZONTAL_(self%id_OCbl,OCbl) ! detritus density - benthic
+   !_GET_HORIZONTAL_(self%id_DICb,DICb) ! nutrient density - benthic
    
    !write(*,*)'OPbl,DIPb:',OPbl,DIPb
    
@@ -394,6 +426,7 @@
    ! sinking of pelagic POM
    advN = self%v_d * PONp ! mmol/d/m² !flux should be always towards soil
    advP = self%v_d * POPp ! mmol/d/m²
+   advC = self%v_d * POCp ! mmol/d/m²
 
    ! Calculate diffusive flux for particulate nutrients, the benthic variable (nut_ben. areal units) has to be converted to concentration using the depth of the benthic pool (d_ben) for being able to calculate the gradient. Then this gradient is assumed to be taking place within a distance equal to the depth of the benthic pool: 
    difN = self%DswN*(DINp-DINb/self%depth_ben)/self%depth_ben !grad=+ means flux towards soil
@@ -429,7 +462,12 @@
    if (self%couple_pelP) then
     _SET_BOTTOM_EXCHANGE_(self%id_DIPp,0.0-difP)
     _SET_BOTTOM_EXCHANGE_(self%id_POPp,0.0-advP)
-   end if 
+   end if
+
+   if (self%couple_pelC) then
+    !_SET_BOTTOM_EXCHANGE_(self%id_DIPp,0.0-difP)
+    _SET_BOTTOM_EXCHANGE_(self%id_POCp,0.0-advC)
+   end if
 
    ! Export diagnostic variables
    !common
@@ -466,6 +504,8 @@
        _SET_HORIZONTAL_DIAGNOSTIC_(self%id_fsorbed,fsorbed)
      end if
    end if
+   !C
+   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_adv_C,advC*secs_pr_day)
 
    ! Leave spatial loops over the horizontal domain (if any).
    _HORIZONTAL_LOOP_END_
