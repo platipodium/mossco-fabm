@@ -146,9 +146,10 @@ contains
 !> \describepar{fT\_exp\_mort  , \mathrm{fT_exp_mort}  , exponent temperature dep. mortality (1: standard), 3. m**3/mmolN.d}
 !> \describepar{a\_water      , \mathrm{a_water}      , background attenuation coefficient, 1. 1/m}
 !> \describepar{a\_minfr      , \mathrm{a_minfr}      , heuristic depth-dep attenuation, 0.1 -}
-!> \describepar{a\_spm        , \mathrm{a_spm}        , attenuation coefficient of SPM, 0.012 m**3/m.mmolC}
-!> \describepar{a\_doc        , \mathrm{a_doc}        , attenuation coefficient of doc, 0.0035 m**3/m.mmolC}
 !> \describepar{a\_fz         , \mathrm{a_fz}         , depth dependent turbidity gradient, 6. -}
+!> \describepar{a\_spm        , \mathrm{a_spm}        , attenuation coefficient of SPM, 0.005 m**3/m.mmolC}
+!> \describepar{a\_doc        , \mathrm{a_doc}        , attenuation coefficient of doc, 0.0025 m**3/m.mmolC}
+!> \describepar{a\_phyc        , \mathrm{a_phyc}      , attenuation coefficient of doc, 0.02 m**3/m.mmolC}
 !> \describepar{a\_chl        , \mathrm{a_chl}        , attenuation coefficient due to Chl absorption, 0.012 m**3/m.mgChl}
 !> \describepar{rel\_co2      , \mathrm{rel_co2}      , relative CO2 conc in sea water , -1 -}
 !> \describepar{frac\_PAR     , \mathrm{frac_PAR}     , photosynthetically active fraction of light, 4.85 }
@@ -262,9 +263,10 @@ real(rk)  :: fT_exp_mort  ! exponent temperature dep. mortality (1: standard)
 !!------- Parameters from nml-list maecs_env ------- 
 real(rk)  :: a_water      ! background attenuation coefficient
 real(rk)  :: a_minfr      ! heuristic depth-dep attenuation
+real(rk)  :: a_fz         ! depth dependent turbidity gradient
 real(rk)  :: a_spm        ! attenuation coefficient of SPM
 real(rk)  :: a_doc        ! attenuation coefficient of DOC
-real(rk)  :: a_fz         ! depth dependent turbidity gradient
+real(rk)  :: a_phyc       ! attenuation coefficient of phyC
 real(rk)  :: a_chl        ! attenuation coefficient due to Chl absorption
 real(rk)  :: rel_co2      ! relative CO2 conc in sea water 
 real(rk)  :: frac_PAR     ! photosynthetically active fraction of light
@@ -339,7 +341,7 @@ namelist /maecs_graz/ &
   mort_zoo, zm_fa_delmax, zm_fa_inf, fT_exp_mort
 
 namelist /maecs_env/ &
-  a_water, a_minfr, a_spm, a_doc, a_fz, a_chl, rel_co2, frac_PAR, small, maxVal, dil, &
+  a_water, a_minfr, a_fz, a_spm, a_doc, a_phyc, a_chl, rel_co2, frac_PAR, small, maxVal, dil, &
   ex_airsea, O2_sat, N_depo, P_depo
 
 namelist /maecs_omex/ &
@@ -424,9 +426,10 @@ zm_fa_inf    = 0.15_rk            ! -
 fT_exp_mort  = 3._rk              ! m**3/mmolN.d
 a_water      = 1._rk              ! 1/m
 a_minfr      = 0.1_rk             ! -
-a_spm        = 0.012_rk           ! m**3/m.mmolC
-a_doc        = 0.0035_rk          ! m**3/m.mmolC
 a_fz         = 6._rk              ! -
+a_spm        = 0.005_rk           ! m**3/m.mmolC
+a_doc        = 0.0025_rk          ! m**3/m.mmolC
+a_phyc       = 0.02_rk          ! m**3/m.mmolC
 a_chl        = 0.012_rk           ! m**3/m.mgChl
 rel_co2      = -1_rk              ! -
 frac_PAR     = 4.85_rk            ! 
@@ -590,9 +593,10 @@ end if
 !!------- model parameters from nml-list maecs_env ------- 
 call self%get_parameter(self%a_water      ,'a_water',       default=a_water)
 call self%get_parameter(self%a_minfr      ,'a_minfr',       default=a_minfr)
+call self%get_parameter(self%a_fz         ,'a_fz',          default=a_fz)
 call self%get_parameter(self%a_spm        ,'a_spm',         default=a_spm)
 call self%get_parameter(self%a_doc        ,'a_doc',         default=a_doc)
-call self%get_parameter(self%a_fz         ,'a_fz',          default=a_fz)
+call self%get_parameter(self%a_phyc       ,'a_phyc',        default=a_phyc)
 call self%get_parameter(self%a_chl        ,'a_chl',         default=a_chl)
 call self%get_parameter(self%rel_co2      ,'rel_co2',       default=rel_co2)
 call self%get_parameter(self%frac_PAR     ,'frac_PAR',      default=frac_PAR)
@@ -916,7 +920,7 @@ end subroutine initialize
    class(type_hzg_maecs),intent(in)          :: self 
    _DECLARE_ARGUMENTS_GET_EXTINCTION_
    
-   real(rk) :: p,z,poc,doc,chl,kw,zmax,doy,fz,ft,A,B,L,fz1,fz2,attv,a_doc
+   real(rk) :: p,z,poc,doc,chl,kw,zmax,doy,fz,ft,A,B,L,fz1,fz2,attv
    real(rk), PARAMETER ::  Pi = 3.1415927_rk
    
    ! Enter spatial loops (if any)
@@ -979,7 +983,7 @@ end subroutine initialize
    kw=self%a_water*fz*ft
    
    ! Attenuation as a result of background turbidity and self-shading of phytoplankton.
-   attv = kw + self%a_spm*(p+poc+z) +self%a_doc*doc+ self%a_chl*chl
+   attv = kw + self%a_spm*(poc+z)+ self%a_doc*doc+ self%a_phyc*p + self%a_chl*chl
    _SET_EXTINCTION_(attv )
    _SET_DIAGNOSTIC_(self%id_attf, attv)         !total attenuation as a diag 
 

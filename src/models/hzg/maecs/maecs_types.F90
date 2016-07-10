@@ -65,7 +65,7 @@ type (type_diagnostic_variable_id)   :: id_attf, id_vphys, id_GPPR, id_Denitr, i
 real(rk) ::  nutN_initial, nutP_initial, nutS_initial, phyC_initial, phyN_initial, phyP_initial, phyS_initial, zooC_initial, detC_initial, detN_initial, detP_initial, detS_initial, domC_initial, domN_initial, domP_initial, RNit_initial, frac_Rub_ini, frac_chl_ini, nh3_initial, oxy_initial, odu_initial
 real(rk) ::  P_max, alpha, sigma, theta_LHC, rel_chloropl_min, QN_phy_0, QN_phy_max, V_NC_max, AffN, zeta_CN, zstoich_PN, exud_phy, QP_phy_0, QP_phy_max, V_PC_max, AffP, QSi_phy_0, QSi_phy_max, V_SiC_max, AffSi, MaxRelQ, syn_nut, adap_rub, adap_theta, tau_regV, disease, mort_ODU, decay_pigm, decay_nut, phi_agg, agg_doc, vir_loss, vir_bmass, sink_phys, vS_phy, vS_det, hydrol, remin, Nqual, remNP, denit, PON_denit, Q10, T_ref, NutOrder
 real(rk) ::  const_NC_zoo, const_PC_zoo, g_max, k_grazC, yield_zoo, basal_resp_zoo, mort_zoo, zm_fa_delmax, zm_fa_inf, fT_exp_mort
-real(rk) ::  a_water, a_minfr, a_spm, a_doc,a_fz, a_chl, rel_co2, frac_PAR, small, maxVal, dil, ex_airsea, O2_sat, N_depo, P_depo
+real(rk) ::  a_water, a_minfr,a_fz, a_spm, a_doc,a_phyc, a_chl, rel_co2, frac_PAR, small, maxVal, dil, ex_airsea, O2_sat, N_depo, P_depo
 real(rk) ::  rPAds, PAdsODU, rnit, ksO2nitri, rODUox, ksO2oduox, ksO2oxic, ksNO3denit, kinO2denit, kinNO3anox, kinO2anox, rAnammox
 real(rk) ::  rq10, res0, K_QN_phy, iK_QN, iK_QP, iK_QSi, itheta_max, aver_QN_phy, aver_QP_phy, small_finite
 logical  ::  RubiscoOn, PhotoacclimOn, PhosphorusOn, SiliconOn, GrazingOn, BioOxyOn, DebugDiagOn, Budget0DDiagOn, Budget2DDiagOn, BGC0DDiagOn, BGC2DDiagOn, PhysiolDiagOn, RateDiagOn, ChemostatOn, SwitchOn, NResOn, detritus_no_river_dilution, plankton_no_river_dilution, nutrient_no_river_dilution
