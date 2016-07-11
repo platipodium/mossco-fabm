@@ -721,8 +721,6 @@ if (self%NResOn) then
 end if
 
 !!------- Register diagnostic variables  ------- 
-call self%register_diagnostic_variable(self%id_attf,    'attf','1/m', ' attf', &
-  output=DOUT)
 call self%register_diagnostic_variable(self%id_vphys,   'vphys','-', ' vphys', &
   output=DOUT)
 
@@ -744,10 +742,12 @@ end if
 if (self%BGC0DDiagOn) then
 call self%register_diagnostic_variable(self%id_GPPR,    'GPPR','mmolC/m**3/d', 'gross_primary_production_ GPPR', &
   output=DOUT)
-call self%register_diagnostic_variable(self%id_Denitr,  'Denitr','mmol-N/m**3/d', 'denitrification_rate_ Denitr', &
-  output=DOUT)
 call self%register_diagnostic_variable(self%id_dPAR,    'dPAR','W/m**2', 'Photosynthetically_Active_Radiation_ dPAR', &
   output=DOUT)
+if (self%GrazTurbOn .gt. 0) then
+  call self%register_diagnostic_variable(self%id_datt,    'datt','m-1', 'attenuation coefficient of Photosynthetically_Active_Radiation_ datt', &
+    output=DOUT)
+end if
 call self%register_diagnostic_variable(self%id_DNP,     'DNP','-', 'DIN:DIP_ratio_ DNP', &
   output=DOUT)
 call self%register_diagnostic_variable(self%id_QNP,     'QNP','-', 'N:P_ratio_ QNP', &
@@ -756,8 +756,11 @@ call self%register_diagnostic_variable(self%id_qualPOM, 'qualPOM','-', 'Quality_
   output=DOUT)
 call self%register_diagnostic_variable(self%id_qualDOM, 'qualDOM','-', 'Quality_of_DOM_ qualDOM', &
   output=DOUT)
-call self%register_diagnostic_variable(self%id_no3,     'no3','mmol-N/m**3', 'Nitrate_ no3', &
-  output=DOUT)
+if (self%BioOxyOn) then
+  call self%register_diagnostic_variable(self%id_Denitr,  'Denitr','mmol-N/m**3/d', 'denitrification_rate_ Denitr', output=DOUT)
+  call self%register_horizontal_diagnostic_variable(self%id_O2flux_diag,'O2flux','mmol-O2/m**2/d','oxygen_flux_between_sea_water_and_air', output=DOUT)
+  call self%register_diagnostic_variable(self%id_no3,     'no3','mmol-N/m**3', 'Nitrate_ no3',output=DOUT)
+end if
 end if
 
 if (self%PhysiolDiagOn) then
@@ -821,13 +824,12 @@ if (self%BGC2DDiagOn .and. .not. self%BGC0DDiagOn) call self%fatal_error('maecs_
 if (self%Budget2DDiagOn .and. .not. self%Budget0DDiagOn) call self%fatal_error('maecs_init','Budget2DDiagOn=TRUE requires Budget0DDiagOn=TRUE')
 if (self%PhysiolDiagOn .and. .not. self%PhotoacclimOn) call self%fatal_error('maecs_init','PhysiolDiagOn=TRUE requires PhotoacclimOn=TRUE')
 if (self%BGC0DDiagOn .and. .not. self%PhosphorusOn) call self%fatal_error('maecs_init','BGC0DDiagOn=TRUE requires PhosphorusOn=TRUE')
-if (self%BGC0DDiagOn .and. .not. self%BioOxyOn) call self%fatal_error('maecs_init','BGC0DDiagOn=TRUE requires BioOxyOn=TRUE')
 
 !!------- Register environmental dependencies  ------- 
+call self%register_dependency(self%id_attpar,standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
 call self%register_dependency(self%id_temp,standard_variables%temperature)
 call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
 call self%register_global_dependency(self%id_doy,standard_variables%number_of_days_since_start_of_the_year)
-call self%register_dependency(self%id_attf_dep,'attf','1/m','light_attenuation_function_in_water')
 call self%register_dependency(self%id_vphys_dep,'vphys','','physiological_state_of_sinking_cells')
 call self%register_horizontal_dependency(self%id_zmax,standard_variables%bottom_depth)
 
@@ -853,10 +855,11 @@ if (self%BGC2DDiagOn) then
     call self%register_dependency(self%id_GPPR_dep,'GPPR','mmol-C/m**3/d','Gross_Primary_Production_Rate')
     call self%register_dependency(self%id_GPPR_vertint,vertical_integral(self%id_GPPR_dep))
     call self%register_horizontal_diagnostic_variable(self%id_GPPR_vertint_diag,'GPPR_vertint','mmol-C/m**2/d','vertical_integral_gross_primary_production', output=DOUT)
-    call self%register_dependency(self%id_Denitr_dep,'Denitr')
-    call self%register_dependency(self%id_Denitr_vertint,vertical_integral(self%id_Denitr_dep))
-    call self%register_horizontal_diagnostic_variable(self%id_Denitr_vertint_diag,'Denitr_vertint','mmol-N/m**2/d','vertical_integral_Denitrification', output=DOUT)
-    call self%register_horizontal_diagnostic_variable(self%id_O2flux_diag,'O2flux','mmol-O2/m**2/d','oxygen_flux_between_sea_water_and_air', output=DOUT)
+    if (self%BioOxyOn) then
+     call self%register_dependency(self%id_Denitr_dep,'Denitr')
+     call self%register_dependency(self%id_Denitr_vertint,vertical_integral(self%id_Denitr_dep))
+     call self%register_horizontal_diagnostic_variable(self%id_Denitr_vertint_diag,'Denitr_vertint','mmol-N/m**2/d','vertical_integral_Denitrification', output=DOUT)
+    end if
 end if
 
 if (self%ChemostatOn) then
@@ -984,12 +987,7 @@ end subroutine initialize
    
    ! Attenuation as a result of background turbidity and self-shading of phytoplankton.
    attv = kw + self%a_spm*(poc+z)+ self%a_doc*doc+ self%a_phyc*p + self%a_chl*chl
-   _SET_EXTINCTION_(attv )
-   _SET_DIAGNOSTIC_(self%id_attf, attv)         !total attenuation as a diag 
-
-!   if (self%GrazTurbOn .eq. 1) then
-!     _SET_DIAGNOSTIC_(self%id_attf, attv)         !(relative) attenuation function as a diag
-!   end if
+   _SET_EXTINCTION_(attv)
    
 #if _DEBUG_
 !write (*,'(A, 2(F5.2), I4, 3(F5.2))') 'zmax,t,meth,fz,ft,kw: ',zmax,doy,self%kwFzmaxMeth,fz,ft,kw
