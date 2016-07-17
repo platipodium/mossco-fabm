@@ -65,7 +65,7 @@ real(rk) :: secs_pr_day = 86400.0_rk
 ! --- AGGREGATION 
 real(rk) :: aggreg_rate ! aggregation among phytoplankton and between phytoplankton & detritus [d^{-1}]    
 real(rk) :: viral_rate ! loss rate due to viral/parasite infections  [d^{-1}]    
-real(rk) :: vir_lysis = 0.5_rk  !assumes that virally infected cells equally fuel POM and DOM pools
+real(rk) :: vir_lysis = 0.3_rk  !assumes that virally infected cells equally fuel POM and DOM pools
 logical  :: out = .true.
 !   if(36000.eq.secondsofday .and. mod(julianday,1).eq.0 .and. outn) out=.true.    
 real(rk) :: pdet, no3
@@ -77,8 +77,10 @@ real(rk),parameter :: relaxO2=0.04_rk
 real(rk),parameter :: T0 = 288.15_rk ! reference Temperature fixed to 15 degC
 real(rk),parameter :: Q10b = 1.5_rk
 real(rk) :: Cprod, Nprod, Pprod
+real(rk) :: poc
 real(rk) :: AnoxicMin,Denitrific,OxicMin,Nitri,OduDepo,OduOx,pDepo, Anammox
 real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto,faeces, min_Cmass
+real(rk) :: vir_max, vir_mu, infect
 logical  :: IsCritical = .false. ! phyC and phyN below reasonable range ?
 #define _KAI_ 2
 #define _MARKUS_ 1
@@ -303,12 +305,27 @@ if (self%BioOxyOn) then
 endif
 
 ! --- phytoplankton viral losses : static approach --------------------------------
-dom_dep     = 1.0_rk/(1.0_rk+self%agg_doc*dom%C) 
-viral_rate  = self%vir_loss* dom_dep * (self%vir_bmass*log10(phy%reg%C) - (uptake%C - exud%C - aggreg_rate))
+!!dom_dep     = 1.0_rk/(1.0_rk+self%agg_doc*dom%C) 
+!!viral_rate  = self%vir_loss* dom_dep * (self%PON_denit + self%vir_bmass*sqrt(phy%reg%C) - (uptake%C - exud%C - aggreg_rate))
 !write (*,'(A,5(F9.4))') 'vir=',log10(phy%C),uptake%C- exud%C - aggreg_rate, phy%C,self%rODUox,viral_rate
 ! TODO: no explicit temp dependency
+!!if (viral_rate .lt. 0.0_rk) viral_rate = 0.0_rk
+!!viral_rate  = viral_rate + self%vir_loss*dom_dep*viral_rate 
+poc   = zoo%C + dom%C + det%C + phy%reg%C 
+
+vir_max = 1.0_rk
+vir_mu  = 4*self%vir_loss
+infect  = 0.01_rk
+
+if (uptake%C .gt. self%small_finite) then  ! infection only at daytime
+   viral_rate  = vir_max - (uptake%C - infect * phy%C* phy%C/poc)/(vir_mu-self%vir_loss)
+else
+   viral_rate  = 0.0_rk
+endif
+
+if (viral_rate .gt. vir_max) viral_rate = vir_max
 if (viral_rate .lt. 0.0_rk) viral_rate = 0.0_rk
-viral_rate  = viral_rate + self%vir_loss*dom_dep*viral_rate 
+viral_rate  = viral_rate * self%vir_loss
 
 aggreg_rate = aggreg_rate + (1.0_rk-vir_lysis)* viral_rate ! assumes that 50% of virally infected cells goes into dead  meaterial
 exud%C      = exud%C + vir_lysis* viral_rate ! the remainder is lysis.C
@@ -716,11 +733,12 @@ _SET_DIAGNOSTIC_(self%id_vphys, exp(-self%sink_phys*phy%relQ%N * phy%relQ%P))   
 !#S_DIA
 if (self%DebugDiagOn) then
   _SET_DIAGNOSTIC_(self%id_tmp, _REPLNAN_(acclim%tmp))       !average Temporary_diagnostic_
-  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(dRchl_phyC_dt))   !average Auxiliary_diagnostic_
-  _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(acclim%dRchl_dfracR*acclim%dfracR_dt)) !average Auxiliary_diagnostic_
-  _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%dRchl_dtheta*acclim%dtheta_dt)) !average Auxiliary_diagnostic_
-  _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(acclim%fac1))     !average dtheta_dt_due_to_flex_theta_
-  _SET_DIAGNOSTIC_(self%id_fac5, _REPLNAN_(acclim%fac2))     !average dtheta_dt_due_to_grad_theta_
+!  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(dRchl_phyC_dt))   !average Auxiliary_diagnostic_
+!  _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(acclim%dRchl_dfracR*acclim%dfracR_dt)) !average Auxiliary_diagnostic_
+!  _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%dRchl_dtheta*acclim%dtheta_dt)) !average Auxiliary_diagnostic_
+  _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(acclim%fac1))     !average dtheta_dt_due_to_flex_theta_
+  _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(acclim%fac2))     !average dtheta_dt_due_to_grad_theta_
+  _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%fac3))     !average dtheta_dt_due_to_grad_theta_
 end if
 if (self%BGC0DDiagOn) then
   _SET_DIAGNOSTIC_(self%id_GPPR, _REPLNAN_(phy%gpp*phy%C))   !average gross_primary_production_
@@ -874,7 +892,7 @@ write(*,'(A)') 'begin vert_move'
 !   vs_det = -self%vS_det*aggf/secs_pr_day
    vs_det = -1.0_rk*self%vS_det/secs_pr_day
 ! slowing down of vertical velocity at high concentration to smooth numerical problems in shallow, pesitional boxes
-   vs_det = vs_det * 1.0_rk/(1.0_rk+(0.004*det%C)**4)
+   vs_det = vs_det * 1.0_rk/(1.0_rk+(0.01*det%C)**4)
   !set the rates
    _SET_VERTICAL_MOVEMENT_(self%id_detC,vs_det)
    _SET_VERTICAL_MOVEMENT_(self%id_detN,vs_det)

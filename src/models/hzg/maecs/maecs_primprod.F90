@@ -202,8 +202,13 @@ sigmv(self%nutind%iN) = acc%dRchl_dQN * self%itheta_max /(phy%frac%NutUpt+eps)
 !> - grossC=Pmaxc*fR*sens\%upt\_pot\%C
 !>   + sens\%upt\_pot\%C  : light harvesting (light limited growth)
 !> - darkf= 1-exp(-grossC/self\%res0)
+
 Pmaxc     = fac_colim * sens%P_max_T
 grossC    = phy%frac%Rub * Pmaxc * sens%upt_pot%C  ! primary production
+
+acc%fac1 = phy%frac%Rub
+acc%fac2 = Pmaxc
+acc%fac3 = sens%upt_pot%C
 
 ! "darkness correction": marginal use should converge towards zero at very low light
 !  offset (background respiration) derived from a_V(dmu_daV=0)*1/4*Vmax*zeta (f_A=f_V=1/2)
@@ -260,10 +265,10 @@ do i = 1,num_nut-1 ! skip i=N:carbon
    safe      = 1.0d0 + max(0.0d0,(elem(i)%relQ-1.0d0)/maxrq)**3 * exp(-1*sens%P_max_T/self%res0)
    dmu_daV   = (-zeta_X(i)*safe + dmu_dV/safe) * phy%frac%NutUpt * elem(i)%upt_pot
 !if (phy%Q%P .gt. 0.015 .and. i .eq. self%nutind%iP) write (0,'(A,5(F9.4))') 'aP=',dmu_daV,-zeta_X(i),dmu_dV,d_QX,d_QX/(1.0d0 + elem(i)%Q * (d_QX + sigmv(i)))
-if(i .eq. self%nutind%iN) then
-  acc%fac1 = -zeta_X(i)* phy%frac%NutUpt * elem(i)%upt_pot
-  acc%fac2 = dmu_dV* phy%frac%NutUpt * elem(i)%upt_pot
-endif
+!if(i .eq. self%nutind%iN) then
+!  acc%fac1 = -zeta_X(i)* phy%frac%NutUpt * elem(i)%upt_pot
+!  acc%fac2 = dmu_dV* phy%frac%NutUpt * elem(i)%upt_pot
+!endif
   
 !   smoothed version of step function, uses marginal gain to emulate a continuous response 
 !   act_V     = 1.0d0/(1.0d0 + exp( 3.1415d0 - self%tau_regV * dmu_daV));  ! 0.02
