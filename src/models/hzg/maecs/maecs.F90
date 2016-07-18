@@ -10,7 +10,7 @@ use fabm_types
 use maecs_types
 
 #define _DEBUG_ 0
-!#define DOUT output_time_step_averaged
+#define DOUTa output_time_step_averaged
 !#define DOUT time_integrated
 !#define DOUT output_time_step_integrated
 #define DOUT output_instantaneous
@@ -741,9 +741,9 @@ end if
 
 if (self%BGC0DDiagOn) then
 call self%register_diagnostic_variable(self%id_GPPR,    'GPPR','mmolC/m**3/d', 'gross_primary_production_ GPPR', &
-  output=DOUT)
+  output=DOUTa)
 call self%register_diagnostic_variable(self%id_dPAR,    'dPAR','W/m**2', 'Photosynthetically_Active_Radiation_ dPAR', &
-  output=DOUT)
+  output=DOUTa)
 if (self%GrazTurbOn .gt. 0) then
   call self%register_diagnostic_variable(self%id_datt,    'datt','m-1', 'attenuation coefficient of Photosynthetically_Active_Radiation_ datt', &
     output=DOUT)
@@ -765,9 +765,9 @@ end if
 
 if (self%PhysiolDiagOn) then
 call self%register_diagnostic_variable(self%id_chl2C,   'chl2C','gCHL/gC', 'chlorophyll:carbon_ratio_=_chl-a/chloroplast-C_*_chloroplast-C/phy-molC_*_1molC/12gC_ chl2C', &
-  output=DOUT)
+  output=DOUTa)
 call self%register_diagnostic_variable(self%id_Theta,   'Theta','-', 'Theta_ Theta', &
-  output=DOUT)
+  output=DOUTa)
 call self%register_diagnostic_variable(self%id_fracR,   'fracR','-', 'Rubisco_fract._allocation_ fracR', &
   output=DOUT)
 call self%register_diagnostic_variable(self%id_fracT,   'fracT','-', 'LHC_fract._allocation_ fracT', &
@@ -802,7 +802,7 @@ end if
 
 if (self%RateDiagOn) then
 call self%register_diagnostic_variable(self%id_phyUR,   'phyUR','1/d', 'Phytoplankton_C_Uptake_Rate_ phyUR', &
-  output=DOUT)
+  output=DOUTa)
 call self%register_diagnostic_variable(self%id_phyRER,  'phyRER','1/d', 'Phytoplankton_Respiration_Rate_ phyRER', &
   output=DOUT)
 call self%register_diagnostic_variable(self%id_phyELR,  'phyELR','1/d', 'Phytoplankton_Exudation_Loss_Rate_ phyELR', &
