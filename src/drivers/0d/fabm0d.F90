@@ -435,8 +435,8 @@
 !EOC
 
    subroutine init_yaml()
-      use fabm_config_types
-      use fabm_yaml,yaml_parse=>parse,yaml_error_length=>error_length
+      use yaml_types
+      use yaml,yaml_parse=>parse,yaml_error_length=>error_length
 
       logical                            :: exists
       character(len=yaml_error_length)   :: yaml_error
@@ -462,7 +462,7 @@
    end subroutine init_yaml
 
    subroutine init_yaml_input(mapping)
-      use fabm_config_types
+      use yaml_types
 
       class (type_dictionary),intent(in)  :: mapping
 
@@ -485,7 +485,7 @@
    end subroutine init_yaml_input
 
    subroutine parse_input_variable(variable_name,mapping)
-      use fabm_config_types
+      use yaml_types
 
       character(len=*),      intent(in) :: variable_name
       type (type_dictionary),intent(in) :: mapping
@@ -709,6 +709,8 @@
 
       ! Verify whether the model state is still valid (clip if needed and allowed)
       call fabm_check_state(model,repair_state,valid_state)
+      if (valid_state .or. repair_state) call fabm_check_bottom_state(model,repair_state,valid_state)
+      if (valid_state .or. repair_state) call fabm_check_surface_state(model,repair_state,valid_state)
       if (.not. (valid_state .or. repair_state)) &
          call fatal_error('time_loop','State variable values are invalid and repair is not allowed. &
             &This may be fixed by setting repair_state=.true. (clip state to nearest valid value), &

@@ -139,9 +139,8 @@
       logical                            :: includes_custom = .false.
    contains
       procedure :: remove => coupling_task_list_remove
-      procedure :: add_for_link => coupling_task_list_add
+      procedure :: add => coupling_task_list_add
       procedure :: add_object => coupling_task_list_add_object
-      generic :: add => add_for_link, add_object
    end type
 
    ! ====================================================================================================
@@ -569,6 +568,13 @@
    ! in the FABM core.
    ! ====================================================================================================
 
+   type,public :: type_version
+      character(len=attribute_length) :: module_name    = ''
+      character(len=attribute_length) :: version_string = ''
+      type (type_version), pointer    :: next           => null()
+   end type
+   type (type_version),pointer,save,public :: first_module_version => null()
+
    type type_base_model_factory_node
       character(len=attribute_length)             :: prefix  = ''
       class (type_base_model_factory),    pointer :: factory => null()
@@ -579,9 +585,10 @@
       type (type_base_model_factory_node),pointer :: first_child => null()
       logical                                     :: initialized = .false.
    contains
-      procedure :: initialize => abstract_model_factory_initialize
-      procedure :: add        => abstract_model_factory_add
-      procedure :: create     => abstract_model_factory_create
+      procedure :: initialize       => abstract_model_factory_initialize
+      procedure :: add              => abstract_model_factory_add
+      procedure :: create           => abstract_model_factory_create
+      procedure :: register_version => abstract_model_factory_register_version
    end type
 
    class (type_base_model_factory),pointer,save,public :: factory => null()
@@ -774,8 +781,9 @@
       character(len=*),optional,     intent(in)    :: long_name
       integer,                       intent(in)    :: configunit
 !
-      integer :: islash
-      class (type_base_model),pointer :: parent
+      integer                             :: islash
+      class (type_base_model),    pointer :: parent
+      type (type_model_list_node),pointer :: child
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -797,6 +805,13 @@
          'Cannot add child model "'//trim(name)//'" because its name is not valid. &
          &Model names should not be empty, and can contain letters, digits and underscores only.')
       if (len_trim(name)>len(model%name)) call fatal_error('add_child','Model name "'//trim(name)//'" exceeds maximum length.')
+
+      ! Make sure a child with this name does not exist yet.
+      child => self%children%first
+      do while (associated(child))
+         if (child%model%name==name) call self%fatal_error('add_child','A child model with name "'//trim(name)//'" already exists.')
+         child => child%next
+      end do
 
       model%name = name
       if (present(long_name)) then
@@ -1133,7 +1148,7 @@ function create_coupling_task(self,link) result(task)
       &not inherited ones such as the current '//trim(link%name)//'.')
 
    ! Create a coupling task (reuse existing one if available, and not user-specified)
-   task => self%coupling_task_list%add(link,.false.)
+   call self%coupling_task_list%add(link,.false.,task)
 end function create_coupling_task
 
 subroutine request_coupling_for_link(self,link,master)
@@ -1178,6 +1193,7 @@ subroutine request_coupling_for_id(self,id,master)
    class (type_variable_id),intent(inout) :: id
    character(len=*),        intent(in)    :: master
 
+   if (.not.associated(id%link)) call self%fatal_error('request_coupling_for_id','The provided variable identifier has not been registered yet.')
    call self%request_coupling(id%link,master)
 end subroutine request_coupling_for_id
 
@@ -1201,6 +1217,7 @@ subroutine request_standard_coupling_for_id(self,id,master,domain)
    class (type_base_standard_variable),intent(in)    :: master
    integer,optional,                   intent(in)    :: domain
 
+   if (.not.associated(id%link)) call self%fatal_error('request_standard_coupling_for_id','The provided variable identifier has not been registered yet.')
    call self%request_standard_coupling_for_link(id%link,master,domain)
 end subroutine request_standard_coupling_for_id
 
@@ -2608,17 +2625,35 @@ end subroutine get_string_parameter
       logical,         optional,intent(in)        :: recursive,exact
       type (type_link),pointer                    :: link
 
+      integer                         :: n
       logical                         :: recursive_eff,exact_eff
       class (type_base_model),pointer :: current
 
-      if (name(1:1)=='/') then
-         link => find_link(self,name(2:),recursive,exact)
-         return
+      link => null()
+
+      n = len_trim(name)
+      if (n>=1) then
+         if (name(1:1)=='/') then
+            link => find_link(self,name(2:),recursive,exact=.true.)
+            return
+         end if
+         if (n>=2) then
+            if (name(1:2)=='./') then
+               link => find_link(self,name(3:),recursive,exact=.true.)
+               return
+            end if
+            if (n>=3) then
+               if (name(1:3)=='../') then
+                  if (.not.associated(self%parent)) return
+                  link => find_link(self%parent,name(4:),recursive,exact=.true.)
+                  return
+               end if
+            end if
+         end if
       end if
 
       recursive_eff = .false.
       if (present(recursive)) recursive_eff = recursive
-      nullify(link)
 
       ! First search self and ancestors (if allowed) based on exact name provided.
       current => self
@@ -2685,10 +2720,14 @@ end subroutine get_string_parameter
          do while (associated(found_model).and.istart<=len(name))
             length = index(name(istart:),'/')-1
             if (length==-1) length = len(name) - istart + 1
-            node => found_model%children%find(name(istart:istart+length-1))
+            if (length==2.and.name(istart:istart+1)=='..') then
+               found_model => found_model%parent
+            elseif (.not.(length==1.and.name(istart:istart)=='.')) then
+               node => found_model%children%find(name(istart:istart+length-1))
+               nullify(found_model)
+               if (associated(node)) found_model => node%model
+            end if
             istart = istart+length+1
-            nullify(found_model)
-            if (associated(node)) found_model => node%model
          end do
 
          ! Only continue if we have not found the model and are allowed to try parent model.
@@ -2812,6 +2851,27 @@ recursive subroutine abstract_model_factory_create(self,name,model)
    end do
 end subroutine abstract_model_factory_create
 
+recursive subroutine abstract_model_factory_register_version(self,name,version_string)
+   class (type_base_model_factory),intent(in) :: self
+   character(len=*),               intent(in) :: name,version_string
+
+   type (type_version),pointer :: version
+
+   if (associated(first_module_version)) then
+      version => first_module_version
+      do while (associated(version%next))
+         version => version%next
+      end do
+      allocate(version%next)
+      version => version%next
+   else
+      allocate(first_module_version)
+      version => first_module_version
+   end if
+   version%module_name = name
+   version%version_string = version_string
+end subroutine abstract_model_factory_register_version
+
    function time_treatment2output(time_treatment) result(output)
       integer, intent(in) :: time_treatment
       integer             :: output
@@ -2891,7 +2951,7 @@ end subroutine abstract_model_factory_create
       nullify(task%next)
    end function coupling_task_list_add_object
 
-   function coupling_task_list_add(self,link,always_create) result(task)
+   subroutine coupling_task_list_add(self,link,always_create,task)
       class (type_coupling_task_list),intent(inout)         :: self
       type (type_link),               intent(inout), target :: link
       logical,                        intent(in)            :: always_create
@@ -2902,10 +2962,10 @@ end subroutine abstract_model_factory_create
       allocate(task)
       task%slave => link
       task%domain = link%target%domain
-      used = self%add(task,always_create)
+      used = self%add_object(task,always_create)
       if (.not.used) deallocate(task)
 
-   end function coupling_task_list_add
+   end subroutine coupling_task_list_add
 
    end module fabm_types
 

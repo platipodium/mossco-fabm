@@ -4,7 +4,6 @@ add_library(fabm_models_niva OBJECT
             brom/brom_bio.F90
             brom/brom_carb.F90
             brom/brom_eqconst.F90
-            brom/brom_metals.F90
             brom/brom_redox.F90
             brom/brom_salt.F90
            )
