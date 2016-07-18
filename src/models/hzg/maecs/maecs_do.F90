@@ -314,8 +314,8 @@ endif
 poc   = zoo%C + dom%C + det%C + phy%reg%C 
 
 vir_max = 1.0_rk
-vir_mu  = 4*self%vir_loss
-infect  = 0.01_rk
+vir_mu  = 2*self%vir_loss
+infect  = 0.02_rk*(1.0_rk-phy%frac%Rub)
 
 if (uptake%C .gt. self%small_finite) then  ! infection only at daytime
    viral_rate  = vir_max - (uptake%C - infect * phy%C* phy%C/poc)/(vir_mu-self%vir_loss)
