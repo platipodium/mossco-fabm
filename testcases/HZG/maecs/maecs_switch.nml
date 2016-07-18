@@ -29,14 +29,20 @@
 !                  output of phytoplankton growth and loss rate contributions
 ! ChemostatOn    [bool]
 !                  use Chemostat mode 
+! SwitchOn       [bool]
+!                  use experimental mode 1
+! GrazTurbOn     [integer]
+!                  > 0 use water clarity as proxy for top-predation 
 ! NResOn         [bool]
 !                  use long-term N-reservoir
 ! kwFzmaxMeth    [integer]
 !                  background extinction method
+! genMeth        [integer]
+!                  dummy method switch
 ! detritus_no_river_dilution [bool]
 !                  use riverine det import
 ! plankton_no_river_dilution [bool]
-!                  use riverine det import
+!                  use riverine phy import
 ! nutrient_no_river_dilution [bool]
 !                  use riverine nut import
 !-------------------------------------------------------------------------------
@@ -49,17 +55,22 @@
    GrazingOn = .true.,
    BioOxyOn = .false.,
    DebugDiagOn = .false.,
-   Budget0DDiagOn = .false.,
-   Budget2DDiagOn = .false.,
-   BGC0DDiagOn = .false.,
+   Budget0DDiagOn = .true.,
+   Budget2DDiagOn = .true.,
+   BGC0DDiagOn = .true.,
    BGC2DDiagOn = .false.,
-   PhysiolDiagOn = .false.,
+   PhysiolDiagOn = .true.,
+   GrazTurbOn = 3,
+   SwitchOn = .false.,
    RateDiagOn = .false.,
    ChemostatOn = .false.,
    NResOn = .false.,
-   GrazTurbOn= 0,
-   kwFzmaxMeth = 3,
+   kwFzmaxMeth = 1,
+   genMeth = 10,
    detritus_no_river_dilution=.false.,
    plankton_no_river_dilution=.false.,
    nutrient_no_river_dilution=.false.,
 /
+
+
+

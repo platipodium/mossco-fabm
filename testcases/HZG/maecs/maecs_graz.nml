@@ -24,14 +24,14 @@
 !-------------------------------------------------------------------------------
 
 &maecs_graz
-   const_NC_zoo = 0.3,
-   const_PC_zoo = 0.025,
+   const_NC_zoo = 0.25,
+   const_PC_zoo = 0.02,
    g_max = 1.,
-   k_grazC = 5.0,
-   yield_zoo = 0.35,
+   k_grazC = 8.0,
+   yield_zoo = 0.4,
    basal_resp_zoo = 0.04,
-   mort_zoo = 0.035,
-   zm_fa_delmax = 2.0,
-   zm_fa_inf = 0.5,
-   fT_exp_mort = 1
+   mort_zoo = 0.018,
+   zm_fa_delmax = 3.5,
+   zm_fa_inf = 0.15,
+   fT_exp_mort = 3.,
 /

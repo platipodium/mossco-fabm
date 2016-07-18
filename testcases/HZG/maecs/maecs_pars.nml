@@ -63,6 +63,10 @@
 !                    quadratic aggregation rate
 ! agg_doc          [float, unit = m^-3 mmol-C]
 !                    DOC multiplier in coagulation term
+! vir_loss         [float, unit = - ] *2E-4 5E-4 3
+!                    specific viral loss/exudation rate
+! vir_bmass        [float, unit = 1/d] 
+!                    density dependency of viral loss
 ! sink_phys        [float, unit = ]
 !                    sinking sensitivity on physiological status
 ! vS_phy           [float, unit = m d^{-1}]
@@ -90,47 +94,49 @@
 !-------------------------------------------------------------------------------
 
 &maecs_pars
- P_max = 14.0000, 
- alpha = 0.1700, 
- sigma = 0.0000, 
- theta_LHC = 1.5, 
-   rel_chloropl_min = 0.01,
- QN_phy_0 = 0.05, 
- QN_phy_max = 0.20, 
- V_NC_max = 1.40, 
- AffN = 0.4, 
- zeta_CN = 7.0000, 
- zstoich_PN = 2.0, 
-   exud_phy = 0.,
+ P_max = 9., 
+ alpha = 0.2, 
+ sigma = 1.0, 
+ theta_LHC = 0.8, 
+ rel_chloropl_min = 0.02,
+ QN_phy_0 = 0.035, 
+ QN_phy_max = 0.17, 
+ V_NC_max = 0.7, 
+ AffN = 0.5, 
+ zeta_CN = 4, 
+ zstoich_PN = 6, 
+   exud_phy = 0.0,
  QP_phy_0 = 0.00, 
- QP_phy_max = 0.0055, 
+ QP_phy_max = 0.007, 
  V_PC_max = 0.1, 
- AffP = 0.1, 
+ AffP = 0.15, 
    QSi_phy_0 = 0.02,
    QSi_phy_max = 0.2,
    V_SiC_max = 0.7,
    AffSi = 0.3,
-   MaxRelQ = 100.,
- syn_nut = -1.5000, 
-   adap_rub = 1.0,
-   adap_theta = 1.0,
-   tau_regV = 99.0,
-   disease = 0 
-   mort_ODU = 0E-5
+   MaxRelQ = 3.,
+ syn_nut = -4, 
+ adap_rub = 1.0,
+ adap_theta = 1.0,
+ tau_regV = 15.0,
+ disease = 0 
+   mort_ODU = 0.0
    decay_pigm = 0.0
-   decay_nut = 0.00
- phi_agg = 4E-4, 
-   agg_doc = 1. 
-   sink_phys = 3.
-   vS_phy = 0.3,
-   vS_det = 4.,
-   hydrol = 0.1,
+   decay_nut = 0.1
+   phi_agg = 0.001, 
+   agg_doc = 0.004 
+   vir_loss = 0.35
+   vir_bmass = 0.1 
+   sink_phys = 4.
+   vS_phy = 2.0, !2.5,
+   vS_det = 6.0, !9.,
+   hydrol = 0.03,
    remin = 0.03,
-   Nqual = 0.,
-   remNP = 0., 
+   Nqual = 0.95,
+   remNP = -0.001, 
    denit = 0. 
    PON_denit = 5 
-   Q10 = 2 
+   Q10 = 1.5 
    T_ref = 288.0,
    NutOrder = 123.2,
 /

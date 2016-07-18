@@ -1,0 +1,54 @@
+instances:
+  hzg_maecs:
+    model: hzg/maecs
+    long_name: m.a.e.c.s.
+  hzg_medmac:
+    model: hzg/medmac
+    long_name: m.e.d.mac
+    initialization:
+      DIN: 72              #benthic DIN
+      ON: 18               #benthic ON
+      DIP: 3.0             #benthic DIP
+      OP: 0.75             #benthic OP
+      #sorpP: 1.0 #uncomment only with do_Psrop:.True. and sorpmeth:1
+    coupling: #uncoment only if hzg_maecs is used, and couple_pelN(P):.True.
+      DINp_variable: hzg_maecs/nutN #DIN variable in the pelagic
+      PONp_variable: hzg_maecs/detN #ON variable in the pelagic
+      DIPp_variable: hzg_maecs/nutP #DIP variable in the pelagic 
+      POPp_variable: hzg_maecs/detP #OP variable in the pelagic
+      POCp_variable: hzg_maecs/detC #OC variable in the pelagic
+    parameters:
+      couple_pelN: .True. # couple with a pelagic model for N-variables
+      couple_pelP: .True. # couple with a pelagic model for P-variables
+      couple_pelC: .True. # couple with a pelagic model for C-variables
+      v_d: 3.0             # m/d, sinking velocity of detritus in the pelagic
+      depth_ben: 0.2       # m, depth on benthos (used to calculate gradients)
+      r_Q10: 2.0           # q10 value for temperature sensitivity
+      temp_ref: 10.0       # C, temperature at which kinetic paramters are provided
+      K_on2do: 30          # mmolN/m2, [if dometh =1]constant for estimating DO from ON
+      K_T2do: 20           # mmolO/C,[if dometh =2]constant for estimating DO from T
+      dometh: 2            # 1:estimate from ON, 2:estimate from T
+      DswN: 5e-4           # m2/d, diffusion coefficient for DIN across the pelagic-benthic interface
+      DINp_presc: 1.6      # mmol/m3, if not coupled to a dynamic pelagic model, constant concentration of the pelagic_nutrient_variable
+      PONp_presc: 1.6      # mmol/m3, if not coupled to a dynamic pelagic model, constant concentration of the pelagic_nutrient_variable
+      rN: 0.05             # /d, remineralization rate in benthos 
+      kN: 8.0              # half sat. constant for the saturating remineralization function in benthos 
+      Rmeth_N: 1           # Remineralization method. 1:linear 2:saturating (kX) 
+      do_denit: .True.     # do denitrification
+      K_denit: 30.0        # [mmolN/m2] coefficient for estimating denitrification limitation as a function of DIN
+      den_dometh : 2       # 1: based on ON function; 2: based on DO=f(ON)
+      K_doin_den : 10      # mmolO/m3, [if den_dometh=2] half-sat constant for do inhibition of denitrification
+      K_ondo: 500.0        # mmolN/m2, [if den_dometh=1] coeffiecent for estimating DO inhibition based on ON
+      DswP: 5e-4           # m2/d, diffusion coefficient for DIP across the pelagic-benthic interface
+      DIPp_presc: 0.1      # mmol/m3, if not coupled to a dynamic pelagic model, constant concentration of the pelagic_nutrient_variable
+      POPp_presc: 0.1      # mmol/m3, if not coupled to a dynamic pelagic model, constant concentration of the pelagic_nutrient_variable
+      rP: 0.05             # /d, remineralization rate in benthos 
+      kP: 0.5              # half sat. constant for the saturating remineralization function in benthos 
+      Rmeth_P: 1           # Remineralization method. 1:linear 2:saturating (kX) 
+      do_Psorp: .True.     # do Phosphorus-sorption
+      sorpmeth : 2         # 1: dynamic 2: instantaneous
+      Rsorp: 0.1           # /d, [if sorpmeth=1] specific sorption rate
+      K_sorp : 0.5         # mmolP/m2, [if sorpmeth=1] half-sat constant for of DIP limitation of P-sorption 
+      K_do_sorp: 80.       # mmolO/m3, [if sorpmeth=1] half-sat constant for do limitation of P-sorption
+      do_sorpeq : 200      # mmol/m3, [if sorpmeth=2] DO threshold at which sorption exceeds desorption 
+      POCp_presc: 10       # mmol/m3, if not coupled to a dynamic pelagic model, constant concentration of the pelagic_nutrient_variable

@@ -35,7 +35,7 @@
 !                   initial N-reservoir
 ! frac_Rub_ini    [float, unit = -] #RubiscoOn
 !                   initial fraction of Rubisco
-! frac_chl_ini    [float, unit = mg-Chla/m**3] #PhotoacclimOn
+! frac_chl_ini    [float, unit = mg-Chl/m**3] #PhotoacclimOn
 !                   initial Chl
 ! nh3_initial  [float, unit = mmolN/m**3] EE #BioOxyOn
 !       dissolved ammonium
@@ -46,21 +46,21 @@
 !-------------------------------------------------------------------------
 
 &maecs_init
- nutN_initial = 9, 
- nutP_initial = 0.8, 
- nutS_initial = 5, 
-   zooC_initial = 0.1,
- phyC_initial = 10, 
- phyN_initial = 1., 
- phyP_initial = 0.1, 
+ nutN_initial = 6.0, 
+ nutP_initial = 0.6, 
+ nutS_initial = 9, 
+   zooC_initial = 0.2,
+ phyC_initial = 2, 
+ phyN_initial = 0.2, 
+ phyP_initial = 0.02, 
    phyS_initial = 1.,
-   detC_initial = 0,
-   detN_initial = 0.,
-   detP_initial = 0.0,
+   detC_initial = 1.0,
+   detN_initial = 0.15,
+   detP_initial = 0.01,
    detS_initial = 0.,
-   domC_initial = 0.0,
-   domN_initial = 0.0,
-   domP_initial = 0.0,
+   domC_initial = 0.22,
+   domN_initial = 0.02,
+   domP_initial = 0.0015,
    RNit_initial = 0.,
    frac_Rub_ini = 0.2,
    frac_chl_ini = 0.3,

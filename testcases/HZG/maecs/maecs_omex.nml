@@ -35,10 +35,10 @@
    rODUox         = 20.
    ksO2oduox      = 1.
    ksO2oxic       = 3. 
-   ksNO3denit     = 30.
+   ksNO3denit     = 20.
    kinO2denit     = 1.
    kinNO3anox     = 1.
-   kinO2anox      = 1.
+   kinO2anox      = 5.
    rAnammox       = 0.025
 /
 

@@ -36,13 +36,13 @@
 !-------------------------------------------------------------------------------
 
 &maecs_env
-   a_water = 1.,
+   a_water = 0.,
    a_minfr = 0.2 
    a_fz = 7.55,
-   a_spm = 0.018   ![0.018] 1molC/1000mmolC*12gC/1molC*[1.5] m2/gC  (oubelkheir et al. 2005, 1.5:non-algal particles)
-   a_doc = 0.0035,  !0.0035: 1molC/1000mmolC*12gC/1molC*0.29 m2/gC (Stedmon et al. 2000) 
-   a_phyc =0.025   ![0.012-0.046] 1molC/1000mmolC*12gC/1molC*[1.0-3.8] m2/gC  (oubelkheir et al. 2005, 1.0:prochlorococcus, 3.8:Diatoms)
- a_chl = 0.0, !0.004, 
+   a_spm = 0.008   ![0.018] 1molC/1000mmolC*12gC/1molC*[1.5] m2/gC  (oubelkheir et al. 2005, 1.5:non-algal particles)
+   a_doc = 0.0025,  !0.0035: 1molC/1000mmolC*12gC/1molC*0.29 m2/gC (Stedmon et al. 2000) 
+   a_phyc = 0.012   ![0.012-0.046] 1molC/1000mmolC*12gC/1molC*[1.0-3.8] m2/gC  (oubelkheir et al. 2005, 1.0:prochlorococcus, 3.8:Diatoms)
+ a_chl = 0.0, 
    rel_co2 =  -1,
    frac_PAR = 1.0,
    small = 1e-07,
