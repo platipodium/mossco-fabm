@@ -69,7 +69,7 @@ real(rk) :: vir_lysis = 0.3_rk  !assumes that virally infected cells equally fue
 logical  :: out = .true.
 !   if(36000.eq.secondsofday .and. mod(julianday,1).eq.0 .and. outn) out=.true.    
 real(rk) :: pdet, no3
-real(rk) :: att, fa, relmort
+real(rk) :: attBG, fa, relmort
 real(rk) :: QP_phy_max, rqn
 real(rk) :: det_prod, dom_dep, nh3f
 real(rk) :: radsP,Oxicminlim,Denitrilim,Anoxiclim,Rescale,rP
@@ -266,21 +266,20 @@ if (self%GrazingOn) then
 
   relmort = 1.0d0
   if (self%GrazTurbOn .gt. 0) then
-!    _GET_(self%id_attf_dep, att_f)
+   !SPM-caused attenuation
+   _GET_(self%id_attSPM_dep, attBG) 
 !  _GET_GLOBAL_ (self%id_doy,doy) !day of year
-   _GET_(self%id_attpar, att)
-   _SET_DIAGNOSTIC_(self%id_datt,att) 
    select case (self%GrazTurbOn)
      case (1)
-       relmort = 1.0_rk + self%zm_fa_delmax* (1.0_rk-1.0_rk/(1.0_rk+exp(10.0_rk*(self%zm_fa_inf-att))))
+       relmort = 1.0_rk + self%zm_fa_delmax* (1.0_rk-1.0_rk/(1.0_rk+exp(10.0_rk*(self%zm_fa_inf-attBG))))
      case (2)
-       relmort = 1.0d0 + self%zm_fa_delmax/(att+self%zm_fa_inf)
+       relmort = 1.0d0 + self%zm_fa_delmax/(attBG+self%zm_fa_inf)
      case (3)
-       relmort = 1.0d0 + sens%f_T2*self%zm_fa_delmax/(att+self%zm_fa_inf) ! assumes greater fish/larvae abundance in summer
+       relmort = 1.0d0 + sens%f_T2*self%zm_fa_delmax/(attBG+self%zm_fa_inf) ! assumes greater fish/larvae abundance in summer
     end select
   end if !self%GrazTurbOn .gt. 0
   zoo_mort   = self%mort_zoo * relmort* sens%f_T**self%fT_exp_mort  * zoo%C
-!!  write (*,'(A,4(F11.3))') 'Zm=',att,relmort,zoo%C,zoo_mort
+!!  write (*,'(A,4(F11.3))') 'Zm=',attBG,relmort,zoo%C,zoo_mort
 else
   graz_rate   = 0.0_rk
 !  if (self%ChemostatOn .and. .not. IsCritical) graz_rate = 0.2*phy%C

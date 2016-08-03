@@ -721,8 +721,8 @@ if (self%NResOn) then
 end if
 
 !!------- Register diagnostic variables  ------- 
-call self%register_diagnostic_variable(self%id_vphys,   'vphys','-', ' vphys', &
-  output=DOUT)
+call self%register_diagnostic_variable(self%id_vphys,   'vphys','-', ' vphys', output=DOUT)
+call self%register_diagnostic_variable(self%id_dattSPM, 'attSPM','m-1', 'SPM_caused_attenuation_in_water_ attSPM', output=DOUT)
 
 if (self%DebugDiagOn) then
 call self%register_diagnostic_variable(self%id_tmp,     'tmp','-', 'Temporary_diagnostic_ tmp', &
@@ -744,10 +744,8 @@ call self%register_diagnostic_variable(self%id_GPPR,    'GPPR','mmolC/m**3/d', '
   output=DOUTa)
 call self%register_diagnostic_variable(self%id_dPAR,    'dPAR','W/m**2', 'Photosynthetically_Active_Radiation_ dPAR', &
   output=DOUTa)
-if (self%GrazTurbOn .gt. 0) then
-  call self%register_diagnostic_variable(self%id_datt,    'datt','m-1', 'attenuation coefficient of Photosynthetically_Active_Radiation_ datt', &
-    output=DOUT)
-end if
+call self%register_diagnostic_variable(self%id_datt,    'att','m-1', 'total_attenuation_in_water_ att', &
+  output=DOUT)
 call self%register_diagnostic_variable(self%id_DNP,     'DNP','-', 'DIN:DIP_ratio_ DNP', &
   output=DOUT)
 call self%register_diagnostic_variable(self%id_QNP,     'QNP','-', 'N:P_ratio_ QNP', &
@@ -826,7 +824,8 @@ if (self%PhysiolDiagOn .and. .not. self%PhotoacclimOn) call self%fatal_error('ma
 if (self%BGC0DDiagOn .and. .not. self%PhosphorusOn) call self%fatal_error('maecs_init','BGC0DDiagOn=TRUE requires PhosphorusOn=TRUE')
 
 !!------- Register environmental dependencies  ------- 
-call self%register_dependency(self%id_attpar,standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
+call self%register_dependency(self%id_att,standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
+call self%register_dependency(self%id_attSPM_dep,'attSPM','m-1','SPM_caused_attenuation_in_water')
 call self%register_dependency(self%id_temp,standard_variables%temperature)
 call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
 call self%register_global_dependency(self%id_doy,standard_variables%number_of_days_since_start_of_the_year)
@@ -923,7 +922,7 @@ end subroutine initialize
    class(type_hzg_maecs),intent(in)          :: self 
    _DECLARE_ARGUMENTS_GET_EXTINCTION_
    
-   real(rk) :: p,z,poc,doc,chl,kw,zmax,doy,fz,ft,A,B,L,fz1,fz2,attv
+   real(rk) :: p,z,poc,doc,chl,kw,zmax,doy,fz,ft,A,B,L,fz1,fz2,att,attBIO,attSPM
    real(rk), PARAMETER ::  Pi = 3.1415927_rk
    
    ! Enter spatial loops (if any)
@@ -985,11 +984,22 @@ end subroutine initialize
    
    kw=self%a_water*fz*ft
    
-   ! Attenuation as a result of background turbidity and self-shading of phytoplankton.
-   attv = kw + self%a_spm*(poc+z)+ self%a_doc*doc+ self%a_phyc*p + self%a_chl*chl
-   _SET_EXTINCTION_(attv)
+   !self-shading of phytoplankton.
+   attBIO = self%a_spm*(poc+z)+ self%a_doc*doc+ self%a_phyc*p + self%a_chl*chl
+   
+   !attenuation increment is the sum:
+   _SET_EXTINCTION_(kw+attBIO)
+   
+   !get the final extinction, and save it as model diagnostic
+   _GET_(self%id_att, att)
+   _SET_DIAGNOSTIC_(self%id_datt,att) 
+   
+   !att. caused by SPM is the total attenuation minus the bioshading
+   attSPM=max(att-attBIO,0.0)
+   _SET_DIAGNOSTIC_(self%id_dattSPM,attSPM)
    
 #if _DEBUG_
+write(*,'(A, 4( F7.4))') 'kw,attSPM,attBIO,att:',kw,attSPM,attBIO,att
 !write (*,'(A, 2(F5.2), I4, 3(F5.2))') 'zmax,t,meth,fz,ft,kw: ',zmax,doy,self%kwFzmaxMeth,fz,ft,kw
 write(*,'(A)') 'end light_ext'
 #endif
