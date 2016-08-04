@@ -987,16 +987,32 @@ end subroutine initialize
    !self-shading of phytoplankton.
    attBIO = self%a_spm*(poc+z)+ self%a_doc*doc+ self%a_phyc*p + self%a_chl*chl
    
+   !Start of temporary comment-out !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
    !attenuation increment is the sum:
-   _SET_EXTINCTION_(kw+attBIO)
-   
+   !_SET_EXTINCTION_(kw+attBIO)
+   !
    !get the final extinction, and save it as model diagnostic
-   _GET_(self%id_att, att)
-   _SET_DIAGNOSTIC_(self%id_datt,att) 
-   
+   !_GET_(self%id_att, att) !problem is here. this is not the total attenuation as it should, but only bioshading.
+   !_SET_DIAGNOSTIC_(self%id_datt,att) 
+   !
    !att. caused by SPM is the total attenuation minus the bioshading
-   attSPM=max(att-attBIO,0.0)
-   _SET_DIAGNOSTIC_(self%id_dattSPM,attSPM)
+   !attSPM=max(att-attBIO,0.0)
+   !_SET_DIAGNOSTIC_(self%id_dattSPM,attSPM)
+   !End of temporary coment-out !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   !
+   !Temporary replacement !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   !Following is intended to be used both with external attenuation file and analytical method:
+   !attenuation increment is the bio-shading
+   _SET_EXTINCTION_(attBIO)
+   !
+   !total attenuation is 
+   _SET_DIAGNOSTIC_(self%id_datt,kw+attBIO) 
+   !
+   !att. caused by SPM is kw
+   _SET_DIAGNOSTIC_(self%id_dattSPM,kw)
+   !!End of temporary replacement!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   
+   
    
 #if _DEBUG_
 write(*,'(A, 4( F7.4))') 'kw,attSPM,attBIO,att:',kw,attSPM,attBIO,att
