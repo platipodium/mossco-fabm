@@ -501,7 +501,7 @@ select case (mm_method)
 !     approaches a lower threshold 'min_mass', in the order of o(1.d-4) / 
 ! set small boundary depending on numerical resolution
 ! TODO: insert h ~ level height, here 10cm 
-   min_Cmass = maecs%small_finite * 10 !* 1.0d-2 / maecs%a_spm  
+   min_Cmass = maecs%small_finite * 1 !* 1.0d-2 / maecs%a_spm  
    min_Nmass = min_Cmass * maecs%aver_QN_phy
    phy%reg%C = smooth_small( phy%C , min_Cmass)
    if (abs(phy%C-phy%reg%C) .gt. 1d-2*min_Cmass) then

@@ -80,8 +80,8 @@ real(rk) :: Cprod, Nprod, Pprod
 real(rk) :: poc
 real(rk) :: AnoxicMin,Denitrific,OxicMin,Nitri,OduDepo,OduOx,pDepo, Anammox
 real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto,faeces, min_Cmass
-real(rk) :: vir_max = 1.0_rk
-real(rk) :: vird, dvir_dt, infect, vdilg, vrepl
+real(rk) :: vir_max = 0.1_rk
+real(rk) :: vird, dvir_dt, infect, vdilg, vrepl, vadap, vmort
 logical  :: IsCritical = .false. ! phyC and phyN below reasonable range ?
 #define _KAI_ 2
 #define _MARKUS_ 1
@@ -200,6 +200,7 @@ if(IsCritical .and. .not. self%ChemostatOn ) then
   rhsv%nh3=0.0d0
   rhsv%oxy=0.0d0
   rhsv%odu=0.0d0
+  rhsv%vir=0.0d0
 else
 ! --- stoichiometry of autotrophs (calculating QN_phy, frac_R, theta, and QP_phy)
 call calc_internal_states(self,phy,det,dom,zoo)
@@ -312,14 +313,11 @@ endif
 
 ! --- phytoplankton viral losses --------------------------------
 if (self%vir_loss .gt. self%small_finite .or. self%VirusOn ) then
-!!  poc   = zoo%C + dom%C + det%C + phy%reg%C 
-!!  poc   = dom%P + det%P + phy%P + self%small_finite
-  poc   = dom%N + det%N + phy%N + self%small_finite
-  infect  = self%vir_infect * phy%C * phy%N/poc  ! *(1.0_rk-phy%frac%Rub)
   if (self%VirusOn ) then
     ! ---  dynamic approach --------------------------------
     vird = phy%vir/phy%reg%C
     viral_rate = self%vir_loss * vird
+!    viral_rate = self%vir_loss * 1.0_rk/(1.0_rk + 1.0_rk/(3*vird)**3)
   else 
     ! ---  static approach --------------------------------
     if (uptake%C .gt. self%small_finite .and. self%vir_mu*sens%f_T .gt. self%vir_loss) then  ! infection only at daytime
@@ -330,10 +328,10 @@ if (self%vir_loss .gt. self%small_finite .or. self%VirusOn ) then
     endif
     viral_rate  = viral_rate * self%vir_loss
   endif
-  if (vird .gt. vir_max) then  ! TODO: smooth or relax safety boundaries
-    vird = vir_max 
-    viral_rate = self%vir_loss * vird
-  endif
+!  if (vird .gt. vir_max) then  ! TODO: smooth or relax safety boundaries
+!    vird = vir_max 
+!    viral_rate = self%vir_loss * vird
+!  endif
   ! if (viral_rate .lt. 0.0_rk) viral_rate = 0.0_rk
   ! a faction of virally infected cells goes into dead material
   aggreg_rate = aggreg_rate + (1.0_rk-vir_lysis)* viral_rate
@@ -405,15 +403,36 @@ rhsv%phyN =  uptake%N             * phy%C &
 !>      + B = dfracR_dt is calculated in maecs_primprod::photosynthesis()
 ! viral density is treated like a trait (because specific to PhyC)
  if (self%VirusOn ) then
-   vdilg = uptake%C - viral_rate ! exud%C      ! dilution of viral concentration by new biomass production
-   if (vdilg .lt. 0.0_rk) vdilg = 0.0_rk
+!!  poc   = zoo%C + dom%C + det%C + phy%reg%C 
+!!  poc   = dom%P + det%P + phy%P + self%small_finite
+  poc   = dom%N + det%N + phy%N + self%small_finite
+  infect  = self%vir_infect * phy%C * phy%N/poc  * phy%relQ%N ! * sens%f_T *(1.0_rk-phy%frac%Rub)
+           ! encounter prob. free virus conc around infected cell
+           ! average distance ~ C^-1/3 + Gaussian/diffusive spots
+!  infect  = infect * exp(-1.0_rk/((phy%reg%C/10)**0.667_rk) )  
 
-   vrepl = self%vir_mu * sens%f_T * phy%relQ%N ! viral replication depends on host stoichiometry
-   if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P 
+  vdilg = (uptake%C - 0*exud%C)      ! dilution of viral concentration by new biomass production
+  if (vdilg .lt. 0.0_rk) vdilg = 0.0_rk
 
-   dvir_dt =  ( (vir_max-vird) * (infect + vrepl - self%vir_loss) - vdilg) *phy%vir
+ ! viral replication 
+  vrepl = self%vir_mu * sens%f_T2 * phy%relQ%N !* 1.0_rk/(1.0_rk+exp(10*(viral_rate-1.0_rk))) !* (1.0_rk-viral_rate)
+  if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P ! depends on host stoichiometry
+!  if (vird .gt. 0.8) write (*,'(A,4(F9.4))') 'rep=',vird,vrepl,sens%f_T2 * phy%relQ%N,1.0_rk-vird
+
+! viral removal by preferential decline of more infected hosts
+  vadap = self%vir_loss * self%vir_phyC/phy%reg%C  ! (1.0_rk-vir_lysis)*
+
+  vmort = self%vir_spor_r * vird/(vird+self%vir_spor_C)
+!   dvir_dt =  ( (vir_max-vird) * (infect + vrepl -viral_rate**2/(1E-4+9*self%vir_loss*(vird**4)) ) - 0*vdilg) *phy%vir
+!  dvir_dt =  (infect + (vir_max-vird) * ( vrepl - (1.0_rk-vir_lysis)*self%vir_loss ) - vdilg) *phy%vir
+  dvir_dt =  (infect - vdilg + vrepl - vadap - vmort) *phy%vir
 !    dvir_dt = 0.0_rk 
-  rhsv%vir = rhsv%phyC * vird + dvir_dt  +  20*self%vir_spores * (self%vir_spores * phy%C - phy%vir)
+  rhsv%vir = rhsv%phyC * phy%vir/phy%reg%C + dvir_dt 
+
+  acclim%fac1= infect
+  acclim%fac2= -vdilg
+  acclim%fac3= vrepl
+
  endif
 
 !if (abs(phy%C) .gt. 1d-4) then
@@ -692,6 +711,7 @@ end if !BioOxyOn
 
 end if !IsCritical
 
+
 !#S_ODE
 !---------- ODE for each state variable ----------
   _SET_ODE_(self%id_nutN, rhsv%nutN UNIT)
@@ -759,8 +779,12 @@ _SET_DIAGNOSTIC_(self%id_vphys, exp(-self%sink_phys*phy%relQ%N * phy%relQ%P))   
 !#S_DIA
 if (self%DebugDiagOn) then
   _SET_DIAGNOSTIC_(self%id_tmp, _REPLNAN_(acclim%tmp))       !average Temporary_diagnostic_
-  _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(dRchl_phyC_dt))   !average Auxiliary_diagnostic_
-  _SET_DIAGNOSTIC_(self%id_fac5, _REPLNAN_(acclim%dRchl_dfracR*acclim%dfracR_dt)) !average Auxiliary_diagnostic_
+!  _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(dRchl_phyC_dt))   !average Auxiliary_diagnostic_
+!  _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(rhsv%phyC * phy%vir/phy%reg%C))   !average Auxiliary_diagnostic_
+  _SET_DIAGNOSTIC_(self%id_fac4, _REPLNAN_(- vadap ))  !average Auxiliary_diagnostic
+  _SET_DIAGNOSTIC_(self%id_fac5, _REPLNAN_( - vmort)) !average Auxiliary_diagnostic_
+!  _SET_DIAGNOSTIC_(self%id_fac5, _REPLNAN_(sens%f_T2)) !average Auxiliary_diagnostic_
+!  _SET_DIAGNOSTIC_(self%id_fac5, _REPLNAN_(acclim%dRchl_dfracR*acclim%dfracR_dt)) !average Auxiliary_diagnostic_
   _SET_DIAGNOSTIC_(self%id_fac3, _REPLNAN_(acclim%fac3)) !average Auxiliary_diagnostic_dRchl_dtheta*acclim%dtheta_dt
   _SET_DIAGNOSTIC_(self%id_fac1, _REPLNAN_(acclim%fac1))     !average dtheta_dt_due_to_flex_theta_
   _SET_DIAGNOSTIC_(self%id_fac2, _REPLNAN_(acclim%fac2))     !average dtheta_dt_due_to_grad_theta_

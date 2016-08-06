@@ -96,16 +96,16 @@ contains
 !> \describepar{sigma        , \sigma        , Q-dependency of Rubisco activity/chloroplast ratio, 1.0 }
 !> \describepar{theta\_LHC    , \theta_\mathrm{C}    , chlorophyll a-to-C ratio of LHC, 0.8 mgChl mmolC^{-1}}
 !> \describepar{rel\_chloropl\_min , \mathrm{rel_chloropl_min} , chloroplast-C to phy-C ratio, 0.02 mol-C/mol-C}
-!> \describepar{QN\_phy\_0     , Q_{\mathrm{N}0}     , subsistence N-quota, 0.035 mol-N/mol-C}
-!> \describepar{QN\_phy\_max   , Q_\mathrm{N}^\mathrm{ref}   , maximum N-quota, 0.17 mol-N/mol-C}
+!> \describepar{QN\_phy\_0     , Q_{\mathrm{N}0}     , subsistence N-quota, 0.04 mol-N/mol-C}
+!> \describepar{QN\_phy\_max   , Q_\mathrm{N}^\mathrm{ref}   , maximum N-quota, 0.18 mol-N/mol-C}
 !> \describepar{V\_NC\_max     , V_\mathrm{max,N}^0     , maximum N uptake rate, 0.7 mmol-N/(m3 d)}
-!> \describepar{AffN         , A_\mathrm{N}^0         , N-Affinity, 0.3 m3/(mmol-N d)}
+!> \describepar{AffN         , A_\mathrm{N}^0         , N-Affinity, 0.5 m3/(mmol-N d)}
 !> \describepar{zeta\_CN      , \zeta_\mathrm{CN}      , respiratory costs of N-synthesis/NO3-reduction, 4 mol-C/mol-N}
 !> \describepar{zstoich\_PN   , \mathrm{zstoich_PN}   , P-stoichiometry of active compounds(-> P costs), 6 mol-N/mol-P}
 !> \describepar{exud\_phy     , \mathrm{exud_phy}     , phytoplankton exudation per production, 0. }
 !> \describepar{QP\_phy\_0     , Q_{\mathrm{P}0}     , subsistence P-quota, 0.00 mol-P/mol-C}
 !> \describepar{QP\_phy\_max   , Q_\mathrm{P}^\mathrm{ref}   , subsistence P-quota, 0.008 mol-P/mol-C}
-!> \describepar{V\_PC\_max     , V_\mathrm{max,P}^0     , maximum P uptake rate, 0.1 mol-P/(mol-C d)}
+!> \describepar{V\_PC\_max     , V_\mathrm{max,P}^0     , maximum P uptake rate, 0.2 mol-P/(mol-C d)}
 !> \describepar{AffP         , A_\mathrm{P}^0         , P-Affinity, 0.2 m3/(mmol-C d)}
 !> \describepar{QSi\_phy\_0    , Q_{\mathrm{Si}0}    , subsistence Si-quota, 0.02 mol-Si/mol-C}
 !> \describepar{QSi\_phy\_max  , Q_\mathrm{Si}^\mathrm{ref}  , subsistence Si-quota, 0.2 mol-Si/mol-C}
@@ -122,21 +122,23 @@ contains
 !> \describepar{decay\_nut    , \mathrm{decay_nut}    , non-carbon structure decay rate , 0.1 1/d}
 !> \describepar{phi\_agg      , \mathrm{phi_agg}      , quadratic aggregation rate, 0.001 m^6 mmol-N^{-2} d^{-1}}
 !> \describepar{agg\_doc      , \mathrm{agg_doc}      , DOC multiplier in coagulation term, 0.004 m^-3 mmol-C}
-!> \describepar{vir\_loss     , \mathrm{vir_loss}     , specific viral loss/exudation rate, 0.19 - }
-!> \describepar{vir\_mu       , \mathrm{vir_mu}       , viral growth rate, 0.4 1/d}
-!> \describepar{vir\_infect   , \mathrm{vir_infect}   , specific infection rate, 0.02 m3/d.mol-C}
-!> \describepar{vir\_spores   , \mathrm{vir_spores}   , background infection by spores, 0.001 -}
+!> \describepar{vir\_loss     , \mathrm{vir_loss}     , specific loss/exudation rate of infected phy, 2. - }
+!> \describepar{vir\_mu       , \mathrm{vir_mu}       , viral growth rate (=vir_loss), 2. 1/d}
+!> \describepar{vir\_infect   , \mathrm{vir_infect}   , specific infection rate rate (not used), 0.0 m3/d.mol-C}
+!> \describepar{vir\_phyC     , \mathrm{vir_phyC}     , phy conc where infection diversity = 1 , 1. mmol-C/m3}
+!> \describepar{vir\_spor\_r   , \mathrm{vir_spor_r}   , death and spore building rate of virus, 0.2 -}
+!> \describepar{vir\_spor\_C   , \mathrm{vir_spor_C}   , virus concentration with max spore building  , 0.0002 -}
 !> \describepar{sink\_phys    , \mathrm{sink_phys}    , sinking sensitivity on physiological status, 4. }
 !> \describepar{vS\_phy       , \mathrm{vS_phy}       , sinking velocity for phytoplankton, 2.3 m d^{-1}}
 !> \describepar{vS\_det       , \mathrm{vS_det}       , sinking velocity for detritus, 12. m d^{-1}}
-!> \describepar{hydrol       , \mathrm{hydrol}       , degradation rate of most refractory POM, 0.02 d^{-1}}
-!> \describepar{remin        , \mathrm{remin}        , pel.remineralisation rate of most refractory DOM, 0.06 d^{-1}}
+!> \describepar{hydrol       , \mathrm{hydrol}       , degradation rate of most refractory POM, 0.001 d^{-1}}
+!> \describepar{remin        , \mathrm{remin}        , pel.remineralisation rate of most refractory DOM, 0.002 d^{-1}}
 !> \describepar{Nqual        , \mathrm{Nqual}        , quality increase with ON/OC (0:no effect; 1: full linearity), 0.95 }
 !> \describepar{remNP        , \mathrm{remNP}        , relative P-stoichiometry in preferential (high N) remin, -0.001 }
 !> \describepar{denit        , \mathrm{denit}        , DIN removal by denitrification  , 0. d^{-1}}
 !> \describepar{PON\_denit    , \mathrm{PON_denit}    , critical PON for denitrification  , 5 mmol-N/m3 }
 !> \describepar{Q10          , \mathrm{Q10}          , Q10 factor, 1.5 }
-!> \describepar{T\_ref        , \mathrm{T_ref}        , reference Kelvin temperature, 288.0 K}
+!> \describepar{T\_ref        , \mathrm{T_ref}        , reference Kelvin temperature, 289.0 K}
 !> \describepar{NutOrder     , \mathrm{NutOrder}     , element order of recursive scheme. lower digit: synchrony element , 123.2 serial order number N:P:Si}
 !> \describepar{const\_NC\_zoo , \mathrm{const_NC_zoo} , zooplankton N:C ratio, 0.25 mol/mol}
 !> \describepar{const\_PC\_zoo , \mathrm{const_PC_zoo} , zooplankton P:C ratio, 0.02 mol/mol}
@@ -241,10 +243,12 @@ real(rk)  :: decay_pigm   ! pigment decay rate
 real(rk)  :: decay_nut    ! non-carbon structure decay rate 
 real(rk)  :: phi_agg      ! quadratic aggregation rate
 real(rk)  :: agg_doc      ! DOC multiplier in coagulation term
-real(rk)  :: vir_loss     ! specific viral loss/exudation rate
-real(rk)  :: vir_mu       ! viral growth rate
-real(rk)  :: vir_infect   ! specific infection rate
-real(rk)  :: vir_spores   ! background infection by spores
+real(rk)  :: vir_loss     ! specific loss/exudation rate of infected phy
+real(rk)  :: vir_mu       ! viral growth rate (=vir_loss)
+real(rk)  :: vir_infect   ! specific infection rate rate (not used)
+real(rk)  :: vir_phyC     ! phy conc where infection diversity = 1 
+real(rk)  :: vir_spor_r   ! death and spore building rate of virus
+real(rk)  :: vir_spor_C   ! virus concentration with max spore building  
 real(rk)  :: sink_phys    ! sinking sensitivity on physiological status
 real(rk)  :: vS_phy       ! sinking velocity for phytoplankton
 real(rk)  :: vS_det       ! sinking velocity for detritus
@@ -342,8 +346,9 @@ namelist /maecs_pars/ &
   V_NC_max, AffN, zeta_CN, zstoich_PN, exud_phy, QP_phy_0, QP_phy_max, V_PC_max, &
   AffP, QSi_phy_0, QSi_phy_max, V_SiC_max, AffSi, MaxRelQ, syn_nut, adap_rub, &
   adap_theta, tau_regV, disease, mort_ODU, decay_pigm, decay_nut, phi_agg, &
-  agg_doc, vir_loss, vir_mu, vir_infect, vir_spores, sink_phys, vS_phy, vS_det, &
-  hydrol, remin, Nqual, remNP, denit, PON_denit, Q10, T_ref, NutOrder
+  agg_doc, vir_loss, vir_mu, vir_infect, vir_phyC, vir_spor_r, vir_spor_C, &
+  sink_phys, vS_phy, vS_det, hydrol, remin, Nqual, remNP, denit, PON_denit, Q10, &
+  T_ref, NutOrder
 
 namelist /maecs_graz/ &
   const_NC_zoo, const_PC_zoo, g_max, k_grazC, yield_zoo, basal_resp_zoo, &
@@ -384,16 +389,16 @@ alpha        = 0.2_rk             ! m2 mol-C/(muE g-CHL)
 sigma        = 1.0_rk             ! 
 theta_LHC    = 0.8_rk             ! mgChl mmolC^{-1}
 rel_chloropl_min = 0.02_rk            ! mol-C/mol-C
-QN_phy_0     = 0.035_rk           ! mol-N/mol-C
-QN_phy_max   = 0.17_rk            ! mol-N/mol-C
+QN_phy_0     = 0.04_rk            ! mol-N/mol-C
+QN_phy_max   = 0.18_rk            ! mol-N/mol-C
 V_NC_max     = 0.7_rk             ! mmol-N/(m3 d)
-AffN         = 0.3_rk             ! m3/(mmol-N d)
+AffN         = 0.5_rk             ! m3/(mmol-N d)
 zeta_CN      = 4_rk               ! mol-C/mol-N
 zstoich_PN   = 6_rk               ! mol-N/mol-P
 exud_phy     = 0._rk              ! 
 QP_phy_0     = 0.00_rk            ! mol-P/mol-C
 QP_phy_max   = 0.008_rk           ! mol-P/mol-C
-V_PC_max     = 0.1_rk             ! mol-P/(mol-C d)
+V_PC_max     = 0.2_rk             ! mol-P/(mol-C d)
 AffP         = 0.2_rk             ! m3/(mmol-C d)
 QSi_phy_0    = 0.02_rk            ! mol-Si/mol-C
 QSi_phy_max  = 0.2_rk             ! mol-Si/mol-C
@@ -410,21 +415,23 @@ decay_pigm   = 0.0_rk             ! 1/d
 decay_nut    = 0.1_rk             ! 1/d
 phi_agg      = 0.001_rk           ! m^6 mmol-N^{-2} d^{-1}
 agg_doc      = 0.004_rk           ! m^-3 mmol-C
-vir_loss     = 0.19_rk            ! - 
-vir_mu       = 0.4_rk             ! 1/d
-vir_infect   = 0.02_rk            ! m3/d.mol-C
-vir_spores   = 0.001_rk           ! -
+vir_loss     = 2._rk              ! - 
+vir_mu       = 2._rk              ! 1/d
+vir_infect   = 0.0_rk             ! m3/d.mol-C
+vir_phyC     = 1._rk              ! mmol-C/m3
+vir_spor_r   = 0.2_rk             ! -
+vir_spor_C   = 0.0002_rk          ! -
 sink_phys    = 4._rk              ! 
 vS_phy       = 2.3_rk             ! m d^{-1}
 vS_det       = 12._rk             ! m d^{-1}
-hydrol       = 0.02_rk            ! d^{-1}
-remin        = 0.06_rk            ! d^{-1}
+hydrol       = 0.001_rk           ! d^{-1}
+remin        = 0.002_rk           ! d^{-1}
 Nqual        = 0.95_rk            ! 
 remNP        = -0.001_rk          ! 
 denit        = 0._rk              ! d^{-1}
 PON_denit    = 5_rk               ! mmol-N/m3 
 Q10          = 1.5_rk             ! 
-T_ref        = 288.0_rk           ! K
+T_ref        = 289.0_rk           ! K
 NutOrder     = 123.2_rk           ! serial order number N:P:Si
 const_NC_zoo = 0.25_rk            ! mol/mol
 const_PC_zoo = 0.02_rk            ! mol/mol
@@ -556,7 +563,9 @@ call self%get_parameter(self%agg_doc      ,'agg_doc',       default=agg_doc)
 call self%get_parameter(self%vir_loss     ,'vir_loss',      default=vir_loss)
 call self%get_parameter(self%vir_mu       ,'vir_mu',        default=vir_mu)
 call self%get_parameter(self%vir_infect   ,'vir_infect',    default=vir_infect)
-call self%get_parameter(self%vir_spores   ,'vir_spores',    default=vir_spores)
+call self%get_parameter(self%vir_phyC     ,'vir_phyC',      default=vir_phyC)
+call self%get_parameter(self%vir_spor_r   ,'vir_spor_r',    default=vir_spor_r)
+call self%get_parameter(self%vir_spor_C   ,'vir_spor_C',    default=vir_spor_C)
 call self%get_parameter(self%sink_phys    ,'sink_phys',     default=sink_phys)
 call self%get_parameter(self%vS_phy       ,'vS_phy',        default=vS_phy)
 call self%get_parameter(self%vS_det       ,'vS_det',        default=vS_det)
@@ -783,7 +792,7 @@ call self%register_diagnostic_variable(self%id_no3,     'no3','mmol-N/m**3', 'Ni
 end if
 
 if (self%PhysiolDiagOn) then
-call self%register_diagnostic_variable(self%id_chl2C,   'chl2C','gCHL/gC', 'chlorophyll:carbon_ratio_=_chl-a/chloroplast-C_*_chloroplast-C/phy-molC_*_1molC/12gC_ chl2C', &
+call self%register_diagnostic_variable(self%id_chl2C,   'chl2C','gCHL/gC', 'chlC_ chl2C', &
   output=DOUT)
 call self%register_diagnostic_variable(self%id_Theta,   'Theta','-', 'Theta_ Theta', &
   output=DOUT)

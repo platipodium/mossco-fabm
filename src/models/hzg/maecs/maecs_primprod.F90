@@ -206,9 +206,9 @@ sigmv(self%nutind%iN) = acc%dRchl_dQN * self%itheta_max /(phy%frac%NutUpt+eps)
 Pmaxc     = fac_colim * sens%P_max_T
 grossC    = phy%frac%Rub * Pmaxc * sens%upt_pot%C  ! primary production
 
-acc%fac1 = phy%frac%Rub
-acc%fac2 = Pmaxc
-acc%fac3 = sens%upt_pot%C
+!acc%fac1 = phy%frac%Rub
+!acc%fac2 = Pmaxc
+!acc%fac3 = sens%upt_pot%C
 
 ! "darkness correction": marginal use should converge towards zero at very low light
 !  offset (background respiration) derived from a_V(dmu_daV=0)*1/4*Vmax*zeta (f_A=f_V=1/2)
