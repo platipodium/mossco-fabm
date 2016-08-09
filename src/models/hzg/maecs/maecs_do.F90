@@ -917,7 +917,7 @@ write(*,'(A)') 'begin vert_move'
 
    if (self%vir_loss .gt. self%small_finite .or. self%VirusOn ) then
       _GET_(self%id_vir, phy%vir)  ! Virus C density in cells in -
-       phyQstat = phyQstat * exp(-10*phy%vir/(0.1d0 + phy%C)) 
+       phyQstat = phyQstat * exp(-2E2*phy%vir/(0.1d0 + phy%C)) 
    endif
 
 
