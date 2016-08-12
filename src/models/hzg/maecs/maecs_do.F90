@@ -80,8 +80,8 @@ real(rk) :: Cprod, Nprod, Pprod
 real(rk) :: poc
 real(rk) :: AnoxicMin,Denitrific,OxicMin,Nitri,OduDepo,OduOx,pDepo, Anammox
 real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto,faeces, min_Cmass
-real(rk) :: vir_max = 0.1_rk
-real(rk) :: vird, dvir_dt, infect, vdilg, vrepl, vadap, vmort
+real(rk) :: vir_max = 0.1
+real(rk) :: vird, dvir_dt, infect, vdilg, vrepl, vadap, vmort, virf, vire
 logical  :: IsCritical = .false. ! phyC and phyN below reasonable range ?
 #define _KAI_ 2
 #define _MARKUS_ 1
@@ -315,9 +315,12 @@ endif
 if (self%vir_loss .gt. self%small_finite .or. self%VirusOn ) then
   if (self%VirusOn ) then
     ! ---  dynamic approach --------------------------------
-    vird = phy%vir/phy%reg%C
-    viral_rate = self%vir_loss * vird
-!    viral_rate = self%vir_loss * 1.0_rk/(1.0_rk + 1.0_rk/(3*vird)**3)
+    vird = phy%vir/phy%reg%C   ! density relative to host biomass
+!    viral_rate = self%vir_loss * vird
+! non-linear impact on host mortality with threshold
+    vire = 1.0_rk/(self%vir_infect+self%small_finite)  ! steepness factor
+    virf = 1.0_rk/(1.0_rk + exp(5.0_rk-vire*vird))     ! smooth step function
+    viral_rate = self%vir_loss * virf                  ! host mortality 
   else 
     ! ---  static approach --------------------------------
     if (uptake%C .gt. self%small_finite .and. self%vir_mu*sens%f_T .gt. self%vir_loss) then  ! infection only at daytime
@@ -406,31 +409,30 @@ rhsv%phyN =  uptake%N             * phy%C &
 !!  poc   = zoo%C + dom%C + det%C + phy%reg%C 
 !!  poc   = dom%P + det%P + phy%P + self%small_finite
   poc   = dom%N + det%N + phy%N + self%small_finite
-  infect  = self%vir_infect * phy%C * phy%N/poc  * phy%relQ%N ! * sens%f_T *(1.0_rk-phy%frac%Rub)
            ! encounter prob. free virus conc around infected cell
            ! average distance ~ C^-1/3 + Gaussian/diffusive spots
 !  infect  = infect * exp(-1.0_rk/((phy%reg%C/10)**0.667_rk) )  
-
-  vdilg = (uptake%C - 0*exud%C)      ! dilution of viral concentration by new biomass production
-  if (vdilg .lt. 0.0_rk) vdilg = 0.0_rk
+!  vdilg = 0*(uptake%C - 0*exud%C)      ! dilution of viral concentration by new biomass production
+!  if (vdilg .lt. 0.0_rk) vdilg = 0.0_rk
 
  ! viral replication 
-  vrepl = self%vir_mu * sens%f_T2 * phy%relQ%N !* 1.0_rk/(1.0_rk+exp(10*(viral_rate-1.0_rk))) !* (1.0_rk-viral_rate)
+  vrepl = self%vir_mu * sens%f_T * phy%relQ%N !* 1.0_rk/(1.0_rk+exp(10*(viral_rate-1.0_rk))) !* (1.0_rk-viral_rate)
   if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P ! depends on host stoichiometry
 !  if (vird .gt. 0.8) write (*,'(A,4(F9.4))') 'rep=',vird,vrepl,sens%f_T2 * phy%relQ%N,1.0_rk-vird
+  vrepl = vrepl * phy%C * phy%N/poc  * phy%relQ%N
 
 ! viral removal by preferential decline of more infected hosts
-  vadap = self%vir_loss * self%vir_phyC/phy%reg%C  ! (1.0_rk-vir_lysis)*
+  vadap = self%vir_loss * virf**2 * exp(5.0_rk-vire*vird)*vire * self%vir_phyC/phy%reg%C  ! (1.0_rk-vir_lysis)*
 
+! death and spore formation of viral cells
   vmort = self%vir_spor_r * vird/(vird+self%vir_spor_C)
-!   dvir_dt =  ( (vir_max-vird) * (infect + vrepl -viral_rate**2/(1E-4+9*self%vir_loss*(vird**4)) ) - 0*vdilg) *phy%vir
-!  dvir_dt =  (infect + (vir_max-vird) * ( vrepl - (1.0_rk-vir_lysis)*self%vir_loss ) - vdilg) *phy%vir
-  dvir_dt =  (infect - vdilg + vrepl - vadap - vmort) *phy%vir
+
+  dvir_dt =  (vrepl - vadap - vmort) *phy%vir
 !    dvir_dt = 0.0_rk 
   rhsv%vir = rhsv%phyC * phy%vir/phy%reg%C + dvir_dt 
 
-  acclim%fac1= infect
-  acclim%fac2= -vdilg
+!  acclim%fac1= infect
+!  acclim%fac2= -vdilg
   acclim%fac3= vrepl
 
  endif
@@ -917,7 +919,9 @@ write(*,'(A)') 'begin vert_move'
 
    if (self%vir_loss .gt. self%small_finite .or. self%VirusOn ) then
       _GET_(self%id_vir, phy%vir)  ! Virus C density in cells in -
-       phyQstat = phyQstat * exp(-2E2*phy%vir/(0.1d0 + phy%C)) 
+!       phyQstat = phyQstat * exp(-2E2*phy%vir/(0.1d0 + phy%C)) 
+     phyQstat = phyQstat * 1.0_rk/(1.0_rk + exp(-5.0_rk+phy%vir/(phy%C*self%vir_infect+self%small_finite)))
+! threshold virus with multi-stage replication
    endif
 
 
