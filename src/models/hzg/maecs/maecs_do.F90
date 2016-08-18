@@ -419,7 +419,7 @@ rhsv%phyN =  uptake%N             * phy%C &
   vrepl = self%vir_mu * sens%f_T * phy%relQ%N !* 1.0_rk/(1.0_rk+exp(10*(viral_rate-1.0_rk))) !* (1.0_rk-viral_rate)
   if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P ! depends on host stoichiometry
 !  if (vird .gt. 0.8) write (*,'(A,4(F9.4))') 'rep=',vird,vrepl,sens%f_T2 * phy%relQ%N,1.0_rk-vird
-  vrepl = vrepl * phy%C * phy%N/poc  * phy%relQ%N
+  vrepl = vrepl * phy%C * phy%N/poc  !* phy%relQ%N
 
 ! viral removal by preferential decline of more infected hosts
   vadap = self%vir_loss * virf**2 * exp(5.0_rk-vire*vird)*vire * self%vir_phyC/phy%reg%C  ! (1.0_rk-vir_lysis)*
