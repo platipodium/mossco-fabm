@@ -280,11 +280,12 @@ if (self%GrazingOn) then
        relmort = 1.0_rk + self%zm_fa_delmax* (1.0_rk-1.0_rk/(1.0_rk+exp(10.0_rk*(self%zm_fa_inf-att))))
      case (2)
        relmort = 1.0d0 + self%zm_fa_delmax/(att+self%zm_fa_inf)
-     case (3)
+     case (3,4)
        relmort = 1.0d0 + sens%f_T2*self%zm_fa_delmax/(att+self%zm_fa_inf) ! assumes greater fish/larvae abundance in summer
     end select
   end if !self%GrazTurbOn .gt. 0
   zoo_mort   = self%mort_zoo * relmort* sens%f_T**self%fT_exp_mort  * zoo%C
+  if (self%GrazTurbOn .eq. 4 ) zoo_mort   = zoo_mort + self%mort_zoo
 !!  write (*,'(A,4(F11.3))') 'Zm=',att,relmort,zoo%C,zoo_mort
 else
   graz_rate   = 0.0_rk
@@ -419,13 +420,13 @@ rhsv%phyN =  uptake%N             * phy%C &
   vrepl = self%vir_mu * sens%f_T * phy%relQ%N !* 1.0_rk/(1.0_rk+exp(10*(viral_rate-1.0_rk))) !* (1.0_rk-viral_rate)
   if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P ! depends on host stoichiometry
 !  if (vird .gt. 0.8) write (*,'(A,4(F9.4))') 'rep=',vird,vrepl,sens%f_T2 * phy%relQ%N,1.0_rk-vird
-  vrepl = vrepl * phy%C * phy%N/poc  !* phy%relQ%N
+  vrepl = vrepl * phy%C * phy%N/poc * 1.0_rk/(1.0_rk + 0.2_rk*vird)  !* phy%relQ%N
 
 ! viral removal by preferential decline of more infected hosts
   vadap = self%vir_loss * virf**2 * exp(5.0_rk-vire*vird)*vire * self%vir_phyC/phy%reg%C  ! (1.0_rk-vir_lysis)*
 
 ! death and spore formation of viral cells
-  vmort = self%vir_spor_r * vird/(vird+self%vir_spor_C)
+  vmort = self%vir_spor_r * vird/(vird+self%vir_spor_C) * (1.0_rk + 0.2_rk*vird)
 
   dvir_dt =  (vrepl - vadap - vmort) *phy%vir
 !    dvir_dt = 0.0_rk 
