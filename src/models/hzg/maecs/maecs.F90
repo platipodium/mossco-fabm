@@ -862,6 +862,11 @@ call self%register_global_dependency(self%id_doy,standard_variables%number_of_da
 call self%register_dependency(self%id_vphys_dep,'vphys','','physiological_state_of_sinking_cells')
 call self%register_horizontal_dependency(self%id_zmax,standard_variables%bottom_depth)
 
+call self%register_horizontal_dependency(self%id_lat,standard_variables%latitude)
+call self%register_horizontal_dependency(self%id_lon,standard_variables%longitude)
+call self%register_dependency(self%id_sal,standard_variables%practical_salinity)
+
+
 if (self%Budget0DDiagOn) then
     call self%register_dependency(self%id_totC,standard_variables%total_carbon)
     call self%register_dependency(self%id_totN,standard_variables%total_nitrogen)
@@ -951,7 +956,7 @@ end subroutine initialize
    class(type_hzg_maecs),intent(in)          :: self 
    _DECLARE_ARGUMENTS_GET_EXTINCTION_
    
-   real(rk) :: p,z,poc,doc,chl,kw,zmax,doy,fz,ft,A,B,L,fz1,fz2,attv
+   real(rk) :: p,z,poc,doc,chl,kw,zmax,doy,fz,ft,A,B,L,fz1,fz2,attv,lo,la,ya,xa
    real(rk), PARAMETER ::  Pi = 3.1415927_rk
    
    ! Enter spatial loops (if any)
@@ -991,7 +996,7 @@ end subroutine initialize
     _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
     !f(z)=sigmoidal function of depth with an upper plateau (100%) at 0-10 m and a lower (10%) for 30+
     fz=self%a_minfr+(1.0-self%a_minfr)*(1.0-1.0/(1+exp(-zmax*0.5_rk+self%a_fz)))
-   else if (self%kwFzmaxMeth .eq. 3) then
+   else if (self%kwFzmaxMeth .ge. 3) then
     
     _GET_GLOBAL_ (self%id_doy,doy) !day of year
     _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
@@ -1008,10 +1013,21 @@ end subroutine initialize
     fz=self%a_minfr+(1.0-self%a_minfr)*(1.0-1.0/(1.0+exp(-zmax*0.5_rk+self%a_fz)))
     
     !write (*,'(A, F7.6)') 'fz term: ',(1.0-self%a_minfr)*(1.0-1.0/(1.0+exp(-zmax*0.5+10))) 
-     
    end if
-   
    kw=self%a_water*fz*ft
+
+   if (self%kwFzmaxMeth .eq. 4) then  ! emulate turbid East Anglia plume
+ !!    write (*,'(L2)'),_AVAILABLE_(self%id_lon)
+     _GET_HORIZONTAL_(self%id_lon,lo)! Longitude [degE]
+     _GET_HORIZONTAL_(self%id_lat,la) ! Latitude  [degN]
+    ! _GET_(self%id_sal,ft) ! Latitude  [degN]
+     xa=0.5
+     ya=52
+ !    write (*,'(A, 2(F9.3))') 'sal depth: ',ft,zmax
+     fz=(2-ft)*0.5*exp(-(((la-ya+xa*lo)/2-xa*lo)**2+((la-ya+xa*lo)/2+ya-la)**2)/3-(xa*(lo-2))**2/10) !-(y-53)**2/8
+ !    write (*,'(A, 4(F9.3))') 'lo,la: ',lo,la,((la-ya+xa*lo)/2-xa*lo)**2+((la-ya+xa*lo)/2+ya-la)**2,fz
+     kw=kw+self%a_water*fz
+   end if
    
    ! Attenuation as a result of background turbidity and self-shading of phytoplankton.
    attv = kw + self%a_spm*(poc+z)+ self%a_doc*doc+ self%a_phyc*p + self%a_chl*chl

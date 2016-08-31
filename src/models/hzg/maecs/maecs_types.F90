@@ -39,7 +39,10 @@ type (type_dependency_id)            :: id_temp
 type (type_dependency_id)            :: id_par
 type (type_dependency_id)            :: id_CO2
 type (type_dependency_id)            :: id_attpar
-type (type_global_dependency_id)            :: id_doy
+type (type_global_dependency_id)     :: id_doy
+type (type_horizontal_dependency_id) :: id_lat, id_lon
+type (type_dependency_id)            :: id_sal
+
 type (type_dependency_id)            :: id_totC
 type (type_horizontal_dependency_id)            :: id_totC_vertint
 type (type_dependency_id)            :: id_totN
