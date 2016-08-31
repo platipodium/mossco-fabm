@@ -47,7 +47,7 @@ type (type_maecs_traitdyn)::acclim
 type (type_maecs_sensitivities) :: sens
 
 ! --- LOCAL MODEL VARIABLES:
-integer  :: i, j, iz, ihour, iloop, doy
+integer  :: i, j, iz, ihour, iloop
 real(rk) :: reminT, degradT       ! Temp dependent remineralisation and hydrolysis rates
 ! --- QUOTA and FRACTIONS
 real(rk) :: phys_status, dQN_dt, dRchl_phyC_dt=0.0_rk ! []
@@ -65,7 +65,7 @@ real(rk) :: secs_pr_day = 86400.0_rk
 ! --- AGGREGATION 
 real(rk) :: aggreg_rate ! aggregation among phytoplankton and between phytoplankton & detritus [d^{-1}]    
 real(rk) :: viral_rate ! loss rate due to viral/parasite infections  [d^{-1}]    
-real(rk) :: vir_lysis = 0.3_rk  !assumes that virally infected cells equally fuel POM and DOM pools
+real(rk) :: vir_lysis = 0.1_rk  !assumes that virally infected cells equally fuel POM and DOM pools
 logical  :: out = .true.
 !   if(36000.eq.secondsofday .and. mod(julianday,1).eq.0 .and. outn) out=.true.    
 real(rk) :: pdet, no3
@@ -77,10 +77,10 @@ real(rk),parameter :: relaxO2=0.04_rk
 real(rk),parameter :: T0 = 288.15_rk ! reference Temperature fixed to 15 degC
 real(rk),parameter :: Q10b = 1.5_rk
 real(rk) :: Cprod, Nprod, Pprod
-real(rk) :: poc
+real(rk) :: poc, doy
 real(rk) :: AnoxicMin,Denitrific,OxicMin,Nitri,OduDepo,OduOx,pDepo, Anammox
 real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto,faeces, min_Cmass
-real(rk) :: vir_max = 0.1
+real(rk) :: vir_max = 10
 real(rk) :: vird, dvir_dt, infect, vdilg, vrepl, vadap, vmort, virf, vire
 logical  :: IsCritical = .false. ! phyC and phyN below reasonable range ?
 #define _KAI_ 2
@@ -282,6 +282,9 @@ if (self%GrazingOn) then
        relmort = 1.0d0 + self%zm_fa_delmax/(att+self%zm_fa_inf)
      case (3,4)
        relmort = 1.0d0 + sens%f_T2*self%zm_fa_delmax/(att+self%zm_fa_inf) ! assumes greater fish/larvae abundance in summer
+     case (5)
+      _GET_GLOBAL_ (self%id_doy,doy) !day of year
+       relmort=1.0d0 + self%zm_fa_delmax*sens%f_T2*0.5*(1-sin(2*(doy+75)*Pi/365.0))
     end select
   end if !self%GrazTurbOn .gt. 0
   zoo_mort   = self%mort_zoo * relmort* sens%f_T**self%fT_exp_mort  * zoo%C
@@ -325,17 +328,13 @@ if (self%vir_loss .gt. self%small_finite .or. self%VirusOn ) then
   else 
     ! ---  static approach --------------------------------
     if (uptake%C .gt. self%small_finite .and. self%vir_mu*sens%f_T .gt. self%vir_loss) then  ! infection only at daytime
-      viral_rate  = vir_max - (uptake%C - infect)/(self%vir_mu*sens%f_T-self%vir_loss)
+      viral_rate  = 0.1 - (uptake%C - infect)/(self%vir_mu*sens%f_T-self%vir_loss)
     ! TODO: update with current dyn version
     else
       viral_rate  = 0.0_rk
     endif
     viral_rate  = viral_rate * self%vir_loss
   endif
-!  if (vird .gt. vir_max) then  ! TODO: smooth or relax safety boundaries
-!    vird = vir_max 
-!    viral_rate = self%vir_loss * vird
-!  endif
   ! if (viral_rate .lt. 0.0_rk) viral_rate = 0.0_rk
   ! a faction of virally infected cells goes into dead material
   aggreg_rate = aggreg_rate + (1.0_rk-vir_lysis)* viral_rate
@@ -420,13 +419,18 @@ rhsv%phyN =  uptake%N             * phy%C &
   vrepl = self%vir_mu * sens%f_T * phy%relQ%N !* 1.0_rk/(1.0_rk+exp(10*(viral_rate-1.0_rk))) !* (1.0_rk-viral_rate)
   if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P ! depends on host stoichiometry
 !  if (vird .gt. 0.8) write (*,'(A,4(F9.4))') 'rep=',vird,vrepl,sens%f_T2 * phy%relQ%N,1.0_rk-vird
-  vrepl = vrepl * phy%C * phy%N/poc * 1.0_rk/(1.0_rk + 0.2_rk*vird)  !* phy%relQ%N
+
+  vrepl = vrepl * phy%C * phy%N/poc * 1.0_rk/(1.0_rk + 0.1_rk*vird)  !* phy%relQ%N
+
 
 ! viral removal by preferential decline of more infected hosts
-  vadap = self%vir_loss * virf**2 * exp(5.0_rk-vire*vird)*vire * self%vir_phyC/phy%reg%C  ! (1.0_rk-vir_lysis)*
+!  vadap = 0.0_rk
+  vadap = self%vir_loss * virf**2 * exp(5.0_rk-vire*vird)*vire  ! marginal host loss due to infection
+  vadap = vadap * self%vir_phyC/(phy%reg%C+self%vir_phyC) *smooth_small(vir_max-vird, 1.0_rk) !self%small
+ ! pathogenic diversity
 
 ! death and spore formation of viral cells
-  vmort = self%vir_spor_r * vird/(vird+self%vir_spor_C) * (1.0_rk + 0.2_rk*vird)
+  vmort = self%vir_spor_r * vird/(vird+self%vir_spor_C) *1.0_rk/(1.0_rk+ exp(vird-vir_max))
 
   dvir_dt =  (vrepl - vadap - vmort) *phy%vir
 !    dvir_dt = 0.0_rk 
