@@ -322,8 +322,9 @@ if (self%vir_loss .gt. self%small_finite .or. self%VirusOn ) then
     vird = phy%vir/phy%reg%C   ! density relative to host biomass
 !    viral_rate = self%vir_loss * vird
 ! non-linear impact on host mortality with threshold
-    vire = 1.0_rk/(self%vir_infect+self%small_finite)  ! steepness factor
-    virf = 1.0_rk/(1.0_rk + exp(5.0_rk-vire*vird))     ! smooth step function
+   ! self%vir_infect: steepness factor
+    vire = exp(self%vir_infect*(1.0_rk-vird))
+    virf = 1.0_rk/(1.0_rk + vire)     ! smooth step function
     viral_rate = self%vir_loss * virf                  ! host mortality 
   else 
     ! ---  static approach --------------------------------
@@ -420,12 +421,11 @@ rhsv%phyN =  uptake%N             * phy%C &
   if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P ! depends on host stoichiometry
 !  if (vird .gt. 0.8) write (*,'(A,4(F9.4))') 'rep=',vird,vrepl,sens%f_T2 * phy%relQ%N,1.0_rk-vird
 
-  vrepl = vrepl * phy%C * phy%N/poc * 1.0_rk/(1.0_rk + 0.1_rk*vird)  !* phy%relQ%N
-
+  vrepl = vrepl * phy%C * phy%N/poc * vir_max/(vir_max + vird)  !* phy%relQ%N
 
 ! viral removal by preferential decline of more infected hosts
 !  vadap = 0.0_rk
-  vadap = self%vir_loss * virf**2 * exp(5.0_rk-vire*vird)*vire  ! marginal host loss due to infection
+  vadap = self%vir_loss * virf**2 * self%vir_infect *vire  ! marginal host loss due to infection
   vadap = vadap * self%vir_phyC/(phy%reg%C+self%vir_phyC) *smooth_small(vir_max-vird, 1.0_rk) !self%small
  ! pathogenic diversity
 
@@ -925,10 +925,9 @@ write(*,'(A)') 'begin vert_move'
    if (self%vir_loss .gt. self%small_finite .or. self%VirusOn ) then
       _GET_(self%id_vir, phy%vir)  ! Virus C density in cells in -
 !       phyQstat = phyQstat * exp(-2E2*phy%vir/(0.1d0 + phy%C)) 
-     phyQstat = phyQstat * 1.0_rk/(1.0_rk + exp(-5.0_rk+phy%vir/(phy%C*self%vir_infect+self%small_finite)))
+     phyQstat = phyQstat * 1.0_rk/(1.0_rk + exp(-self%vir_infect*(1.0_rk-phy%vir/(phy%C+self%small_finite))))
 ! threshold virus with multi-stage replication
    endif
-
 
    ! energy limitation ; TODO check function and quantity
 !   phyEner  = phy%gpp / (self%V_NC_max*self%zeta_CN)
