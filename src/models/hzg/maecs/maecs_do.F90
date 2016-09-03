@@ -282,13 +282,13 @@ if (self%GrazingOn) then
        relmort = 1.0d0 + self%zm_fa_delmax/(att+self%zm_fa_inf)
      case (3,4)
        relmort = 1.0d0 + sens%f_T2*self%zm_fa_delmax/(att+self%zm_fa_inf) ! assumes greater fish/larvae abundance in summer
-     case (5)
+     case (5,6)
       _GET_GLOBAL_ (self%id_doy,doy) !day of year
        relmort=1.0d0 + self%zm_fa_delmax*sens%f_T2*0.5*(1-sin(2*(doy+75)*Pi/365.0))
     end select
   end if !self%GrazTurbOn .gt. 0
   zoo_mort   = self%mort_zoo * relmort* sens%f_T**self%fT_exp_mort  * zoo%C
-  if (self%GrazTurbOn .eq. 4 ) zoo_mort   = zoo_mort + self%mort_zoo
+  if (self%GrazTurbOn .eq. 4 .or. self%GrazTurbOn .eq. 6) zoo_mort   = zoo_mort + self%mort_zoo
 !!  write (*,'(A,4(F11.3))') 'Zm=',att,relmort,zoo%C,zoo_mort
 else
   graz_rate   = 0.0_rk
