@@ -80,7 +80,7 @@ real(rk) :: Cprod, Nprod, Pprod
 real(rk) :: poc, doy
 real(rk) :: AnoxicMin,Denitrific,OxicMin,Nitri,OduDepo,OduOx,pDepo, Anammox
 real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto,faeces, min_Cmass
-real(rk) :: vir_max = 10
+real(rk) :: vir_max = 5
 real(rk) :: vird, dvir_dt, infect, vdilg, vrepl, vadap, vmort, virf, vire
 logical  :: IsCritical = .false. ! phyC and phyN below reasonable range ?
 #define _KAI_ 2
@@ -426,7 +426,7 @@ rhsv%phyN =  uptake%N             * phy%C &
 ! viral removal by preferential decline of more infected hosts
 !  vadap = 0.0_rk
   vadap = self%vir_loss * virf**2 * self%vir_infect *vire  ! marginal host loss due to infection
-  vadap = vadap * self%vir_phyC/(phy%reg%C+self%vir_phyC) *smooth_small(vir_max-vird, 1.0_rk) !self%small
+  vadap = vadap * self%vir_phyC/(phy%reg%C+self%vir_phyC) *smooth_small(vir_max-vird,self%small ) !1.0_rk
  ! pathogenic diversity
 
 ! death and spore formation of viral cells
