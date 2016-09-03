@@ -80,7 +80,7 @@ real(rk) :: Cprod, Nprod, Pprod
 real(rk) :: poc, doy
 real(rk) :: AnoxicMin,Denitrific,OxicMin,Nitri,OduDepo,OduOx,pDepo, Anammox
 real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto,faeces, min_Cmass
-real(rk) :: vir_max = 5
+real(rk) :: vir_max = 6.0_rk
 real(rk) :: vird, dvir_dt, infect, vdilg, vrepl, vadap, vmort, virf, vire
 logical  :: IsCritical = .false. ! phyC and phyN below reasonable range ?
 #define _KAI_ 2
@@ -421,7 +421,7 @@ rhsv%phyN =  uptake%N             * phy%C &
   if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P ! depends on host stoichiometry
 !  if (vird .gt. 0.8) write (*,'(A,4(F9.4))') 'rep=',vird,vrepl,sens%f_T2 * phy%relQ%N,1.0_rk-vird
 
-  vrepl = vrepl * phy%C * phy%N/poc * vir_max/(vir_max + vird)  !* phy%relQ%N
+  vrepl = vrepl * phy%C * phy%N/poc *1.0_rk/(1.0_rk+ exp(vird-vir_max))   !* phy%relQ%N
 
 ! viral removal by preferential decline of more infected hosts
 !  vadap = 0.0_rk
@@ -430,7 +430,7 @@ rhsv%phyN =  uptake%N             * phy%C &
  ! pathogenic diversity
 
 ! death and spore formation of viral cells
-  vmort = self%vir_spor_r * vird/(vird+self%vir_spor_C) *1.0_rk/(1.0_rk+ exp(vird-vir_max))
+  vmort = self%vir_spor_r * vird/(vird+self%vir_spor_C) 
 
   dvir_dt =  (vrepl - vadap - vmort) *phy%vir
 !    dvir_dt = 0.0_rk 
