@@ -421,12 +421,12 @@ rhsv%phyN =  uptake%N             * phy%C &
   if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P ! depends on host stoichiometry
 !  if (vird .gt. 0.8) write (*,'(A,4(F9.4))') 'rep=',vird,vrepl,sens%f_T2 * phy%relQ%N,1.0_rk-vird
 
-  vrepl = vrepl * phy%C * phy%N/poc *1.0_rk/(1.0_rk+ exp(vird-vir_max))   !* phy%relQ%N
+  vrepl = vrepl * phy%C * phy%N/poc *1.0_rk/(1.0_rk+ exp(-self%vir_infect*(vir_max-vird)))   !* phy%relQ%N
 
 ! viral removal by preferential decline of more infected hosts
 !  vadap = 0.0_rk
   vadap = self%vir_loss * virf**2 * self%vir_infect *vire  ! marginal host loss due to infection
-  vadap = vadap * self%vir_phyC/(phy%reg%C+self%vir_phyC) *smooth_small(vir_max-vird,self%small ) !1.0_rk
+  vadap = vadap * self%vir_phyC/(phy%reg%C+self%vir_phyC) *smooth_small(vir_max-vird,1.0_rk) !self%small
  ! pathogenic diversity
 
 ! death and spore formation of viral cells
@@ -938,7 +938,12 @@ write(*,'(A)') 'begin vert_move'
 !  call sinking(self%vS_phy, phyQstat, vs_phy)
 
    !SINKING AS A FUNCTION OF INTERNAL STATES
-   vs_phy = -self%vS_phy * exp( -self%sink_phys * phyQstat)
+   if(self%sink_phys .gt. 0) then
+     vs_phy = -self%vS_phy * exp( -self%sink_phys * phyQstat)
+   else
+     vs_phy = -self%vS_phy * 1.0_rk/(1.0_rk + exp(self%sink_phys*(1.0_rk-phyQstat))) 
+   endif
+
    if(self%genMeth .gt. 0) then
      vs_phy = vs_phy + self%vS_phy * exp(-3.0d0+self%genMeth*0.2d0)
    endif 
@@ -954,8 +959,10 @@ write(*,'(A)') 'begin vert_move'
    !write (*,'(A,2(F10.3))') 'phyQstat, vs_phy=', phyQstat, vs_phy
 !   vs_det = -self%vS_det*aggf/secs_pr_day
    vs_det = -1.0_rk*self%vS_det/secs_pr_day
-! slowing down of vertical velocity at high concentration to smooth numerical problems in shallow, pesitional boxes
+! slowing down of vertical velocities at high concentration to smooth numerical problems in shallow, pesitional boxes
    vs_det = vs_det * 1.0_rk/(1.0_rk+(0.01*det%C)**4)
+   vs_phy = vs_phy * 1.0_rk/(1.0_rk+(0.001*phy%C)**4)
+
   !set the rates
    _SET_VERTICAL_MOVEMENT_(self%id_detC,vs_det)
    _SET_VERTICAL_MOVEMENT_(self%id_detN,vs_det)
