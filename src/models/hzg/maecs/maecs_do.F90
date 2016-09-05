@@ -285,10 +285,16 @@ if (self%GrazingOn) then
      case (5,6)
       _GET_GLOBAL_ (self%id_doy,doy) !day of year
        relmort=1.0d0 + self%zm_fa_delmax*sens%f_T2*0.5*(1-sin(2*(doy+75)*Pi/365.0))
+     case (7)
+      _GET_GLOBAL_ (self%id_doy,doy) !day of year
+      _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
+    !f(z)=sigmoidal function of depth with an upper plateau (100%) at 0-10 m and a lower (10%) for 30+
+       fz=0.5/(1+exp(-zmax*0.5_rk+self%a_fz))
+       relmort=1.0d0 + self%zm_fa_delmax*sens%f_T2*0.5*(1-fz*sin(2*(doy+75)*Pi/365.0))
     end select
   end if !self%GrazTurbOn .gt. 0
   zoo_mort   = self%mort_zoo * relmort* sens%f_T**self%fT_exp_mort  * zoo%C
-  if (self%GrazTurbOn .eq. 4 .or. self%GrazTurbOn .eq. 6) zoo_mort   = zoo_mort + self%mort_zoo
+  if (self%GrazTurbOn .eq. 4 .or. self%GrazTurbOn .gt. 5) zoo_mort   = zoo_mort + self%mort_zoo
 !!  write (*,'(A,4(F11.3))') 'Zm=',att,relmort,zoo%C,zoo_mort
 else
   graz_rate   = 0.0_rk
