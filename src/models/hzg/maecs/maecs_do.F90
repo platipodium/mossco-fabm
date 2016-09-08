@@ -73,11 +73,12 @@ real(rk) :: att, fa, relmort
 real(rk) :: QP_phy_max, rqn
 real(rk) :: det_prod, dom_dep, nh3f
 real(rk) :: radsP,Oxicminlim,Denitrilim,Anoxiclim,Rescale,rP
+real(rk) :: flO2, flODU, aPO4
 real(rk),parameter :: relaxO2=0.04_rk
 real(rk),parameter :: T0 = 288.15_rk ! reference Temperature fixed to 15 degC
 real(rk),parameter :: Q10b = 1.5_rk
 real(rk) :: Cprod, Nprod, Pprod
-real(rk) :: poc, doy
+real(rk) :: poc, doy, zmax
 real(rk) :: AnoxicMin,Denitrific,OxicMin,Nitri,OduDepo,OduOx,pDepo, Anammox
 real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto,faeces, min_Cmass
 real(rk) :: vir_max = 6.0_rk
@@ -427,7 +428,9 @@ rhsv%phyN =  uptake%N             * phy%C &
   if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P ! depends on host stoichiometry
 !  if (vird .gt. 0.8) write (*,'(A,4(F9.4))') 'rep=',vird,vrepl,sens%f_T2 * phy%relQ%N,1.0_rk-vird
 
-  vrepl = vrepl * phy%C * phy%N/poc *1.0_rk/(1.0_rk+ exp(-self%vir_infect*(vir_max-vird)))   !* phy%relQ%N
+!  vrepl = vrepl * phy%C * phy%N/poc *1.0_rk/(1.0_rk+ exp(-self%vir_infect*(vir_max-vird)))   !* phy%relQ%N
+   vrepl = vrepl * phy%C* (1.0_rk+phy%reg%C/self%vir_phyC) *1.0_rk/(1.0_rk+ exp(-self%vir_infect*(vir_max-vird)))   !* phy%relQ%N
+
 
 ! viral removal by preferential decline of more infected hosts
 !  vadap = 0.0_rk
@@ -782,6 +785,16 @@ end if
 
 _SET_DIAGNOSTIC_(self%id_vphys, exp(-self%sink_phys*phy%relQ%N * phy%relQ%P))       !average Temporary_diagnostic_
 
+! experimental formulation for emulating P-adsorption at particles in the water column and at the bottom interface
+
+!_GET_HORIZONTAL_(self%id_o2flux, flO2)
+!_GET_HORIZONTAL_(self%id_oduflux, flODU)    
+!_GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
+
+!aPO4 = (flODU-flO2)/(zmax+self%small)
+
+!_SET_DIAGNOSTIC_(self%id_pPads, flO2*86400 )       !average Temporary_diagnostic_
+!_SET_DIAGNOSTIC_(self%id_vphys, aPO4)       !average Temporary_diagnostic_
 
 !________________________________________________________________________________
 ! set diag variables, mostly from PrimProd module
@@ -876,7 +889,7 @@ logical  :: IsCritical = .false. ! phyC and phyN below reasonable range ?
 
 !
 ! !LOCAL VARIABLES: 
-REALTYPE    :: phyQstat,vs_phy,vs_det, phyEner, minPigm,min_Cmass, minc
+REALTYPE    :: phyQstat,vs_phy,vs_det, phyEner, minPigm,min_Cmass, minc, zmax
 !REALTYPE    :: aggf, agge=16.d0
 REALTYPE, parameter :: secs_pr_day = 86400.d0 
 !EOP
@@ -965,9 +978,11 @@ write(*,'(A)') 'begin vert_move'
    !write (*,'(A,2(F10.3))') 'phyQstat, vs_phy=', phyQstat, vs_phy
 !   vs_det = -self%vS_det*aggf/secs_pr_day
    vs_det = -1.0_rk*self%vS_det/secs_pr_day
-! slowing down of vertical velocities at high concentration to smooth numerical problems in shallow, pesitional boxes
-   vs_det = vs_det * 1.0_rk/(1.0_rk+(0.01*det%C)**4)
-   vs_phy = vs_phy * 1.0_rk/(1.0_rk+(0.001*phy%C)**4)
+! slowing down of vertical velocities at high and very low concentration to smooth numerical problems in shallow, pesitional boxes
+  _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
+
+   vs_det = vs_det * 1.0_rk/(1.0_rk+(0.005*det%C + 1000.0_rk/(1+zmax)*self%small_finite/(det%C+self%small_finite) )**4  )
+   vs_phy = vs_phy * 1.0_rk/(1.0_rk+(0.005*phy%C + 1000.0_rk/(1+zmax)*self%small_finite/(phy%C+self%small_finite) )**4  )
 
   !set the rates
    _SET_VERTICAL_MOVEMENT_(self%id_detC,vs_det)

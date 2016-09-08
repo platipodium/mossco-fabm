@@ -7,6 +7,7 @@
 !! @todo cross-check the new units and long names of id_Rub (bulk), id_chl (bulk), id_chl2 (diag, chl:c ratio) 
 module hzg_maecs
 use fabm_types
+use fabm_standard_variables
 use maecs_types
 
 #define _DEBUG_ 0
@@ -757,6 +758,8 @@ call self%register_diagnostic_variable(self%id_datt,    'datt','1/m', ' datt', &
 call self%register_diagnostic_variable(self%id_vphys,   'vphys','-', ' vphys', &
   output=DOUT)
 
+call self%register_diagnostic_variable(self%id_pPads,   'pPads','-', 'pPads', output=DOUT)
+
 if (self%DebugDiagOn) then
 call self%register_diagnostic_variable(self%id_tmp,     'tmp','-', 'Temporary_diagnostic_ tmp', &
   output=DOUT)
@@ -861,6 +864,9 @@ call self%register_dependency(self%id_attpar,standard_variables%attenuation_coef
 call self%register_global_dependency(self%id_doy,standard_variables%number_of_days_since_start_of_the_year)
 call self%register_dependency(self%id_vphys_dep,'vphys','','physiological_state_of_sinking_cells')
 call self%register_horizontal_dependency(self%id_zmax,standard_variables%bottom_depth)
+
+call self%register_dependency(self%id_o2flux, standard_variable=type_horizontal_standard_variable('dissolved_oxygen_upward_flux_at_soil_surface','mmolO2 m-2','dissolved_oxygen_upward_flux_at_soil_surface'))
+call self%register_dependency(self%id_oduflux, standard_variable=type_horizontal_standard_variable('dissolved_reduced_substances_upward_flux_at_soil_surface','mmolO2 m-2','dissolved_reduced_substances_upward_flux_at_soil_surface'))
 
 call self%register_horizontal_dependency(self%id_lat,standard_variables%latitude)
 call self%register_horizontal_dependency(self%id_lon,standard_variables%longitude)
@@ -1024,7 +1030,9 @@ end subroutine initialize
      xa=0.5
      ya=52
  !    write (*,'(A, 2(F9.3))') 'sal depth: ',ft,zmax
-     fz=(2-ft)*0.5*exp(-(((la-ya+xa*lo)/2-xa*lo)**2+((la-ya+xa*lo)/2+ya-la)**2)/3-(xa*(lo-2))**2/10) !-(y-53)**2/8
+     ft= sin((doy-15)*Pi/365)**4
+     fz=ft*0.5*exp(-(((la-ya+xa*lo)/2-xa*lo)**2+((la-ya+xa*lo)/2+ya-la)**2)/3-(xa*(lo-2))**2/10) !-(y-53)**2/8
+
  !    write (*,'(A, 4(F9.3))') 'lo,la: ',lo,la,((la-ya+xa*lo)/2-xa*lo)**2+((la-ya+xa*lo)/2+ya-la)**2,fz
      kw=kw+self%a_water*fz
    end if
