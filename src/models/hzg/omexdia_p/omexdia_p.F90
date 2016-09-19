@@ -269,10 +269,11 @@
    _SET_ODE_(self%id_sdet, -CprodS _CONV_UNIT_)
    _SET_ODE_(self%id_oxy , (-OxicMin - 2.0_rk* Nitri - OduOx) _CONV_UNIT_) !RH 1.0->150/106*OxicMin (if [oxy]=mmolO2/m**3)
    _SET_ODE_(self%id_no3 , (-0.8_rk*Denitrific + Nitri) _CONV_UNIT_)     !RH 0.8-> ~104/106?
-   _SET_ODE_(self%id_nh3 , (Nprod - Nitri) / (1.0_rk + self%NH3Ads) _CONV_UNIT_)
+!   _SET_ODE_(self%id_nh3 , (Nprod - Nitri) / (1.0_rk + self%NH3Ads) _CONV_UNIT_)
+   _SET_ODE_(self%id_nh3 , (Nprod - Nitri) _CONV_UNIT_)
    _SET_ODE_(self%id_odu , (AnoxicMin - OduOx - OduDepo) _CONV_UNIT_)
    _SET_ODE_(self%id_po4 , (Pprod - radsP) _CONV_UNIT_)
-   _SET_ODE_(self%id_pdet, (radsP - Pprod) _CONV_UNIT_)
+   _SET_ODE_(self%id_pdet, (radsP - Pprod - self%NH3Ads*pdet) _CONV_UNIT_)
 
    ! Export diagnostic variables
    _SET_DIAGNOSTIC_(self%id_denit,0.8_rk*Denitrific)

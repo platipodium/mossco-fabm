@@ -64,6 +64,7 @@ type (type_horizontal_diagnostic_variable_id)            :: id_totP_vertint_diag
 type (type_horizontal_diagnostic_variable_id)            :: id_totS_vertint_diag
 type (type_horizontal_dependency_id)            :: id_zmax
 type (type_horizontal_dependency_id) :: id_o2flux, id_oduflux
+type (type_horizontal_dependency_id) :: id_tke_bot
 type (type_horizontal_diagnostic_variable_id)            :: id_O2flux_diag
 type (type_diagnostic_variable_id)   :: id_pPads, id_datt, id_vphys, id_GPPR, id_Denitr, id_dPAR, id_chl2C, id_Theta, id_fracR, id_fracT, id_fracNU, id_DNP, id_QNP, id_QN, id_QP, id_QSi, id_aVN, id_aVP, id_aVSi, id_faN, id_faP, id_faSi, id_rQN, id_rQP, id_rQSi, id_tmp, id_fac4, id_fac5, id_fac3, id_fac1, id_fac2, id_phyUR, id_phyRER, id_phyELR, id_phyALR, id_phyVLR, id_phyGLR, id_vsinkr, id_zoomort, id_qualPOM, id_qualDOM, id_no3
 real(rk) ::  nutN_initial, nutP_initial, nutS_initial, phyC_initial, phyN_initial, phyP_initial, phyS_initial, zooC_initial, detC_initial, detN_initial, detP_initial, detS_initial, domC_initial, domN_initial, domP_initial, RNit_initial, frac_Rub_ini, frac_chl_ini, nh3_initial, oxy_initial, odu_initial, vir_initial

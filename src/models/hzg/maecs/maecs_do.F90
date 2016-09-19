@@ -416,7 +416,7 @@ rhsv%phyN =  uptake%N             * phy%C &
  if (self%VirusOn ) then
 !!  poc   = zoo%C + dom%C + det%C + phy%reg%C 
 !!  poc   = dom%P + det%P + phy%P + self%small_finite
-  poc   = dom%N + det%N + phy%N + self%small_finite
+  poc   = dom%N + det%N + phy%N + 9*self%small_finite
            ! encounter prob. free virus conc around infected cell
            ! average distance ~ C^-1/3 + Gaussian/diffusive spots
 !  infect  = infect * exp(-1.0_rk/((phy%reg%C/10)**0.667_rk) )  
@@ -429,8 +429,9 @@ rhsv%phyN =  uptake%N             * phy%C &
 !  if (vird .gt. 0.8) write (*,'(A,4(F9.4))') 'rep=',vird,vrepl,sens%f_T2 * phy%relQ%N,1.0_rk-vird
 
 !  vrepl = vrepl * phy%C * phy%N/poc *1.0_rk/(1.0_rk+ exp(-self%vir_infect*(vir_max-vird)))   !* phy%relQ%N
-   vrepl = vrepl * phy%C* (1.0_rk+phy%reg%C/self%vir_phyC) *1.0_rk/(1.0_rk+ exp(-self%vir_infect*(vir_max-vird)))   !* phy%relQ%N
+   vrepl = vrepl * phy%C* (1.0_rk+phy%reg%C/self%vir_phyC)* phy%N/poc *1.0_rk/(1.0_rk+ exp(-self%vir_infect*(vir_max-vird)))   !* phy%relQ%N
 
+_SET_DIAGNOSTIC_(self%id_pPads, vrepl )       !average Temporary_diagnostic_
 
 ! viral removal by preferential decline of more infected hosts
 !  vadap = 0.0_rk
@@ -793,7 +794,6 @@ _SET_DIAGNOSTIC_(self%id_vphys, exp(-self%sink_phys*phy%relQ%N * phy%relQ%P))   
 
 !aPO4 = (flODU-flO2)/(zmax+self%small)
 
-!_SET_DIAGNOSTIC_(self%id_pPads, flO2*86400 )       !average Temporary_diagnostic_
 !_SET_DIAGNOSTIC_(self%id_vphys, aPO4)       !average Temporary_diagnostic_
 
 !________________________________________________________________________________
