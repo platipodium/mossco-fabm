@@ -1018,7 +1018,7 @@ end subroutine initialize
     !write (*,'(A, F7.6)') 'ft term: ',0.05*(A*sin(2.0*doy*Pi/365.0 +2.0*L*Pi/365.0)+B)
 
     !f(z)=sigmoidal function of depth with an upper plateau (100%) at 0-10 m and a lower (10%) for 30+
-    fz=self%a_minfr+(1.0-self%a_minfr)*(1.0-1.0/(1.0+exp(-zmax*0.5_rk+self%a_fz)))*(0.001+tke_bot*1E3)
+    fz=self%a_minfr+(1.0-self%a_minfr)*(1.0-1.0/(1.0+exp(-zmax*0.5_rk+self%a_fz)))*(0.25+tke_bot*650)
     
     !write (*,'(A, F7.6)') 'fz term: ',(1.0-self%a_minfr)*(1.0-1.0/(1.0+exp(-zmax*0.5+10))) 
    end if
@@ -1028,13 +1028,12 @@ end subroutine initialize
  !!    write (*,'(L2)'),_AVAILABLE_(self%id_lon)
      _GET_HORIZONTAL_(self%id_lon,lo)! Longitude [degE]
      _GET_HORIZONTAL_(self%id_lat,la) ! Latitude  [degN]
-
-   ! _GET_(self%id_sal,ft) ! Latitude  [degN]
+    ! _GET_(self%id_sal,ft) ! Latitude  [degN]
      xa=0.7
      ya=52.5
  !    write (*,'(A, 2(F9.3))') 'sal depth: ',ft,zmax
-     ft= sin((doy-15)*Pi/365)**2
-     fz=ft*0.25*(self%kwFzmaxMeth-3) *exp(-(((la-ya+xa*lo)/2-xa*lo)**2+((la-ya+xa*lo)/2+ya-la)**2)/3-(xa*(lo-2))**2/10) !-(y-53)**2/8
+!     ft= sin((doy-60)*Pi/365)**2
+     fz=exp(-3*(fz-self%a_minfr))*0.25*(self%kwFzmaxMeth-3) *exp(-(((la-ya+xa*lo)/2-xa*lo)**2+((la-ya+xa*lo)/2+ya-la)**2)/3-(xa*(lo-2))**2/10) !-(y-53)**2/8
 
  !    write (*,'(A, 4(F9.3))') 'lo,la: ',lo,la,((la-ya+xa*lo)/2-xa*lo)**2+((la-ya+xa*lo)/2+ya-la)**2,fz
      kw=kw+self%a_water*fz
