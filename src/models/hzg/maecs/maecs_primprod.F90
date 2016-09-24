@@ -351,7 +351,7 @@ resp  = zeta_X(self%nutind%iN) * (upt_act%N + self%zstoich_PN * upt_act%P)
 
 if (self%RubiscoOn) then
 ! --- derivatives of C-uptake rate  ------------------------------------------         
-   dmu_dfracR = Pmaxc * sens%upt_pot%C - 1*resp * dfV_dfracR
+   dmu_dfracR = Pmaxc * sens%upt_pot%C - 1*resp * dfV_dfracR 
 
 !   dmuQ_dfracR = dmuQ_dfracR !* darkf**(0*exp(-phy%frac%Rub))
 
@@ -391,7 +391,7 @@ if (self%PhotoacclimOn) then
 ! --- derivatives of C-uptake rate  --------------------------------------------         
 !     positive gradient term due to PAR adsorption by CHL 
    dmu_dtheta = Pmaxc* phy%frac%Rub * exp(- sens%a_light * phy%theta) *sens%a_light & 
-                      -1*resp * dfV_dtheta
+                      -1*resp * dfV_dtheta 
 
 !   acc%fac1 = Pmaxc* phy%frac%Rub
 !   acc%fac2 = exp(- sens%a_light * phy%theta) *sens%a_light

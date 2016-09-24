@@ -277,6 +277,9 @@ if (self%GrazingOn) then
    _GET_(self%id_attpar, att)
    _SET_DIAGNOSTIC_(self%id_datt,att) 
    select case (self%GrazTurbOn)
+     case (0)
+      _GET_GLOBAL_ (self%id_doy,doy) !day of year
+       relmort=1.0d0 + self%zm_fa_delmax*sens%f_T2*0.5*(1-sin(2*(doy+75)*Pi/365.0))/(att+self%zm_fa_inf)
      case (1)
        relmort = 1.0_rk + self%zm_fa_delmax* (1.0_rk-1.0_rk/(1.0_rk+exp(10.0_rk*(self%zm_fa_inf-att))))
      case (2)
