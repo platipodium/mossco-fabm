@@ -428,14 +428,14 @@ rhsv%phyN =  uptake%N             * phy%C &
 
  ! viral replication 
  if (self%vir_mu .gt. 0.0_rk ) then
-   vrepl = self%vir_mu * sens%f_T * phy%relQ%N !* 1.0_rk/(1.0_rk+exp(10*(viral_rate-1.0_rk))) !* (1.0_rk-viral_rate)
-   if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P ! depends on host stoichiometry
+  vrepl = self%vir_mu * sens%f_T * phy%relQ%N**2/(0.1+phy%relQ%N**2) !phy%relQ%N* 1.0_rk/(1.0_rk+exp(10*(viral_rate-1.0_rk))) !* (1.0_rk-viral_rate)
    vrepl = vrepl * phy%C* (1.0_rk+phy%reg%C/self%vir_phyC)* phy%N/poc *1.0_rk/(1.0_rk+ exp(-self%vir_infect*(vir_max-vird)))   !* phy%relQ%N
  else
-   vrepl = -self%vir_mu * sens%f_T * phy%relQ%N !*
-   vrepl = vrepl * phy%C* phy%reg%C/(phy%reg%C+self%vir_phyC)* phy%N/poc*1.0_rk/(1.0_rk+ exp(-self%vir_infect*(vir_max-vird)))   !* phy%relQ%N
+  vrepl = -self%vir_mu * sens%f_T * phy%relQ%N !*
+  vrepl = vrepl * phy%C* phy%reg%C/(phy%reg%C+self%vir_phyC)* phy%N/poc*1.0_rk/(1.0_rk+ exp(-self%vir_infect*(vir_max-vird)))   !* phy%relQ%N
  endif
- if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P ! depends on host stoichiometry
+
+ if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P**2/(0.1+phy%relQ%P**2) ! depends on host stoichiometry
 
 
 _SET_DIAGNOSTIC_(self%id_pPads, vrepl )       !average Temporary_diagnostic_
@@ -927,28 +927,27 @@ write(*,'(A)') 'begin vert_move'
 !   _GET_(self%id_detN, det%N)  ! Detritus Nitrogen in mmol-N/m**3
    _GET_(self%id_domC, dom%C)  ! DONitrogen in mmol-N/m**3
 !    aggf = det%C/106+det%N/16
-!    if (self%PhosphorusOn) then
+    if (self%PhosphorusOn) then
 !      _GET_(self%id_detP, det%P)  ! Detritus Phosphorus in mmol-P/m**3
 !      aggf = aggf + det%P
-!    endif
+      _GET_(self%id_phyP, phy%P)  ! Phytplankton Phosphorus in mmol-P/m**3
+    endif
 !   aggf = 1.0_rk + 2*self%phi_agg * (phy%N + det%N) 
 !   aggf = 0.1d0 + 1.0d0/(1.0d0+ exp(-3+agge*aggf))
 
-   if (self%GrazingOn) then
-     _GET_(self%id_zooC, zoo%C)  ! Zooplankton Carbon in mmol-C/m**3
-   end if
-   if (self%PhosphorusOn) then
-     _GET_(self%id_phyP, phy%P)  ! Phytplankton Phosphorus in mmol-P/m**3
-   end if
-
    !write (*,'(A,2(F10.3))') 'Before: phy%C, phy%N=', phy%C, phy%N
-   call min_mass(self,phy, min_Cmass, IsCritical, method=_KAI_) 
-   !write (*,'(A,2(F10.3))') 'After: phy%C, phy%N=', phy%C, phy%N
-   call calc_internal_states(self,phy,det,dom,zoo) 
-   !write (*,'(A,2(F10.3))') 'phy%relQ%N, phy%relQ%P=', phy%relQ%N, phy%relQ%P
-   
+    call min_mass(self,phy, min_Cmass, IsCritical, method=_KAI_) 
+    !write (*,'(A,2(F10.3))') 'After: phy%C, phy%N=', phy%C, phy%N
+    call calc_internal_states(self,phy,det,dom,zoo) 
+    !write (*,'(A,2(F10.3))') 'phy%relQ%N, phy%relQ%P=', phy%relQ%N, phy%relQ%P
+    phyQstat = phy%relQ%N**2/(0.1+phy%relQ%N**2)
+
+    if (self%PhosphorusOn) then
+      phyQstat =phyQstat * phy%relQ%P**2/(0.1+phy%relQ%P**2)
+    end if
+
    ! nutrient limitation ; TODO check product rule and add other elements such as Si
-   phyQstat = phy%relQ%N * phy%relQ%P 
+   ! phyQstat = phy%relQ%N * phy%relQ%P 
 
    if (self%vir_loss .gt. self%small_finite .or. self%VirusOn ) then
       _GET_(self%id_vir, phy%vir)  ! Virus C density in cells in -
@@ -969,7 +968,8 @@ write(*,'(A)') 'begin vert_move'
    if(self%sink_phys .gt. 0) then
      vs_phy = -self%vS_phy * exp( -self%sink_phys * phyQstat)
    else
-     vs_phy = -self%vS_phy * 1.0_rk/(1.0_rk + exp(self%sink_phys*(1.0_rk-phyQstat))) 
+   !  vs_phy = -self%vS_phy * 1.0_rk/(1.0_rk + exp(self%sink_phys*(1.0_rk-phyQstat))) 
+      vs_phy = -self%vS_phy * (1.0_rk-phyQstat)
    endif
 
    if(self%genMeth .gt. 0) then
