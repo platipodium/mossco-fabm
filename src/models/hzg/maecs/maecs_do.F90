@@ -271,7 +271,7 @@ if (self%GrazingOn) then
 !  --- quadratic closure term
 
   relmort = 1.0d0
-  if (self%GrazTurbOn .gt. 0) then
+  if (self%GrazTurbOn .ge. 0) then
 !    _GET_(self%id_attf_dep, att_f)
 !  _GET_GLOBAL_ (self%id_doy,doy) !day of year
    _GET_(self%id_attpar, att)
@@ -427,12 +427,16 @@ rhsv%phyN =  uptake%N             * phy%C &
 !  if (vdilg .lt. 0.0_rk) vdilg = 0.0_rk
 
  ! viral replication 
-  vrepl = self%vir_mu * sens%f_T * phy%relQ%N !* 1.0_rk/(1.0_rk+exp(10*(viral_rate-1.0_rk))) !* (1.0_rk-viral_rate)
-  if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P ! depends on host stoichiometry
-!  if (vird .gt. 0.8) write (*,'(A,4(F9.4))') 'rep=',vird,vrepl,sens%f_T2 * phy%relQ%N,1.0_rk-vird
-
-!  vrepl = vrepl * phy%C * phy%N/poc *1.0_rk/(1.0_rk+ exp(-self%vir_infect*(vir_max-vird)))   !* phy%relQ%N
+ if (self%vir_mu .gt. 0.0_rk ) then
+   vrepl = self%vir_mu * sens%f_T * phy%relQ%N !* 1.0_rk/(1.0_rk+exp(10*(viral_rate-1.0_rk))) !* (1.0_rk-viral_rate)
+   if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P ! depends on host stoichiometry
    vrepl = vrepl * phy%C* (1.0_rk+phy%reg%C/self%vir_phyC)* phy%N/poc *1.0_rk/(1.0_rk+ exp(-self%vir_infect*(vir_max-vird)))   !* phy%relQ%N
+ else
+   vrepl = -self%vir_mu * sens%f_T * phy%relQ%N !*
+   vrepl = vrepl * phy%C* phy%reg%C/(phy%reg%C+self%vir_phyC)* phy%N/poc*1.0_rk/(1.0_rk+ exp(-self%vir_infect*(vir_max-vird)))   !* phy%relQ%N
+ endif
+ if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P ! depends on host stoichiometry
+
 
 _SET_DIAGNOSTIC_(self%id_pPads, vrepl )       !average Temporary_diagnostic_
 
@@ -440,10 +444,12 @@ _SET_DIAGNOSTIC_(self%id_pPads, vrepl )       !average Temporary_diagnostic_
 !  vadap = 0.0_rk
   vadap = self%vir_loss * virf**2 * self%vir_infect *vire  ! marginal host loss due to infection
   vadap = vadap * self%vir_phyC/(phy%reg%C+self%vir_phyC) *smooth_small(vir_max-vird,1.0_rk) !self%small
+ vadap = vadap * self%vir_spor_r
  ! pathogenic diversity
 
 ! death and spore formation of viral cells
-  vmort = self%vir_spor_r * vird/(vird+self%vir_spor_C) 
+!  vmort = self%vir_spor_r * vird/(vird+self%vir_spor_C) 
+ vmort = 0.0_rk ! self%vir_spor_r 
 
   dvir_dt =  (vrepl - vadap - vmort) *phy%vir
 !    dvir_dt = 0.0_rk 
