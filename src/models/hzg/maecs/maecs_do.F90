@@ -769,6 +769,7 @@ if (self%PhysiolDiagOn) then
   _SET_DIAGNOSTIC_(self%id_rQN, _REPLNAN_(phy%relQ%N))       !average Relative_N-Quota_
   _SET_DIAGNOSTIC_(self%id_rQP, _REPLNAN_(phy%relQ%P))       !average Relative_P-Quota_
   _SET_DIAGNOSTIC_(self%id_rQSi, _REPLNAN_(phy%relQ%Si))     !average Relative_Si-Quota_
+  _SET_DIAGNOSTIC_(self%id_UCpot, _REPLNAN_(sens%upt_pot%C))  !average light (and where applicable, carbon limitation)
 end if
 if (self%RateDiagOn) then
   _SET_DIAGNOSTIC_(self%id_phyUR, _REPLNAN_(uptake%C))       !average Phytoplankton_C_Uptake_Rate_

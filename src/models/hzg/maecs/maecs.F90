@@ -796,6 +796,8 @@ call self%register_diagnostic_variable(self%id_rQP,     'rQP','-', 'Relative_P-Q
   output=DOUT)
 call self%register_diagnostic_variable(self%id_rQSi,    'rQSi','-', 'Relative_Si-Quota_ rQSi', &
   output=DOUT)
+call self%register_diagnostic_variable(self%id_UCpot,    'UCpot','-', 'Potential_C_uptake', &
+  output=DOUTa)
 end if
 
 if (self%RateDiagOn) then
