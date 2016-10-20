@@ -987,28 +987,22 @@ end subroutine initialize
      chl=0.0_rk 
    end if
 
-! TODO calc chl = frac_chl_ini*phyC
-   
-   !default: fz=ft=1
+   !default: 
    fz=1.0_rk 
    ft=1.0_rk 
-     
    !if (self%kwFzmaxMeth .eq. 0) then
      !constant bg attenuation. Do nothing   
    if (self%kwFzmaxMeth .eq. 1) then
     _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
     !f(z) exponential convergence to the 10% of 'self%a_water' with depth
     fz=self%a_minfr + (1-self%a_minfr)*exp(-zmax/11.0)
-   else if (self%kwFzmaxMeth .eq. 2) then
+   else if (self%kwFzmaxMeth .ge. 2) then
     _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
     !f(z)=sigmoidal function of depth with an upper plateau (100%) at 0-10 m and a lower (10%) for 30+
-    fz=self%a_minfr+(1.0-self%a_minfr)*(1.0-1.0/(1+exp(-zmax*0.5_rk+self%a_fz)))
+    fz1 = (1.0-self%a_minfr)*(1.0-1.0/(1.0+exp(-zmax*0.5_rk+self%a_fz)))
+    fz=self%a_minfr+fz1
    else if (self%kwFzmaxMeth .ge. 3) then
-    
     _GET_GLOBAL_ (self%id_doy,doy) !day of year
-    _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
-    _GET_HORIZONTAL_(self%id_tke_bot,tke_bot) ! Latitude  [degN] 
-     
     !f(t)=sinusoidal function of day of year with minimum occuring during summer
     !parameters below were fitted by J.Maerz using the scanfish data from the German Bight
     A=8.036
@@ -1016,15 +1010,17 @@ end subroutine initialize
     L=72.42
     ft= 0.05*(A*sin(2.0*doy*Pi/365.0 +2.0*L*Pi/365.0)+B)
     !write (*,'(A, F7.6)') 'ft term: ',0.05*(A*sin(2.0*doy*Pi/365.0 +2.0*L*Pi/365.0)+B)
-
-    !f(z)=sigmoidal function of depth with an upper plateau (100%) at 0-10 m and a lower (10%) for 30+
-    fz=self%a_minfr+(1.0-self%a_minfr)*(1.0-1.0/(1.0+exp(-zmax*0.5_rk+self%a_fz)))*(0.25+tke_bot*650)
-    
-    !write (*,'(A, F7.6)') 'fz term: ',(1.0-self%a_minfr)*(1.0-1.0/(1.0+exp(-zmax*0.5+10))) 
    end if
    kw=self%a_water*fz*ft
+   if (self%kwFzmaxMeth .eq. 4) then
+    _GET_HORIZONTAL_(self%id_tke_bot,tke_bot) ! Latitude  [degN] 
+    !f(z)=sigmoidal function of depth with an upper plateau (100%) at 0-10 m and a lower (10%) for 30+
+    fz=self%a_minfr+fz1*(ft+sqrt(tke_bot*750))*0.5
+    !write (*,'(A, F7.6)') 'fz term: ',(1.0-self%a_minfr)*(1.0-1.0/(1.0+exp(-zmax*0.5+10))) 
+    kw=self%a_water*fz
+   end if
 
-   if (self%kwFzmaxMeth .gt. 3) then  ! emulate turbid East Anglia plume
+   if (self%kwFzmaxMeth .gt. 4) then  ! emulate turbid East Anglia plume
  !!    write (*,'(L2)'),_AVAILABLE_(self%id_lon)
      _GET_HORIZONTAL_(self%id_lon,lo)! Longitude [degE]
      _GET_HORIZONTAL_(self%id_lat,la) ! Latitude  [degN]
@@ -1033,14 +1029,15 @@ end subroutine initialize
      ya=52.5
  !    write (*,'(A, 2(F9.3))') 'sal depth: ',ft,zmax
 !     ft= sin((doy-60)*Pi/365)**2
-     fz=exp(-3*(fz-self%a_minfr))*0.25*(self%kwFzmaxMeth-3) *exp(-(((la-ya+xa*lo)/2-xa*lo)**2+((la-ya+xa*lo)/2+ya-la)**2)/3-(xa*(lo-2))**2/10) !-(y-53)**2/8
-
+     fz=exp(-3*(fz-self%a_minfr))*0.25*(self%kwFzmaxMeth-4) *exp(-(((la-ya+xa*lo)/2-xa*lo)**2+((la-ya+xa*lo)/2+ya-la)**2)/3-(xa*(lo-2))**2/10) !-(y-53)**2/8
  !    write (*,'(A, 4(F9.3))') 'lo,la: ',lo,la,((la-ya+xa*lo)/2-xa*lo)**2+((la-ya+xa*lo)/2+ya-la)**2,fz
      kw=kw+self%a_water*fz
    end if
    
    ! Attenuation as a result of background turbidity and self-shading of phytoplankton.
    attv = kw + self%a_spm*(poc+z)+ self%a_doc*doc+ self%a_phyc*p + self%a_chl*chl
+   if (attv .gt. 15.) attv=15.0_rk
+
    _SET_EXTINCTION_(attv)
    
 #if _DEBUG_
