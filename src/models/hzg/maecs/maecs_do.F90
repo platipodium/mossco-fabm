@@ -279,9 +279,12 @@ if (self%GrazingOn) then
    select case (self%GrazTurbOn)
      case (0)
       _GET_GLOBAL_ (self%id_doy,doy) !day of year
-       relmort=1.0d0 + self%zm_fa_delmax*sens%f_T2*0.5*(1-sin(2*(doy+75)*Pi/365.0))/(att+self%zm_fa_inf)
+!       relmort=1.0d0 + self%zm_fa_delmax*sens%f_T2*0.5*(1-sin(2*(doy+75)*Pi/365.0))/(att+self%zm_fa_inf)
+       fa = 1.0_rk/(1.0_rk+exp(2*(att-self%zm_fa_inf)))
+       relmort=1.0d0 + self%zm_fa_delmax*sens%f_T2*0.5*(1-sin(2*(doy+75)*Pi/365.0))*fa
      case (1)
-       relmort = 1.0_rk + self%zm_fa_delmax* (1.0_rk-1.0_rk/(1.0_rk+exp(10.0_rk*(self%zm_fa_inf-att))))
+       fa = 1.0_rk/(1.0_rk+exp(2*(att-self%zm_fa_inf)))
+       relmort = 1.0_rk + self%zm_fa_delmax* fa
      case (2)
        relmort = 1.0d0 + self%zm_fa_delmax/(att+self%zm_fa_inf)
      case (3,4)
