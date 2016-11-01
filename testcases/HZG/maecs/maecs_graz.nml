@@ -19,6 +19,8 @@
 !                  max.increase factor in attenuation-dependent mort.rate (only active if mort_zoo<0)
 ! zm_fa_inf      [float, unit = - ] #GrazingOn
 !                  infliction point of the att. function of mort.rate (only active if mort_zoo<0)
+! Q10z           [float, unit = -] #GrazingOn
+!                  Q10 for zooplankton 
 ! fT_exp_mort    [float, unit = m**3/mmolN.d] #GrazingOn
 !                  exponent temperature dep. mortality (1: standard)
 !-------------------------------------------------------------------------------
@@ -33,5 +35,6 @@
    mort_zoo = 0.018,
    zm_fa_delmax = 3.5,
    zm_fa_inf = 0.15,
+   Q10z=2.0
    fT_exp_mort = 3.,
 /

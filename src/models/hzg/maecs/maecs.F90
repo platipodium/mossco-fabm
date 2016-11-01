@@ -120,7 +120,7 @@ contains
 !> \describepar{decay\_nut    , \mathrm{decay_nut}    , non-carbon structure decay rate , 0.12 1/d}
 !> \describepar{phi\_agg      , \mathrm{phi_agg}      , quadratic aggregation rate, 15E-4 m^6 mmol-N^{-2} d^{-1}}
 !> \describepar{agg\_doc      , \mathrm{agg_doc}      , DOC multiplier in coagulation term, 1. m^-3 mmol-C}
-!> \describepar{vir\_loss     , \mathrm{vir_loss}     , specific viral loss/exudation rate, 0. - }
+!> \describepar{vir\_loss     , \mathrm{vir_loss}     , specific viral loss/exudation rate, 0. d-1 }
 !> \describepar{vir\_bmass    , \mathrm{vir_bmass}    , density dependency of viral loss, 0.5 1/d}
 !> \describepar{sink\_phys    , \mathrm{sink_phys}    , sinking sensitivity on physiological status, 4. }
 !> \describepar{vS\_phy       , \mathrm{vS_phy}       , sinking velocity for phytoplankton, 0. m d^{-1}}
@@ -143,6 +143,7 @@ contains
 !> \describepar{mort\_zoo     , \mathrm{mort_zoo}     , quadratic mortality, 0.015 m**3/mmolN.d}
 !> \describepar{zm\_fa\_delmax , \mathrm{zm_fa_delmax} , max.increase factor in attenuation-dependent mort.rate (only active if mort_zoo<0), 3. m**3/mmolN.d}
 !> \describepar{zm\_fa\_inf    , \mathrm{zm_fa_inf}    , infliction point of the att. function of mort.rate (only active if mort_zoo<0), 0.15 - }
+!> \describepar{Q10z  , \mathrm{Q10_z}  , Q10 for zooplankton (2: standard), -}
 !> \describepar{fT\_exp\_mort  , \mathrm{fT_exp_mort}  , exponent temperature dep. mortality (1: standard), 3. m**3/mmolN.d}
 !> \describepar{a\_water      , \mathrm{a_water}      , background attenuation coefficient, 1. 1/m}
 !> \describepar{a\_minfr      , \mathrm{a_minfr}      , heuristic depth-dep attenuation, 0.1 -}
@@ -259,6 +260,7 @@ real(rk)  :: basal_resp_zoo ! basal respiration
 real(rk)  :: mort_zoo     ! quadratic mortality
 real(rk)  :: zm_fa_delmax ! max.increase factor in attenuation-dependent mort.rate (only active if mort_zoo<0)
 real(rk)  :: zm_fa_inf    ! infliction point of the att. function of mort.rate (only active if mort_zoo<0)
+real(rk)  :: Q10z         ! Q10 factor
 real(rk)  :: fT_exp_mort  ! exponent temperature dep. mortality (1: standard)
 !!------- Parameters from nml-list maecs_env ------- 
 real(rk)  :: a_water      ! background attenuation coefficient
@@ -338,7 +340,7 @@ namelist /maecs_pars/ &
 
 namelist /maecs_graz/ &
   const_NC_zoo, const_PC_zoo, g_max, k_grazC, yield_zoo, basal_resp_zoo, &
-  mort_zoo, zm_fa_delmax, zm_fa_inf, fT_exp_mort
+  mort_zoo, zm_fa_delmax, zm_fa_inf, Q10z, fT_exp_mort
 
 namelist /maecs_env/ &
   a_water, a_minfr, a_fz, a_spm, a_doc, a_phyc, a_chl, rel_co2, frac_PAR, small, maxVal, dil, &
@@ -423,6 +425,7 @@ basal_resp_zoo = 0.03_rk            ! per d
 mort_zoo     = 0.015_rk           ! m**3/mmolN.d
 zm_fa_delmax = 3._rk              ! m**3/mmolN.d
 zm_fa_inf    = 0.15_rk            ! - 
+Q10z         = 2._rk              ! -
 fT_exp_mort  = 3._rk              ! m**3/mmolN.d
 a_water      = 1._rk              ! 1/m
 a_minfr      = 0.1_rk             ! -
@@ -587,6 +590,7 @@ if (self%GrazingOn) then
     call self%get_parameter(self%mort_zoo     ,'mort_zoo',      default=mort_zoo)
     call self%get_parameter(self%zm_fa_delmax ,'zm_fa_delmax',  default=zm_fa_delmax)
     call self%get_parameter(self%zm_fa_inf    ,'zm_fa_inf',     default=zm_fa_inf)
+    call self%get_parameter(self%Q10z         ,'Q10z',          default=Q10z)
     call self%get_parameter(self%fT_exp_mort  ,'fT_exp_mort',   default=fT_exp_mort)
 end if
 
@@ -627,7 +631,6 @@ if (self%BioOxyOn) then
 end if
 
 !!------- derived parameters  ------- 
-self%rq10         = Q10
 self%res0         = 0.25d0*V_NC_max*zeta_CN
 self%K_QN_phy     = QN_phy_max-QN_phy_0
 self%iK_QN        = 1.0d0/self%K_QN_phy
