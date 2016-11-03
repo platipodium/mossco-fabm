@@ -19,7 +19,7 @@ elem(i)%aV        => acc%aV%N
   zeta_X(i)         = self%zeta_CN 
 !else
 ! N2-fixing cyanobacteria: increase N-uptake cost prop to P:C
-  zeta_X(i)  = self%zeta_CN + (phy%relQ%P-1.0d0)
+! zeta_X(i)  = self%zeta_CN + (phy%relQ%P-1.0d0)
 !end if
 
 ! phosphorus
