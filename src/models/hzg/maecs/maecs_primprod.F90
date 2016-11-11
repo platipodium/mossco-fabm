@@ -58,7 +58,7 @@ type (stoich_pointer), dimension(5)::elem ! struct-pointer addressing elements w
 !
 !eps     =  self%small_finite ! just  a shorter namer for a small thing
 eps     = 1E-2 ! just  a shorter namer for a small thing
-maxrq   = 1.0d0 ! self%MaxRelQ
+maxrq   = 2.0d0 ! self%MaxRelQ
 ! TODO: energetic costs of P-assimilation \partial (\zeta_CN V_N) / \partial V_P not
 !    resolved but assumed to be already included in protein synthesis
 ! prelim solution: stoichiometry in RNA (N:P ~ 4:1) and phospholipids (N:P~1:1)
