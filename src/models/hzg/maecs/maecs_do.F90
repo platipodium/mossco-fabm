@@ -302,7 +302,7 @@ if (self%GrazingOn) then
   end if !self%GrazTurbOn .gt. 0
   zoo_mort   = self%mort_zoo * relmort* sens%f_T**self%fT_exp_mort  * zoo%C
   if (self%GrazTurbOn .eq. 4 .or. self%GrazTurbOn .gt. 5) zoo_mort   = zoo_mort + self%mort_zoo
-  if (self%GrazTurbOn .eq. 0)  zoo_mort   = zoo_mort + self%basal_resp_zoo*sens%f_T
+  if (self%GrazTurbOn .eq. 0)  zoo_mort   = zoo_mort + self%basal_resp_zoo*sens%f_T2
 !!  write (*,'(A,4(F11.3))') 'Zm=',att,relmort,zoo%C,zoo_mort
 else
   graz_rate   = 0.0_rk
