@@ -271,6 +271,7 @@ if (self%GrazingOn) then
 !  --- quadratic closure term
 
   relmort = 1.0d0
+  _GET_(self%id_attpar, att)
   if (self%GrazTurbOn .ge. 0) then
 !    _GET_(self%id_attf_dep, att_f)
 !  _GET_GLOBAL_ (self%id_doy,doy) !day of year
@@ -280,7 +281,7 @@ if (self%GrazingOn) then
      case (0)
       _GET_GLOBAL_ (self%id_doy,doy) !day of year
 !       relmort=1.0d0 + self%zm_fa_delmax*sens%f_T2*0.5*(1-sin(2*(doy+75)*Pi/365.0))/(att+self%zm_fa_inf)
-       fa = 1.0_rk/(1.0_rk+exp(2*(att-self%zm_fa_inf)))
+       fa = 1.0_rk !/(1.0_rk+exp(2*(att-self%zm_fa_inf)))
        relmort=1.0d0 + self%zm_fa_delmax*sens%f_T2*0.5*(1-sin(2*(doy+75)*Pi/365.0))*fa
      case (1)
        fa = 1.0_rk/(1.0_rk+exp(2*(att-self%zm_fa_inf)))
@@ -433,7 +434,7 @@ rhsv%phyN =  uptake%N             * phy%C &
  ! viral replication 
  if (self%vir_mu .gt. 0.0_rk ) then
   vrepl = self%vir_mu * sens%f_T * phy%relQ%N**2/(HALFQ**2+phy%relQ%N**2) !phy%relQ%N* 1.0_rk/(1.0_rk+exp(10*(viral_rate-1.0_rk))) !* (1.0_rk-viral_rate)
-   vrepl = vrepl * phy%C* (1.0_rk+phy%reg%C/self%vir_phyC)* phy%N/poc *1.0_rk/(1.0_rk+ exp(-self%vir_infect*(vir_max-vird)))   !* phy%relQ%N
+   vrepl = vrepl * phy%C* (1.0_rk+phy%reg%C/self%vir_phyC)* phy%N/poc *1.0_rk/(0.5_rk+att) *1.0_rk/(1.0_rk+ exp(-self%vir_infect*(vir_max-vird)))   !* phy%relQ%N
   if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P**2/(HALFQ**2+phy%relQ%P**2) ! depends on host stoichiometry
  else
   vrepl = -self%vir_mu * sens%f_T * phy%relQ%N !*
@@ -448,7 +449,7 @@ _SET_DIAGNOSTIC_(self%id_pPads, vrepl )       !average Temporary_diagnostic_
 !  vadap = 0.0_rk
   vadap = self%vir_loss * virf**2 * self%vir_infect *vire  ! marginal host loss due to infection
   vadap = vadap * self%vir_phyC/(phy%reg%C+self%vir_phyC) *smooth_small(vir_max-vird,1.0_rk) !self%small
- vadap = vadap * self%vir_spor_r
+ vadap = vadap * self%vir_spor_r* vird/(vird+self%vir_spor_C)
  ! pathogenic diversity
 
 ! death and spore formation of viral cells
