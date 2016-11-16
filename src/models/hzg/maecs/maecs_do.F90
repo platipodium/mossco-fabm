@@ -282,7 +282,7 @@ if (self%GrazingOn) then
       _GET_GLOBAL_ (self%id_doy,doy) !day of year
 !       relmort=1.0d0 + self%zm_fa_delmax*sens%f_T2*0.5*(1-sin(2*(doy+75)*Pi/365.0))/(att+self%zm_fa_inf)
        fa = 1.0_rk !/(1.0_rk+exp(2*(att-self%zm_fa_inf)))
-       relmort=1.0d0 + self%zm_fa_delmax*sens%f_T2*0.5*(1-sin(2*(doy+75)*Pi/365.0))*fa
+       relmort=1.0d0 + self%zm_fa_delmax*sens%f_T2*0.25*(1-sin(2*(doy+75)*Pi/365.0))**2 
      case (1)
        fa = 1.0_rk/(1.0_rk+exp(2*(att-self%zm_fa_inf)))
        relmort = 1.0_rk + self%zm_fa_delmax* fa
@@ -438,7 +438,7 @@ rhsv%phyN =  uptake%N             * phy%C &
   if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P**2/(HALFQ**2+phy%relQ%P**2) ! depends on host stoichiometry
  else
   vrepl = -self%vir_mu * sens%f_T * phy%relQ%N !*
-  vrepl = vrepl * phy%C* phy%reg%C/(phy%reg%C+self%vir_phyC)* phy%N/poc*1.0_rk/(1.0_rk+ exp(-self%vir_infect*(vir_max-vird)))   !* phy%relQ%N
+  vrepl = vrepl * phy%C* phy%reg%C/(phy%reg%C+self%vir_phyC)* phy%N/poc*0.333_rk/(0.333_rk+att)*1.0_rk/(1.0_rk+ exp(-self%vir_infect*(vir_max-vird)))   !* phy%relQ%N
 !  if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P 
  endif
 
