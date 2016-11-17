@@ -124,6 +124,7 @@ contains
 !> \describepar{vir\_bmass    , \mathrm{vir_bmass}    , density dependency of viral loss, 0.5 1/d}
 !> \describepar{sink\_phys    , \mathrm{sink_phys}    , sinking sensitivity on physiological status, 4. }
 !> \describepar{vS\_phy       , \mathrm{vS_phy}       , sinking velocity for phytoplankton, 0. m d^{-1}}
+!> \describepar{vS\_phy0       , \mathrm{vS_phy0}       , minimum sinking velocity for phytoplankton, 0. m d^{-1}}
 !> \describepar{vS\_det       , \mathrm{vS_det}       , sinking velocity for detritus, 0. m d^{-1}}
 !> \describepar{hydrol       , \mathrm{hydrol}       , degradation rate of most refractory POM, 0.005 d^{-1}}
 !> \describepar{remin        , \mathrm{remin}        , pel.remineralisation rate of most refractory DOM, 0.01 d^{-1}}
@@ -240,6 +241,7 @@ real(rk)  :: vir_loss     ! specific viral loss/exudation rate
 real(rk)  :: vir_bmass    ! density dependency of viral loss
 real(rk)  :: sink_phys    ! sinking sensitivity on physiological status
 real(rk)  :: vS_phy       ! sinking velocity for phytoplankton
+real(rk)  :: vS_phy0      ! minimum sinking velocity for phytoplankton
 real(rk)  :: vS_det       ! sinking velocity for detritus
 real(rk)  :: hydrol       ! degradation rate of most refractory POM
 real(rk)  :: remin        ! pel.remineralisation rate of most refractory DOM
@@ -335,7 +337,7 @@ namelist /maecs_pars/ &
   V_NC_max, AffN, zeta_CN, zstoich_PN, exud_phy, QP_phy_0, QP_phy_max, V_PC_max, &
   AffP, QSi_phy_0, QSi_phy_max, V_SiC_max, AffSi, MaxRelQ, syn_nut, adap_rub, &
   adap_theta, tau_regV, disease, mort_ODU, decay_pigm, decay_nut, phi_agg, &
-  agg_doc, vir_loss, vir_bmass, sink_phys, vS_phy, vS_det, hydrol, remin, Nqual, &
+  agg_doc, vir_loss, vir_bmass, sink_phys, vS_phy, vS_phy0, vS_det, hydrol, remin, Nqual, &
   remNP, denit, PON_denit, Q10, T_ref, NutOrder
 
 namelist /maecs_graz/ &
@@ -405,6 +407,7 @@ agg_doc      = 1._rk              ! m^-3 mmol-C
 vir_loss     = 0._rk              ! - 
 vir_bmass    = 0.5_rk             ! 1/d
 sink_phys    = 4._rk              ! 
+vS_phy       = 0._rk              ! m d^{-1}
 vS_phy       = 0._rk              ! m d^{-1}
 vS_det       = 0._rk              ! m d^{-1}
 hydrol       = 0.005_rk           ! d^{-1}
@@ -546,6 +549,7 @@ call self%get_parameter(self%vir_loss     ,'vir_loss',      default=vir_loss)
 call self%get_parameter(self%vir_bmass    ,'vir_bmass',     default=vir_bmass)
 call self%get_parameter(self%sink_phys    ,'sink_phys',     default=sink_phys)
 call self%get_parameter(self%vS_phy       ,'vS_phy',        default=vS_phy)
+call self%get_parameter(self%vS_phy0      ,'vS_phy0',       default=vS_phy0)
 call self%get_parameter(self%vS_det       ,'vS_det',        default=vS_det)
 call self%get_parameter(self%hydrol       ,'hydrol',        default=hydrol)
 call self%get_parameter(self%remin        ,'remin',         default=remin)

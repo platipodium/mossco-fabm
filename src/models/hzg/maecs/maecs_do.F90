@@ -778,7 +778,7 @@ if (self%RateDiagOn) then
   _SET_DIAGNOSTIC_(self%id_phyALR, _REPLNAN_(-aggreg_rate))  !average Phytoplankton_Aggregation_Loss_Rate_
   _SET_DIAGNOSTIC_(self%id_phyVLR, _REPLNAN_(-viral_rate))   !average Phytoplankton_Viral_Loss_Rate_
   _SET_DIAGNOSTIC_(self%id_phyGLR, _REPLNAN_(-graz_rate/phy%reg%C)) !average Phytoplankton_Grazing_Loss_Rate_
-  _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(exp(-self%sink_phys*phy%relQ%N*phy%relQ%P))) !average Relative_Sinking_Rate_
+  _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(self%vS_phy0+self%vS_phy*exp(-self%sink_phys*phy%relQ%N*phy%relQ%P))) !average Relative_Sinking_Rate_
   _SET_DIAGNOSTIC_(self%id_zoomort, _REPLNAN_(zoo_mort))     !average Zooplankton_Mortality_Rate_
 end if
 !#E_DIA
@@ -877,7 +877,7 @@ write(*,'(A)') 'begin vert_move'
 !  call sinking(self%vS_phy, phyQstat, vs_phy)
 
    !SINKING AS A FUNCTION OF INTERNAL STATES
-   vs_phy = -self%vS_phy * exp( -self%sink_phys * phyQstat)
+   vs_phy = -(self%vS_phy0+self%vS_phy +exp( -self%sink_phys * phyQstat))
    if(self%genMeth .gt. 0) then
      vs_phy = vs_phy + self%vS_phy * exp(-3.0d0+self%genMeth*0.2d0)
    endif 

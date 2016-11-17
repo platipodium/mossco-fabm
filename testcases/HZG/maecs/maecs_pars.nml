@@ -71,6 +71,8 @@
 !                    sinking sensitivity on physiological status
 ! vS_phy           [float, unit = m d^{-1}]
 !                    sinking velocity for phytoplankton
+! vS_phy0          [float, unit = m d^{-1}]
+!                    minimum sinking velocity for phytoplankton
 ! vS_det           [float, unit = m d^{-1}]
 !                    sinking velocity for detritus
 ! hydrol           [float, unit = d^{-1}]
@@ -129,6 +131,7 @@
    vir_bmass = 0.1 
    sink_phys = 4.
    vS_phy = 2.0, !2.5,
+   vS_phy0 = 0.2, 
    vS_det = 6.0, !9.,
    hydrol = 0.03,
    remin = 0.03,
