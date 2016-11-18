@@ -877,7 +877,7 @@ write(*,'(A)') 'begin vert_move'
 !  call sinking(self%vS_phy, phyQstat, vs_phy)
 
    !SINKING AS A FUNCTION OF INTERNAL STATES
-   vs_phy = -(self%vS_phy0+self%vS_phy +exp( -self%sink_phys * phyQstat))
+   vs_phy = -(self%vS_phy0+self%vS_phy*exp( -self%sink_phys * phyQstat))
    if(self%genMeth .gt. 0) then
      vs_phy = vs_phy + self%vS_phy * exp(-3.0d0+self%genMeth*0.2d0)
    endif 
