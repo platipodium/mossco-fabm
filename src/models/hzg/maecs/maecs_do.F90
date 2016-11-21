@@ -281,9 +281,11 @@ if (self%GrazingOn) then
    select case (self%GrazTurbOn)
      case (0)
       _GET_GLOBAL_ (self%id_doy,doy) !day of year
+      _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
 !       relmort=1.0d0 + self%zm_fa_delmax*sens%f_T2*0.5*(1-sin(2*(doy+75)*Pi/365.0))/(att+self%zm_fa_inf)
        fa = 1.0_rk !/(1.0_rk+exp(2*(att-self%zm_fa_inf)))
        relmort=1.0d0 + self%zm_fa_delmax*sens%f_T2*0.25*(1-sin(2*(doy+75)*Pi/365.0))**2 
+       relmort = relmort*(0.5+0.5/(1+exp(0.1*(zmax-30.0))))
      case (1)
        fa = 1.0_rk/(1.0_rk+exp(2*(att-self%zm_fa_inf)))
        relmort = 1.0_rk + self%zm_fa_delmax* fa
@@ -302,9 +304,10 @@ if (self%GrazingOn) then
        relmort=1.0d0 + self%zm_fa_delmax*sens%f_T2*0.5*(1-fz*sin(2*(doy+75)*Pi/365.0))
     end select
   end if !self%GrazTurbOn .gt. 0
-  zoo_mort   = self%mort_zoo * relmort* sens%f_T**self%fT_exp_mort  * zoo%C
+  zoo_mort   = self%mort_zoo * relmort* sens%f_T**self%fT_exp_mort ! * zoo%C
   if (self%GrazTurbOn .eq. 4 .or. self%GrazTurbOn .gt. 5) zoo_mort   = zoo_mort + self%mort_zoo
-  if (self%GrazTurbOn .eq. 0)  zoo_mort   = zoo_mort + self%basal_resp_zoo*0.5
+!  if (self%GrazTurbOn .eq. 0)  zoo_mort   = zoo_mort + self%basal_resp_zoo*0.5
+!  if (self%GrazTurbOn .eq. 0)  zoo_mort   = zoo_mort*
 !!  write (*,'(A,4(F11.3))') 'Zm=',att,relmort,zoo%C,zoo_mort
 else
   graz_rate   = 0.0_rk
