@@ -285,7 +285,7 @@ if (self%GrazingOn) then
 !       relmort=1.0d0 + self%zm_fa_delmax*sens%f_T2*0.5*(1-sin(2*(doy+75)*Pi/365.0))/(att+self%zm_fa_inf)
        fa = 1.0_rk !/(1.0_rk+exp(2*(att-self%zm_fa_inf)))
        relmort=1.0d0 + self%zm_fa_delmax*sens%f_T2*0.25*(1-sin(2*(doy+75)*Pi/365.0))**2 
-       relmort = relmort*(0.5+0.5/(1+exp(0.1*(zmax-30.0))))
+       relmort = relmort*(0.5+0.5/(1+exp(0.333*(zmax-30.0))))
      case (1)
        fa = 1.0_rk/(1.0_rk+exp(2*(att-self%zm_fa_inf)))
        relmort = 1.0_rk + self%zm_fa_delmax* fa
@@ -461,7 +461,7 @@ _SET_DIAGNOSTIC_(self%id_pPads, vrepl )       !average Temporary_diagnostic_
   vadap = self%vir_loss * virf**2 * self%vir_infect *vire  ! marginal host loss due to infection
   vadap = vadap * self%vir_phyC/(phy%reg%C+self%vir_phyC) *smooth_small(vir_max-vird,1.0_rk) !self%small
 !  vadap = vadap * self%vir_phyC/(phy%reg%C+self%small_finite) *smooth_small(vir_max-vird,1.0_rk) !self%small
-! vadap = vadap * self%vir_spor_r* vird/(vird+self%vir_spor_C)
+ vadap = vadap * vird/(vird+self%vir_spor_C)
  ! pathogenic diversity
 
 ! death and spore formation of viral cells
