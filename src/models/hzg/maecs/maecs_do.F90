@@ -466,7 +466,7 @@ _SET_DIAGNOSTIC_(self%id_pPads, vrepl )       !average Temporary_diagnostic_
 
 ! death and spore formation of viral cells
 !  vmort = self%vir_spor_r * vird/(vird+self%vir_spor_C) 
- vmort = self%vir_spor_r* vird/(vird+self%vir_spor_C) ! self%vir_spor_r 
+ vmort = self%vir_spor_r * sens%f_T * vird/(vird+self%vir_spor_C) ! self%vir_spor_r 
 
   dvir_dt =  (vrepl - vadap - vmort) *phy%vir
 !    dvir_dt = 0.0_rk 
