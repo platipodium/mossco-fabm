@@ -81,7 +81,7 @@ real(rk) :: Cprod, Nprod, Pprod
 real(rk) :: poc, doy, zmax
 real(rk) :: AnoxicMin,Denitrific,OxicMin,Nitri,OduDepo,OduOx,pDepo, Anammox
 real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto,faeces, min_Cmass
-real(rk) :: a_lit
+real(rk) :: a_lit, ksat_graz
 real(rk) :: vir_max = 9.0_rk
 real(rk) :: vird, dvir_dt, infect, vdilg, vrepl, vadap, vmort, virf, vire
 logical  :: IsCritical = .false. ! phyC and phyN below reasonable range ?
@@ -258,19 +258,10 @@ call photosynthesis(self,sens,phy,nut,uptake,exud,acclim)
 
 ! ----------------       grazing        -------------------------------------------
 if (self%GrazingOn) then
-  call grazing(self%g_max * sens%f_T2,self%k_grazC,phy%C,graz_rate)
-  zoo%feeding = graz_rate
-  zoo_respC   = self%basal_resp_zoo * sens%f_T2  !  basal respiration of grazers
-  nquot       = type_maecs_om(1.0_rk, phy%Q%N, phy%Q%P, phy%Q%Si )
-  mswitch     = type_maecs_switch(self%PhosphorusOn,self%SiliconOn,.true. )
-                                  !isP, isSi, isTotIng
-! --- calculates zooplankton loss rates (excretion->Nut, floppy+egestion->Det), specific to C
-  call grazing_losses(zoo,zoo_respC,nquot,lossZ,floppZ, mswitch) 
-!  --- transform from specific to bulk grazing rate
-  graz_rate   = graz_rate * zoo%C 
+
+  ksat_graz = self%k_grazC
 
 !  --- quadratic closure term
-
   relmort = 1.0d0
   _GET_(self%id_attpar, att)
   if (self%GrazTurbOn .ge. 0) then
@@ -285,7 +276,9 @@ if (self%GrazingOn) then
 !       relmort=1.0d0 + self%zm_fa_delmax*sens%f_T2*0.5*(1-sin(2*(doy+75)*Pi/365.0))/(att+self%zm_fa_inf)
 !       fa = 1.0_rk !/(1.0_rk+exp(2*(att-self%zm_fa_inf)))
        relmort=1.0d0 + self%zm_fa_delmax*sens%f_T2*0.25*(1-sin(2*(doy+75)*Pi/365.0))**2 
-       relmort = relmort*(self%zm_fa_inf+(1.0_rk-self%zm_fa_inf)/(1+exp(0.333*(zmax-35.0))))
+       fa = self%zm_fa_inf +(1.0_rk-self%zm_fa_inf)/(1+exp(0.333*(zmax-33.0)))
+       relmort = fa * relmort 
+       ksat_graz = fa * self%k_grazC
      case (1)
        fa = 1.0_rk/(1.0_rk+exp(2*(att-self%zm_fa_inf)))
        relmort = 1.0_rk + self%zm_fa_delmax* fa
@@ -309,6 +302,23 @@ if (self%GrazingOn) then
 !  if (self%GrazTurbOn .eq. 0)  zoo_mort   = zoo_mort + self%basal_resp_zoo*0.5
 !  if (self%GrazTurbOn .eq. 0)  zoo_mort   = zoo_mort*
 !!  write (*,'(A,4(F11.3))') 'Zm=',att,relmort,zoo%C,zoo_mort
+
+! calls grazing function accounting for homeostasis
+
+  call grazing(self%g_max * sens%f_T2,ksat_graz,phy%C,graz_rate)
+  zoo%feeding = graz_rate
+  zoo_respC   = self%basal_resp_zoo * sens%f_T  !  basal respiration of grazers
+  nquot       = type_maecs_om(1.0_rk, phy%Q%N, phy%Q%P, phy%Q%Si )
+  mswitch     = type_maecs_switch(self%PhosphorusOn,self%SiliconOn,.true. )
+
+! --- calculates zooplankton loss rates (excretion->Nut, floppy+egestion->Det), specific to C
+  call grazing_losses(zoo,zoo_respC,nquot,lossZ,floppZ, mswitch) 
+!  --- transform from specific to bulk grazing rate
+  graz_rate   = graz_rate * zoo%C 
+
+                                  !isP, isSi, isTotIng
+
+
 else
   graz_rate   = 0.0_rk
 !  if (self%ChemostatOn .and. .not. IsCritical) graz_rate = 0.2*phy%C
