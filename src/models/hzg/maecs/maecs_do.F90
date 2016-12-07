@@ -273,11 +273,9 @@ if (self%GrazingOn) then
      case (0)
       _GET_GLOBAL_ (self%id_doy,doy) !day of year
       _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
-!       relmort=1.0d0 + self%zm_fa_delmax*sens%f_T2*0.5*(1-sin(2*(doy+75)*Pi/365.0))/(att+self%zm_fa_inf)
-!       fa = 1.0_rk !/(1.0_rk+exp(2*(att-self%zm_fa_inf)))
-       relmort=1.0d0 + self%zm_fa_delmax*sens%f_T2*0.25*(1-sin(2*(doy+75)*Pi/365.0))**2 
-       fa = self%zm_fa_inf +(1.0_rk-self%zm_fa_inf)/(1+exp(0.333*(zmax-33.0)))
-       relmort = fa * relmort 
+
+       fa = self%zm_fa_inf +(1.0_rk-self%zm_fa_inf)/(1+exp(0.3*(zmax-27.0)))
+       relmort = fa + sqrt(fa)*self%zm_fa_delmax*sens%f_T2*0.25*(1-sin(2*(doy+75)*Pi/365.0))**2
        ksat_graz = fa * self%k_grazC
      case (1)
        fa = 1.0_rk/(1.0_rk+exp(2*(att-self%zm_fa_inf)))
@@ -451,35 +449,28 @@ rhsv%phyN =  uptake%N             * phy%C &
   a_lit = abs(a_lit/(self%a_phyc + self%small_finite))
  ! viral replication 
  if (self%vir_mu .gt. 0.0_rk ) then
-  vrepl = self%vir_mu * sens%f_T * phy%relQ%N**2/(HALFQ**2+phy%relQ%N**2) ! non-linear dependence on stoichiometry 1.0_rk/(1.0_rk+exp(10*(viral_rate-1.0_rk))) !* (1.0_rk-viral_rate)
-   vrepl = vrepl * phy%C* (1.0_rk+phy%reg%C/self%vir_phyC)* phy%C/(poc + a_lit) *1.0_rk/(1.0_rk+ exp(-self%vir_infect*(vir_max-vird)))   !* phy%relQ%N
-  if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P**2/(HALFQ**2+phy%relQ%P**2) ! depends on host stoichiometry
+  vrepl = self%vir_mu *phy%relQ%N**2/(HALFQ**2+phy%relQ%N**2)! non-linear dependence on stoichiometry
+  if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P**2/(HALFQ**2+phy%relQ%P**2) 
+      ! depends on host P-stoichiometry (Wilson et al 1996, Clasen&Elser 2007)
  else
-  vrepl = -self%vir_mu * sens%f_T * phy%relQ%N ! linear dependence on stoichiometry
-  vrepl = vrepl * phy%C**3/((phy%reg%C+self%vir_phyC)*(poc + a_lit))  ! cross section interception
-!  vrepl = vrepl * phy%C* phy%reg%C/(self%vir_phyC)* phy%C/(poc + a_lit)  ! cross section interception
-  vrepl = vrepl *1.0_rk/(1.0_rk+ exp(-self%vir_infect*(vir_max-vird)))  !
-!    vire = exp(self%vir_infect*(1.0_rk-vird))
+  vrepl = -self%vir_mu *  phy%relQ%N ! linear dependence on stoichiometry
   if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P 
- endif
-
+ endif   !phy%C* (1.0_rk+phy%reg%C/self%vir_phyC)
+  vrepl = vrepl * sens%f_T *phy%C**2/(poc + a_lit)  ! cross section interception
+  vrepl = vrepl/(1.0_rk+ exp(-self%vir_infect*(self%vir_spor_r-vird)))   !capacity reached
 
 _SET_DIAGNOSTIC_(self%id_pPads, vrepl )       !average Temporary_diagnostic_
 
 ! viral removal by preferential decline of more infected hosts
 !  vadap = 0.0_rk
   vadap = self%vir_loss * virf**2 * self%vir_infect *vire  ! marginal host loss due to infection
-  vadap = vadap * self%vir_phyC/(phy%reg%C+self%vir_phyC) *smooth_small(vir_max-vird,1.0_rk) !self%small
-!  vadap = vadap * self%vir_phyC/(phy%reg%C+self%small_finite) *smooth_small(vir_max-vird,1.0_rk) !self%small
- vadap = vadap * vird/(vird+self%vir_spor_C)
+  vadap = vadap * self%vir_phyC/(phy%reg%C+self%vir_phyC) *smooth_small(self%vir_spor_r-vird,1.0_rk) !self%small
+  vadap = vadap * vird/(vird+self%vir_spor_C)
  ! pathogenic diversity
-
 ! death and spore formation of viral cells
-!  vmort = self%vir_spor_r * vird/(vird+self%vir_spor_C) 
- vmort = self%vir_spor_r * sens%f_T * vird/(vird+self%vir_spor_C) ! self%vir_spor_r 
+  vmort = 0 !self%vir_spor_r * sens%f_T * vird/(vird+self%vir_spor_C) ! self%vir_spor_r 
 
   dvir_dt =  (vrepl - vadap - vmort) *phy%vir
-!    dvir_dt = 0.0_rk 
   rhsv%vir = rhsv%phyC * phy%vir/phy%reg%C + dvir_dt 
 
 !  acclim%fac1= infect
