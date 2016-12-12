@@ -1008,8 +1008,8 @@ write(*,'(A)') 'begin vert_move'
 ! slowing down of vertical velocities at high and very low concentration to smooth numerical problems in shallow, pesitional boxes
   _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
 
-   vs_det = vs_det * 1.0_rk/(1.0_rk+(0.005*det%C + 1000.0_rk/(1+zmax)*self%small_finite/(det%C+self%small_finite) )**4  )
-   vs_phy = vs_phy * 1.0_rk/(1.0_rk+(0.005*phy%C + 1000.0_rk/(1+zmax)*self%small_finite/(phy%C+self%small_finite) )**4  )
+   vs_det = vs_det * 1.0_rk/(1.0_rk+(0.01*det%C + 10000.0_rk/(1+zmax)*self%small_finite/(det%C+self%small_finite) )**4  )
+   vs_phy = vs_phy * 1.0_rk/(1.0_rk+(0.01*phy%C + 10000.0_rk/(1+zmax)*self%small_finite/(phy%C+self%small_finite) )**4  )
 
   !set the rates
    _SET_VERTICAL_MOVEMENT_(self%id_detC,vs_det)
