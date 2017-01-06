@@ -82,7 +82,7 @@ real(rk) :: poc, doy, zmax
 real(rk) :: AnoxicMin,Denitrific,OxicMin,Nitri,OduDepo,OduOx,pDepo, Anammox
 real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto,faeces, min_Cmass
 real(rk) :: a_lit, ksat_graz
-real(rk) :: vir_max = 9.0_rk
+real(rk) :: vir_max = 2.0_rk
 real(rk) :: vird, dvir_dt, infect, vdilg, vrepl, vadap, vmort, virf, vire
 logical  :: IsCritical = .false. ! phyC and phyN below reasonable range ?
 #define _KAI_ 2
@@ -464,11 +464,12 @@ _SET_DIAGNOSTIC_(self%id_pPads, vrepl )       !average Temporary_diagnostic_
 ! viral removal by preferential decline of more infected hosts
 !  vadap = 0.0_rk
   vadap = self%vir_loss * virf**2 * self%vir_infect *vire  ! marginal host loss due to infection
-  vadap = vadap * self%vir_phyC/(phy%reg%C+self%vir_phyC) *smooth_small(self%vir_spor_r-vird,1.0_rk) !self%small
+!  vadap = vadap * self%vir_phyC/(phy%reg%C+self%vir_phyC) *smooth_small(vir_max-vird,1.0_rk) !self%small
+  vadap = vadap * exp(-phy%C/self%vir_phyC)*smooth_small(vir_max-vird,1.0_rk)
   vadap = vadap * vird/(vird+self%vir_spor_C)
  ! pathogenic diversity
 ! death and spore formation of viral cells
-  vmort = 0 !self%vir_spor_r * sens%f_T * vird/(vird+self%vir_spor_C) ! self%vir_spor_r 
+  vmort = self%vir_spor_r * sens%f_T * vird/(vird+self%vir_spor_C) 
 
   dvir_dt =  (vrepl - vadap - vmort) *phy%vir
   rhsv%vir = rhsv%phyC * phy%vir/phy%reg%C + dvir_dt 
