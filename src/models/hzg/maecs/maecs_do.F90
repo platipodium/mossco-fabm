@@ -82,7 +82,7 @@ real(rk) :: poc, doy, zmax
 real(rk) :: AnoxicMin,Denitrific,OxicMin,Nitri,OduDepo,OduOx,pDepo, Anammox
 real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto,faeces, min_Cmass
 real(rk) :: a_lit, ksat_graz
-real(rk) :: vir_max = 2.0_rk
+real(rk) :: vir_max = 3.0_rk
 real(rk) :: vird, dvir_dt, infect, vdilg, vrepl, vadap, vmort, virf, vire
 logical  :: IsCritical = .false. ! phyC and phyN below reasonable range ?
 #define _KAI_ 2
@@ -453,11 +453,13 @@ rhsv%phyN =  uptake%N             * phy%C &
   if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P**2/(HALFQ**2+phy%relQ%P**2) 
       ! depends on host P-stoichiometry (Wilson et al 1996, Clasen&Elser 2007)
  else
-  vrepl = -self%vir_mu *  phy%relQ%N ! linear dependence on stoichiometry
-  if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P 
+!  vrepl = -self%vir_mu *  phy%relQ%N ! linear dependence on stoichiometry
+!  if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P 
+  vrepl = -self%vir_mu/(1.0_rk+ exp(-4.5*(phy%relQ%N-1.0_rk)))   ! linear dependence on stoichiometry
+  if (self%PhosphorusOn) vrepl = vrepl/(1.0_rk+ exp(-4.5*(phy%relQ%P-1.0_rk)))
  endif   !phy%C* (1.0_rk+phy%reg%C/self%vir_phyC)
   vrepl = vrepl * sens%f_T *phy%C**2/(poc + a_lit)  ! cross section interception
-  vrepl = vrepl/(1.0_rk+ exp(-self%vir_infect*(self%vir_spor_r-vird)))   !capacity reached
+  vrepl = vrepl/(1.0_rk+ exp(-self%vir_infect*(vir_max-vird)))   !capacity reached
 
 _SET_DIAGNOSTIC_(self%id_pPads, vrepl )       !average Temporary_diagnostic_
 
@@ -945,72 +947,74 @@ write(*,'(A)') 'begin vert_move'
    _GET_(self%id_detC, det%C)  ! Detritus Nitrogen in mmol-N/m**3
 !   _GET_(self%id_detN, det%N)  ! Detritus Nitrogen in mmol-N/m**3
    _GET_(self%id_domC, dom%C)  ! DONitrogen in mmol-N/m**3
-!    aggf = det%C/106+det%N/16
     if (self%PhosphorusOn) then
 !      _GET_(self%id_detP, det%P)  ! Detritus Phosphorus in mmol-P/m**3
-!      aggf = aggf + det%P
       _GET_(self%id_phyP, phy%P)  ! Phytplankton Phosphorus in mmol-P/m**3
     endif
-!   aggf = 1.0_rk + 2*self%phi_agg * (phy%N + det%N) 
-!   aggf = 0.1d0 + 1.0d0/(1.0d0+ exp(-3+agge*aggf))
-
-   !write (*,'(A,2(F10.3))') 'Before: phy%C, phy%N=', phy%C, phy%N
+ !
+ ! ****** SINKING AS A FUNCTION OF INTERNAL STATES *************
+ !
     call min_mass(self,phy, min_Cmass, IsCritical, method=_KAI_) 
-    !write (*,'(A,2(F10.3))') 'After: phy%C, phy%N=', phy%C, phy%N
     call calc_internal_states(self,phy,det,dom,zoo) 
     !write (*,'(A,2(F10.3))') 'phy%relQ%N, phy%relQ%P=', phy%relQ%N, phy%relQ%P
-    phyQstat = phy%relQ%N**2/(HALFQ**2+phy%relQ%N**2)
 
-    if (self%PhosphorusOn) then
-      phyQstat =phyQstat * phy%relQ%P**2/(HALFQ**2+phy%relQ%P**2)
-    end if
-
+    phyQstat = 1.0_rk
+! infected cells sink faster to save population
+    if (self%vir_loss .gt. self%small_finite .or. self%VirusOn ) then
+      _GET_(self%id_vir, phy%vir)  ! Virus C density in cells in -
+      phyQstat = phyQstat * 1.0_rk/(1.0_rk + exp(-self%vir_infect*(1.0_rk-phy%vir/(phy%C+self%small_finite))))
+! threshold virus with multi-stage replication
+    endif
+! non-linear response of sinking speed to nutrient limitation
+    if(self%sink_phys .gt. 0) then ! weak non-linearity
+      phyQstat = phyQstat * phy%relQ%N**2/(HALFQ**2+phy%relQ%N**2)
+      if (self%PhosphorusOn) then
+        phyQstat =phyQstat * phy%relQ%P**2/(HALFQ**2+phy%relQ%P**2)
+      end if
+     ! Calculate sinking speed
+      vs_phy = -self%vS_phy * exp( -self%sink_phys * phyQstat)
+    else   ! strong non-linearity
+      phyQstat = phyQstat * 1.0_rk/(1.0_rk + exp(self%sink_phys*(phy%relQ%N-HALFQ))) 
+      if (self%PhosphorusOn) then
+        phyQstat =phyQstat * 1.0_rk/(1.0_rk + exp(self%sink_phys*(phy%relQ%P-HALFQ))) 
+      end if
+      vs_phy = -self%vS_phy * (1.0_rk-phyQstat)
+   endif
    ! nutrient limitation ; TODO check product rule and add other elements such as Si
    ! phyQstat = phy%relQ%N * phy%relQ%P 
-
-   if (self%vir_loss .gt. self%small_finite .or. self%VirusOn ) then
-      _GET_(self%id_vir, phy%vir)  ! Virus C density in cells in -
-!       phyQstat = phyQstat * exp(-2E2*phy%vir/(0.1d0 + phy%C)) 
-     phyQstat = phyQstat * 1.0_rk/(1.0_rk + exp(-self%vir_infect*(1.0_rk-phy%vir/(phy%C+self%small_finite))))
-! threshold virus with multi-stage replication
-   endif
 
    ! energy limitation ; TODO check function and quantity
 !   phyEner  = phy%gpp / (self%V_NC_max*self%zeta_CN)
 ! smoothed minimum of energy and nutrient limitation; 
 !   phyQstat = phyQstat - smooth_small(phyQstat - phyEner, self%small)
-
-   ! Calculate sinking
 !  call sinking(self%vS_phy, phyQstat, vs_phy)
 
-   !SINKING AS A FUNCTION OF INTERNAL STATES
-   if(self%sink_phys .gt. 0) then
-     vs_phy = -self%vS_phy * exp( -self%sink_phys * phyQstat)
-   else
-   !  vs_phy = -self%vS_phy * 1.0_rk/(1.0_rk + exp(self%sink_phys*(1.0_rk-phyQstat))) 
-      vs_phy = -self%vS_phy * (1.0_rk-phyQstat)
-   endif
-
-   if(self%genMeth .gt. 0) then
+! ascending of top-conditioned cells
+   if(self%genMeth .gt. 0) then 
      vs_phy = vs_phy + self%vS_phy * exp(-3.0d0+self%genMeth*0.2d0)
+   elseif(self%genMeth .lt. 0) then    
+     vs_phy = vs_phy - self%vS_phy * exp(-3.0d0-self%genMeth*0.2d0)
    endif 
    !if (self%RateDiagOn) then 
    ! write (*,'(A)',advance='no') '' ! Silly Fix to 'NETCDF: Numeric conversion not representable' problem ??
    !  _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(vs_phy)) !average Relative Sinking Velocity
    !end if
-
    !CONSTANT SINKING
    !vs_phy = self%vS_phy
    
    vs_phy = vs_phy / secs_pr_day
    !write (*,'(A,2(F10.3))') 'phyQstat, vs_phy=', phyQstat, vs_phy
 !   vs_det = -self%vS_det*aggf/secs_pr_day
-   vs_det = -1.0_rk*self%vS_det/secs_pr_day
-! slowing down of vertical velocities at high and very low concentration to smooth numerical problems in shallow, pesitional boxes
-  _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
+   vs_det = -self%vS_det / secs_pr_day
 
-   vs_det = vs_det * 1.0_rk/(1.0_rk+(0.01*det%C + 10000.0_rk/(1+zmax)*self%small_finite/(det%C+self%small_finite) )**4  )
-   vs_phy = vs_phy * 1.0_rk/(1.0_rk+(0.01*phy%C + 10000.0_rk/(1+zmax)*self%small_finite/(phy%C+self%small_finite) )**4  )
+  _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
+! increase vDet in shallow water:co-agulation with lithogenic particles
+!   vs_det = vs_det * (1.0_rk+ 4*exp(-(zmax/20.0_rk)**2))
+   vs_det = vs_det * (0.01*det%C)**0.38_rk
+
+! slowing down of vertical velocities at high and very low concentration to smooth numerical problems in shallow, pesitional boxes
+   vs_det = vs_det * 1.0_rk/(1.0_rk+(0.01*det%C + 50000.0_rk/(1+zmax)*self%small_finite/(det%C+self%small_finite) )**4  )
+   vs_phy = vs_phy * 1.0_rk/(1.0_rk+(0.01*phy%C + 50000.0_rk/(1+zmax)*self%small_finite/(phy%C+self%small_finite) )**4  )
 
   !set the rates
    _SET_VERTICAL_MOVEMENT_(self%id_detC,vs_det)
