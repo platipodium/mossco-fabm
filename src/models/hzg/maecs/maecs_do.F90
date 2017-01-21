@@ -333,7 +333,7 @@ end if
 !_GET_(self%id_fracR,phys_status )  
 
 dom_dep     = self%agg_doc*dom%C/(1.0_rk+self%agg_doc*dom%C) 
-aggreg_rate = self%phi_agg * dom_dep * (phy%N + det%N) 
+aggreg_rate = min(self%phi_agg * dom_dep * (phy%N + det%N),0.5_rk)
 !         vS * exp(-4*phys_status )                ! [d^{-1}] 
 !aggreg_rate = aggreg_rate * exp(-4*phy%rel_phys ) TODO: DOM quality as proxy for TEP
 
@@ -919,7 +919,7 @@ logical  :: IsCritical = .false. ! phyC and phyN below reasonable range ?
 
 !
 ! !LOCAL VARIABLES: 
-REALTYPE    :: phyQstat,vs_phy,vs_det, phyEner, minPigm,min_Cmass, minc, zmax
+REALTYPE    :: phyQstat, ef, vs_phy,vs_det, phyEner, minPigm,min_Cmass, minc, zmax
 !REALTYPE    :: aggf, agge=16.d0
 REALTYPE, parameter :: secs_pr_day = 86400.d0 
 !EOP
@@ -1002,19 +1002,24 @@ write(*,'(A)') 'begin vert_move'
    !CONSTANT SINKING
    !vs_phy = self%vS_phy
    
-   vs_phy = vs_phy / secs_pr_day
-   !write (*,'(A,2(F10.3))') 'phyQstat, vs_phy=', phyQstat, vs_phy
-!   vs_det = -self%vS_det*aggf/secs_pr_day
-   vs_det = -self%vS_det / secs_pr_day
-
   _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
 ! increase vDet in shallow water:co-agulation with lithogenic particles
 !   vs_det = vs_det * (1.0_rk+ 4*exp(-(zmax/20.0_rk)**2))
    vs_det = vs_det * (0.01*det%C)**0.38_rk
 
 ! slowing down of vertical velocities at high and very low concentration to smooth numerical problems in shallow, pesitional boxes
-   vs_det = vs_det * 1.0_rk/(1.0_rk+(0.01*det%C + 50000.0_rk/(1+zmax)*self%small_finite/(det%C+self%small_finite) )**4  )
-   vs_phy = vs_phy * 1.0_rk/(1.0_rk+(0.01*phy%C + 50000.0_rk/(1+zmax)*self%small_finite/(phy%C+self%small_finite) )**4  )
+   vs_det = vs_det * 1.0_rk/(1.0_rk+(0.002*det%C +0.01*det%N + 1E6/(1+zmax)*self%small_finite/(det%C+self%small_finite) )**4  )
+! additional slowdown in very shallow waters
+   if (vs_det .gt. 1.0_rk .and. zmax .lt. 8.0_rk)  
+     ef = exp(2*(zmax-5.0_rk))
+     vs_det = vs_det * (1.0_rk+ef)/(3.0_rk+ef)
+   endif
+   vs_phy = vs_phy * 1.0_rk/(1.0_rk+(0.002*phy%C + 50000.0_rk/(1+zmax)*self%small_finite/(phy%C+self%small_finite) )**4  )
+
+   vs_phy = vs_phy / secs_pr_day
+   !write (*,'(A,2(F10.3))') 'phyQstat, vs_phy=', phyQstat, vs_phy
+!   vs_det = -self%vS_det*aggf/secs_pr_day
+   vs_det = -self%vS_det / secs_pr_day
 
   !set the rates
    _SET_VERTICAL_MOVEMENT_(self%id_detC,vs_det)
