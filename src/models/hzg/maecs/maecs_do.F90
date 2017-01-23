@@ -1005,21 +1005,22 @@ write(*,'(A)') 'begin vert_move'
   _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
 ! increase vDet in shallow water:co-agulation with lithogenic particles
 !   vs_det = vs_det * (1.0_rk+ 4*exp(-(zmax/20.0_rk)**2))
+   vs_phy = vs_phy / secs_pr_day
+   !write (*,'(A,2(F10.3))') 'phyQstat, vs_phy=', phyQstat, vs_phy
+!   vs_det = -self%vS_det*aggf/secs_pr_day
+   vs_det = -self%vS_det / secs_pr_day
+
    vs_det = vs_det * (0.01*det%C)**0.38_rk
 
 ! slowing down of vertical velocities at high and very low concentration to smooth numerical problems in shallow, pesitional boxes
    vs_det = vs_det * 1.0_rk/(1.0_rk+(0.002*det%C +0.01*det%N + 1E6/(1+zmax)*self%small_finite/(det%C+self%small_finite) )**4  )
 ! additional slowdown in very shallow waters
-   if (vs_det .gt. 1.0_rk .and. zmax .lt. 8.0_rk)  
+   if (vs_det*secs_pr_day .gt. 1.0_rk .and. zmax .lt. 8.0_rk) then 
      ef = exp(2*(zmax-5.0_rk))
      vs_det = vs_det * (1.0_rk+ef)/(3.0_rk+ef)
    endif
    vs_phy = vs_phy * 1.0_rk/(1.0_rk+(0.002*phy%C + 50000.0_rk/(1+zmax)*self%small_finite/(phy%C+self%small_finite) )**4  )
 
-   vs_phy = vs_phy / secs_pr_day
-   !write (*,'(A,2(F10.3))') 'phyQstat, vs_phy=', phyQstat, vs_phy
-!   vs_det = -self%vS_det*aggf/secs_pr_day
-   vs_det = -self%vS_det / secs_pr_day
 
   !set the rates
    _SET_VERTICAL_MOVEMENT_(self%id_detC,vs_det)
