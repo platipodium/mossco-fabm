@@ -275,7 +275,7 @@ if (self%GrazingOn) then
       _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
 
        fa = self%zm_fa_inf +(1.0_rk-self%zm_fa_inf)/(1+exp(0.3*(zmax-27.0)))
-       relmort = fa + sqrt(fa)*self%zm_fa_delmax*sens%f_T2*0.25*(1-sin(2*(doy+75)*Pi/365.0))**2
+       relmort = fa + sqrt(fa)*self%zm_fa_delmax*sens%f_T2*0.25*(1-sin(2*(doy+45)*Pi/365.0))**2
        ksat_graz = fa * self%k_grazC
      case (1)
        fa = 1.0_rk/(1.0_rk+exp(2*(att-self%zm_fa_inf)))
@@ -1013,14 +1013,14 @@ write(*,'(A)') 'begin vert_move'
    vs_det = vs_det * (0.01*det%C)**0.38_rk
 
 ! slowing down of vertical velocities at high and very low concentration to smooth numerical problems in shallow, pesitional boxes
-   vs_det = vs_det * 1.0_rk/(1.0_rk+(0.002*det%C +0.01*det%N + 1E6/(1+zmax)*self%small_finite/(det%C+self%small_finite) )**4  )
+   ef     = 20_rk/(1+zmax)
+   vs_det = vs_det * 1.0_rk/(1.0_rk+((0.002*det%C +0.01*det%N + 100*self%small_finite/(det%C+self%small_finite))*ef )**4 )
 ! additional slowdown in very shallow waters
-   if (vs_det*secs_pr_day .gt. 1.0_rk .and. zmax .lt. 8.0_rk) then 
-     ef = exp(2*(zmax-5.0_rk))
-     vs_det = vs_det * (1.0_rk+ef)/(3.0_rk+ef)
-   endif
-   vs_phy = vs_phy * 1.0_rk/(1.0_rk+(0.002*phy%C + 50000.0_rk/(1+zmax)*self%small_finite/(phy%C+self%small_finite) )**4  )
-
+!   if (vs_det*secs_pr_day .gt. 1.0_rk .and. zmax .lt. 8.0_rk) then 
+!     ef = exp(2*(zmax-5.0_rk))
+!     vs_det = vs_det * (1.0_rk+ef)/(3.0_rk+ef)
+!   endif
+   vs_phy = vs_phy * 1.0_rk/(1.0_rk+((0.002*phy%C + 100*self%small_finite/(phy%C+self%small_finite))*ef )**4 )
 
   !set the rates
    _SET_VERTICAL_MOVEMENT_(self%id_detC,vs_det)
