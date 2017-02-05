@@ -274,7 +274,7 @@ if (self%GrazingOn) then
       _GET_GLOBAL_ (self%id_doy,doy) !day of year
       _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
 
-       fa = self%zm_fa_inf +(1.0_rk-self%zm_fa_inf)/(1+exp(0.3*(zmax-34.0)))
+       fa = self%zm_fa_inf +(1.0_rk-self%zm_fa_inf)/(1+exp(0.3*(zmax-20.0)))
        relmort = fa + sqrt(fa)*self%zm_fa_delmax*sens%f_T2*0.25*(1-sin(2*(doy+45)*Pi/365.0))**2
        ksat_graz = fa * self%k_grazC
      case (1)
@@ -436,7 +436,7 @@ rhsv%phyN =  uptake%N             * phy%C &
  if (self%VirusOn ) then
 !!  poc   = zoo%C + dom%C + det%C + phy%reg%C 
 !!  poc   = dom%P + det%P + phy%P + self%small_finite
-  poc   = dom%C + det%C + phy%C + self%small_finite
+!!  poc   = dom%C + det%C + phy%C + self%small_finite
            ! encounter prob. free virus conc around infected cell
            ! average distance ~ C^-1/3 + Gaussian/diffusive spots
 !  infect  = infect * exp(-1.0_rk/((phy%reg%C/10)**0.667_rk) )  
@@ -445,8 +445,8 @@ rhsv%phyN =  uptake%N             * phy%C &
 
 ! cross section by non-algae particles (bacteria+colloids)
 
-  a_lit = att - (self%a_spm*(det%C+zoo%C)+ self%a_doc*dom%C + self%a_phyc*phy%C + self%a_chl*phy%chl)
-  a_lit = abs(a_lit/(self%a_phyc + self%small_finite))
+! a_lit = att - (self%a_spm*(det%C+zoo%C)+ self%a_doc*dom%C + self%a_phyc*phy%C + self%a_chl*phy%chl)
+!  a_lit = abs(a_lit/(self%a_phyc + self%small_finite))
  ! viral replication 
  if (self%vir_mu .gt. 0.0_rk ) then
   vrepl = self%vir_mu *phy%relQ%N**2/(HALFQ**2+phy%relQ%N**2)! non-linear dependence on stoichiometry
@@ -458,7 +458,8 @@ rhsv%phyN =  uptake%N             * phy%C &
   vrepl = -self%vir_mu/(1.0_rk+ exp(-4.5*(phy%relQ%N-1.0_rk)))   ! linear dependence on stoichiometry
   if (self%PhosphorusOn) vrepl = vrepl/(1.0_rk+ exp(-4.5*(phy%relQ%P-1.0_rk)))
  endif   !phy%C* (1.0_rk+phy%reg%C/self%vir_phyC)
-  vrepl = vrepl * sens%f_T *phy%C**2/(poc + a_lit)  ! cross section interception
+ ! vrepl = vrepl * sens%f_T *phy%C**2/(poc + a_lit)  ! cross section interception
+  vrepl = vrepl * sens%f_T *phy%C  
   vrepl = vrepl/(1.0_rk+ exp(-self%vir_infect*(vir_max-vird)))   !capacity reached
 
 _SET_DIAGNOSTIC_(self%id_pPads, vrepl )       !average Temporary_diagnostic_
