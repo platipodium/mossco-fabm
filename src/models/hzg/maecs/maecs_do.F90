@@ -472,7 +472,7 @@ _SET_DIAGNOSTIC_(self%id_pPads, vrepl )       !average Temporary_diagnostic_
   vadap = vadap * vird/(vird+self%vir_spor_C)
  ! pathogenic diversity
 ! death and spore formation of viral cells
-  vmort = self%vir_spor_r * sens%f_T * vird/(vird+self%vir_spor_C) 
+  vmort = self%vir_spor_r * sens%f_T**2 * vird/(vird+self%vir_spor_C) 
 
   dvir_dt =  (vrepl - vadap - vmort) *phy%vir
   rhsv%vir = rhsv%phyC * phy%vir/phy%reg%C + dvir_dt 
@@ -1015,7 +1015,7 @@ write(*,'(A)') 'begin vert_move'
 
 ! slowing down of vertical velocities at high and very low concentration to smooth numerical problems in shallow, pesitional boxes
    ef     = 20_rk/(1+zmax)
-   vs_det = vs_det * 1.0_rk/(1.0_rk+((0.002*det%C +0.01*det%N + 100*self%small_finite/(det%C+self%small_finite))*ef )**4 )
+   vs_det = vs_det * 1.0_rk/(1.0_rk+((0.003*det%C +0.02*det%N + 100*self%small_finite/(det%C+self%small_finite))*ef )**4 )
 ! additional slowdown in very shallow waters
 !   if (vs_det*secs_pr_day .gt. 1.0_rk .and. zmax .lt. 8.0_rk) then 
 !     ef = exp(2*(zmax-5.0_rk))
