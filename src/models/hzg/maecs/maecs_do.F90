@@ -297,7 +297,7 @@ if (self%GrazingOn) then
   end if !self%GrazTurbOn .gt. 0
   zoo_mort   = self%mort_zoo * relmort* sens%f_T**self%fT_exp_mort ! * zoo%C
   if (self%GrazTurbOn .eq. 4 .or. self%GrazTurbOn .gt. 5) zoo_mort   = zoo_mort + self%mort_zoo
-!  if (self%GrazTurbOn .eq. 0)  zoo_mort   = zoo_mort + self%basal_resp_zoo*0.5
+
 !  if (self%GrazTurbOn .eq. 0)  zoo_mort   = zoo_mort*
 !!  write (*,'(A,4(F11.3))') 'Zm=',att,relmort,zoo%C,zoo_mort
 
@@ -305,7 +305,7 @@ if (self%GrazingOn) then
 
   call grazing(self%g_max * sens%f_T2,ksat_graz,phy%C,graz_rate)
   zoo%feeding = graz_rate
-  zoo_respC   = self%basal_resp_zoo * sens%f_T  !  basal respiration of grazers
+  zoo_respC   = self%basal_resp_zoo * sens%f_T2  !  basal respiration of grazers
   nquot       = type_maecs_om(1.0_rk, phy%Q%N, phy%Q%P, phy%Q%Si )
   mswitch     = type_maecs_switch(self%PhosphorusOn,self%SiliconOn,.true. )
 
@@ -920,7 +920,7 @@ logical  :: IsCritical = .false. ! phyC and phyN below reasonable range ?
 
 !
 ! !LOCAL VARIABLES: 
-REALTYPE    :: phyQstat, ef, vs_phy,vs_det, phyEner, minPigm,min_Cmass, minc, zmax
+REALTYPE    :: phyQstat, ef, vs_phy,vs_det, phyEner, minPigm,min_Cmass, minc, zmax, par, vs_zoo
 !REALTYPE    :: aggf, agge=16.d0
 REALTYPE, parameter :: secs_pr_day = 86400.d0 
 !EOP
@@ -1028,8 +1028,12 @@ write(*,'(A)') 'begin vert_move'
    _SET_VERTICAL_MOVEMENT_(self%id_detN,vs_det)
    _SET_VERTICAL_MOVEMENT_(self%id_phyN,vs_phy)
    _SET_VERTICAL_MOVEMENT_(self%id_phyC,vs_phy)
-!   if (self%ZooSinkMeth .eq. 1) then
-!    _SET_VERTICAL_MOVEMENT_(self%id_zooC,vs_phy)
+!   if (ef .lt. 1.0_rk) then
+!    _GET_(self%id_par, par)  ! light photosynthetically active radiatio
+!    vs_zoo = 22.0_rk * (1.0_rk-2.0_rk/(1.0_rk + exp(1.0d0-par)))
+!    _SET_VERTICAL_MOVEMENT_(self%id_zooC,vs_zoo / secs_pr_day)
+!   else
+!    _SET_VERTICAL_MOVEMENT_(self%id_zooC,0.0_rk)
 !   endif
    if (self%PhosphorusOn) then
       _SET_VERTICAL_MOVEMENT_(self%id_phyP,vs_phy)
