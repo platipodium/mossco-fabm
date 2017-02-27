@@ -11,6 +11,7 @@ module hzg_model_library
    use hzg_benthic_pool
    use hzg_Ndepoden
    use fabm_hzg_dependencies
+   use hzg_kristineb
    ! Add new HZG models here
     
    implicit none
@@ -39,6 +40,7 @@ contains
          case ('n2pzdq'); allocate(type_hzg_n2pzdq::model)
          case ('maecs'); allocate(type_hzg_maecs::model) 
          case ('medmac'); allocate(type_hzg_medmac::model)
+         case ('kristineb'); allocate(type_hzg_kristineb::model)
          case ('Ndepoden'); allocate(type_hzg_Ndepoden::model) 
          case ('benthic_pool'); allocate(type_hzg_benthic_pool::model)         
          case ('dependencies'); allocate(type_hzg_dependencies::model)
