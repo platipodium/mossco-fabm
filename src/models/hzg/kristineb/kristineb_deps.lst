@@ -1,0 +1,8 @@
+!-------------------------------------------------------------------------------
+!  - external dependencies (forcing)
+!-------------------------------------------------------------------------------
+Cop	µg-C/L dependency downwelling_photosynthetic_radiative_flux biomass from data
+Temp	degrees-C dependency temperature temperature HR
+Phy_dep	µg-C/L dependency practical_salinity phytoplankton biomass HR
+pCO2_low
+pCO2_high

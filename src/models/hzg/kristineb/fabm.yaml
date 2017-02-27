@@ -1,0 +1,8 @@
+instances:
+  hzg_kristineb:
+    long_name: kristineb
+    model: hzg/kristineb
+#    coupling:
+#      cil_l: hzg_kristineb/cil_l
+#      cil_s: hzg_kristineb/cil_s
+#      copepod: hzg_kristineb/copepod

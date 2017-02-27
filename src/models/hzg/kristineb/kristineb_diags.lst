@@ -1,0 +1,18 @@
+!-------------------------------------------------------------------------------
+!  - diagnostic variables
+!-------------------------------------------------------------------------------
+!prod		1/d 	step_integrated Graz secondary production rate
+!Mort		1/d	step_integrated mort_sum mortality rate 
+!Imax_cop	1/d	step_integrated Imax maximum ingestion rate adult Cops
+!mort_P		1/d	step_integrated mort_P density dependent mortality 
+!mixBmass	1/d	step_integrated dConc(2,1) mass exchange rate Coast-HR-Offshore
+!mixlsize	1/d	step_integrated dTrait(2,1) trait exchange rate Coast-HR-Offshore
+!Tdep		1/d	step_integrated Temp_dep Temperature dependency
+chl_a
+mean_cell_size  mu m    step_integrated mean cell size of Phytoplankton
+size_diversity		step_integrated size diversity of phytoplankton
+fPAR			step_integrated PAR forcing
+fCO2			step_integrated CO2 forcing
+FTPhy			step_integrated Temperature forcing for phytoplankton
+FTZoo			step_integrated Temperature forcing for zooplankton
+grazing			step_integrated grazing by predators
