@@ -59,7 +59,7 @@ echo "set ylabel 'N ({/Symbol m}mol-C L^{-1})'" >> ${plotfile}
 echo "set y2label 'P ({/Symbol m}mol-C L^{-1})'" >> ${plotfile}
 printf "plot '${inputfile}' u 1:${row} w l t 'N' lc rgb 'red'" >> ${plotfile}
 let row=${row}+1
-printf ",'${inputfile}'  u 1:${row} axes x1y2 w l  t 'P' lc rgb 'green','${Obsfolder}/${loworhigh}CO2.dat' u 1:3 axes x1y1 w p pt 6 ps 0.5 lc rgb 'red' t '','${Obsfolder}/${loworhigh}CO2.dat' u 1:4 axes x1y2 w p pt 6 ps 0.5 lc rgb 'green' t ''\n" >> ${plotfile}
+printf ",'${inputfile}'  u 1:${row} axes x1y2 w l  t 'P' lc rgb 'green','${Obsfolder}/${loworhigh}CO2.dat' u 1:3 axes x1y1 w p pt 6 ps 0.5 lc rgb 'red' notitle,'${Obsfolder}/${loworhigh}CO2.dat' u 1:4 axes x1y2 w p pt 6 ps 0.5 lc rgb 'green' notitle\n" >> ${plotfile}
 printf '\n' >> ${plotfile}
 echo "set ylabel 'D_N ({/Symbol m}mol-C L^{-1})'" >> ${plotfile}
 echo "set y2label 'D_P ({/Symbol m}mol-C L^{-1})'" >> ${plotfile}
@@ -73,12 +73,12 @@ let row=${row}+1
 echo "unset y2tics" >> ${plotfile}
 echo "unset y2label" >> ${plotfile}
 echo "set ylabel 'Chl_a {/Symbol m}gCL^{-1}'" >> ${plotfile}
-echo "plot '${inputfile}' u 1:${row} w l t 'Chl_a', '${Obsfolder}/${loworhigh}CO2.dat' u 1:7 w p pt 6 ps 0.5 lc rgb 'black' t ''" >>${plotfile}
+echo "plot '${inputfile}' u 1:${row} w l t 'Chl_a', '${Obsfolder}/${loworhigh}CO2.dat' u 1:7 w p pt 6 ps 0.5 lc rgb 'black' notitle" >>${plotfile}
 ##
 echo "set y2tics" >> ${plotfile}
 echo "set ylabel '{/Symbol m}m'" >>${plotfile}
 let row=${row}+1
-printf "plot '${inputfile}' u 1:${row} axes x1y1 w l t 'Mean cell size'" >> ${plotfile}
+printf "plot '${inputfile}' u 1:${row} axes x1y1 w l lc rgb 'red' t 'Mean cell size','${Obsfolder}/${loworhigh}CO2.dat' u 1:8 axes x1y1 w p pt 6 ps 0.5 lc rgb 'red' notitle" >> ${plotfile}
 let row=${row}+1
 printf ",'${inputfile}' u 1:${row} axes x1y2 w l t 'size diverstiy'\n" >> ${plotfile}
 #
