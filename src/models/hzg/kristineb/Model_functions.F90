@@ -9,7 +9,9 @@ implicit none
    real(rk) :: b_Qmin_P2,a_Qmin_P2,b_Qmax_P2,a_Qmax_P2,b_Vmax_P2,a_Vmax_P2,b_Kn_P2,a_Kn_P2
 !----------------
 !--- Phytoplankton eco-physiological parameters ---
+  b_mumax2=10.0**self%b_mumax
   b_qmin_N2=10.0**self%b_qmin_N
+  b_qmax_N2=10.0**self%b_qmax_N
   b_vmax_N2=10.0**self%b_vmax_N
   b_kn_N2=10.0**self%b_kn_N
   b_carbon2=10.0**self%b_carbon
@@ -19,10 +21,10 @@ implicit none
   b_kn_P2=10.0**self%b_kn_P  
         ! Conversion of Phytoplankton eco-physiological parameters to ESD and mole-C base --- Nitorgen
         call convert_BGCparams(b_qmin_N2,self%a_qmin_N,self%a_carbon,b_carbon2,b_qmin_N2,a_qmin_N2)
-        call convert_BGCparams(self%b_qmax_N,self%a_qmax_N,self%a_carbon,b_carbon2,b_qmax_N2,a_qmax_N2)
+        call convert_BGCparams(b_qmax_N2,self%a_qmax_N,self%a_carbon,b_carbon2,b_qmax_N2,a_qmax_N2)
         call convert_BGCparams(b_vmax_N2,self%a_vmax_N,self%a_carbon,b_carbon2,b_vmax_N2,a_vmax_N2)
 
-        b_Mumax2=self%b_mumax*(acos(-1.0)/6.)**self%a_mumax
+        b_Mumax2=b_mumax2*(acos(-1.0)/6.)**self%a_mumax
         a_Mumax2=3*(self%a_mumax)
 
         b_Kn_N2=b_kn_N2*(acos(-1.0)/6.)**self%a_kn_N
@@ -276,7 +278,8 @@ implicit none
             qN=(Q_N(i)-bgc_params(2))/(bgc_params(3)-bgc_params(2))
             qP=(Q_P(i)-bgc_params(7))/(bgc_params(8)-bgc_params(7))
 !         healthy, non-limited cells create buouyancy
-            physiol = exp(-4.0_rk*qN*qP)
+ !           physiol = exp(-4.0_rk*qN*qP)
+            physiol = exp(-0.5*((qP*qN)*16.0)**2) !Todo: Why?
 !         size dependency: Stokes - vacuolation
             sinking(i)=physiol*exp(0.5_rk*self%log_ESD(i))* 0.3_rk/self%z 
 !z=mixed layer depth
@@ -486,9 +489,10 @@ implicit none
  real(rk),dimension(self%phyto_num),intent(in) :: respiration! Phytoplankton respiration rate, d^-1
  real(rk),dimension(self%phyto_num),intent(in) :: sinking! Phytoplankton sinking rate, d^-1
  integer::i
+ real(rk), parameter::eps=0.0001_rk !Small parameter to provide division by zero
  rel_growth_rate=0.0_rk
         do i=1,self%phyto_num
-            rel_growth_rate(i)=growth_rate(i)-respiration(i)-sinking(i)-self%m-aggregation-grazing_forc(i)/Phy(i)
+            rel_growth_rate(i)=growth_rate(i)-respiration(i)-sinking(i)-self%m-aggregation-grazing_forc(i)/(eps+Phy(i))
 	end do
         return 
 end subroutine
@@ -515,15 +519,23 @@ implicit none
  real(rk),dimension(self%phyto_num), intent(in) ::Phy
  real(rk),dimension(self%phyto_num) :: mean_nom
  real(rk) :: mean_nom_sum,Phy_tot
+ real(rk), dimension(self%phyto_num) :: Phy_tmp
  integer :: i
 !        :param Phy: Phytoplankton biomass concentration, mmol-C m^-3
 !        :return: community mean cell size, log_e ESD (mu m)
 !        """
+mean_nom=0.0_rk
+Phy_tmp=Phy
 	do i=1,self%phyto_num
-	        mean_nom(i)=Phy(i)*self%log_ESD(i)
+	!Larger Diatoms (L>3.5) were counted seperately
+	        if(self%log_ESD(i)<3.5) then
+		  mean_nom(i)=Phy(i)*self%log_ESD(i)
+		else
+		  Phy_tmp(i)=0.0_rk
+		end if
 	end do
         mean_nom_sum=sum(mean_nom)
-        mean_cell_size=mean_nom_sum/sum(Phy)
+        mean_cell_size=mean_nom_sum/sum(Phy_tmp)
         return
 end function
 !------------------------------------------------------------------------------
@@ -562,11 +574,11 @@ implicit none
  real(rk) :: Qmin_P, Qmax_P, vmax_P, Kn_P, affinity_P
  
 !     Nonlinear mumax
-    if (log(s) <=2.06_rk) then
-        mu_max=(exp(log(self%pars(1))+log(s)*self%pars(2)))*self%pars(3)
-    else
-        mu_max= (exp(log(self%pars(4))+log(s)*self%pars(5)))*self%pars(3)
-    end if
+!    if (log(s) <=2.06_rk) then
+!        mu_max=(exp(log(self%pars(1))+log(s)*self%pars(2)))*self%pars(3)
+!    else
+!        mu_max= (exp(log(self%pars(4))+log(s)*self%pars(5)))*self%pars(3)
+!    end if
     mu_max=allometries_esd(self%pars(26),self%pars(27),s)
     Qmin_N=allometries_esd(self%pars(6),self%pars(7),s)
     Qmax_N=allometries_esd(self%pars(8),self%pars(9),s)
