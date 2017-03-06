@@ -18,7 +18,15 @@ implicit none
   b_qmax_P2=10.0**self%b_qmax_P
   b_qmin_P2=10.0**self%b_qmin_P
   b_vmax_P2=10.0**self%b_vmax_P
-  b_kn_P2=10.0**self%b_kn_P  
+  b_kn_P2=10.0**self%b_kn_P
+  !      Nonlinear mumax
+  b_mumax_large2=10.0**self%b_mumax_large
+  b_Mumax_large2=b_mumax_large2*(acos(-1.0)/6.)**self%a_mumax_large
+  a_Mumax_large2=3*self%a_mumax_large 
+  b_Mumax_small2=10.0**self%b_mumax_small 
+  b_Mumax_small2=b_mumax_small2*(acos(-1.0)/6.)**self%a_mumax_small
+  a_Mumax_small2=3*self%a_mumax_small 
+   !     
         ! Conversion of Phytoplankton eco-physiological parameters to ESD and mole-C base --- Nitorgen
         call convert_BGCparams(b_qmin_N2,self%a_qmin_N,self%a_carbon,b_carbon2,b_qmin_N2,a_qmin_N2)
         call convert_BGCparams(b_qmax_N2,self%a_qmax_N,self%a_carbon,b_carbon2,b_qmax_N2,a_qmax_N2)
@@ -45,11 +53,11 @@ implicit none
         a_affin_P2= a_Vmax_P2/a_Kn_P2 !-1
         b_affin_P2= b_Vmax_P2/b_Kn_P2 !0.5
  parsout=0.0_rk
- !parsout(1) = b_Mumax_small
-! parsout(2) = a_Mumax_small
+ parsout(1) = b_Mumax_small2
+ parsout(2) = a_Mumax_small2
  parsout(3) = self%mumax_incr
- !parsout(4) = b_Mumax_large
- !parsout(5) = a_Mumax_large
+ parsout(4) = b_Mumax_large2
+ parsout(5) = a_Mumax_large2
  parsout(6) = b_Qmin_N2
  parsout(7) = a_Qmin_N2
  parsout(8) = b_Qmax_N2
@@ -574,12 +582,13 @@ implicit none
  real(rk) :: Qmin_P, Qmax_P, vmax_P, Kn_P, affinity_P
  
 !     Nonlinear mumax
-!    if (log(s) <=2.06_rk) then
-!        mu_max=(exp(log(self%pars(1))+log(s)*self%pars(2)))*self%pars(3)
-!    else
-!        mu_max= (exp(log(self%pars(4))+log(s)*self%pars(5)))*self%pars(3)
-!    end if
-    mu_max=allometries_esd(self%pars(26),self%pars(27),s)
+    if (log(s) <=2.06_rk) then
+        mu_max=(exp(log(self%pars(1))+log(s)*self%pars(2)))*self%pars(3)
+    else
+        mu_max= (exp(log(self%pars(4))+log(s)*self%pars(5)))*self%pars(3)
+    end if
+  !linear mumax
+    !mu_max=allometries_esd(self%pars(26),self%pars(27),s)
     Qmin_N=allometries_esd(self%pars(6),self%pars(7),s)
     Qmax_N=allometries_esd(self%pars(8),self%pars(9),s)
     vmax_N =allometries_esd(self%pars(10),self%pars(11),s)

@@ -32,7 +32,7 @@ real(rk) ::  z, tot_depth, m, frac_md, frac_mn, mol_ratio, chla_to_T_PhyN, n_sta
 real(rk) :: T_ref, Tcons_phy, Tcons_zoo, n_syn, I_max0, a_Im0, y, graz_const, sel_cop_cil, a_gr, r_dn, det_sink_r, A_star_opt,R_A
 real(rk),dimension(3) :: sel,Lz_star,Lz
 !
-real(rk) :: b_mumax,a_mumax,mumax_incr,b_qmin_N,a_qmin_N,b_qmax_N,a_qmax_N,b_vmax_N,a_vmax_N,b_kn_N,a_kn_N,b_carbon,a_carbon
+real(rk) :: b_mumax,a_mumax,b_mumax_large,a_mumax_large,b_mumax_small,a_mumax_small,mumax_incr,b_qmin_N,a_qmin_N,b_qmax_N,a_qmax_N,b_vmax_N,a_vmax_N,b_kn_N,a_kn_N,b_carbon,a_carbon
 real(rk) :: b_qmin_P,a_qmin_P,b_qmax_P,a_qmax_P,b_vmax_P,a_vmax_P,b_kn_P,a_kn_P
 !
 logical  ::  SwitchOn, DiagOn, DebugOn, OptionOn, T_forc, co2_forc, PAR_forc, graz_forc, convert_mu, co2_low
@@ -216,6 +216,10 @@ real(rk),dimension(11)::tmp
 !!------ Parameter for scaling relations -------
 real(rk) :: b_mumax
 real(rk) :: a_mumax
+real(rk) :: b_mumax_small
+real(rk) :: a_mumax_small
+real(rk) :: b_mumax_large
+real(rk) :: a_mumax_large
 real(rk) :: mumax_incr
 real(rk) :: b_qmin_N 
 real(rk) :: a_qmin_N
@@ -252,7 +256,7 @@ namelist /kristineb_switch/ &
   Nut_lim
 
 namelist /kristineb_scal/ &
-  b_mumax, a_mumax, mumax_incr, b_qmin_N , a_qmin_N, b_qmax_N , a_qmax_N, b_vmax_N, a_vmax_N, &
+  b_mumax, a_mumax,b_mumax_small, a_mumax_small,b_mumax_large, a_mumax_large, mumax_incr, b_qmin_N , a_qmin_N, b_qmax_N , a_qmax_N, b_vmax_N, a_vmax_N, &
   b_kn_N, a_kn_N, b_carbon, a_carbon, b_qmin_P, a_qmin_P, b_qmax_P, a_qmax_P, b_vmax_P, &
   a_vmax_P, b_kn_P, a_kn_P
 
@@ -317,24 +321,28 @@ log_ESD      =(/0.5,1.0,1.3,1.6,1.9,2.2,2.5,3.,3.5,4.,4.5,5.,5.5/)
    !---
  b_mumax = 5.01
  a_mumax = -0.24
+ b_mumax_small = 0.25 !(10**)
+ a_mumax_small = 0.05
+ b_mumax_large = 1.08 !(10**)
+ a_mumax_large = -0.28 
  mumax_incr = 3.0
- b_qmin_N = 10.0**(-9.2)
+ b_qmin_N = -9.2
  a_qmin_N = 0.77
  b_qmax_N = 4.E-9
  a_qmax_N = 0.89
- b_vmax_N = 10.0**(-8.1)
+ b_vmax_N = -8.1
  a_vmax_N = 0.82
- b_kn_N = 10.0**(-0.84)
+ b_kn_N = -0.84
  a_kn_N = 0.33
- b_carbon = 10.0**(-0.69)
+ b_carbon = -0.69
  a_carbon = 0.88
- b_qmin_P = 10.0**(-10.6)
+ b_qmin_P = -10.6
  a_qmin_P = 0.79
- b_qmax_P = 10.0**(-9.32)
+ b_qmax_P = -9.32
  a_qmax_P = 0.80
- b_vmax_P = 10.0**(-9.1)
+ b_vmax_P = -9.1
  a_vmax_P = 0.81
- b_kn_P = 10.0**(-1.4)
+ b_kn_P = -1.4
  a_kn_P = 0.41
 !--------- read namelists --------- 
 write(0,*) ' read namelists ....'
@@ -365,6 +373,10 @@ call self%get_parameter(self%Nut_lim,       'Nut_lim',       default=Nut_lim)
 !!------ parameters for scaling relations -----
 call self%get_parameter(self%b_mumax,	'b_mumax',	default=b_mumax)
 call self%get_parameter(self%a_mumax,	'a_mumax',	default=a_mumax)
+call self%get_parameter(self%b_mumax_small,	'b_mumax_small',	default=b_mumax_small)
+call self%get_parameter(self%a_mumax_small,	'a_mumax_small',	default=a_mumax_small)
+call self%get_parameter(self%b_mumax_large,	'b_mumax_large',	default=b_mumax_large)
+call self%get_parameter(self%a_mumax_large,	'a_mumax_large',	default=a_mumax_large)
 call self%get_parameter(self%mumax_incr,	'mumax_incr',	default=mumax_incr)
 call self%get_parameter(self%b_qmin_N,	'b_qmin_N',	default=b_qmin_N)
 call self%get_parameter(self%a_qmin_N,	'a_qmin_N',	default=a_qmin_N)
