@@ -39,8 +39,8 @@ implicit none
         a_Kn_N2=3*(self%a_kn_N)
 
         ! Nutrient affinity, m^3 mmol-C d^1
-        a_affin_N2= a_Vmax_N2/a_Kn_N2 !-1
-        b_affin_N2= b_Vmax_N2/b_Kn_N2 !0.4
+        !a_affin_N2= a_Vmax_N2/a_Kn_N2 !-1
+        !b_affin_N2= b_Vmax_N2/b_Kn_N2 !0.4
 
         ! Conversion of Phytoplankton eco-physiological parameters to ESD and mole-C base --- Phosphorous
         call convert_BGCparams(b_qmin_P2,self%a_qmin_P,self%a_carbon,b_carbon2,b_qmin_P2,a_qmin_P2)
@@ -50,8 +50,8 @@ implicit none
         b_Kn_P2=b_kn_P2*(acos(-1.0)/6.)**self%a_kn_P
         a_Kn_P2=3*(self%a_kn_P)
 
-        a_affin_P2= a_Vmax_P2/a_Kn_P2 !-1
-        b_affin_P2= b_Vmax_P2/b_Kn_P2 !0.5
+        !a_affin_P2= a_Vmax_P2/a_Kn_P2 !-1
+        !b_affin_P2= b_Vmax_P2/b_Kn_P2 !0.5
  parsout=0.0_rk
  parsout(1) = b_Mumax_small2
  parsout(2) = a_Mumax_small2
@@ -64,8 +64,8 @@ implicit none
  parsout(9) = a_Qmax_N2
  parsout(10) = b_Vmax_N2
  parsout(11) = a_Vmax_N2
- parsout(12) = b_affin_N2
- parsout(13) = a_affin_N2
+! parsout(12) = b_affin_N2
+ !parsout(13) = a_affin_N2
  parsout(14) = b_Kn_N2
  parsout(15) = a_Kn_N2
  parsout(16) = b_Qmin_P2
@@ -76,8 +76,8 @@ implicit none
  parsout(21) = a_Vmax_P2
  parsout(22) = b_Kn_P2
  parsout(23) = a_Kn_P2
- parsout(24) = b_affin_P2
- parsout(25) = a_affin_P2
+ !parsout(24) = b_affin_P2
+ !parsout(25) = a_affin_P2
  parsout(26) = b_mumax2
  parsout(27) = a_mumax2
  parsout(28) = b_carbon2
@@ -151,12 +151,12 @@ implicit none
             phyNtot = sum(phyN(:)) * self%k_phyN
             k = self%kbg + phyNtot
 !             par_w: Average light intensity within mixed layer depth,
- !           par_w = self%id_Cop / (self%z * k) * (1._rk - exp(-1._rk * k * self%z))
-            par_w = par_tmp / (self%z * k) * (1._rk - exp(-1.0_rk * k * self%z))
+            par_w = par / (self%z * k) * (1.0_rk - exp(-1.0_rk * k * self%z))
+          !  par_w = par_tmp / (self%z * k) * (1._rk - exp(-1.0_rk * k * self%z))
             do i=1,self%phyto_num
-		call bgc_parameters(self,exp(self%log_ESD(i)), bgc_params)
-               ! f_par(i)=1.0_rk-exp(-(self%a_par*par_w)/(bgc_params(1)*f_co2(i)*F_T(1)))
-                f_par(i)=par_w/(par_w+((bgc_params(1)*f_co2(i)*F_T(1))/self%alpha))
+		call bgc_parameters(self,self%log_ESD(i), bgc_params)
+                f_par(i)=1.0_rk-exp(-(self%a_par*par_w*Q_N(i))/(bgc_params(1)*f_co2(i)*F_T(1)))
+            !    f_par(i)=par_w/(par_w+((bgc_params(1)*f_co2(i)*F_T(1))/(self%alpha)))
 	    end do
 	end if
         return 
@@ -177,7 +177,7 @@ implicit none
    real(rk)::f_nut,r,n,g_N,mu_max,q_Nl,q_Pl
 	nutlim=int(self%Nut_lim)
         Do i=1,self%phyto_num
-	    call bgc_parameters(self,exp(self%log_ESD(i)),bgc_params)
+	    call bgc_parameters(self,self%log_ESD(i),bgc_params)
             !if mu_inf is given instead of mu_max, we should correct:
             if (self%convert_mu .eqv. .true.) then
                 mu_max=bgc_params(1)*(bgc_params(3)/(bgc_params(3)-bgc_params(2)))
@@ -236,7 +236,7 @@ implicit none
   uptake_rate_N=0.0_rk
 	if (par>0.0) then  !No uptake during night
         Do i=1,self%phyto_num
-	    call bgc_parameters(self,exp(self%log_ESD(i)), bgc_params)
+	    call bgc_parameters(self,self%log_ESD(i), bgc_params)
             nom_N=bgc_params(4)*bgc_params(6)*N
             dom_N=bgc_params(4)+bgc_params(6)*N
             q=max(0.0_rk,(bgc_params(3)-Q_N(i))/(bgc_params(3)-bgc_params(2)))
@@ -260,7 +260,7 @@ implicit none
  	uptake_rate_P=0.0_rk
 	if (par>0.0) then !No uptake during night
 	  Do i=1,self%phyto_num
-	    call bgc_parameters(self,exp(self%log_ESD(i)), bgc_params)
+	    call bgc_parameters(self,self%log_ESD(i), bgc_params)
             nom_P=bgc_params(9)*bgc_params(11)*P
             dom_P=bgc_params(9)+bgc_params(11)*P
             q=max(0.0_rk,(bgc_params(8)-Q_P(i))/(bgc_params(8)-bgc_params(7)))
@@ -307,7 +307,7 @@ implicit none
         return
 end subroutine
 !------------------------------------------------------------------------------
-subroutine Grazing_forcing(self,Phy,F_T,Mean,zoo_pref,cop_pref,Zoo,grazing)
+subroutine Grazing_forcing(self,Phy,F_T,Mean,zoo_pref,cop_pref,Zoo,grazing,I_max)
 implicit none
  class (type_hzg_kristineb),intent(in) :: self
  integer:: i,j,c
@@ -316,11 +316,13 @@ implicit none
  real(rk),dimension(2),intent(in) :: F_T!(2) Temperature dependency for zooplankton
  real(rk),intent(in) :: Mean! Community mean cell size, log_e ESD (mu m)
  real(rk),dimension(self%phyto_num),intent(out) :: grazing !Grazing forcing, mmol-C m^-3 d^-1
- real(rk)::eff_food_ciliat,nom,dom,a_zoo,I_max_star, x,g_x,G_min,mean_eff_food_ciliat,G
- real(rk),dimension(self%zoo_num,self%phyto_num):: eff_food,mean_eff_food,graz_j
- real(rk),dimension(self%zoo_num) :: eff_food_con,mean_eff_food_con,I_max,glob_graz
+ real(rk)::eff_food_ciliat,nom,dom,a_zoo,I_max_star, x,g_x,G_min,mean_eff_food_ciliat,G,downreg
+ real(rk),dimension(self%zoo_num,self%phyto_num):: eff_food,mean_eff_food,graz_j,graz_j_spec
+ real(rk),dimension(self%zoo_num) :: eff_food_con,mean_eff_food_con,glob_graz
+ real(rk),dimension(self%zoo_num), intent(out) :: I_max
  real(rk),dimension(self%zoo_num,self%phyto_num),intent(in)::zoo_pref
  real(rk),dimension(self%num_ciliat), intent(in)::cop_pref
+ real(rk),parameter::eps=0.001_rk
  grazing=0.0_rk
 	if (self%graz_forc .eqv. .true.) then
             ! Effective food concentration
@@ -372,12 +374,19 @@ implicit none
             graz_j=0.0_rk
             Do i=1,self%phyto_num
 	      Do j=1,self%zoo_num
-                graz_j(j,i)=glob_graz(j)*(zoo_pref(j,i)*Phy(i)/eff_food_con(j))
+                graz_j_spec(j,i)=zoo_pref(j,i)*Phy(i)/(eff_food_con(j)+eps)
+                graz_j(j,i)=glob_graz(j)*graz_j_spec(j,i)
 	      end do
 	    end do
+	    
+	    Do j=1,self%zoo_num
+	      G=sum(graz_j(j,:))
+	      downreg=1.0_rk/(1.0_rk+exp(-(G-G_min)/0.05_rk))
+	      graz_j(j,:)=downreg*graz_j(j,:)
+	    end do
+	    
 	    do i=1,self%phyto_num
-		G=sum(graz_j(:,i))
-		grazing(i)=G/(1.0_rk+exp(-(G-G_min)/0.05_rk))
+		grazing(i)=sum(graz_j(:,i))
 	    end do
         else
             grazing(:)=0.0_rk
@@ -456,7 +465,7 @@ implicit none
 	end do
         !common_part =  self%r_dn*D_N*F_T(1)! #+ r_mix *(Nit_bot-N) 
 	!dN_dt=common_part+sum(dyn_part(:))
-        dN_dt=self%r_dn*D_N*F_T(1)-sum(up(:))+sum(gr(:))
+        dN_dt=self%r_dn*D_N*F_T(1)-sum(up(:))!+sum(gr(:))
         return
 end function
 !------------------------------------------------------------------------------
@@ -482,7 +491,7 @@ implicit none
 	end do
 !        common_part = self%r_dn*D_P*F_T(1)!#+ r_mix*(P_bot-P)
 !	dP_dt=common_part+sum(dyn_part(:))
-	dP_dt=self%r_dn*D_P*F_T(1)+sum(gr(:))-sum(up(:))
+	dP_dt=self%r_dn*D_P*F_T(1)-sum(up(:))!+sum(gr(:))
 return
 end function
 !------------------------------------------------------------------------------
@@ -533,6 +542,7 @@ implicit none
 !        :return: community mean cell size, log_e ESD (mu m)
 !        """
 mean_nom=0.0_rk
+mean_cell_size=0.0_rk
 Phy_tmp=Phy
 	do i=1,self%phyto_num
 	!Larger Diatoms (L>3.5) were counted seperately
@@ -543,7 +553,7 @@ Phy_tmp=Phy
 		end if
 	end do
         mean_nom_sum=sum(mean_nom)
-        mean_cell_size=mean_nom_sum/sum(Phy_tmp)
+        if (sum(Phy_tmp) /= 0.0) mean_cell_size=mean_nom_sum/sum(Phy_tmp)
         return
 end function
 !------------------------------------------------------------------------------
@@ -568,27 +578,28 @@ real(rk) function allometries_esd(beta,alpha,s)
  real(rk), intent(in) :: alpha! Size scaling exponent for trait
  real(rk), intent(in) :: s! Equivalent spherical diamater, mu m
 !    :return: trait=exp^(log_e(beta)+alpha*log_e(ESD))
-    allometries_esd =exp(log(beta)+alpha*log(s))
+    allometries_esd =beta*exp(alpha*s)
     return
 end function
 !------------------------------------------------------------------------------
 subroutine bgc_parameters(self,s, bgc_params)
-implicit none
+implicit none!    :return: Phytoplankton eco-physiological traits
  class (type_hzg_kristineb),intent(in) :: self
  real(rk),intent (in) :: s! Equivalent spherical diamater, mu m
-!    :return: Phytoplankton eco-physiological traits
  real(rk),dimension(11),intent (out)::bgc_params
  real(rk) :: mu_max, Qmin_N, Qmax_N, vmax_N, Kn_N, affinity_N
- real(rk) :: Qmin_P, Qmax_P, vmax_P, Kn_P, affinity_P
+ real(rk) :: Qmin_P, Qmax_P, vmax_P, Kn_P, affinity_P,tmp
  
 !     Nonlinear mumax
-    if (log(s) <=2.06_rk) then
-        mu_max=(exp(log(self%pars(1))+log(s)*self%pars(2)))*self%pars(3)
-    else
-        mu_max= (exp(log(self%pars(4))+log(s)*self%pars(5)))*self%pars(3)
-    end if
+!    mu_max=self%pars(3)*min(self%pars(1)*exp(s*self%pars(2)), &
+!     &  self%pars(4)*exp(+s*self%pars(5)))
+
+    tmp=self%pars(1)*exp(2.29_rk*self%pars(2))
+    mu_max=self%pars(3)*min(self%pars(1)*exp(s*self%pars(2)),tmp*exp((s-tmp)*self%pars(5)))
+    
   !linear mumax
     !mu_max=allometries_esd(self%pars(26),self%pars(27),s)
+    
     Qmin_N=allometries_esd(self%pars(6),self%pars(7),s)
     Qmax_N=allometries_esd(self%pars(8),self%pars(9),s)
     vmax_N =allometries_esd(self%pars(10),self%pars(11),s)
@@ -596,15 +607,15 @@ implicit none
     !if (log(s)<2.3_rk) then
     !    affinity_N=self%pars(12)*dexp(self%pars(13)*2.3_rk)
     !else
-        affinity_N=allometries_esd(self%pars(12),self%pars(13),s)
+
     !end if
     Kn_N =allometries_esd(self%pars(14),self%pars(15),s)
-
+    affinity_N=vmax_N/Kn_N !allometries_esd(self%pars(12),self%pars(13),s)
     Qmin_P=allometries_esd(self%pars(16),self%pars(17),s)
     Qmax_P=allometries_esd(self%pars(18),self%pars(19),s)
     vmax_P =allometries_esd(self%pars(20),self%pars(21),s)
     Kn_P =allometries_esd(self%pars(22),self%pars(23),s)
-    affinity_P=allometries_esd(self%pars(24),self%pars(25),s)
+    affinity_P=vmax_P/Kn_P !allometries_esd(self%pars(24),self%pars(25),s)
 
     bgc_params(1) = mu_max
     bgc_params(2) = Qmin_N
@@ -632,7 +643,7 @@ implicit none
  real(rk), intent(out)::ESD_beta,ESD_alpha
  real(rk) :: beta_cell_moleC
     beta_cell_moleC=(beta/b_carbon)*12._rk*10_rk**6!  #moleX/moleC
-    ESD_beta=(beta_cell_moleC*((acos(-1.0_rk)/6.0_rk)**(alpha-a_carbon)))
+    ESD_beta=beta_cell_moleC*((acos(-1.0_rk)/6.0_rk)**(alpha-a_carbon))
     ESD_alpha=3.0_rk*(alpha-a_carbon)
     return
 end subroutine
@@ -644,5 +655,3 @@ integer, intent(in) :: i
 write(int2char,'(i3)') i
 int2char = adjustl(int2char)
 End Function int2char
-
-

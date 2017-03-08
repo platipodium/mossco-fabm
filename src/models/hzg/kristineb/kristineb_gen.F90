@@ -1,4 +1,7 @@
 #include "fabm_driver.h"
+!!----------------------------------------------------
+!!Implementation by Michael Bengfort (michael.bengfort@hzg.de)
+!!------------------------------------------------------
 module hzg_kristineb
    use fabm_types
    implicit none
@@ -9,8 +12,8 @@ module hzg_kristineb
 !!----------------------------------------------------------------------
 ! --- HZG model types
 type type_kristineb_var
- real(rk) :: Phy,N,P,Q_N,Q_P,D_N,D_P
- real(rk) :: Cop,SeaTemp,DeepWtemp,pCO2,cil_h,cil_l,copepod_l,copepod_h
+ real(rk) :: Phy,N,P,Q_N,Q_P,D_N,D_P !state variables
+ real(rk) :: Cop,SeaTemp,DeepWtemp,pCO2,cil_h,cil_l,copepod_l,copepod_h !Forcings
 end type
 type type_kristineb_rhs
  real(rk) :: Phy,N,P,Q_N,Q_P,D_N,D_P
@@ -19,26 +22,29 @@ end type
 type,extends(type_base_model),public :: type_hzg_kristineb
 type (type_state_variable_id),dimension(13)  :: id_Phy,id_Q_N,id_Q_P
 type (type_state_variable_id) :: id_D_N,id_D_P,id_N,id_P
-type (type_dependency_id)            :: id_Cop
+type (type_dependency_id)            :: id_Cop !PAR_Forcing
 type (type_dependency_id)            :: id_DeepWTemp !,id_Temp2
 type (type_horizontal_dependency_id) :: id_pCO2,id_SeaTemp !id_CO2_high
-type (type_dependency_id)            :: id_Phy_dep
 type (type_dependency_id)	     :: id_cil_h,id_cil_l,id_copepod_l,id_copepod_h
-type (type_diagnostic_variable_id)   :: id_chl_a,id_mean_cell_size,id_size_diversity,id_FTPhy,id_FTZoo! id_prod, id_Mort, id_Imax_cop, id_mort_P, id_mixBmass, id_mixlsize, id_Tdep,
-type (type_diagnostic_variable_id),dimension(13)   :: id_fPAR,id_fCO2,id_grazing,id_uptake_N,id_uptake_P
+!Diagnostic Variables
+type (type_diagnostic_variable_id)   :: id_chl_a,id_mean_cell_size,id_size_diversity,id_FTPhy,id_FTZoo,id_POC,id_PON
+type (type_diagnostic_variable_id),dimension(13)   :: id_fPAR,id_fCO2,id_grazing,id_uptake_N,id_uptake_P,id_growth
+type (type_diagnostic_variable_id),dimension(3) :: id_I_max
+!Initial Values
 real(rk),dimension(13) :: Phy_initial, Q_N_initial, Q_P_initial 
-real(rk) ::  N_initial, P_initial, D_N_initial, D_P_initial
+real(rk) ::  N_initial, P_initial, D_N_initial, D_P_initial,POC_initial, PON_initial
+!Model Parameters
 real(rk) ::  z, tot_depth, m, frac_md, frac_mn, mol_ratio, chla_to_T_PhyN, n_star, k_phyN, kbg, par, a_par, alpha, a_co2, Co2, a_star, T
 real(rk) :: T_ref, Tcons_phy, Tcons_zoo, n_syn, I_max0, a_Im0, y, graz_const, sel_cop_cil, a_gr, r_dn, det_sink_r, A_star_opt,R_A
 real(rk),dimension(3) :: sel,Lz_star,Lz
-!
+real(rk),dimension(13) :: log_ESD
+real(rk),dimension(29) :: pars
+!Scaling-Parameters
 real(rk) :: b_mumax,a_mumax,b_mumax_large,a_mumax_large,b_mumax_small,a_mumax_small,mumax_incr,b_qmin_N,a_qmin_N,b_qmax_N,a_qmax_N,b_vmax_N,a_vmax_N,b_kn_N,a_kn_N,b_carbon,a_carbon
 real(rk) :: b_qmin_P,a_qmin_P,b_qmax_P,a_qmax_P,b_vmax_P,a_vmax_P,b_kn_P,a_kn_P
 !
 logical  ::  SwitchOn, DiagOn, DebugOn, OptionOn, T_forc, co2_forc, PAR_forc, graz_forc, convert_mu, co2_low
 integer :: phyto_num, zoo_num, num_ciliat, Nut_lim
-real(rk),dimension(13) :: log_ESD
-real(rk),dimension(29) :: pars
 contains
 !   Model procedures
 procedure :: initialize
@@ -128,6 +134,8 @@ real(rk),dimension(13)  :: Q_N_initial  ! Phytoplankton intracellular nitrogen c
 real(rk),dimension(13)  :: Q_P_initial  ! Phytoplankton intracellular phosphorous cell quota
 real(rk)  :: D_N_initial  ! Nitrogen content of detritus concentration
 real(rk)  :: D_P_initial  ! Phosphorous content of detritus concentration 
+real(rk)  :: POC_initial
+real(rk)  :: PON_initial
 !> describepar{z            , z            , Mixed layer depth, 5.0 m}
 !> describepar{tot_depth    , tot_{depth}    , Total depth= MLD+bottom layer depth, 17. m}
 !> describepar{m            , m            , Phytoplankton mortality rate              , 0.1 d^-1}
@@ -242,7 +250,7 @@ real(rk) :: a_kn_P
 !-------
 namelist /kristineb_init/ &
   Phy_initial, N_initial, P_initial, Q_N_initial, Q_P_initial, D_N_initial, &
-  D_P_initial
+  D_P_initial,POC_initial,PON_initial
 
 namelist /kristineb_pars/ &
   z, tot_depth, m, frac_md, frac_mn, mol_ratio, chla_to_T_PhyN, n_star, k_phyN, &
@@ -411,7 +419,7 @@ end do
       Phy_initial(ib) = tot_phyc0*Phyto0(ib)/sum(Phyto0)
     end do
 do ib=1,phyto_num
-       call bgc_parameters(self,exp(log_ESD(ib)),tmp)
+       call bgc_parameters(self,log_ESD(ib),tmp)
        Q_N_initial(ib)=tmp(3)
        Q_P_initial(ib)=tmp(8)
 end do
@@ -432,7 +440,8 @@ call self%get_parameter(self%N_initial    ,'N_initial',     default=N_initial)
 call self%get_parameter(self%P_initial    ,'P_initial',     default=P_initial)
 call self%get_parameter(self%D_N_initial  ,'D_N_initial',   default=D_N_initial)
 call self%get_parameter(self%D_P_initial  ,'D_P_initial',   default=D_P_initial)
-
+call self%get_parameter(self%POC_initial  ,'POC_initial',   default=POC_initial)
+call self%get_parameter(self%PON_initial  ,'PON_initial',   default=PON_initial)
 !!------- model parameters from nml-list kristineb_pars ------- 
 call self%get_parameter(self%z            ,'z',             default=z)
 call self%get_parameter(self%tot_depth    ,'tot_depth',     default=tot_depth)
@@ -509,6 +518,10 @@ call self%register_state_variable(self%id_D_P,   'D_P','mmol-P m^-3','Phosphorou
 !  output=output_instantaneous)
 call self%register_diagnostic_variable(self%id_chl_a,    'chl_a','mugrC l^-1', 'total Chlorophyl a', &
   output=output_instantaneous)
+call self%register_diagnostic_variable(self%id_POC, 	'POC','-','Particulate Organic Carbon', &
+ output=output_instantaneous) 
+call self%register_diagnostic_variable(self%id_PON, 	'PON','-','Particulate Organic Nitrogen', &
+ output=output_instantaneous) 
 call self%register_diagnostic_variable(self%id_mean_cell_size,    'mean_cell_size','mu m', 'mean cell size', &
   output=output_instantaneous)
 call self%register_diagnostic_variable(self%id_size_diversity,    'size_diversity','mu m', 'size_diversity', &
@@ -535,6 +548,14 @@ call self%register_diagnostic_variable(self%id_FTZoo, 	'FTZoo','-','Temperature_
  end do
  do ib=1,phyto_num
   call self%register_diagnostic_variable(self%id_uptake_N(ib),	'uptake_N'//trim(int2char(ib)), '-', 'uptake_N'//trim(int2char(ib)),&
+  output=output_instantaneous)
+ end do
+ do ib=1,zoo_num
+  call self%register_diagnostic_variable(self%id_I_max(ib),	'I_max'//trim(int2char(ib)), '-', 'I_max'//trim(int2char(ib)),&
+  output=output_instantaneous)
+ end do 
+  do ib=1,phyto_num
+  call self%register_diagnostic_variable(self%id_growth(ib),	'growth'//trim(int2char(ib)), '-', 'growth'//trim(int2char(ib)),&
   output=output_instantaneous)
  end do
  
@@ -572,7 +593,6 @@ end subroutine initialize
 !!   end of section generated by parser 
 !!----------------------------------------------------------------------
 
-
    ! Add model subroutines here.
 	subroutine do(self,_ARGUMENTS_DO_)
 		class (type_hzg_kristineb),intent(in) :: self
@@ -583,7 +603,8 @@ end subroutine initialize
    real(rk) :: D_N,D_P,N,P
    !Temporäre Parameter
 	real(rk),dimension(self%phyto_num)::uptake_rate_N,P_growth_rate,uptake_rate_P,R_N,grazing_forc,sinkr,rel_growthr
-	real(rk),dimension(self%phyto_num)::dPhy_dt,dQ_N_dt,dQ_P_dt
+	real(rk),dimension(self%phyto_num)::dPhy_dt,dQ_N_dt,dQ_P_dt,growth
+	real(rk),dimension(self%zoo_num)::I_max
 	real(rk)::dP_dt_t,dN_dt_t,dD_P_dt_t,dD_N_dt_t
 	real(rk)::mean,aggr
 !Forcings
@@ -593,9 +614,16 @@ end subroutine initialize
 	real(rk),dimension(self%zoo_num,self%phyto_num)::zoo_pref
 	real(rk),dimension(self%num_ciliat)::cop_pref
 	real(rk)::cil_l,copepod_l,cil_h,copepod_h
-!    drat=self%z/self%tot_depth???
+	real(rk),dimension(11)::test
       par=self%par
-    !Zooplankton Preferences
+!Zooplankton Preferences
+!open(100,file='test.txt',status='new')
+! Do ib=1,self%phyto_num
+! call bgc_parameters(self,self%log_ESD(ib), test)
+! write(100,*)self%log_ESD(ib),test
+! write(100,*)''
+! end do
+!close(100)
     zoo_pref=0.0_rk
     cop_pref=0.0_rk
     Do jb=1,self%zoo_num
@@ -659,7 +687,7 @@ _LOOP_BEGIN_
         ! Community mean cell size
         Mean=mean_cell_size(self,Phy)
         ! Grazing forcing
-        call Grazing_forcing(self,Phy,T_forcing,Mean,zoo_pref,cop_pref,Zoo,grazing_forc)
+        call Grazing_forcing(self,Phy,T_forcing,Mean,zoo_pref,cop_pref,Zoo,grazing_forc,I_max)
         ! Sinking rate
         call sink_rate(self,Q_N,Q_P,sinkr)
         ! Phytoplankton relative growth rate
@@ -690,6 +718,8 @@ _LOOP_BEGIN_
 
    ! Send the value of diagnostic variables to FABM.
     _SET_DIAGNOSTIC_(self%id_chl_a,chl_a(self,Phy,Q_N))
+    _SET_DIAGNOSTIC_(self%id_POC,self%POC_initial+sum(Phy(:))) !TODO
+    _SET_DIAGNOSTIC_(self%id_PON,sum(Q_N(:))+D_N)		!TODO
     _SET_DIAGNOSTIC_(self%id_mean_cell_size,mean_cell_size(self,Phy))
     _SET_DIAGNOSTIC_(self%id_size_diversity,size_diversity(self,Phy))
     Do ib=1,self%phyto_num
@@ -710,6 +740,13 @@ _LOOP_BEGIN_
     Do ib=1,self%phyto_num
       _SET_DIAGNOSTIC_(self%id_uptake_P(ib),uptake_rate_P(ib))
     end do
+    Do ib=1,self%zoo_num
+      _SET_DIAGNOSTIC_(self%id_I_max(ib),I_max(ib))
+    end do
+    Do ib=1,self%phyto_num
+      _SET_DIAGNOSTIC_(self%id_growth(ib),P_growth_rate(ib))
+    end do
+    
    _LOOP_END_
 end subroutine do
 include 'Model_functions.F90'
