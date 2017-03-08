@@ -274,7 +274,7 @@ if (self%GrazingOn) then
       _GET_GLOBAL_ (self%id_doy,doy) !day of year
       _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
 
-       fa = self%zm_fa_inf +(1.0_rk-self%zm_fa_inf)/(1+exp(0.25*(zmax-25.0)))
+       fa = self%zm_fa_inf +(1.0_rk-self%zm_fa_inf)/(1+exp(0.3*(zmax-30.0)))
        relmort = fa + fa*self%zm_fa_delmax*sens%f_T2*0.25*(1-sin(2*(doy+45)*Pi/365.0))**2
        ksat_graz = fa * self%k_grazC
      case (1)
@@ -333,7 +333,7 @@ end if
 !_GET_(self%id_fracR,phys_status )  
 
 dom_dep     = self%agg_doc*dom%C/(1.0_rk+self%agg_doc*dom%C) 
-aggreg_rate = min(self%phi_agg * dom_dep * (phy%N + det%N),0.5_rk)
+aggreg_rate = min(self%phi_agg * dom_dep * (phy%N + det%N),0.3_rk)
 !         vS * exp(-4*phys_status )                ! [d^{-1}] 
 !aggreg_rate = aggreg_rate * exp(-4*phy%rel_phys ) TODO: DOM quality as proxy for TEP
 
@@ -434,7 +434,7 @@ rhsv%phyN =  uptake%N             * phy%C &
 !>      + B = dfracR_dt is calculated in maecs_primprod::photosynthesis()
 ! viral density is treated like a trait (because specific to PhyC)
  if (self%VirusOn ) then
-!!  poc   = zoo%C + dom%C + det%C + phy%reg%C 
+   poc   = zoo%C + det%C + phy%reg%C 
 !!  poc   = dom%P + det%P + phy%P + self%small_finite
 !!  poc   = dom%C + det%C + phy%C + self%small_finite
            ! encounter prob. free virus conc around infected cell
@@ -458,8 +458,9 @@ rhsv%phyN =  uptake%N             * phy%C &
   vrepl = -self%vir_mu/(1.0_rk+ exp(-4.5*(phy%relQ%N-1.0_rk)))   ! linear dependence on stoichiometry
   if (self%PhosphorusOn) vrepl = vrepl/(1.0_rk+ exp(-4.5*(phy%relQ%P-1.0_rk)))
  endif   !phy%C* (1.0_rk+phy%reg%C/self%vir_phyC)
- ! vrepl = vrepl * sens%f_T *phy%C**2/(poc + a_lit)  ! cross section interception
-  vrepl = vrepl * sens%f_T *phy%C  
+  vrepl = vrepl * sens%f_T *phy%C**2/poc   ! cross section interception
+ ! vrepl = vrepl * sens%f_T *phy%C 
+ ! vrepl = vrepl * phy%C   
   vrepl = vrepl/(1.0_rk+ exp(-self%vir_infect*(vir_max-vird)))   !capacity reached
 
 _SET_DIAGNOSTIC_(self%id_pPads, vrepl )       !average Temporary_diagnostic_
