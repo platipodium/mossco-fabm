@@ -3,7 +3,7 @@
 #author: Michael Bengfort (michael.bengfort@hzg.de)
 # run with "./makeplotfile.sh 'testscript.pdf' 'output.dat' 13 'low' 'x11'"
 plotfile='plotfile.plt'
-Obsfolder='Observations'
+Obsfolder='../Observations'
 outputfile=${1}
 inputfile=${2}
 phyto_num=${3}
@@ -19,7 +19,7 @@ else
   echo 'set terminal pdf enhanced color fontscale 0.2' >> ${plotfile}
   echo "set output '$outputfile'" >> ${plotfile}
 fi
-echo 'set multiplot layout 5,4' >> ${plotfile}
+echo 'set multiplot layout 4,4' >> ${plotfile}
 echo 'set xdata time' >> ${plotfile}
 echo 'set timefmt "%Y-%m-%d %H:%M:%S"' >> ${plotfile}
 echo 'set format x "%m-%d"' >> ${plotfile}
@@ -53,35 +53,51 @@ for (( k = 1 ; k < ${3} ; k++))
 done
 printf "\n" >> ${plotfile}
 ######
+echo "set key bottom left" >> ${plotfile}
 echo "set ylabel 'Q_N'" >> ${plotfile}
 echo "set xlabel 'time (d)'" >> ${plotfile}
 let lines=2
-printf  "plot '${inputfile}' u 1:4 w l ls ${lines} t 'Phy_1'" >> ${plotfile}
-for (( k = 1 ; k < ${3} ; k++))
-	do
-	  let row=4+$k*3
-	  let species=1+$k
-	  let lines=${lines}+1
-	  printf ",'${inputfile}' u 1:${row} w l ls ${lines} t 'Phy_${species}'" >> ${plotfile}
-done
+# printf  "plot '${inputfile}' u 1:4 w l ls ${lines} t 'Phy_1'" >> ${plotfile}
+# for (( k = 1 ; k < ${3} ; k++))
+# 	do
+# 	  let row=4+$k*3
+# 	  let species=1+$k
+# 	  let lines=${lines}+1
+# 	  printf ",'${inputfile}' u 1:${row} w l ls ${lines} t 'Phy_${species}'" >> ${plotfile}
+# done
+let row=4+3
+printf  "plot '${inputfile}' u 1:${row} w l t 'small'" >> ${plotfile}
+let dist=${phyto_num}/2-1
+let row=$row+3*$dist
+printf ",'${inputfile}' u 1:$row w l t 'medium'" >> ${plotfile}
+let row=$row+3*$dist
+printf ",'${inputfile}' u 1:${row} w l t 'large'" >> ${plotfile}
+let row=${row}+4
 printf "\n" >> ${plotfile}
 ######
 echo "set ylabel 'Q_P'" >> ${plotfile}
 echo "set xlabel 'time (d)'" >> ${plotfile}
 let lines=2
-printf  "plot '${inputfile}' u 1:5 w l ls ${lines} t 'Phy_1'" >> ${plotfile}
-for (( k = 1 ; k < ${3} ; k++))
-	do
-	  let row=5+$k*3
-	  let species=1+$k
-	  let lines=${lines}+1
-	  printf ",'${inputfile}' u 1:${row} w l ls ${lines} t 'Phy_${species}'" >> ${plotfile}
-done
+# printf  "plot '${inputfile}' u 1:5 w l ls ${lines} t 'Phy_1'" >> ${plotfile}
+# for (( k = 1 ; k < ${3} ; k++))
+# 	do
+# 	  let row=5+$k*3
+# 	  let species=1+$k
+# 	  let lines=${lines}+1
+# 	  printf ",'${inputfile}' u 1:${row} w l ls ${lines} t 'Phy_${species}'" >> ${plotfile}
+# done
+let row=5+3
+printf  "plot '${inputfile}' u 1:${row} w l t 'small'" >> ${plotfile}
+let row=$row+3*$dist
+printf ",'${inputfile}' u 1:$row w l t 'medium'" >> ${plotfile}
+let row=$row+3*$dist
+printf ",'${inputfile}' u 1:${row} w l t 'large'" >> ${plotfile}
+let row=${row}+4
 printf "\n" >> ${plotfile}
 echo "set key" >> ${plotfile}
 # ##################################
-let row=${row}+1
 echo 'set y2tics' >> ${plotfile}
+echo "set key top right" >> ${plotfile}
 echo "set ylabel 'N ({/Symbol m}mol-C L^{-1})'" >> ${plotfile}
 echo "set y2label 'P ({/Symbol m}mol-C L^{-1})'" >> ${plotfile}
 printf "plot '${inputfile}' u 1:${row} w l t 'N' lc rgb 'red'" >> ${plotfile}
@@ -103,18 +119,18 @@ echo "set ylabel 'Chl_a {/Symbol m}gL^{-1}'" >> ${plotfile}
 echo "plot '${inputfile}' u 1:${row} w l t 'Chl_a', '${Obsfolder}/${loworhigh}CO2.dat' u 1:7 w p pt 6 ps 0.5 lc rgb 'black' notitle" >>${plotfile}
 ##
 ###
-let row=${row}+1
-echo "unset y2tics" >> ${plotfile}
-echo "unset y2label" >> ${plotfile}
-echo "set ylabel 'POC {/Symbol m}mol-C L^{-1}'" >> ${plotfile}
-echo "plot '${inputfile}' u 1:${row} w l t 'POC', '${Obsfolder}/${loworhigh}CO2.dat' u 1:5 w p pt 6 ps 0.5 lc rgb 'black' notitle" >>${plotfile}
-##
-let row=${row}+1
-echo "unset y2tics" >> ${plotfile}
-echo "unset y2label" >> ${plotfile}
-echo "set ylabel 'PON'" >> ${plotfile}
-echo "plot '${inputfile}' u 1:${row} w l t 'PON', '${Obsfolder}/${loworhigh}CO2.dat' u 1:6 w p pt 6 ps 0.5 lc rgb 'black' notitle" >>${plotfile}
-##
+ let row=${row}+2
+# echo "unset y2tics" >> ${plotfile}
+# echo "unset y2label" >> ${plotfile}
+# echo "set ylabel 'POC {/Symbol m}mol-C L^{-1}'" >> ${plotfile}
+# echo "plot '${inputfile}' u 1:${row} w l t 'POC', '${Obsfolder}/${loworhigh}CO2.dat' u 1:5 w p pt 6 ps 0.5 lc rgb 'black' notitle" >>${plotfile}
+# ##
+# let row=${row}+1
+# echo "unset y2tics" >> ${plotfile}
+# echo "unset y2label" >> ${plotfile}
+# echo "set ylabel 'PON'" >> ${plotfile}
+# echo "plot '${inputfile}' u 1:${row} w l t 'PON', '${Obsfolder}/${loworhigh}CO2.dat' u 1:6 w p pt 6 ps 0.5 lc rgb 'black' notitle" >>${plotfile}
+# ##
 
 ##
 echo "set key" >> ${plotfile}
@@ -128,7 +144,7 @@ printf ",'${inputfile}' u 1:${row} axes x1y2 w l t 'size diverstiy'\n" >> ${plot
 ####Focing
 echo "unset key" >> ${plotfile}
 echo "unset y2tics" >> ${plotfile}
-echo '#set xrange ["2013-03-10":"2013-03-17"]' >> ${plotfile}
+echo 'set xrange ["2013-03-10":"2013-03-17"]' >> ${plotfile}
 echo "set ylabel 'PAR-Forcing'" >> ${plotfile}
 let row=${row}+1
 let species=1
@@ -157,18 +173,27 @@ for (( k=1 ; k < ${3} ; k++))
 done
 printf '\n' >> ${plotfile}
 echo "set ylabel 'grazing-Forcing'" >> ${plotfile}
+echo "set key top left" >> ${plotfile}
 #echo "set logscale y" >> ${plotfile}
 let row=${row}+1
 let species=1
 let lines=2
-printf "plot '${inputfile}' u 1:${row} w l ls ${lines} t 'Phy_${species}'">> ${plotfile}
-for (( k=1 ; k < ${3} ; k++))
-      do
-         let row=${row}+1
-         let species=${species}+1
-         let lines=${lines}+1
-printf ", '${inputfile}' u 1:${row} w l ls ${lines} t 'Phy_${species}'" >> ${plotfile}
-done
+#echo "unset key" >> ${plotfile}
+#printf "plot '${inputfile}' u 1:${row} w l ls ${lines} t 'Phy_${species}'">> ${plotfile}
+# for (( k=1 ; k < ${3} ; k++))
+#       do
+#          let row=${row}+1
+#          let species=${species}+1
+#          let lines=${lines}+1
+# printf ", '${inputfile}' u 1:${row} w l ls ${lines} t 'Phy_${species}'" >> ${plotfile}
+# done
+let row=${row}+1
+printf  "plot '${inputfile}' u 1:${row} w l t 'small'" >> ${plotfile}
+let row=$row+$dist
+printf ",'${inputfile}' u 1:$row w l t 'medium'" >> ${plotfile}
+let row=$row+$dist
+printf ",'${inputfile}' u 1:${row} w l t 'large'" >> ${plotfile}
+let row=${row}+1
 printf '\n' >> ${plotfile}
 echo "set key" >> ${plotfile}
 echo "unset logscale y" >> ${plotfile}
@@ -187,27 +212,45 @@ echo "set ylabel 'uptake N'" >> ${plotfile}
 let row=${row}+1
 let species=1
 let lines=2
-printf "plot '${inputfile}' u 1:${row} w l ls ${lines} t 'uptake_N_${species}'" >> ${plotfile}
-for (( k=1 ; k < ${3} ; k++))
-      do
-       let row=${row}+1
-       let species=${species}+1
-       let lines=${lines}+1
-       printf ", '${inputfile}' u 1:${row} w l ls ${lines} t 'uptake_N_${species}'" >> ${plotfile}
-done
+# printf "plot '${inputfile}' u 1:${row} w l ls ${lines} t 'uptake_N_${species}'" >> ${plotfile}
+# for (( k=1 ; k < ${3} ; k++))
+#       do
+#        let row=${row}+1
+#        let species=${species}+1
+#        let lines=${lines}+1
+#        printf ", '${inputfile}' u 1:${row} w l ls ${lines} t 'uptake_N_${species}'" >> ${plotfile}
+# done
+# printf '\n' >> ${plotfile}
+let row=${row}+1
+printf  "plot '${inputfile}' u 1:${row} w l t 'small'" >> ${plotfile}
+let row=$row+$dist
+printf ",'${inputfile}' u 1:$row w l t 'medium'" >> ${plotfile}
+let row=$row+$dist
+printf ",'${inputfile}' u 1:${row} w l t 'large'" >> ${plotfile}
+let row=${row}+1
 printf '\n' >> ${plotfile}
+##
 echo "set ylabel 'uptake P'" >> ${plotfile}
 let row=${row}+1
 let species=1
 let lines=2
-printf "plot '${inputfile}' u 1:${row} w l ls ${lines} t 'uptake_P_${species}'" >> ${plotfile}
-for (( k=1 ; k < ${3} ; k++))
-      do
-       let row=${row}+1
-       let species=${species}+1
-       let lines=${lines}+1
-       printf ", '${inputfile}' u 1:${row} w l ls ${lines} t 'uptake_P_${species}'" >> ${plotfile}
-done
+# printf "plot '${inputfile}' u 1:${row} w l ls ${lines} t 'uptake_P_${species}'" >> ${plotfile}
+# for (( k=1 ; k < ${3} ; k++))
+#       do
+#        let row=${row}+1
+#        let species=${species}+1
+#        let lines=${lines}+1
+#        printf ", '${inputfile}' u 1:${row} w l ls ${lines} t 'uptake_P_${species}'" >> ${plotfile}
+# done
+# printf '\n' >> ${plotfile}
+##
+let row=${row}+1
+printf  "plot '${inputfile}' u 1:${row} w l t 'small'" >> ${plotfile}
+let row=$row+$dist
+printf ",'${inputfile}' u 1:$row w l t 'medium'" >> ${plotfile}
+let row=$row+$dist
+printf ",'${inputfile}' u 1:${row} w l t 'large'" >> ${plotfile}
+let row=${row}+1
 printf '\n' >> ${plotfile}
 echo "set ylabel 'max. ingestion'" >> ${plotfile}
 echo "unset logscale y" >> ${plotfile}
@@ -225,12 +268,13 @@ done
 printf '\n' >> ${plotfile}
 echo "set key right" >> ${plotfile}
 echo "set ylabel 'growth'" >> ${plotfile}
-let row=${row}+1
+let row=${row}+2
 printf "plot '${inputfile}' u 1:${row} w l t 'small'" >> ${plotfile}
-let row=$row+5
+let row=$row+$dist
 printf ", '${inputfile}' u 1:${row} w l t 'medium'" >> ${plotfile}
-let row=$row+7
+let row=$row+$dist
 printf ", '${inputfile}' u 1:${row} w l t 'large'\n" >> ${plotfile}
+let row=$row+1
 #for (( k=1 ; k < ${3} ; k++))
 #      do
 #       let row=${row}+1
@@ -238,6 +282,16 @@ printf ", '${inputfile}' u 1:${row} w l t 'large'\n" >> ${plotfile}
 #       let lines=${lines}+1
 #       printf ", '${inputfile}' u 1:${row} w l ls ${lines} t 'growth_${species}'" >> ${plotfile}
 #done
+###
+echo "unset key" >> ${plotfile}
+echo "set ylabel 'time'" >> ${plotfile}
+echo "set xlabel 'size'" >> ${plotfile}
+echo "set pm3d map" >> ${plotfile}
+echo "set xdata" >> ${plotfile}
+echo "set format x '%1.0f'" >> ${plotfile}
+echo "set ticslevel 0" >> ${plotfile}
+let endblock=${row}-1
+echo "splot '${inputfile}' every ::${endblock} matrix w pm3d" >> ${plotfile}
 ###
 echo "unset multiplot" >> ${plotfile}
 echo "set terminal x11" >> ${plotfile}

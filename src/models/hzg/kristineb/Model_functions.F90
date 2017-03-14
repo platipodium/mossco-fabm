@@ -3,22 +3,24 @@ implicit none
  class (type_hzg_kristineb),intent(in) :: self
    real(rk),dimension(29),intent(out) :: parsout
    real(rk) :: b_Mumax2,a_Mumax2,mumax_incr2,b_Mumax_large2,b_Mumax_small2,a_Mumax_large2,a_Mumax_small2
-   real(rk) :: b_Qmin_N2,a_Qmin_N2,b_Qmax_N2,a_Qmax_N2,b_Vmax_N2,a_Vmax_N2,b_Kn_N2,a_Kn_N2
+   real(rk) :: b_Qmin_N2,a_Qmin_N2,b_Qmax_N2,a_Qmax_N2,b_Vmax_N2,a_Vmax_N2
    real(rk) :: a_affin_N2,a_affin_P2,a_carbon2
    real(rk) :: b_affin_N2,b_affin_P2,b_carbon2
-   real(rk) :: b_Qmin_P2,a_Qmin_P2,b_Qmax_P2,a_Qmax_P2,b_Vmax_P2,a_Vmax_P2,b_Kn_P2,a_Kn_P2
+   real(rk) :: b_Qmin_P2,a_Qmin_P2,b_Qmax_P2,a_Qmax_P2,b_Vmax_P2,a_Vmax_P2
 !----------------
 !--- Phytoplankton eco-physiological parameters ---
   b_mumax2=10.0**self%b_mumax
   b_qmin_N2=10.0**self%b_qmin_N
   b_qmax_N2=10.0**self%b_qmax_N
   b_vmax_N2=10.0**self%b_vmax_N
-  b_kn_N2=10.0**self%b_kn_N
+  !b_kn_N2=10.0**self%b_kn_N
   b_carbon2=10.0**self%b_carbon
   b_qmax_P2=10.0**self%b_qmax_P
   b_qmin_P2=10.0**self%b_qmin_P
   b_vmax_P2=10.0**self%b_vmax_P
-  b_kn_P2=10.0**self%b_kn_P
+ ! b_kn_P2=10.0**self%b_kn_P
+  b_affin_N2=10.0**self%b_affin_N
+  b_affin_P2=10.0**self%b_affin_P
   !      Nonlinear mumax
   b_mumax_large2=10.0**self%b_mumax_large
   b_Mumax_large2=b_mumax_large2*(acos(-1.0)/6.)**self%a_mumax_large
@@ -35,8 +37,8 @@ implicit none
         b_Mumax2=b_mumax2*(acos(-1.0)/6.)**self%a_mumax
         a_Mumax2=3*(self%a_mumax)
 
-        b_Kn_N2=b_kn_N2*(acos(-1.0)/6.)**self%a_kn_N
-        a_Kn_N2=3*(self%a_kn_N)
+      !  b_Kn_N2=b_kn_N2*(acos(-1.0)/6.)**self%a_kn_N
+      !  a_Kn_N2=3*(self%a_kn_N)
 
         ! Nutrient affinity, m^3 mmol-C d^1
         !a_affin_N2= a_Vmax_N2/a_Kn_N2 !-1
@@ -47,11 +49,11 @@ implicit none
         call convert_BGCparams(b_qmax_P2,self%a_qmax_P,self%a_carbon,b_carbon2,b_qmax_P2,a_qmax_P2)
 	call convert_BGCparams(b_vmax_P2,self%a_vmax_P,self%a_carbon,b_carbon2,b_vmax_P2,a_vmax_P2)
 	a_Qmax_P2=0.0_rk
-        b_Kn_P2=b_kn_P2*(acos(-1.0)/6.)**self%a_kn_P
-        a_Kn_P2=3*(self%a_kn_P)
+       ! b_Kn_P2=b_kn_P2*(acos(-1.0)/6.)**self%a_kn_P
+       ! a_Kn_P2=3*(self%a_kn_P)
 
-        !a_affin_P2= a_Vmax_P2/a_Kn_P2 !-1
-        !b_affin_P2= b_Vmax_P2/b_Kn_P2 !0.5
+        call convert_BGCparams(b_affin_N2,self%a_affin_N,self%a_carbon,b_carbon2,b_affin_N2,a_affin_N2)
+        call convert_BGCparams(b_affin_P2,self%a_affin_P,self%a_carbon,b_carbon2,b_affin_P2,a_affin_P2)
  parsout=0.0_rk
  parsout(1) = b_Mumax_small2
  parsout(2) = a_Mumax_small2
@@ -64,20 +66,20 @@ implicit none
  parsout(9) = a_Qmax_N2
  parsout(10) = b_Vmax_N2
  parsout(11) = a_Vmax_N2
-! parsout(12) = b_affin_N2
- !parsout(13) = a_affin_N2
- parsout(14) = b_Kn_N2
- parsout(15) = a_Kn_N2
+ parsout(12) = b_affin_N2
+ parsout(13) = a_affin_N2
+ !parsout(14) = b_Kn_N2
+ !parsout(15) = a_Kn_N2
  parsout(16) = b_Qmin_P2
  parsout(17) = a_Qmin_P2
  parsout(18) = b_Qmax_P2
  parsout(19) = a_Qmax_P2
  parsout(20) = b_Vmax_P2
  parsout(21) = a_Vmax_P2
- parsout(22) = b_Kn_P2
- parsout(23) = a_Kn_P2
- !parsout(24) = b_affin_P2
- !parsout(25) = a_affin_P2
+ !parsout(22) = b_Kn_P2
+ !parsout(23) = a_Kn_P2
+ parsout(24) = b_affin_P2
+ parsout(25) = a_affin_P2
  parsout(26) = b_mumax2
  parsout(27) = a_mumax2
  parsout(28) = b_carbon2
@@ -188,6 +190,8 @@ implicit none
             !to use with mu_max:
             q_Nl=(Q_N(i)-bgc_params(2))/(bgc_params(3)-bgc_params(2))
             q_Pl=(Q_P(i)-bgc_params(7))/(bgc_params(8)-bgc_params(7))
+            !q_Nl=(Q_N(i)-bgc_params(2))/Q_N(i)
+            !q_Pl=(Q_P(i)-bgc_params(7))/_P(i)
 
             if (nutlim == 1) then
                 r=q_Pl/q_Nl
@@ -264,7 +268,8 @@ implicit none
             nom_P=bgc_params(9)*bgc_params(11)*P
             dom_P=bgc_params(9)+bgc_params(11)*P
             q=max(0.0_rk,(bgc_params(8)-Q_P(i))/(bgc_params(8)-bgc_params(7)))
-            uptake_rate_P(i)=(nom_P/dom_P)*q*sqrt(F_T(1))
+            uptake_rate_P(i)=(nom_P/dom_P)*sqrt(F_T(1))*q
+            !uptake_rate_P(i)=(nom_P/dom_P)*sqrt(F_T(1))
 	end do
 	end if
         return
@@ -365,7 +370,7 @@ implicit none
             glob_graz=0.0_rk
             do j=1,self%zoo_num
                 x=self%a_gr * eff_food_con(j)/I_max(j)
-                g_x=((1.0_rk-x**self%n_syn)/(1.0_rk-x**(self%n_syn+1.0_rk)))*x
+                g_x=1.0_rk-exp(-x) !((1.0_rk-x**self%n_syn)/(1.0_rk-x**(self%n_syn+1.0_rk)))*x
                 glob_graz(j)=self%graz_const*Zoo(j)*I_max(j)*g_x
 	    end do
             !threshold
@@ -374,8 +379,8 @@ implicit none
             graz_j=0.0_rk
             Do i=1,self%phyto_num
 	      Do j=1,self%zoo_num
-                graz_j_spec(j,i)=zoo_pref(j,i)*Phy(i)/(eff_food_con(j)+eps)
-                graz_j(j,i)=glob_graz(j)*graz_j_spec(j,i)
+               ! graz_j_spec(j,i)=zoo_pref(j,i)*Phy(i)/(eff_food_con(j)+eps)
+                graz_j(j,i)=glob_graz(j)*zoo_pref(j,i)*Phy(i)/(eff_food_con(j)+eps)
 	      end do
 	    end do
 	    
@@ -415,7 +420,7 @@ implicit none
 	    loss(i)=(self%frac_md*self%m+aggregation)*Phy(i)*Q_N(i)
 	end do
         !dD_N_dt=mtotal - self%r_dn * D_N*F_T(1)-(self%det_sink_r/self%z)*D_N
-        dD_N_dt=sum(loss(:))+sum(gr(:))-(self%r_dn*F_T(1)+(self%det_sink_r/self%z))*D_N
+        dD_N_dt=sum(loss(:))-(self%r_dn*F_T(1)+(self%det_sink_r/self%z))*D_N
         return
 end function
 !------------------------------------------------------------------------------
@@ -439,7 +444,7 @@ implicit none
             loss(i)=(self%frac_md*self%m+aggregation)*Phy(i)*Q_P(i)
 	end do
 !        dD_P_dt=mtotal - self%r_dn * D_P*F_T(1) -(self%det_sink_r/self%z)*D_P
-	dD_P_dt=sum(loss(:))+sum(gr(:))-(self%r_dn*F_T(1)+(self%det_sink_r/self%z))*D_P
+	dD_P_dt=sum(loss(:))-(self%r_dn*F_T(1)+(self%det_sink_r/self%z))*D_P
  return
 end function
 !------------------------------------------------------------------------------
@@ -535,7 +540,7 @@ implicit none
  class (type_hzg_kristineb),intent(in) :: self
  real(rk),dimension(self%phyto_num), intent(in) ::Phy
  real(rk),dimension(self%phyto_num) :: mean_nom
- real(rk) :: mean_nom_sum,Phy_tot
+ real(rk) :: Phy_tot
  real(rk), dimension(self%phyto_num) :: Phy_tmp
  integer :: i
 !        :param Phy: Phytoplankton biomass concentration, mmol-C m^-3
@@ -546,14 +551,16 @@ mean_cell_size=0.0_rk
 Phy_tmp=Phy
 	do i=1,self%phyto_num
 	!Larger Diatoms (L>3.5) were counted seperately
-	        if(self%log_ESD(i)<3.5) then
+	        if(self%log_ESD(i)<self%log_ESD_crit) then
 		  mean_nom(i)=Phy(i)*self%log_ESD(i)
+		!else if (self%log_ESD(i)==self%log_ESD_crit) then
+		!  mean_nom(i)=0.5*Phy(i)*self%log_ESD(i)
+		!  Phy_tmp(i)=0.5*Phy_tmp(i)
 		else
 		  Phy_tmp(i)=0.0_rk
 		end if
 	end do
-        mean_nom_sum=sum(mean_nom)
-        if (sum(Phy_tmp) /= 0.0) mean_cell_size=mean_nom_sum/sum(Phy_tmp)
+        if (sum(Phy_tmp) /= 0.0) mean_cell_size=sum(mean_nom)/sum(Phy_tmp)
         return
 end function
 !------------------------------------------------------------------------------
@@ -591,11 +598,11 @@ implicit none!    :return: Phytoplankton eco-physiological traits
  real(rk) :: Qmin_P, Qmax_P, vmax_P, Kn_P, affinity_P,tmp
  
 !     Nonlinear mumax
-!    mu_max=self%pars(3)*min(self%pars(1)*exp(s*self%pars(2)), &
-!     &  self%pars(4)*exp(+s*self%pars(5)))
+    mu_max=self%pars(3)*min(self%pars(1)*exp(s*self%pars(2)), &
+     &  self%pars(4)*exp(s*self%pars(5)))
 
-    tmp=self%pars(1)*exp(2.29_rk*self%pars(2))
-    mu_max=self%pars(3)*min(self%pars(1)*exp(s*self%pars(2)),tmp*exp((s-tmp)*self%pars(5)))
+ !   tmp=self%pars(1)*exp(2.29_rk*self%pars(2))
+ !   mu_max=self%pars(3)*min(self%pars(1)*exp(s*self%pars(2)),tmp*exp((s-tmp)*self%pars(5)))
     
   !linear mumax
     !mu_max=allometries_esd(self%pars(26),self%pars(27),s)
@@ -609,25 +616,25 @@ implicit none!    :return: Phytoplankton eco-physiological traits
     !else
 
     !end if
-    Kn_N =allometries_esd(self%pars(14),self%pars(15),s)
-    affinity_N=vmax_N/Kn_N !allometries_esd(self%pars(12),self%pars(13),s)
+    !Kn_N =allometries_esd(self%pars(14),self%pars(15),s)
+    affinity_N=allometries_esd(self%pars(12),self%pars(13),s)
     Qmin_P=allometries_esd(self%pars(16),self%pars(17),s)
     Qmax_P=allometries_esd(self%pars(18),self%pars(19),s)
     vmax_P =allometries_esd(self%pars(20),self%pars(21),s)
-    Kn_P =allometries_esd(self%pars(22),self%pars(23),s)
-    affinity_P=vmax_P/Kn_P !allometries_esd(self%pars(24),self%pars(25),s)
+    !Kn_P =allometries_esd(self%pars(22),self%pars(23),s)
+    affinity_P=allometries_esd(self%pars(24),self%pars(25),s)
 
     bgc_params(1) = mu_max
     bgc_params(2) = Qmin_N
     bgc_params(3) = Qmax_N
     bgc_params(4) = vmax_N
-    bgc_params(5) = Kn_N
+    bgc_params(5) = 0.0!Kn_N
     bgc_params(6) = affinity_N
 
     bgc_params(7) = Qmin_P
     bgc_params(8) = Qmax_P
     bgc_params(9) = vmax_P
-    bgc_params(10) = Kn_P
+    bgc_params(10) = 0.0!Kn_P
     bgc_params(11) = affinity_P
     return
 end subroutine
