@@ -5,6 +5,14 @@
 !	beta Linear Maximum growth rate
 ! a_mumax	[float, unit = -] $\alpha_\mu_{ma}$
 !	alpha Linear Maximum growth rate
+! b_mumax_small	[float, unit = d^-1]
+!	beta_small nonlinear maximum grwoth rate
+! a_mumax_small	[float, unit = -]
+! 	alpha_small nonlinear Maximum growth rate
+ b_mumax_large = 0.98295,
+!	beta_large nonlinear Maximum growth rate
+! a_mumax_large	[float, unit = -]
+!	alpha_large nonlinear Maximum growth rate
 ! mumax_incr	[float, unit= -] $\mu_{max}_{incr}$
 !	Constant to multipley by mumax
 ! b_qmin_N	[float, unit = micromol N per cell] $\beta_{q_{min}}_N$
@@ -18,10 +26,6 @@
 ! b_vmax_N	[float, unit = micromol nutrient /(cell.d) ] $\beta_{v_{max}}_N$
 !	Maximum Nitrogen uptake rate
 ! a_vmax_N	[float, unit = - ] $\alpha_{v_{max}}_N$
-!	''
-! b_kn_N	[float, unit = micromol nutrient/L ] $\bata_{k_N}_N$
-!	Half saturation constant
-! a_kn_N	[float, unit = - ] $\alpha_{k_N}_N$
 !	''
 ! b_carbon	[float, unit pgr/cell ] $\beta_{carbon}$
 !	Cell carbon content
@@ -39,32 +43,38 @@
 !	Maximum Phosphorous uptake rate
 ! a_vmax_P	[float, unit = - ] $\alpha_{v_{max}}_P$
 !	''
-! b_kn_P	[float, unit = micromol phosphorous/L ] $\bata_{k_N}_P$
-!	Half saturation constant
-! a_kn_P	[float, unit = - ] $\alpha_{k_N}_P$
+! b_affin_N	[float, unit = - ] 
+! 	affinity
+! a_affin_N	[float, unit = - ] 
+!	''
+! b_affin_P	[float, unit = - ] 
+! 	affinity
+! a_affin_P	[float, unit = - ] 
 !	''
 !-----------------------------------------------------------------------
 
 &kristineb_scal
- b_mumax = 5.01,
- a_mumax = -0.24,
- mumax_incr = 3.,
- b_qmin_N = -9.2, !(10**)
- a_qmin_N = 0.77,
- b_qmax_N = 4.E-009,
- a_qmax_N = 0.89,
- b_vmax_N = -8.1, !(10**)
- a_vmax_N = 0.82, 
- b_kn_N = -0.84, !(10**)
- a_kn_N = 0.43,
+ b_mumax_small = -0.7,
+ a_mumax_small = 0.6,
+ b_mumax_large = 0.7,
+ a_mumax_large = -0.15,
+ mumax_incr = 1.,
+ b_qmin_N = -8.5,
+ a_qmin_N = 0.79,
+ b_qmax_N = -8.4, !(10**)
+ a_qmax_N = 0.95,
+ b_vmax_N = -7.5,
+ a_vmax_N = 0.81,
  b_carbon = -0.69, !(10**)
  a_carbon = 0.88,
- b_qmin_P = -10.6, !(10**)
+ b_qmin_P = -9.5,
  a_qmin_P = 0.79,
- b_qmax_P = -9.32, !(10**)
- a_qmax_P = 0.80,
- b_vmax_P = -9.1, !(10**)
- a_vmax_P = 0.81,
- b_kn_P = -1.4, !(10**)
- a_kn_P = 0.41,
+ b_qmax_P = -9.52, !(10**)
+ a_qmax_P = 0.9,
+ b_vmax_P = -9.76,
+ a_vmax_P = 0.8,
+ b_affin_N = -8.1,
+ a_affin_N = 0.85,
+ b_affin_P = -8.83,
+ a_affin_P = 0.85,
 /

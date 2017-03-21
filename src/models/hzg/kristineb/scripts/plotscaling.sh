@@ -12,7 +12,7 @@ plotfile='scal.plt'
 rm ${plotfile}
 echo 'reset' >> ${plotfile}
 echo 'unset multiplot' >> ${plotfile}
-tail -n 26 ${input} | head -n 25 >> ${plotfile}
+tail -n 24 ${input} | head -n 23 >> ${plotfile}
 sed -i "s/,/ /g " ${plotfile} 
 sed -i "s/!/#/g " ${plotfile} 
 if [ ${terminal} = 'x11' ]; then
@@ -30,9 +30,6 @@ echo " b_qmax_P2=10.0**b_qmax_P" >>${plotfile}
 echo " b_qmin_P2=10.0**b_qmin_P" >>${plotfile}
 echo " b_vmax_P2=10.0**b_vmax_P" >>${plotfile}
 echo " b_carbon=10.0**b_carbon" >> ${plotfile}
-echo " b_mumax2=10.0**b_mumax" >> ${plotfile}
-echo " b_Mumax2=b_mumax2*(pi/6.)**a_mumax" >> ${plotfile}
-echo " a_Mumax2=3*a_mumax" >> ${plotfile}
 echo " b_mumax_large2=10.0**b_mumax_large" >> ${plotfile}
 echo " b_Mumax_large2=b_mumax_large2*(pi/6.)**a_mumax_large" >> ${plotfile}
 echo " a_Mumax_large2=3*a_mumax_large" >> ${plotfile} 
@@ -127,3 +124,4 @@ echo "plot f(x) t sprintf(\"N ({/Symbol a}= %1.2f , {/Symbol b}= %1.2f  )\", a_a
 
 #
 gnuplot ${plotfile}
+rm ${plotfile}

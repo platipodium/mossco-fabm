@@ -14,15 +14,27 @@
 !   D_N_initial	[float, unit = mmol-N m^-3] $\mathrm{Pp}$
 !              initial Nitrogen content of detritus concentration
 !   D_P_initial	[float, unit = mmol-P m^-3] $\mathrm{Pp}$
-!              initial Phosphorous content of detritus concentration 
+!              initial Phosphorous content of detritus concentration
+!   POC_initial	[float, unit = mmol-C m^-3] $\mathrm{POC}$
+!              initial particulate organic Carbon concentration
+!   PON_initial	[float, unit = mmol-N m^-3] $\mathrm{PON}$
+!              initial particulate organic Nitrogen concentration
+!   Phyto0_mean [float, uni = logESD]
+!		mean initial phytoplankton size
+!   Phyto0_sigma [float, unit = -]
+!		variance of initial size distribution
 !-------------------------------------------------------------------------------
 
 &kristineb_init
-!   Phy_initial		= 3.0859920740036051E-004, 8.6505372245949848E-003, 3.5340470893032327E-002, 9.2572459254218920E-002, 0.15547890993865368, 0.16743312754965145, 0.11560896385372525, 2.3226058853334980E-002, 1.3576676521422678E-003, 2.3091138922046358E-005, 1.1426972249693628E-007, 1.6453220817295960E-010, 6.8929418563724642E-014,
+ !  Phy_initial		= 0.01,0.2,0.2,0.15,0.15,0.01,0.005,0.005,0.015,0.05,0.051,0.051,0.02
    N_initial		= 7.1, 
    P_initial		= 0.8, 
 !   Q_N_initial		= 0.24533711819502257, 0.26444499605476940, 0.27661683625451616, 0.28934892034640869, 0.30266703516411664, 0.31659815445436701, 0.33117049350802480, 0.35696343257594526, 0.38476523329912460, 0.41473235420054644, 0.44703343944542095, 0.48185026790981805, 0.51937877616672257,
 !   Q_P_initial		= 2.6275218032789722E-002, 2.3304028435872287E-002, 2.1685118782160572E-002, 2.0178673309227419E-002, 1.8776879232752744E-002, 1.7472466515435148E-002, 1.6258670162850417E-002, 1.4420147202268760E-002, 1.2789523574334206E-002, 1.1343290117920238E-002, 1.0060596077051700E-002,8.9229484896702661E-003, 7.9139455693803748E-003, 
-   D_N_initial		= 0.5, 
-   D_P_initial		= 0.5, 
+   D_N_initial		= 0.05,
+   D_P_initial		= 0.05,
+   POC_initial		= 13.0,
+   PON_initial		= 2.0,
+ Phyto0_mean		= 0.9,
+ Phyto0_sigma		= 5.,
 /

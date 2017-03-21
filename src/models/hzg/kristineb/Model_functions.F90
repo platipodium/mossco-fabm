@@ -2,14 +2,13 @@ subroutine ecophys_para(self,parsout)
 implicit none
  class (type_hzg_kristineb),intent(in) :: self
    real(rk),dimension(29),intent(out) :: parsout
-   real(rk) :: b_Mumax2,a_Mumax2,mumax_incr2,b_Mumax_large2,b_Mumax_small2,a_Mumax_large2,a_Mumax_small2
+   real(rk) :: mumax_incr2,b_Mumax_large2,b_Mumax_small2,a_Mumax_large2,a_Mumax_small2
    real(rk) :: b_Qmin_N2,a_Qmin_N2,b_Qmax_N2,a_Qmax_N2,b_Vmax_N2,a_Vmax_N2
    real(rk) :: a_affin_N2,a_affin_P2,a_carbon2
    real(rk) :: b_affin_N2,b_affin_P2,b_carbon2
    real(rk) :: b_Qmin_P2,a_Qmin_P2,b_Qmax_P2,a_Qmax_P2,b_Vmax_P2,a_Vmax_P2
 !----------------
 !--- Phytoplankton eco-physiological parameters ---
-  b_mumax2=10.0**self%b_mumax
   b_qmin_N2=10.0**self%b_qmin_N
   b_qmax_N2=10.0**self%b_qmax_N
   b_vmax_N2=10.0**self%b_vmax_N
@@ -34,8 +33,6 @@ implicit none
         call convert_BGCparams(b_qmax_N2,self%a_qmax_N,self%a_carbon,b_carbon2,b_qmax_N2,a_qmax_N2)
         call convert_BGCparams(b_vmax_N2,self%a_vmax_N,self%a_carbon,b_carbon2,b_vmax_N2,a_vmax_N2)
 
-        b_Mumax2=b_mumax2*(acos(-1.0)/6.)**self%a_mumax
-        a_Mumax2=3*(self%a_mumax)
 
       !  b_Kn_N2=b_kn_N2*(acos(-1.0)/6.)**self%a_kn_N
       !  a_Kn_N2=3*(self%a_kn_N)
@@ -80,8 +77,8 @@ implicit none
  !parsout(23) = a_Kn_P2
  parsout(24) = b_affin_P2
  parsout(25) = a_affin_P2
- parsout(26) = b_mumax2
- parsout(27) = a_mumax2
+ !parsout(26) = b_mumax2
+ !parsout(27) = a_mumax2
  parsout(28) = b_carbon2
  parsout(29) = a_carbon2
  return
@@ -119,8 +116,8 @@ real(rk)::nom,dom
 f_co2(:)=1.0_rk
        if (self%co2_forc .eqv. .true.) then
             do i=1,self%phyto_num
-                nom=1._rk-exp(-self%a_co2*pco2)
-                dom=1._rk+self%a_star*exp(self%log_ESD(i)-self%a_co2*pco2)
+                nom=1.0_rk-exp(-self%a_co2*pco2)
+                dom=1.0_rk+self%a_star*exp(self%log_ESD(i)-self%a_co2*pco2)
             	f_co2(i)=(nom/dom)
 	    end do
         end if
@@ -128,7 +125,7 @@ f_co2(:)=1.0_rk
 end subroutine
 
 !-----------------------------------------------------------------------------
-subroutine f_parsr(self, Phy, Q_N,f_co2,F_T,par,f_par)
+subroutine f_parsr(self, Phy, Q_N,f_co2,F_T,par,mixl,f_par)
 implicit none
  class (type_hzg_kristineb),intent(in) :: self
  !real(rk),intent(in):: t! Time
@@ -142,6 +139,8 @@ implicit none
  integer::i
  real(rk)::k,par_w,phyNtot,par_tmp
  real(rk),dimension(self%phyto_num)::phyN
+ real(rk),intent(in) :: mixl
+ 
  par_tmp=par!*3600*24
  f_par(:)=1._rk
         if (self%PAR_forc .eqv. .true.) then
@@ -153,7 +152,7 @@ implicit none
             phyNtot = sum(phyN(:)) * self%k_phyN
             k = self%kbg + phyNtot
 !             par_w: Average light intensity within mixed layer depth,
-            par_w = par / (self%z * k) * (1.0_rk - exp(-1.0_rk * k * self%z))
+            par_w = par / (mixl * k) * (1.0_rk - exp(-1.0_rk * k * mixl))
           !  par_w = par_tmp / (self%z * k) * (1._rk - exp(-1.0_rk * k * self%z))
             do i=1,self%phyto_num
 		call bgc_parameters(self,self%log_ESD(i), bgc_params)
@@ -188,10 +187,10 @@ implicit none
                 mu_max=bgc_params(1)
 	    end if
             !to use with mu_max:
-            q_Nl=(Q_N(i)-bgc_params(2))/(bgc_params(3)-bgc_params(2))
-            q_Pl=(Q_P(i)-bgc_params(7))/(bgc_params(8)-bgc_params(7))
-            !q_Nl=(Q_N(i)-bgc_params(2))/Q_N(i)
-            !q_Pl=(Q_P(i)-bgc_params(7))/_P(i)
+            !q_Nl=(Q_N(i)-bgc_params(2))/(bgc_params(3)-bgc_params(2))
+            !q_Pl=(Q_P(i)-bgc_params(7))/(bgc_params(8)-bgc_params(7))
+            q_Nl=(Q_N(i)-bgc_params(2))/Q_N(i)
+            q_Pl=(Q_P(i)-bgc_params(7))/Q_P(i)
 
             if (nutlim == 1) then
                 r=q_Pl/q_Nl
@@ -222,7 +221,8 @@ implicit none
 	Do i=1,self%phyto_num
         	phy_conc(i)=Phy(i)*Q_N(i)
 	end do
-        aggr_rate=self%A_star_opt*(sum(phy_conc(:))+D_N)
+        aggr_rate=self%A_star_opt*(product(phy_conc(:))+D_N)
+        !aggr_rate=self%A_star_opt*(sum(phy_conc(:))+D_N)
         return
 end function
 !------------------------------------------------------------------------------
@@ -238,13 +238,13 @@ implicit none
  real(rk),dimension(11) :: bgc_params
  real(rk)::nom_N,dom_N,q
   uptake_rate_N=0.0_rk
-	if (par>0.0) then  !No uptake during night
+	if (par>=0.0) then  !No uptake during night
         Do i=1,self%phyto_num
 	    call bgc_parameters(self,self%log_ESD(i), bgc_params)
             nom_N=bgc_params(4)*bgc_params(6)*N
             dom_N=bgc_params(4)+bgc_params(6)*N
             q=max(0.0_rk,(bgc_params(3)-Q_N(i))/(bgc_params(3)-bgc_params(2)))
-            uptake_rate_N(i)=(nom_N/dom_N)*q*sqrt(F_T(1))
+            uptake_rate_N(i)=(nom_N/dom_N)*sqrt(F_T(1))*q
 	end do
 	end if
         return 
@@ -262,20 +262,20 @@ implicit none
  real(rk) :: nom_P,dom_P,q
  real(rk),dimension(11) :: bgc_params
  	uptake_rate_P=0.0_rk
-	if (par>0.0) then !No uptake during night
+	if (par>=0.0) then !No uptake during night
 	  Do i=1,self%phyto_num
 	    call bgc_parameters(self,self%log_ESD(i), bgc_params)
             nom_P=bgc_params(9)*bgc_params(11)*P
             dom_P=bgc_params(9)+bgc_params(11)*P
             q=max(0.0_rk,(bgc_params(8)-Q_P(i))/(bgc_params(8)-bgc_params(7)))
-            uptake_rate_P(i)=(nom_P/dom_P)*sqrt(F_T(1))*q
-            !uptake_rate_P(i)=(nom_P/dom_P)*sqrt(F_T(1))
+            uptake_rate_P(i)=(nom_P/dom_P)*sqrt(F_T(1))
+            !uptake_rate_P(i)=(nom_P/dom_P)*sqrt(F_T(1))*q
 	end do
 	end if
         return
 end subroutine
 !------------------------------------------------------------------------------
-subroutine sink_rate(self,Q_N,Q_P,sinking)
+subroutine sink_rate(self,Q_N,Q_P,mixl,sinking)
 !use model_pars
 implicit none
  class (type_hzg_kristineb),intent(in) :: self
@@ -285,6 +285,7 @@ implicit none
  integer:: i
  real(rk) :: physiol,qN,qP
  real(rk),dimension(11) :: bgc_params
+ real(rk),intent(in)::mixl !mixing layer depth
  sinking=0.0_rk
         Do i=1,self%phyto_num
 	    call bgc_parameters(self,self%log_ESD(i), bgc_params)
@@ -294,7 +295,7 @@ implicit none
  !           physiol = exp(-4.0_rk*qN*qP)
             physiol = exp(-0.5*((qP*qN)*16.0)**2) !Todo: Why?
 !         size dependency: Stokes - vacuolation
-            sinking(i)=physiol*exp(0.5_rk*self%log_ESD(i))* 0.3_rk/self%z 
+            sinking(i)=physiol*exp(0.5_rk*self%log_ESD(i))* 0.3_rk/mixl
 !z=mixed layer depth
 	end do
         return
@@ -399,7 +400,7 @@ implicit none
         return
 end subroutine
 !------------------------------------------------------------------------------
-real(rk) function dD_N_dt(self, Phy, Q_N, D_N,aggregation,F_T,grazing_forc) 
+real(rk) function dD_N_dt(self, Phy, Q_N, D_N,aggregation,F_T,mixl,grazing_forc) 
 implicit none
 !Detritus concentration over time, mmol-N m^-3 d^-1
  class (type_hzg_kristineb),intent(in) :: self
@@ -412,6 +413,7 @@ implicit none
  integer::i
  real(rk) :: mtotal
  real(rk),dimension(self%phyto_num) :: source,gr,loss
+  real(rk),intent(in) :: mixl
         mtotal = 0.0_rk
         do i=1,self%phyto_num
             !source(i)=(self%frac_md*self%m+aggregation) * Phy(i) * Q_N(i)+(1._rk-self%y)*grazing_forc(i)*Q_N(i)
@@ -420,11 +422,11 @@ implicit none
 	    loss(i)=(self%frac_md*self%m+aggregation)*Phy(i)*Q_N(i)
 	end do
         !dD_N_dt=mtotal - self%r_dn * D_N*F_T(1)-(self%det_sink_r/self%z)*D_N
-        dD_N_dt=sum(loss(:))-(self%r_dn*F_T(1)+(self%det_sink_r/self%z))*D_N
+        dD_N_dt=sum(loss(:))-(self%r_dn*F_T(1)+(self%det_sink_r/mixl))*D_N
         return
 end function
 !------------------------------------------------------------------------------
-real(rk) function dD_P_dt(self,Phy, Q_P, D_P,aggregation,F_T,grazing_forc) !Detritus concentration over time, mmol-P m^-3 d^-1
+real(rk) function dD_P_dt(self,Phy, Q_P, D_P,aggregation,F_T,mixl,grazing_forc) !Detritus concentration over time, mmol-P m^-3 d^-1
 implicit none
  class (type_hzg_kristineb),intent(in) :: self
  real(rk),dimension(self%phyto_num),intent(in) :: Phy! Phytoplankton biomass concentration, mmol-C m^-3
@@ -436,6 +438,7 @@ implicit none
  integer::i
  real(rk) :: mtotal
  real(rk),dimension(self%phyto_num) :: source,gr,loss
+  real(rk),intent(in) :: mixl !mixed layer depth
         mtotal = 0.0_rk
         do i=1,self%phyto_num
             !source(i)=(self%frac_md*self%m+aggregation) * Phy(i) * Q_P(i)+(1._rk-self%y)*grazing_forc(i)*Q_P(i)
@@ -444,7 +447,7 @@ implicit none
             loss(i)=(self%frac_md*self%m+aggregation)*Phy(i)*Q_P(i)
 	end do
 !        dD_P_dt=mtotal - self%r_dn * D_P*F_T(1) -(self%det_sink_r/self%z)*D_P
-	dD_P_dt=sum(loss(:))-(self%r_dn*F_T(1)+(self%det_sink_r/self%z))*D_P
+	dD_P_dt=sum(loss(:))-(self%r_dn*F_T(1)+(self%det_sink_r/mixl))*D_P
  return
 end function
 !------------------------------------------------------------------------------
@@ -551,7 +554,8 @@ mean_cell_size=0.0_rk
 Phy_tmp=Phy
 	do i=1,self%phyto_num
 	!Larger Diatoms (L>3.5) were counted seperately
-	        if(self%log_ESD(i)<self%log_ESD_crit) then
+	        if(self%log_ESD(i)<self%log_ESD_crit .and. self%log_ESD(i)/= 2.5) then
+	        !Error in data for nan IV (2.6)
 		  mean_nom(i)=Phy(i)*self%log_ESD(i)
 		!else if (self%log_ESD(i)==self%log_ESD_crit) then
 		!  mean_nom(i)=0.5*Phy(i)*self%log_ESD(i)

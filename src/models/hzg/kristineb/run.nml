@@ -34,8 +34,8 @@ cop_file='Observations/copepods.dat'
 &output
 output_format=1
 output_format=2
-output_file='output.dat'
-nsave=30
+output_file='outputlow.dat'
+nsave=200
 add_environment=.false.
 add_conserved_quantities=.false.
 add_diagnostic_variables=.true.

@@ -19,7 +19,7 @@ else
   echo 'set terminal pdf enhanced color fontscale 0.2' >> ${plotfile}
   echo "set output '$outputfile'" >> ${plotfile}
 fi
-echo 'set multiplot layout 4,4' >> ${plotfile}
+echo 'set multiplot layout 5,4' >> ${plotfile}
 echo 'set xdata time' >> ${plotfile}
 echo 'set timefmt "%Y-%m-%d %H:%M:%S"' >> ${plotfile}
 echo 'set format x "%m-%d"' >> ${plotfile}
@@ -283,6 +283,10 @@ let row=$row+1
 #       printf ", '${inputfile}' u 1:${row} w l ls ${lines} t 'growth_${species}'" >> ${plotfile}
 #done
 ###
+echo "set xlabel 'time'" >> ${plotfile}
+echo "set ylabel 'copepods'" >> ${plotfile}
+echo "plot '$Obsfolder/copepods.dat' u 1:3 t 'high CO2','$Obsfolder/copepods.dat' u 1:4 t 'low CO2'" >> ${plotfile}
+###
 echo "unset key" >> ${plotfile}
 echo "set ylabel 'time'" >> ${plotfile}
 echo "set xlabel 'size'" >> ${plotfile}
@@ -290,8 +294,12 @@ echo "set pm3d map" >> ${plotfile}
 echo "set xdata" >> ${plotfile}
 echo "set format x '%1.0f'" >> ${plotfile}
 echo "set ticslevel 0" >> ${plotfile}
+echo "set cbrange [0.001:1]" >> ${plotfile}
+echo "set logscale cb " >> ${plotfile}
 let endblock=${row}-1
 echo "splot '${inputfile}' every ::${endblock} matrix w pm3d" >> ${plotfile}
 ###
+
+
 echo "unset multiplot" >> ${plotfile}
 echo "set terminal x11" >> ${plotfile}
