@@ -15,13 +15,15 @@
 !        Specific molar ratio for phytoplankton respiration
 ! chla_to_T_PhyN    	[float, unit = ] $\alpha_\textrm{chl:N}$
 !         Chl-a/Total Phyto_N  
+! I_opt [float, unit = mumolq m^-2 s^-1] $I_{opt}$
+!         optimal light intensity
 ! n_star    	[float, unit = ] $n^*$
 !        synchrony in nutrient co-limitation   
 ! k_phyN    	[float, unit = m^2/mmol-C] $k_\textrm{phyN}$
 !       Light attenuation due to phytoplankton biomass     
 ! kbg		[float, unit = m^-1] $\kappa$
 ! 	Background turbidity
-! par		[float, unit = -] $PAR_0$
+! par		[float, unit = mumolq m^-2 s^-1] $PAR_0$
 !	Surface light irradiance, !it is going to be replaced by data
 ! a_par		[float, unit = mu mol-phot^-1 m^2 d] $a_{PAR}$
 !	Light absorption
@@ -83,27 +85,28 @@
  frac_mn = 0.6,
  mol_ratio = 0.2,
  chla_to_T_PhyN = 2.,
+ I_opt = 2000.,
  n_star = 3.0,
  k_phyN = 0.05,
  kbg = 0.02,
  par = 200.0,
- a_par = 0.05,
+ a_par = 0.01,
  alpha = 0.004,
  a_co2 = 0.007,
  Co2 = 1000.,
- a_star = 0.005,
+ a_star = 0.05,
  T = 10.,
  T_ref = 10.,
  Tcons_phy = 2.,
  Tcons_zoo = 2.4,
  n_syn = 2,
- sel = 1.0,1.0,1.6,
+ sel = 1.0,1.0,1.5,
  Lz = 3.0,4.6,6.1,
  I_max0 = 173.,
  a_Im0 = 0.2,
  Lz_star =  1.1,3.5,2.6,
- y = 0.34,
- graz_const = 1.1,
+ y = 0.4,
+ graz_const = 0.4,
  sel_cop_cil = 2.5,
  a_gr = 0.8,
  r_dn = 0.01,
@@ -113,5 +116,5 @@
  tot_phyc0 =0.6,
  !log_ESD = 0.5,1.0,1.3,1.6,1.9,2.2,2.5,3.,3.5,4.0,4.5,5.,5.5,
  log_ESD = 0.4,0.6,0.8,1.0,1.2,1.4,1.6,1.8,2.0,2.2,2.4,2.6,2.8,3.0,3.2,3.4,3.6,3.8,4.0,4.2,4.4,4.6,4.8,5.0,5.2,5.4,5.6,
- log_ESD_crit = 4.,
+ log_ESD_crit = 4.0,
  /

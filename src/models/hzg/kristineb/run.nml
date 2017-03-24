@@ -14,7 +14,7 @@ repair_state=.false.
 !             2 - read from file, assume values to be PAR
 ! ------------------------------------------------------------------
 &environment
-env_file='Observations/co2low_abiotic_forcings.dat'
+env_file='Observations/forcings_2days_low.dat'
 swr_method=2
 albedo_correction=.true.
 latitude=54.0
