@@ -58,7 +58,7 @@
  a_mumax_small = 0.6,
  b_mumax_large = 0.7,
  a_mumax_large = -0.15,
- mumax_incr = 1.,
+ mumax_incr = 0.8,
  b_qmin_N = -8.5,
  a_qmin_N = 0.79,
  b_qmax_N = -8.4, !(10**)

@@ -84,17 +84,17 @@ implicit none
  return
  end subroutine
 !--------------------------------------------------------------------
-subroutine f_T(self,deeptemp,seatemp,f_T_out)
+subroutine f_T(self,deeptemp,f_T_out)
 implicit none
  class (type_hzg_kristineb),intent(in) :: self
  real(rk),dimension(2),intent(out):: f_T_out
  real(rk)::ft_Phy,ft_zoo
  real(rk),intent(in) :: deeptemp ! Interpolation functions for deep water temperature
- real(rk),intent(in) :: seatemp ! Interpolation functions for see surface temperature
+! real(rk),intent(in) :: seatemp ! Interpolation functions for see surface temperature
  real(rk) :: meantemp
 !        :return: Temperature dependency
         if  (self%T_forc .eqv. .true.) then
-             meantemp=(seatemp+deeptemp)/2.0_rk
+             meantemp=(deeptemp)!+seatemp)/2.0_rk
             fT_Phy= self%Tcons_phy**((meantemp-self%T_ref)/10._rk)
             fT_zoo= self%Tcons_zoo**((meantemp-self%T_ref)/10._rk)
             f_T_out=(/fT_Phy,fT_zoo/)
@@ -221,8 +221,8 @@ implicit none
 	Do i=1,self%phyto_num
         	phy_conc(i)=Phy(i)*Q_N(i)
 	end do
-        aggr_rate=self%A_star_opt*(product(phy_conc(:))+D_N)
-        !aggr_rate=self%A_star_opt*(sum(phy_conc(:))+D_N)
+        !aggr_rate=self%A_star_opt*(product(phy_conc(:))+D_N)
+        aggr_rate=self%A_star_opt*(sum(phy_conc(:))+D_N)
         return
 end function
 !------------------------------------------------------------------------------
@@ -522,9 +522,10 @@ implicit none
         return 
 end subroutine
 !------------------------------------------------------------------------------
-real(rk) function chl_a(self,Phy,Q_N)
+real(rk) function chl_a(self,Phy,Q_N,par)
 implicit none
  class (type_hzg_kristineb),intent(in) :: self
+ real(rk),intent(in) :: par
  real(rk),dimension(self%phyto_num),intent(in) :: Phy! Phytoplankton biomass concentration, mmol-C m^-3
  real(rk),dimension(self%phyto_num),intent(in) :: Q_N! Phytoplankton intracellular nitrogen cell quota, mol-N mol-C^1
 !        :return: Chl_a concentration
@@ -532,7 +533,7 @@ implicit none
  real(rk) :: phyto_conc_tot
  phyto_conc_tot=0.0_rk
 	Do i=1,self%phyto_num
-        phyto_conc_tot=phyto_conc_tot+Phy(i) * Q_N(i)
+        phyto_conc_tot=phyto_conc_tot+Phy(i) * Q_N(i) !* (1._rk-par/self%I_opt)
 	end do
         chl_a=phyto_conc_tot*self%chla_to_T_PhyN
         return
