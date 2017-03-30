@@ -19,7 +19,7 @@ if [ ${terminal} = 'x11' ]; then
   echo "set terminal x11 enhanced" >> ${plotfile}
 else
   echo 'set terminal pdf enhanced linewidth 3 color fontscale 0.3' >> ${plotfile}
-  echo "set output 'scaling1303.pdf'" >> ${plotfile}
+  echo "set output 'scaling.pdf'" >> ${plotfile}
 fi
 echo 'set multiplot layout 2,3' >> ${plotfile}
 #convert to ESD
@@ -82,7 +82,7 @@ echo " a_affin_P=3.0*(a_affin_P-a_carbon)" >> ${plotfile}
 
 
 echo "set logscale y" >> ${plotfile}
-echo "set xrange [0:6]" >> ${plotfile}
+echo "set xrange [-0.5:6]" >> ${plotfile}
 
 echo "set title '{/Symbol m}_{max}'" >> ${plotfile}
 echo "f(x)=b_Mumax_small2*exp(a_Mumax_small2*x)" >> ${plotfile}

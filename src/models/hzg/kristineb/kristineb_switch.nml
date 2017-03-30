@@ -42,7 +42,7 @@
    graz_forc = .true.,
    convert_mu = .false.,
    co2_low = .true.,
-   phyto_num = 27,
+   phyto_num = 17,
    zoo_num = 3,
    num_ciliat = 2,
    Nut_lim = 3,

@@ -267,7 +267,7 @@ implicit none
 	    call bgc_parameters(self,self%log_ESD(i), bgc_params)
             nom_P=bgc_params(9)*bgc_params(11)*P
             dom_P=bgc_params(9)+bgc_params(11)*P
-            q=max(0.0_rk,(bgc_params(8)-Q_P(i))/(bgc_params(8)-bgc_params(7)))
+        !    q=max(0.0_rk,(bgc_params(8)-Q_P(i))/(bgc_params(8)-bgc_params(7)))
             uptake_rate_P(i)=(nom_P/dom_P)*sqrt(F_T(1))
             !uptake_rate_P(i)=(nom_P/dom_P)*sqrt(F_T(1))*q
 	end do
@@ -313,12 +313,12 @@ implicit none
         return
 end subroutine
 !------------------------------------------------------------------------------
-subroutine Grazing_forcing(self,Phy,F_T,Mean,zoo_pref,cop_pref,Zoo,grazing,I_max)
+subroutine Grazing_forcing(self,Phy,F_T,Mean,zoo_pref,cop_pref,Zoo,grazing,Lz,I_max)
 implicit none
  class (type_hzg_kristineb),intent(in) :: self
  integer:: i,j,c
  real(rk),dimension(self%phyto_num),intent(in) :: Phy! Phytoplankton biomass concentration, mmol-C m^-3
- real(rk),dimension(self%zoo_num),intent(in) :: Zoo !Zooplankton biomass
+ real(rk),dimension(self%zoo_num),intent(in) :: Zoo,Lz !Zooplankton biomass
  real(rk),dimension(2),intent(in) :: F_T!(2) Temperature dependency for zooplankton
  real(rk),intent(in) :: Mean! Community mean cell size, log_e ESD (mu m)
  real(rk),dimension(self%phyto_num),intent(out) :: grazing !Grazing forcing, mmol-C m^-3 d^-1
@@ -349,7 +349,7 @@ implicit none
             ! Average effective food concentration
             mean_eff_food_ciliat=0.0_rk
             Do c=1,self%num_ciliat
-	      mean_eff_food_ciliat=mean_eff_food_ciliat+Zoo(c)*cop_pref(c) * self%Lz(c)
+	      mean_eff_food_ciliat=mean_eff_food_ciliat+Zoo(c)*cop_pref(c) * Lz(c)
 	    end do
             mean_eff_food=0.0_rk
             do j=1,self%zoo_num
@@ -363,8 +363,8 @@ implicit none
             ! Maximum ingestion rate
             I_max=0.0_rk
             Do j=1,self%zoo_num
-                a_zoo=self%a_Im0*(self%Lz(j)+self%Lz_star(j))
-                I_max_star=self%I_max0*F_T(2)*exp(a_zoo+(2.0_rk-a_zoo)*self%Lz_star(j)+(a_zoo-3.0_rk)*self%Lz(j))
+                a_zoo=self%a_Im0*(Lz(j)+self%Lz_star(j))
+                I_max_star=self%I_max0*F_T(2)*exp(a_zoo+(2.0_rk-a_zoo)*self%Lz_star(j)+(a_zoo-3.0_rk)*Lz(j))
                 I_max(j)=I_max_star*exp(-self%sel(j)*(self%Lz_star(j)-mean_eff_food_con(j)/eff_food_con(j))**2)
 	    end do
             ! Calculation of grazing, x: food processing ratio, g_x: functional response
@@ -422,7 +422,7 @@ implicit none
 	    loss(i)=(self%frac_md*self%m+aggregation)*Phy(i)*Q_N(i)
 	end do
         !dD_N_dt=mtotal - self%r_dn * D_N*F_T(1)-(self%det_sink_r/self%z)*D_N
-        dD_N_dt=sum(loss(:))-(self%r_dn*F_T(1)+(self%det_sink_r/mixl))*D_N
+        dD_N_dt=sum(loss(:)+gr(:))-(self%r_dn*F_T(1)+(self%det_sink_r/mixl))*D_N
         return
 end function
 !------------------------------------------------------------------------------
@@ -447,7 +447,7 @@ implicit none
             loss(i)=(self%frac_md*self%m+aggregation)*Phy(i)*Q_P(i)
 	end do
 !        dD_P_dt=mtotal - self%r_dn * D_P*F_T(1) -(self%det_sink_r/self%z)*D_P
-	dD_P_dt=sum(loss(:))-(self%r_dn*F_T(1)+(self%det_sink_r/mixl))*D_P
+	dD_P_dt=sum(loss(:)+gr(:))-(self%r_dn*F_T(1)+(self%det_sink_r/mixl))*D_P
  return
 end function
 !------------------------------------------------------------------------------
@@ -469,7 +469,7 @@ implicit none
         do i=1,self%phyto_num
             !dyn_part(i)=-N_uptake(i)*Phy(i)+self%y*grazing_forc(i)*Q_N(i)+self%frac_mn*self%m*Phy(i)*Q_N(i)
 	    up(i)=N_uptake(i)*Phy(i)
-	    gr(i)=self%y*grazing_forc(i)*Q_N(i)
+	!    gr(i)=self%y*grazing_forc(i)*Q_N(i)
 	end do
         !common_part =  self%r_dn*D_N*F_T(1)! #+ r_mix *(Nit_bot-N) 
 	!dN_dt=common_part+sum(dyn_part(:))
@@ -495,7 +495,7 @@ implicit none
             !dyn_part(i)=-P_uptake(i)*Phy(i)+self%y*grazing_forc(i)*Q_P(i)+self%frac_mn*self%m*Phy(i)*Q_P(i)
 !        #P_bot=Nit_bot*(self.pars['P0']/self.pars['N0'])
 	    up(i)=P_uptake(i)*Phy(i)
-	    gr(i)=self%y*grazing_forc(i)*Q_P(i)
+!	    gr(i)=self%y*grazing_forc(i)*Q_P(i)
 	end do
 !        common_part = self%r_dn*D_P*F_T(1)!#+ r_mix*(P_bot-P)
 !	dP_dt=common_part+sum(dyn_part(:))
@@ -555,9 +555,9 @@ mean_cell_size=0.0_rk
 Phy_tmp=Phy
 	do i=1,self%phyto_num
 	!Larger Diatoms (L>3.5) were counted seperately
-	        if(self%log_ESD(i)<self%log_ESD_crit .and. self%log_ESD(i)/= 2.5) then
+	        if(self%log_ESD(i)<self%log_ESD_crit) then! .and. self%log_ESD(i)/= 2.5) then
 	        !Error in data for nan IV (2.6)
-		  mean_nom(i)=Phy(i)*self%log_ESD(i)
+		  mean_nom(i)=Phy(i)*exp(self%log_ESD(i))
 		!else if (self%log_ESD(i)==self%log_ESD_crit) then
 		!  mean_nom(i)=0.5*Phy(i)*self%log_ESD(i)
 		!  Phy_tmp(i)=0.5*Phy_tmp(i)
@@ -565,7 +565,7 @@ Phy_tmp=Phy
 		  Phy_tmp(i)=0.0_rk
 		end if
 	end do
-        if (sum(Phy_tmp) /= 0.0) mean_cell_size=sum(mean_nom)/sum(Phy_tmp)
+        if (sum(Phy_tmp) /= 0.0) mean_cell_size=log(sum(mean_nom)/sum(Phy_tmp))
         return
 end function
 !------------------------------------------------------------------------------
