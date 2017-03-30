@@ -78,7 +78,7 @@ real(rk),parameter :: relaxO2=0.04_rk
 real(rk),parameter :: T0 = 288.15_rk ! reference Temperature fixed to 15 degC
 real(rk),parameter :: Q10b = 1.5_rk
 real(rk) :: Cprod, Nprod, Pprod
-real(rk) :: poc, doy, zmax
+real(rk) :: poc, doy, zmax, sal
 real(rk) :: AnoxicMin,Denitrific,OxicMin,Nitri,OduDepo,OduOx,pDepo, Anammox
 real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto,faeces, min_Cmass
 real(rk) :: a_lit, ksat_graz
@@ -273,8 +273,7 @@ if (self%GrazingOn) then
      case (0)
       _GET_GLOBAL_ (self%id_doy,doy) !day of year
       _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
-
-       fa = self%zm_fa_inf +(1.0_rk-self%zm_fa_inf)/(1+exp(0.3*(zmax-30.0)))
+       fa = self%zm_fa_inf +(1.0_rk-self%zm_fa_inf)/(1+exp(0.16*(zmax-24.0)))
        relmort = fa + fa*self%zm_fa_delmax*sens%f_T2*0.25*(1-sin(2*(doy+45)*Pi/365.0))**2
        ksat_graz = fa * self%k_grazC
      case (1)
@@ -293,6 +292,12 @@ if (self%GrazingOn) then
     !f(z)=sigmoidal function of depth with an upper plateau (100%) at 0-10 m and a lower (10%) for 30+
        fz=0.5/(1+exp(-zmax*0.5_rk+self%a_fz))
        relmort=1.0d0 + self%zm_fa_delmax*sens%f_T2*0.5*(1-fz*sin(2*(doy+75)*Pi/365.0))
+     case (8)
+      _GET_GLOBAL_ (self%id_doy,doy) !day of year
+      _GET_(self%id_sal,sal) ! salinity
+       fa =  1.0_rk/(1+exp(self%zm_fa_inf*(sal+self%mort_ODU)))
+       relmort = fa + fa*self%zm_fa_delmax*sens%f_T2*0.25*(1-sin(2*(doy+45)*Pi/365.0))**2
+       ksat_graz = fa * self%k_grazC
     end select
   end if !self%GrazTurbOn .gt. 0
   zoo_mort   = self%mort_zoo * relmort* sens%f_T**self%fT_exp_mort ! * zoo%C
@@ -816,7 +821,8 @@ end if
 !  end select
 !endif
 
-_SET_DIAGNOSTIC_(self%id_vphys, exp(-self%sink_phys*phy%relQ%N * phy%relQ%P))       !average Temporary_diagnostic_
+!_SET_DIAGNOSTIC_(self%id_vphys, exp(-self%sink_phys*phy%relQ%N * phy%relQ%P))       !average
+_SET_DIAGNOSTIC_(self%id_vphys, sal)       !average Temporary_diagnostic_
 
 ! experimental formulation for emulating P-adsorption at particles in the water column and at the bottom interface
 
