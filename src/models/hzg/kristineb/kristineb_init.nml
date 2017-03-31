@@ -35,6 +35,6 @@
    D_P_initial		= 0.05,
    POC_initial		= 13.0,
    PON_initial		= 2.0,
- Phyto0_mean		= 3.5,
- Phyto0_sigma		= 2.,
+ Phyto0_mean		= 2.,
+ Phyto0_sigma		= 3.,
 /

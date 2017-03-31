@@ -9,7 +9,6 @@ plotfile='plotscaling.plt'
 input='../kristineb_scal.nml'
 tmpfile='tmpfile1'
 plotfile='scal.plt'
-rm ${plotfile}
 echo 'reset' >> ${plotfile}
 echo 'unset multiplot' >> ${plotfile}
 tail -n 24 ${input} | head -n 23 >> ${plotfile}
@@ -82,7 +81,7 @@ echo " a_affin_P=3.0*(a_affin_P-a_carbon)" >> ${plotfile}
 
 
 echo "set logscale y" >> ${plotfile}
-echo "set xrange [-0.5:6]" >> ${plotfile}
+echo "set xrange [0:6]" >> ${plotfile}
 
 echo "set title '{/Symbol m}_{max}'" >> ${plotfile}
 echo "f(x)=b_Mumax_small2*exp(a_Mumax_small2*x)" >> ${plotfile}

@@ -54,23 +54,23 @@
 !-----------------------------------------------------------------------
 
 &kristineb_scal
- b_mumax_small = -0.8,
- a_mumax_small = 0.3,
- b_mumax_large = 0.7,
- a_mumax_large = -0.35,
- mumax_incr = 1.9,
- b_qmin_N = -8.9,
- a_qmin_N = 0.79,
+ b_mumax_small = -0.35,
+ a_mumax_small = 0.45,
+ b_mumax_large = 1.58,
+ a_mumax_large = -0.2,
+ mumax_incr = 0.42,
+ b_qmin_N = -8.6,
+ a_qmin_N = 0.84,
  b_qmax_N = -8.4, !(10**)
- a_qmax_N = 0.95,
+ a_qmax_N = 0.93,
  b_vmax_N = -7.5,
  a_vmax_N = 0.81,
  b_carbon = -0.69, !(10**)
  a_carbon = 0.88,
- b_qmin_P = -9.85,
+ b_qmin_P = -10.7,
  a_qmin_P = 0.79,
- b_qmax_P = -9.52, !(10**)
- a_qmax_P = 0.9,
+ b_qmax_P = -9.6, !(10**)
+ a_qmax_P = 0.88,
  b_vmax_P = -9.76,
  a_vmax_P = 0.8,
  b_affin_N = -8.2,

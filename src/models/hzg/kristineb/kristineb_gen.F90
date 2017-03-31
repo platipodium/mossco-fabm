@@ -32,6 +32,7 @@ type (type_diagnostic_variable_id)   :: id_chl_a,id_mean_cell_size,id_size_diver
 type (type_diagnostic_variable_id),dimension(numberofphytos)   :: id_fPAR,id_fCO2,id_grazing,id_uptake_N,id_uptake_P,id_growth,id_sizespec
 type (type_diagnostic_variable_id),dimension(numberofzoos) :: id_I_max
 !Initial Values
+type (type_diagnostic_variable_id)  :: id_total_growth, id_total_respiration,id_total_sinking,id_aggregation,id_total_grazing
 real(rk),dimension(numberofphytos) :: Phy_initial, Q_N_initial, Q_P_initial
 real(rk) ::  N_initial, P_initial, D_N_initial, D_P_initial,POC_initial, PON_initial, Phyto0_mean, Phyto0_sigma
 !Model Parameters
@@ -419,7 +420,7 @@ open(namlst,file='kristineb_init.nml',status='old')
 read(namlst,nml=kristineb_init,err=90,end=99)
 !TODO: Why, explain!?
     do ib=1,phyto_num
-        Phyto0(ib)=exp(-((log_ESD(ib)-Phyto0_mean)**2)/(2*(Phyto0_sigma)**2))!+exp(-((log_ESD(ib)-3.5)**2)/(2*(0.8)**2))*0.03
+        Phyto0(ib)=1.0!exp(-((log_ESD(ib)-Phyto0_mean)**2)/(2*(Phyto0_sigma)**2))!+exp(-((log_ESD(ib)-3.5)**2)/(2*(0.8)**2))*0.03
       ! Phyto0(ib)=exp(-((exp(log_ESD(ib))-exp(Phyto0_mean))**2)/(2*(exp(Phyto0_sigma))**2))!+exp(-((log_ESD(ib)-3.5)**2)/(2*(0.8)**2))*0.03
     end do
 !    do ib=10,phyto_num
@@ -569,11 +570,18 @@ call self%register_diagnostic_variable(self%id_FTZoo, 	'FTZoo','-','Temperature_
   call self%register_diagnostic_variable(self%id_growth(ib),	'growth'//trim(int2char(ib)), '-', 'growth'//trim(int2char(ib)),&
   output=output_instantaneous)
  end do
-   do ib=1,phyto_num
+ 
+ call self%register_diagnostic_variable(self%id_total_growth,  'total_growt', '-', 'total growth', output=output_instantaneous)
+  call self%register_diagnostic_variable(self%id_total_respiration,  'total_respiration', '-', 'total respiration', output=output_instantaneous)
+  call self%register_diagnostic_variable(self%id_total_sinking,  'total_sinking', '-', 'total sinking', output=output_instantaneous)
+  call self%register_diagnostic_variable(self%id_aggregation,  'total_aggregation', '-', 'total aggregation', output=output_instantaneous)
+  call self%register_diagnostic_variable(self%id_total_grazing,  'total_grazing', '-', 'total grazing', output=output_instantaneous)
+ 
+ do ib=1,phyto_num
   call self%register_diagnostic_variable(self%id_sizespec(ib),	'sizespec'//trim(int2char(ib)), '-', 'sizespec'//trim(int2char(ib)),&
   output=output_instantaneous)
  end do
-
+!---------------------------
  !Register global dependency
  call self%register_global_dependency(self%id_doy,standard_variables%number_of_days_since_start_of_the_year)
  
@@ -788,9 +796,15 @@ if(isnan(Phy(1))) stop
     Do ib=1,self%phyto_num
       _SET_DIAGNOSTIC_(self%id_growth(ib),P_growth_rate(ib))
     end do
+    _SET_DIAGNOSTIC_(self%id_total_growth,sum(P_growth_rate(:)))
+    _SET_DIAGNOSTIC_(self%id_total_respiration,-sum(R_N(:)))
+    _SET_DIAGNOSTIC_(self%id_total_sinking,-sum(sinkr(:)))
+    _SET_DIAGNOSTIC_(self%id_aggregation,-aggr)
+    _SET_DIAGNOSTIC_(self%id_total_grazing,-sum(grazing_forc(:)/(0.0001+Phy(:))))
     Do ib=1,self%phyto_num
-      _SET_DIAGNOSTIC_(self%id_sizespec(ib),Phy(ib)/sum(Phy(:)))
+      _SET_DIAGNOSTIC_(self%id_sizespec(ib),Phy(ib))!/sum(Phy(:)))
     end do
+
     
    _LOOP_END_
 end subroutine do

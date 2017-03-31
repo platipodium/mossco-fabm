@@ -295,7 +295,8 @@ implicit none
  !           physiol = exp(-4.0_rk*qN*qP)
             physiol = exp(-0.5*((qP*qN)*16.0)**2) !Todo: Why?
 !         size dependency: Stokes - vacuolation
-            sinking(i)=physiol*exp(0.5_rk*self%log_ESD(i))* 0.3_rk/mixl
+            sinking(i)=physiol*exp(0.5_rk*self%log_ESD(i))* 0.06_rk/mixl
+       !     sinking(i)=physiol*exp(0.25_rk*self%log_ESD(i))* 0.3_rk/mixl      
 !z=mixed layer depth
 	end do
         return
