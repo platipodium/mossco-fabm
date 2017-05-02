@@ -295,9 +295,11 @@ if (self%GrazingOn) then
      case (8)
       _GET_GLOBAL_ (self%id_doy,doy) !day of year
       _GET_(self%id_sal,sal) ! salinity
+ !      if(sal .lt. 0.0_rk) sal = 0.0_rk
+ !      if(sal .gt. 40.0_rk) sal = 40.0_rk
        fa =  1.0_rk/(1+exp(self%zm_fa_inf*(sal+self%mort_ODU)))
        relmort = fa + fa*self%zm_fa_delmax*sens%f_T2*0.25*(1-sin(2*(doy+45)*Pi/365.0))**2
-       ksat_graz = fa * self%k_grazC
+       ksat_graz = (sqrt(fa)+0.1_rk) * self%k_grazC
     end select
   end if !self%GrazTurbOn .gt. 0
   zoo_mort   = self%mort_zoo * relmort* sens%f_T**self%fT_exp_mort ! * zoo%C
