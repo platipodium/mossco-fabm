@@ -1,0 +1,83 @@
+&fabm_nml
+ models ='hzg_maecs','hzg_medmac'
+/
+
+! v_d = m/d, sinking velocity of detritus in the pelagic
+! depth_ben = m, depth on benthos (used to calculate gradients)
+! r_Q10: q10 value for temperature sensitivity
+! T_ref= C, temperature at which kinetic paramters are provided
+! T_presc= C, temperature to use if no target was provided
+! dometh = 1:estimate from ON, 2:estimate from T 
+! K_on2do = mmolN/m2, [if dometh =1]constant for estimating DO from ON
+! K_T2do = mmolO/C,[if dometh =2]constant for estimating DO from T  
+! parameters available for all nutrients:
+! DIXp_variable = target dissolved nutrient variable in the pelagic 
+! PONp_variable = target detrital nutrient variable in the pelagic 
+! DIXp_presc = mmol/m3, if not coupled to a dynamic pelagic model, constant concentration of the pelagic_nutrient_variable
+! POXp_presc= mmol/m3, if not coupled to a dynamic pelagic model, constant concentration of the pelagic_detritus_variable
+! DIXb0 = initial value of the detrital nutrient variable in benthos
+! OXbl0 = initial value of the dissolved nutrient variable in benthos
+! DswX = m2/d, diffusion coefficient across the pelagic-benthic interface
+! Rmeth_X = Remineralization method. 1:linear 2:saturating (kX) 
+! rX = /d, remineralization rate in benthos 
+! kX = mmol/m2, [if Rmeth_X=2] half sat. constant for the saturating remineralization function in benthos 
+! do_denit= do denitrification
+! nutrient specific parameters
+! K_denit= [mmolN/m2] coefficient for estimating denitrification limitation as a function of DIN
+! den_dometh = 1: based on ON function; 2: based on DO=f(ON)
+! K_doin_den = mmolO/m3, [if den_dometh=2] half-sat constant for do inhibition of denitrification
+! K_ondo= mmolN/m2, [if den_dometh=1] coeffiecent for estimating DO inhibition based on ON
+! do_Psorp= do Phosphorus-sorption
+! sorpmeth = 1: dynamic 2: instantaneous
+! sorpP0= mmol/m2, [if sorpmeth=1] initial value for sorped-P pool
+! Rsorp= /d, [if sorpmeth=1] specific sorption rate
+! K_sorp = mmolP/m2, [if sorpmeth=1] half-sat constant for of DIP limitation of P-sorption 
+! K_do_sorp = mmolO/m3, [if sorpmeth=1] half-sat constant for do limitation of P-sorption
+! do_sorpeq = mmol/m3, [if sorpmeth=2] DO threshold at which sorption exceeds desorption
+
+&hzg_medmac
+   v_d = 3.0 
+   depth_ben = 0.2 
+   r_Q10 = 2.0
+   temp_ref= 10.0
+   dometh = 2 
+   K_on2do = 30 
+   K_T2do = 20 
+   couple_pelN = .True.
+   DINp_variable = 'hzg_maecs_nutN' 
+   PONp_variable = 'hzg_maecs_detN' 
+   DINp_presc=1.6
+   PONp_presc=1.6
+   DINb0 = 72 
+   ONb0 = 18 
+   DswN=5e-4
+   rN=0.05
+   kN=8.0
+   Rmeth_N=1
+   do_denit=.True.
+   K_denit=30.0
+   den_dometh = 2
+   K_doin_den = 10 
+   K_ondo=500.0
+   couple_pelP = .True.
+   DIPp_variable = 'hzg_maecs_nutP' 
+   POPp_variable = 'hzg_maecs_detP' 
+   DIPp_presc=0.1
+   POPp_presc=0.1
+   DIPb0 = 3.0 
+   OPb0 = 0.75
+   DswP=5e-4
+   Rmeth_P=1
+   rP=0.05
+   kP=0.5
+   do_Psorp=.True.
+   sorpmeth = 2
+   Rsorp=0.1
+   sorpP0=1.0
+   K_sorp = 0.5
+   K_do_sorp=80.
+   do_sorpeq = 200
+   couple_pelC = .True.
+   POCp_variable = 'hzg_maecs_detC'
+   POCp_presc=10
+/
