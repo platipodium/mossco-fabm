@@ -11,6 +11,7 @@
 ! K_on2do = mmolN/m2, [if dometh =1]constant for estimating DO from ON
 ! K_T2do = mmolO/C,[if dometh =2]constant for estimating DO from T  
 ! parameters available for all nutrients:
+! couple_pelX = wether the relevant pelagic states should be coupled
 ! DIXp_variable = target dissolved nutrient variable in the pelagic 
 ! PONp_variable = target detrital nutrient variable in the pelagic 
 ! DIXp_presc = mmol/m3, if not coupled to a dynamic pelagic model, constant concentration of the pelagic_nutrient_variable
