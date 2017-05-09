@@ -69,7 +69,7 @@ real(rk) :: vir_lysis = 0.1_rk  !assumes that virally infected cells equally fue
 logical  :: out = .true.
 !   if(36000.eq.secondsofday .and. mod(julianday,1).eq.0 .and. outn) out=.true.    
 real(rk) :: pdet, no3
-real(rk) :: att, fa, relmort
+real(rk) :: att, fa, relmort, dq_dt, dQP_dt
 real(rk) :: QP_phy_max, rqn
 real(rk) :: det_prod, dom_dep, nh3f
 real(rk) :: radsP,Oxicminlim,Denitrilim,Anoxiclim,Rescale,rP
@@ -217,7 +217,6 @@ if(self%mort_ODU .gt. 0.99) then
   phy%relQ%P = ( phy%Q%P - self%QP_phy_0 )/( rqn * self%QP_phy_max)
 endif
 
-!write (*,'(A,2(E12.2))') 'QN:',phy%Q%N,phy%relQ%N
 
 if (.not. self%PhotoacclimOn) then  
    phy%chl         = phy%C * self%frac_chl_ini   ! total Chl mg-CHL/m3
@@ -268,7 +267,7 @@ if (self%GrazingOn) then
 !    _GET_(self%id_attf_dep, att_f)
 !  _GET_GLOBAL_ (self%id_doy,doy) !day of year
    _GET_(self%id_attpar, att)
-   _SET_DIAGNOSTIC_(self%id_datt,att) 
+!   _SET_DIAGNOSTIC_(self%id_datt,att) 
    select case (self%GrazTurbOn)
      case (0)
       _GET_GLOBAL_ (self%id_doy,doy) !day of year
@@ -300,6 +299,9 @@ if (self%GrazingOn) then
        fa =  1.0_rk/(1+exp(self%zm_fa_inf*(sal+self%mort_ODU)))
        relmort = fa + fa*self%zm_fa_delmax*sens%f_T2*0.25*(1-sin(2*(doy+45)*Pi/365.0))**2
        ksat_graz = (sqrt(fa)+0.1_rk) * self%k_grazC
+       _SET_DIAGNOSTIC_(self%id_vphys, fa)       !average Temporary_diagnostic_
+       _SET_DIAGNOSTIC_(self%id_datt, sal-self%mort_ODU)       
+
     end select
   end if !self%GrazTurbOn .gt. 0
   zoo_mort   = self%mort_zoo * relmort* sens%f_T**self%fT_exp_mort ! * zoo%C
@@ -322,7 +324,6 @@ if (self%GrazingOn) then
   graz_rate   = graz_rate * zoo%C 
 
                                   !isP, isSi, isTotIng
-
 
 else
   graz_rate   = 0.0_rk
@@ -470,7 +471,6 @@ rhsv%phyN =  uptake%N             * phy%C &
  ! vrepl = vrepl * phy%C   
   vrepl = vrepl/(1.0_rk+ exp(-self%vir_infect*(vir_max-vird)))   !capacity reached
 
-_SET_DIAGNOSTIC_(self%id_pPads, vrepl )       !average Temporary_diagnostic_
 
 ! viral removal by preferential decline of more infected hosts
 !  vadap = 0.0_rk
@@ -663,8 +663,15 @@ if (self%PhosphorusOn) then
               + self%dil * (self%nutP_initial - nut%P)
 
    if(self%ChemostatOn .and. self%remin .lt. 0.0001d0) rhsv%nutP = 0.0d0
-           
+    dQP_dt        = (rhsv%phyP * phy%C - rhsv%phyC * phy%P) / (phy%reg%C*phy%reg%C)
+          
 end if 
+
+! dq_dt=min(dQN_dt/self%QN_phy_max, dQP_dt/self%QP_phy_max)
+! dq_dt=dQP_dt/(1E-4+phy%Q%P)*(1.0_rk-exp(-0.1*env%par))
+!_SET_DIAGNOSTIC_(self%id_pPads,dq_dt )       !average Temporary_diagnostic_
+
+
 !________________________________________________________________________________
 !
 if (self%SiliconOn) then 
@@ -824,7 +831,6 @@ end if
 !endif
 
 !_SET_DIAGNOSTIC_(self%id_vphys, exp(-self%sink_phys*phy%relQ%N * phy%relQ%P))       !average
-_SET_DIAGNOSTIC_(self%id_vphys, sal)       !average Temporary_diagnostic_
 
 ! experimental formulation for emulating P-adsorption at particles in the water column and at the bottom interface
 

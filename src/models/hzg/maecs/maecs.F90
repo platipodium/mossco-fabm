@@ -596,9 +596,9 @@ if (self%SiliconOn) then
     call self%get_parameter(self%V_SiC_max    ,'V_SiC_max',     default=V_SiC_max)
     call self%get_parameter(self%AffSi        ,'AffSi',         default=AffSi)
 end if
-if (self%BioOxyOn) then
+!if (self%BioOxyOn) then
     call self%get_parameter(self%mort_ODU     ,'mort_ODU',      default=mort_ODU)
-end if
+!end if
 
 !!------- model parameters from nml-list maecs_graz ------- 
 call self%get_parameter(self%const_NC_zoo ,'const_NC_zoo',  default=const_NC_zoo)
