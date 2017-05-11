@@ -300,7 +300,6 @@ if (self%GrazingOn) then
        relmort = fa + fa*self%zm_fa_delmax*sens%f_T2*0.25*(1-sin(2*(doy+45)*Pi/365.0))**2
        ksat_graz = (sqrt(fa)+0.1_rk) * self%k_grazC
        _SET_DIAGNOSTIC_(self%id_vphys, fa)       !average Temporary_diagnostic_
-       _SET_DIAGNOSTIC_(self%id_datt, sal-self%mort_ODU)       
 
     end select
   end if !self%GrazTurbOn .gt. 0
@@ -442,7 +441,7 @@ rhsv%phyN =  uptake%N             * phy%C &
 !>      + B = dfracR_dt is calculated in maecs_primprod::photosynthesis()
 ! viral density is treated like a trait (because specific to PhyC)
  if (self%VirusOn ) then
-   poc   = zoo%C + det%C + phy%reg%C 
+   poc   = zoo%C + 3*det%C + phy%reg%C 
 !!  poc   = dom%P + det%P + phy%P + self%small_finite
 !!  poc   = dom%C + det%C + phy%C + self%small_finite
            ! encounter prob. free virus conc around infected cell
@@ -465,6 +464,8 @@ rhsv%phyN =  uptake%N             * phy%C &
 !  if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P 
   vrepl = -self%vir_mu/(1.0_rk+ exp(-4.5*(phy%relQ%N-1.0_rk)))   ! linear dependence on stoichiometry
   if (self%PhosphorusOn) vrepl = vrepl/(1.0_rk+ exp(-4.5*(phy%relQ%P-1.0_rk)))
+  if (self%GrazTurbOn .eq. 8) vrepl = vrepl*exp(-1.5*fa)  ! further reduce viral growth in coastal waters
+
  endif   !phy%C* (1.0_rk+phy%reg%C/self%vir_phyC)
   vrepl = vrepl * sens%f_T *phy%C**2/poc   ! cross section interception
  ! vrepl = vrepl * sens%f_T *phy%C 
@@ -668,8 +669,9 @@ if (self%PhosphorusOn) then
 end if 
 
 ! dq_dt=min(dQN_dt/self%QN_phy_max, dQP_dt/self%QP_phy_max)
-! dq_dt=dQP_dt/(1E-4+phy%Q%P)*(1.0_rk-exp(-0.1*env%par))
-!_SET_DIAGNOSTIC_(self%id_pPads,dq_dt )       !average Temporary_diagnostic_
+dq_dt=dQP_dt/(1E-4+phy%Q%P)*(1.0_rk-exp(-0.1*env%par))
+_SET_DIAGNOSTIC_(self%id_pPads,dq_dt )       !average Temporary_diagnostic_
+ _SET_DIAGNOSTIC_(self%id_datt,dQN_dt/(1E-4+phy%Q%N)*(1.0_rk-exp(-0.1*env%par)) )       
 
 
 !________________________________________________________________________________
@@ -773,7 +775,6 @@ if (self%BioOxyOn) then
 end if !BioOxyOn
 
 end if !IsCritical
-
 
 !#S_ODE
 !---------- ODE for each state variable ----------
