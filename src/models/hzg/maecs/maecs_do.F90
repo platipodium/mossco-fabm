@@ -69,7 +69,7 @@ real(rk) :: vir_lysis = 0.1_rk  !assumes that virally infected cells equally fue
 logical  :: out = .true.
 !   if(36000.eq.secondsofday .and. mod(julianday,1).eq.0 .and. outn) out=.true.    
 real(rk) :: pdet, no3
-real(rk) :: att, fa, relmort, dq_dt, dQP_dt
+real(rk) :: att, fa, fts, relmort, dq_dt, dQP_dt
 real(rk) :: QP_phy_max, rqn
 real(rk) :: det_prod, dom_dep, nh3f
 real(rk) :: radsP,Oxicminlim,Denitrilim,Anoxiclim,Rescale,rP
@@ -78,7 +78,7 @@ real(rk),parameter :: relaxO2=0.04_rk
 real(rk),parameter :: T0 = 288.15_rk ! reference Temperature fixed to 15 degC
 real(rk),parameter :: Q10b = 1.5_rk
 real(rk) :: Cprod, Nprod, Pprod
-real(rk) :: poc, doy, zmax, sal
+real(rk) :: poc, doy, zmax, sal, add_aggreg_rate
 real(rk) :: AnoxicMin,Denitrific,OxicMin,Nitri,OduDepo,OduOx,pDepo, Anammox
 real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto,faeces, min_Cmass
 real(rk) :: a_lit, ksat_graz
@@ -262,6 +262,7 @@ if (self%GrazingOn) then
 
 !  --- quadratic closure term
   relmort = 1.0d0
+  fts = 1.0d0 ! relevance of microoo grazing
   _GET_(self%id_attpar, att)
   if (self%GrazTurbOn .ge. 0) then
 !    _GET_(self%id_attf_dep, att_f)
@@ -294,13 +295,17 @@ if (self%GrazingOn) then
      case (8)
       _GET_GLOBAL_ (self%id_doy,doy) !day of year
       _GET_(self%id_sal,sal) ! salinity
+      _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
+       fa = 0.05_rk+0.45_rk/(1+exp(0.4*self%zm_fa_inf*(zmax-30.0)))
  !      if(sal .lt. 0.0_rk) sal = 0.0_rk
  !      if(sal .gt. 40.0_rk) sal = 40.0_rk
-       fa =  1.0_rk/(1+exp(self%zm_fa_inf*(sal+self%mort_ODU)))
-       relmort = fa + fa*self%zm_fa_delmax*sens%f_T2*0.25*(1-sin(2*(doy+45)*Pi/365.0))**2
-       ksat_graz = (sqrt(fa)+0.1_rk) * self%k_grazC
+       fa =  fa + 0.5_rk/(1+exp(self%zm_fa_inf*(sal+self%mort_ODU)))
+       fts = self%zm_fa_delmax*sens%f_T2*0.25*(1-sin(2*(doy+45)*Pi/365.0))**2 ! seasonal increase in top-predation
+       relmort = fa *(1+fts)
+       ksat_graz = (0.8*fa*(1+fts)+0.2_rk) * self%k_grazC
        _SET_DIAGNOSTIC_(self%id_vphys, fa)       !average Temporary_diagnostic_
-
+! relevance of microoo grazing increases at low DIP
+       fts = 1.0d0 + 0.5_rk/(1+exp(10*(nut%P - 0.3_rk)))
     end select
   end if !self%GrazTurbOn .gt. 0
   zoo_mort   = self%mort_zoo * relmort* sens%f_T**self%fT_exp_mort ! * zoo%C
@@ -311,7 +316,7 @@ if (self%GrazingOn) then
 
 ! calls grazing function accounting for homeostasis
 
-  call grazing(self%g_max * sens%f_T2,ksat_graz,phy%C,graz_rate)
+  call grazing(self%g_max * fts * sens%f_T2,ksat_graz,phy%C,graz_rate)
   zoo%feeding = graz_rate
   zoo_respC   = self%basal_resp_zoo * sens%f_T2  !  basal respiration of grazers
   nquot       = type_maecs_om(1.0_rk, phy%Q%N, phy%Q%P, phy%Q%Si )
@@ -340,7 +345,7 @@ end if
 !_GET_(self%id_fracR,phys_status )  
 
 dom_dep     = self%agg_doc*dom%C/(1.0_rk+self%agg_doc*dom%C) 
-aggreg_rate = min(self%phi_agg * dom_dep * (phy%N + det%N),0.3_rk)
+aggreg_rate = min(self%phi_agg * dom_dep * (phy%N + det%N),0.25_rk)
 !         vS * exp(-4*phys_status )                ! [d^{-1}] 
 !aggreg_rate = aggreg_rate * exp(-4*phy%rel_phys ) TODO: DOM quality as proxy for TEP
 
@@ -464,7 +469,7 @@ rhsv%phyN =  uptake%N             * phy%C &
 !  if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P 
   vrepl = -self%vir_mu/(1.0_rk+ exp(-4.5*(phy%relQ%N-1.0_rk)))   ! linear dependence on stoichiometry
   if (self%PhosphorusOn) vrepl = vrepl/(1.0_rk+ exp(-4.5*(phy%relQ%P-1.0_rk)))
-  if (self%GrazTurbOn .eq. 8) vrepl = vrepl*exp(-1.5*fa)  ! further reduce viral growth in coastal waters
+  if (self%GrazTurbOn .eq. 8) vrepl = vrepl*exp(-2*fa)  ! further reduce viral growth in coastal waters
 
  endif   !phy%C* (1.0_rk+phy%reg%C/self%vir_phyC)
   vrepl = vrepl * sens%f_T *phy%C**2/poc   ! cross section interception
@@ -490,6 +495,16 @@ rhsv%phyN =  uptake%N             * phy%C &
 !  acclim%fac2= -vdilg
   acclim%fac3= vrepl
 
+ endif
+
+ if (self%PhosphorusOn) then 
+  ! ---  PHYTOPLANKTON P
+   rhsv%phyP = uptake%P              * phy%C    & 
+              - exud%P               * phy%C    & 
+              - self%dil             * phy%P    &            
+              - aggreg_rate          * phy%P    & 
+              - graz_rate            * phy%Q%P   
+   dQP_dt    = (rhsv%phyP * phy%C - rhsv%phyC * phy%P) / (phy%reg%C*phy%reg%C)
  endif
 
 !if (abs(phy%C) .gt. 1d-4) then
@@ -535,6 +550,21 @@ rhsv%phyN =  uptake%N             * phy%C &
  end if 
 !else  rhsv%Rub  = 0.0d0  rhsv%chl  = 0.0d0 
 !endif !if (abs(phy%C) .gt. 1d-4)
+
+!________________________________________________________________________________
+!
+!  additional aggregation mediated by TEP production following C-overconsumption and release
+
+! dq_dt=min(dQN_dt/self%QN_phy_max, dQP_dt/self%QP_phy_max)*(1.0_rk-exp(-0.1*env%par)
+! dq_dt=dQP_dt/(1E-4+phy%Q%P) + dQN_dt/(1E-4+phy%Q%N)
+!  fag = 1.0_rk/(1+exp(10*(dq_dt)))
+!  add_aggreg_rate = fag * min(self%phi_agg * (phy%N + det%N),0.25_rk) 
+  add_aggreg_rate = 0.0_rk
+  aggreg_rate = aggreg_rate + add_aggreg_rate
+  rhsv%phyN =  rhsv%phyN  - add_aggreg_rate * phy%N
+  rhsv%phyC =  rhsv%phyC  - add_aggreg_rate * phy%C
+ _SET_DIAGNOSTIC_(self%id_pPads,dq_dt )       !average Temporary_diagnostic_
+ _SET_DIAGNOSTIC_(self%id_datt, fag)  
 
 !________________________________________________________________________________
 !
@@ -638,11 +668,8 @@ if(self%ChemostatOn .and. self%remin .lt. 0.0001d0) rhsv%nutN = 0.0d0
 !
 if (self%PhosphorusOn) then 
   ! ---  PHYTOPLANKTON P
-   rhsv%phyP = uptake%P              * phy%C    & 
-              - exud%P               * phy%C    & 
-              - self%dil             * phy%P    &            
-              - aggreg_rate          * phy%P    & 
-              - graz_rate            * phy%Q%P    
+   rhsv%phyP = rhsv%phyP- add_aggreg_rate          * phy%P
+
   !  --- DETRITUS P 
    rhsv%detP = floppZ%P              * zoo%C    &
               + aggreg_rate          * phy%P    &
@@ -664,15 +691,8 @@ if (self%PhosphorusOn) then
               + self%dil * (self%nutP_initial - nut%P)
 
    if(self%ChemostatOn .and. self%remin .lt. 0.0001d0) rhsv%nutP = 0.0d0
-    dQP_dt        = (rhsv%phyP * phy%C - rhsv%phyC * phy%P) / (phy%reg%C*phy%reg%C)
-          
+         
 end if 
-
-! dq_dt=min(dQN_dt/self%QN_phy_max, dQP_dt/self%QP_phy_max)
-dq_dt=dQP_dt/(1E-4+phy%Q%P)*(1.0_rk-exp(-0.1*env%par))
-_SET_DIAGNOSTIC_(self%id_pPads,dq_dt )       !average Temporary_diagnostic_
- _SET_DIAGNOSTIC_(self%id_datt,dQN_dt/(1E-4+phy%Q%N)*(1.0_rk-exp(-0.1*env%par)) )       
-
 
 !________________________________________________________________________________
 !
