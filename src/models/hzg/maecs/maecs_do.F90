@@ -296,13 +296,14 @@ if (self%GrazingOn) then
       _GET_GLOBAL_ (self%id_doy,doy) !day of year
       _GET_(self%id_sal,sal) ! salinity
       _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
-       fa = 0.05_rk+0.45_rk/(1+exp(0.4*self%zm_fa_inf*(zmax-30.0)))
+       fa = 0.1_rk+0.45_rk/(1+exp(0.4*self%zm_fa_inf*(zmax-30.0)))
  !      if(sal .lt. 0.0_rk) sal = 0.0_rk
  !      if(sal .gt. 40.0_rk) sal = 40.0_rk
-       fa =  fa + 0.5_rk/(1+exp(self%zm_fa_inf*(sal+self%mort_ODU)))
-       fts = self%zm_fa_delmax*sens%f_T2*0.25*(1-sin(2*(doy+45)*Pi/365.0))**2 ! seasonal increase in top-predation
-       relmort = fa *(1+fts)
-       ksat_graz = (0.8*fa*(1+fts)+0.2_rk) * self%k_grazC
+       fa =  fa + 0.45_rk/(1+exp(self%zm_fa_inf*(sal+self%mort_ODU)))
+       fts = self%zm_fa_delmax*sens%f_T2*0.25*(1-sin(2*(doy+25)*Pi/365.0))**2 ! seasonal increase in top-predation
+!       relmort = fa *(1+fts) + 0.5*fts
+       relmort = fa  + fts
+       ksat_graz = (0.5*fa*(1+fts)+0.5_rk) * self%k_grazC
        _SET_DIAGNOSTIC_(self%id_vphys, fa)       !average Temporary_diagnostic_
 ! relevance of microoo grazing increases at low DIP
        fts = 1.0d0 + 0.5_rk/(1+exp(10*(nut%P - 0.3_rk)))
@@ -476,7 +477,6 @@ rhsv%phyN =  uptake%N             * phy%C &
  ! vrepl = vrepl * sens%f_T *phy%C 
  ! vrepl = vrepl * phy%C   
   vrepl = vrepl/(1.0_rk+ exp(-self%vir_infect*(vir_max-vird)))   !capacity reached
-
 
 ! viral removal by preferential decline of more infected hosts
 !  vadap = 0.0_rk
