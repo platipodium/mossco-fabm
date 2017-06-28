@@ -81,7 +81,7 @@ real(rk) :: Cprod, Nprod, Pprod
 real(rk) :: poc, doy, zmax, sal, add_aggreg_rate
 real(rk) :: AnoxicMin,Denitrific,OxicMin,Nitri,OduDepo,OduOx,pDepo, Anammox
 real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto,faeces, min_Cmass
-real(rk) :: a_lit, ksat_graz
+real(rk) :: a_lit, ksat_graz, food
 real(rk) :: vir_max = 3.0_rk
 real(rk) :: vird, dvir_dt, infect, vdilg, vrepl, vadap, vmort, virf, vire
 logical  :: IsCritical = .false. ! phyC and phyN below reasonable range ?
@@ -296,17 +296,19 @@ if (self%GrazingOn) then
       _GET_GLOBAL_ (self%id_doy,doy) !day of year
       _GET_(self%id_sal,sal) ! salinity
       _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
-       fa = 0.1_rk+0.45_rk/(1+exp(0.4*self%zm_fa_inf*(zmax-30.0)))
+       fa = 0.1_rk+0.3_rk/(1+exp(0.4*self%zm_fa_inf*(zmax-25.0)))
  !      if(sal .lt. 0.0_rk) sal = 0.0_rk
  !      if(sal .gt. 40.0_rk) sal = 40.0_rk
-       fa =  fa + 0.45_rk/(1+exp(self%zm_fa_inf*(sal+self%mort_ODU)))
+       fa =  fa + 0.3_rk/(1+exp(self%zm_fa_inf*(sal+self%mort_ODU)))
+       fa =  fa + 0.3_rk/(1+exp(0.6*self%zm_fa_inf*(sal-10)))
        fts = self%zm_fa_delmax*sens%f_T2*0.25*(1-sin(2*(doy+25)*Pi/365.0))**2 ! seasonal increase in top-predation
 !       relmort = fa *(1+fts) + 0.5*fts
-       relmort = fa  + fts
-       ksat_graz = (0.5*fa*(1+fts)+0.5_rk) * self%k_grazC
+       relmort = fa*(0.1*zoo%C+fts) 
+!       ksat_graz = (0.5*(1+fa)*(1+fts)+0.0_rk) * self%k_grazC
+       ksat_graz = (fa+1.0_rk) * self%k_grazC
        _SET_DIAGNOSTIC_(self%id_vphys, fa)       !average Temporary_diagnostic_
-! relevance of microoo grazing increases at low DIP
-       fts = 1.0d0 + 0.5_rk/(1+exp(10*(nut%P - 0.3_rk)))
+! relevance of microzoo/mixotrophy grazing increases at low DIP
+!      fts = 1.0d0 + 0.5_rk/(1+exp(10*(nut%P - 0.3_rk)))
     end select
   end if !self%GrazTurbOn .gt. 0
   zoo_mort   = self%mort_zoo * relmort* sens%f_T**self%fT_exp_mort ! * zoo%C
@@ -315,9 +317,14 @@ if (self%GrazingOn) then
 !  if (self%GrazTurbOn .eq. 0)  zoo_mort   = zoo_mort*
 !!  write (*,'(A,4(F11.3))') 'Zm=',att,relmort,zoo%C,zoo_mort
 
+! feeding threshold and grazer disturbance
+  if (phy%C .lt. 20*det%C/(20+det%C) ) then
+    food=0.0_rk
+  else
+    food=phy%C
+  end if
 ! calls grazing function accounting for homeostasis
-
-  call grazing(self%g_max * fts * sens%f_T2,ksat_graz,phy%C,graz_rate)
+  call grazing(self%g_max * sens%f_T2,ksat_graz,food,graz_rate) ! * fts
   zoo%feeding = graz_rate
   zoo_respC   = self%basal_resp_zoo * sens%f_T2  !  basal respiration of grazers
   nquot       = type_maecs_om(1.0_rk, phy%Q%N, phy%Q%P, phy%Q%Si )
@@ -346,7 +353,7 @@ end if
 !_GET_(self%id_fracR,phys_status )  
 
 dom_dep     = self%agg_doc*dom%C/(1.0_rk+self%agg_doc*dom%C) 
-aggreg_rate = min(self%phi_agg * dom_dep * (phy%N + det%N),0.25_rk)
+aggreg_rate = min(self%phi_agg * dom_dep * (phy%N + det%N),0.1_rk)
 !         vS * exp(-4*phys_status )                ! [d^{-1}] 
 !aggreg_rate = aggreg_rate * exp(-4*phy%rel_phys ) TODO: DOM quality as proxy for TEP
 
@@ -467,7 +474,7 @@ rhsv%phyN =  uptake%N             * phy%C &
       ! depends on host P-stoichiometry (Wilson et al 1996, Clasen&Elser 2007)
  else
 !  vrepl = -self%vir_mu *  phy%relQ%N ! linear dependence on stoichiometry
-!  if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P 
+  if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P 
   vrepl = -self%vir_mu/(1.0_rk+ exp(-4.5*(phy%relQ%N-1.0_rk)))   ! linear dependence on stoichiometry
   if (self%PhosphorusOn) vrepl = vrepl/(1.0_rk+ exp(-4.5*(phy%relQ%P-1.0_rk)))
   if (self%GrazTurbOn .eq. 8) vrepl = vrepl*exp(-2*fa)  ! further reduce viral growth in coastal waters
