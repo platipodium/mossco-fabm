@@ -268,7 +268,7 @@ if (self%GrazingOn) then
 !    _GET_(self%id_attf_dep, att_f)
 !  _GET_GLOBAL_ (self%id_doy,doy) !day of year
    _GET_(self%id_attpar, att)
-!   _SET_DIAGNOSTIC_(self%id_datt,att) 
+   _SET_DIAGNOSTIC_(self%id_datt,att) 
    select case (self%GrazTurbOn)
      case (0)
       _GET_GLOBAL_ (self%id_doy,doy) !day of year
@@ -296,16 +296,16 @@ if (self%GrazingOn) then
       _GET_GLOBAL_ (self%id_doy,doy) !day of year
       _GET_(self%id_sal,sal) ! salinity
       _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
-       fa = 0.1_rk+0.3_rk/(1+exp(0.4*self%zm_fa_inf*(zmax-25.0)))
+       fts = 1._rk/(1+exp(self%zm_fa_inf*(sal+self%mort_ODU)))
+       fa = 0.01_rk+0.8_rk*max(fts, 1.0_rk/(1+exp(0.4*self%zm_fa_inf*(zmax-25.0))))
  !      if(sal .lt. 0.0_rk) sal = 0.0_rk
  !      if(sal .gt. 40.0_rk) sal = 40.0_rk
-       fa =  fa + 0.3_rk/(1+exp(self%zm_fa_inf*(sal+self%mort_ODU)))
-       fa =  fa + 0.3_rk/(1+exp(0.6*self%zm_fa_inf*(sal-10)))
+       fa =  fa + 0.4_rk/(1+exp(self%zm_fa_inf*(sal-12)))
        fts = self%zm_fa_delmax*sens%f_T2*0.25*(1-sin(2*(doy+25)*Pi/365.0))**2 ! seasonal increase in top-predation
 !       relmort = fa *(1+fts) + 0.5*fts
        relmort = fa*(0.1*zoo%C+fts) 
 !       ksat_graz = (0.5*(1+fa)*(1+fts)+0.0_rk) * self%k_grazC
-       ksat_graz = (fa+1.0_rk) * self%k_grazC
+       ksat_graz = (fa+0.5_rk) * self%k_grazC
        _SET_DIAGNOSTIC_(self%id_vphys, fa)       !average Temporary_diagnostic_
 ! relevance of microzoo/mixotrophy grazing increases at low DIP
 !      fts = 1.0d0 + 0.5_rk/(1+exp(10*(nut%P - 0.3_rk)))
@@ -326,7 +326,7 @@ if (self%GrazingOn) then
 ! calls grazing function accounting for homeostasis
   call grazing(self%g_max * sens%f_T2,ksat_graz,food,graz_rate) ! * fts
   zoo%feeding = graz_rate
-  zoo_respC   = self%basal_resp_zoo * sens%f_T2  !  basal respiration of grazers
+  zoo_respC   = self%basal_resp_zoo * sens%f_T  !  basal respiration of grazers
   nquot       = type_maecs_om(1.0_rk, phy%Q%N, phy%Q%P, phy%Q%Si )
   mswitch     = type_maecs_switch(self%PhosphorusOn,self%SiliconOn,.true. )
 
@@ -571,7 +571,7 @@ rhsv%phyN =  uptake%N             * phy%C &
   rhsv%phyN =  rhsv%phyN  - add_aggreg_rate * phy%N
   rhsv%phyC =  rhsv%phyC  - add_aggreg_rate * phy%C
  _SET_DIAGNOSTIC_(self%id_pPads,dq_dt )       !average Temporary_diagnostic_
- _SET_DIAGNOSTIC_(self%id_datt, fag)  
+! _SET_DIAGNOSTIC_(self%id_datt, fag)  
 
 !________________________________________________________________________________
 !
