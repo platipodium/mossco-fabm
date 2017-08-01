@@ -769,16 +769,20 @@ end if
 end if
 
 if (self%PhysiolDiagOn) then
+if (self%PhotoacclimOn) then
 call self%register_diagnostic_variable(self%id_chl2C,   'chl2C','gCHL/gC', 'chlorophyll:carbon_ratio_=_chl-a/chloroplast-C_*_chloroplast-C/phy-molC_*_1molC/12gC_ chl2C', &
   output=DOUTa)
 call self%register_diagnostic_variable(self%id_Theta,   'Theta','-', 'Theta_ Theta', &
   output=DOUTa)
-call self%register_diagnostic_variable(self%id_fracR,   'fracR','-', 'Rubisco_fract._allocation_ fracR', &
-  output=DOUT)
 call self%register_diagnostic_variable(self%id_fracT,   'fracT','-', 'LHC_fract._allocation_ fracT', &
   output=DOUT)
 call self%register_diagnostic_variable(self%id_fracNU,  'fracNU','-', 'Nut._Uptake_fract._allocation_ fracNU', &
   output=DOUT)
+end if
+if (self%RubiscoOn) then
+call self%register_diagnostic_variable(self%id_fracR,   'fracR','-', 'Rubisco_fract._allocation_ fracR', &
+  output=DOUT)
+end if
 call self%register_diagnostic_variable(self%id_QN,      'QN','-', 'N:C_ratio_ QN', &
   output=DOUT)
 call self%register_diagnostic_variable(self%id_QP,      'QP','-', 'P:C_ratio_ QP', &
@@ -811,9 +815,9 @@ if (self%RateDiagOn) then
 call self%register_diagnostic_variable(self%id_phyUR,   'phyUR','1/d', 'Phytoplankton_C_Uptake_Rate_ phyUR', &
   output=DOUTa)
 call self%register_diagnostic_variable(self%id_phyRER,  'phyRER','1/d', 'Phytoplankton_Respiration_Rate_ phyRER', &
-  output=DOUT)
+  output=DOUTa)
 call self%register_diagnostic_variable(self%id_phyELR,  'phyELR','1/d', 'Phytoplankton_Exudation_Loss_Rate_ phyELR', &
-  output=DOUT)
+  output=DOUTa)
 call self%register_diagnostic_variable(self%id_phyALR,  'phyALR','1/d', 'Phytoplankton_Aggregation_Loss_Rate_ phyALR', &
   output=DOUT)
 call self%register_diagnostic_variable(self%id_phyVLR,  'phyVLR','1/d', 'Phytoplankton_Viral_Loss_Rate_ phyVLR', &
@@ -829,7 +833,6 @@ end if
 ! ------ check dependencies in diag switches -------
 if (self%BGC2DDiagOn .and. .not. self%BGC0DDiagOn) call self%fatal_error('maecs_init','BGC2DDiagOn=TRUE requires BGC0DDiagOn=TRUE')
 if (self%Budget2DDiagOn .and. .not. self%Budget0DDiagOn) call self%fatal_error('maecs_init','Budget2DDiagOn=TRUE requires Budget0DDiagOn=TRUE')
-if (self%PhysiolDiagOn .and. .not. self%PhotoacclimOn) call self%fatal_error('maecs_init','PhysiolDiagOn=TRUE requires PhotoacclimOn=TRUE')
 if (self%BGC0DDiagOn .and. .not. self%PhosphorusOn) call self%fatal_error('maecs_init','BGC0DDiagOn=TRUE requires PhosphorusOn=TRUE')
 
 !!------- Register environmental dependencies  ------- 
@@ -862,11 +865,11 @@ end if
 if (self%BGC2DDiagOn) then
     call self%register_dependency(self%id_GPPR_dep,'GPPR','mmol-C/m**3/d','Gross_Primary_Production_Rate')
     call self%register_dependency(self%id_GPPR_vertint,vertical_integral(self%id_GPPR_dep))
-    call self%register_horizontal_diagnostic_variable(self%id_GPPR_vertint_diag,'GPPR_vertint','mmol-C/m**2/d','vertical_integral_gross_primary_production', output=DOUT)
+    call self%register_horizontal_diagnostic_variable(self%id_GPPR_vertint_diag,'GPPR_vertint','mmol-C/m**2/d','vertical_integral_gross_primary_production', output=DOUTa)
     if (self%BioOxyOn) then
      call self%register_dependency(self%id_Denitr_dep,'Denitr')
      call self%register_dependency(self%id_Denitr_vertint,vertical_integral(self%id_Denitr_dep))
-     call self%register_horizontal_diagnostic_variable(self%id_Denitr_vertint_diag,'Denitr_vertint','mmol-N/m**2/d','vertical_integral_Denitrification', output=DOUT)
+     call self%register_horizontal_diagnostic_variable(self%id_Denitr_vertint_diag,'Denitr_vertint','mmol-N/m**2/d','vertical_integral_Denitrification', output=DOUTa)
     end if
 end if
 
