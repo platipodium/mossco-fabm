@@ -191,9 +191,10 @@ type (type_maecs_om) :: fA
 real(rk) :: par, T_Kelv, NutF, affin, pmax, rqn
 logical      ::IsAdap = .true.
 
-if((maecs%adap_rub .lt. 0.001d0 .and. maecs%adap_theta.lt. 0.001d0) .or.  .not. maecs%PhotoacclimOn) IsAdap = .false. 
+if((maecs%adap_rub .lt. 0.001d0 .and. maecs%adap_theta.lt. 0.001d0) .or.  .not. maecs%PhotoacclimOn) IsAdap = .false.
+!if (maecs%adap_rub .lt. 0.001d0 .and. maecs%adap_theta.lt. 0.001d0) IsAdap = .false.
 ! switch off affinity-transport flexibility depending on overall flexibility; TODO: add new switch
-if(IsAdap .and. maecs%tau_regV .gt. 100.0d0) IsAdap = .false. 
+if(IsAdap .and. maecs%tau_regV .gt. 100.0d0) IsAdap = .false.
 !> @fn maecs_functions::calc_sensitivities()
 !> 1. calculate (sens\%) f\_T, P\_max\_T, a\_light, upt\_pot\%C 
 par          = maecs%frac_PAR * env%par ! use active  fraction frac_PAR of available radiation
