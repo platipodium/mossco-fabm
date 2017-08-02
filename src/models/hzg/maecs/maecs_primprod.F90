@@ -295,10 +295,13 @@ dmuQ_dtheta = 0.0d0
 do i = 1, num_nut-1 ! skip i=N:carbon
   if( self%adap_rub .gt. 0.001 .or. self%adap_theta .gt. 0.001) then
      act_V           = elem(i)%aV**2 * elem(i)%dmudaV/ (dmu_daV_tot + eps)
+     !write (*,'(A,F10.4,F10.4,F10.4)') 'Adaptive aV,aV**,deriv =',act_V,elem(i)%aV**2,elem(i)%dmudaV/ (dmu_daV_tot + eps)
 !    act_V           = elem(i)%aV
   else
      act_V           = max(0.0d0, 1.0d0 - elem(i)%relQ )
+     !write (*,'(A,F10.4)') 'Non-adaptive aV=',act_V
   endif
+
 !  if (act_V .lt. 0.1 .and. i .eq. self%nutind%iN) act_V=0.1d0
 ! emulates passive Si diffusion through membrane (\todo not to be assimilated)
    if (self%SiliconOn) then
