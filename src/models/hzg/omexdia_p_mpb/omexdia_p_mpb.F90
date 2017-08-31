@@ -126,8 +126,9 @@
    real(rk)  :: mpbC_init     ! MicroPhytoBenthos carbon
    real(rk)  :: mpbN_init     ! MicroPhytoBenthos nitrogen
    real(rk)  :: eps_init      ! Extracellular Polymeric Substances
-!!------- Parameters for model mpb originating from omexdia_p -------
+!!------- Switch for MicroPhytoBenthos model -------
    logical   :: MPhytoBenOn   ! use MicroPhytoBenthos (MPB)
+!!------- Parameters for model mpb originating from omexdia_p -------
    real(rk)  :: rLdet         ! decay rate labile detritus (fast decay)
    real(rk)  :: rSdet         ! decay rate semilabile detritus (slow decay)
    real(rk)  :: rNCldet       ! NC ratio labile detritus (fast decay)
@@ -161,7 +162,9 @@
           ldetC_init, sdetC_init, oxy_init, odu_init, no3_init, nh3_init,          &
           detP_init, po4_init
 
-   namelist /hzg_mpb/ MPhytoBenOn, rLdet, rSdet, rNCldet, &
+   namelist /hzg_omexdia_p/ MPhytoBenOn
+
+   namelist /hzg_mpb/ rLdet, rSdet, rNCldet, &
           mumax, alpha, gamma, Qmin, Qmax, thetamax, uptmax, KNH4, KNO3, KinNH4,   &
           keps, resp, Kresp, graz, kout, kexu, rzoo, PAR0max, k0, Achla, bTemp,    &
           mpbCHL_init, mpbC_init, mpbN_init, eps_init
@@ -287,7 +290,8 @@
    call self%register_diagnostic_variable(self%id_denit, 'denit', 'mmol/m**3/d',  &
          'denitrification rate', output=output_instantaneous)
 
-   if (MPhytoBenOn) then
+   self%MPhytoBenOn = MPhytoBenOn
+   if (self%MPhytoBenOn) then
       call self%register_diagnostic_variable(self%id_PrimProd, 'PrimProd', 'mmolC/m**3/d', &
             'MPB primary production rate PrimProd',    output=output_instantaneous)
       call self%register_diagnostic_variable(self%id_par,      'par', 'w/m2',          &

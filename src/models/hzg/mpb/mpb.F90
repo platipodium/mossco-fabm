@@ -41,7 +41,6 @@
       type (type_diagnostic_variable_id)   :: id_expCProd, id_expNProd
 
 !     Model parameters
-      logical  :: MPhytoBenOn  ! use MicroPhytoBenthos (MPB)
       real(rk) :: rLdet, rSdet, rNCldet
       real(rk) :: mumax, alpha, gamma, Qmin, Qmax, thetamax, uptmax, KNH4, KNO3
       real(rk) :: KinNH4, keps, resp, Kresp, graz, kout, kexu, rzoo
@@ -93,7 +92,6 @@
    real(rk)  :: mpbN_init     ! MicroPhytoBenthos nitrogen
    real(rk)  :: eps_init      ! Extracellular Polymeric Substances
 !!------- Parameters for model mpb originating from omexdia_p -------
-   logical   :: MPhytoBenOn   ! use MicroPhytoBenthos (MPB)
    real(rk)  :: rLdet         ! decay rate labile detritus (fast decay)
    real(rk)  :: rSdet         ! decay rate semilabile detritus (slow decay)
    real(rk)  :: rNCldet       ! NC ratio labile detritus (fast decay)
@@ -120,7 +118,7 @@
    real(rk)  :: Achla         ! Absorption factor of chlorophyll
    real(rk)  :: bTemp         ! Temperature increase
 
-   namelist /hzg_mpb/ MPhytoBenOn, rLdet, rSdet, rNCldet, &
+   namelist /hzg_mpb/ rLdet, rSdet, rNCldet, &
           mumax, alpha, gamma, Qmin, Qmax, thetamax, uptmax, KNH4, KNO3, KinNH4,   &
           keps, resp, Kresp, graz, kout, kexu, rzoo, PAR0max, k0, Achla, bTemp,    &
           mpbCHL_init, mpbC_init, mpbN_init, eps_init
@@ -139,7 +137,6 @@
    endif
 
    ! Store parameter values in our own derived type
-   self%MPhytoBenOn = MPhytoBenOn
    self%rLdet       = rLdet
    self%rSdet       = rSdet
    self%rNCldet     = rNCldet
