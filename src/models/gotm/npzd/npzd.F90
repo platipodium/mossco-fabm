@@ -179,11 +179,11 @@
    call self%register_diagnostic_variable(self%id_NCP,'NCP','mmol m-3',  'net community production',           &
                      output=output_time_step_integrated)
    call self%register_diagnostic_variable(self%id_PPR,'PPR','mmol m-3 d-1','gross primary production rate',      &
-                     output=output_time_step_averaged)
+                     output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_NPR,'NPR','mmol m-3 d-1','net community production rate',      &
-                     output=output_time_step_averaged)
+                     output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_dPAR,'PAR','W m-2',    'photosynthetically active radiation',&
-                     output=output_time_step_averaged)
+                     output=output_instantaneous)
 
    ! Register environmental dependencies
    call self%register_dependency(self%id_par, standard_variables%downwelling_photosynthetic_radiative_flux)
