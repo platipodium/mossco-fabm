@@ -34,19 +34,21 @@
 ! !PUBLIC DERIVED TYPES:
    type,extends(type_base_model) :: type_hzg_mpb
 !     Variable identifiers
-      type (type_state_variable_id)        :: id_no3, id_nh4, id_oxy, id_ldet, id_dic
+      type (type_state_variable_id)        :: id_no3, id_nh4, id_oxy, id_ldet
+      type (type_state_variable_id)        :: id_dic, id_zbC, id_zbN
       type (type_state_variable_id)        :: id_mpbCHL, id_mpbC, id_mpbN, id_eps
       type (type_dependency_id)            :: id_temp, id_parz, id_porosity
       type (type_diagnostic_variable_id)   :: id_PrimProd, id_par, id_Q_N, id_Q_chl
       type (type_diagnostic_variable_id)   :: id_expCProd, id_expNProd
+! temporary for debugging
+      type (type_diagnostic_variable_id)   :: id_MPB_din, id_MPB_no3, id_mpb_nh4
 
 !     Model parameters
       real(rk) :: rLdet, rSdet, rNCldet
       real(rk) :: mumax, alpha, gamma, Qmin, Qmax, thetamax, uptmax, KNH4, KNO3
       real(rk) :: KinNH4, keps, resp, Kresp, graz, kout, kexu, rzoo
       real(rk) :: PAR0max, k0, Achla, bTemp
-      logical  :: use_no3, use_nh4, use_oxy, use_ldet, use_dic
-      real(rk) :: no3_conc, nh4_conc, oxy_conc, ldet_conc
+      logical  :: use_no3, use_nh4, use_oxy, use_ldet, use_dic, use_zbC, use_zbN
 
       contains
 
@@ -80,12 +82,6 @@
 !  Original author(s): Markus Kreus, Richard Hofmeister & Kai Wirtz
 !
 ! !LOCAL VARIABLES:
-!!------- Optional external dependencies of model mpb -------
-   character(len=attribute_length) :: ldet_variable = ''  ! labile detritus carbon (fast decay)
-   character(len=attribute_length) :: oxy_variable  = ''  ! dissolved oxygen
-   character(len=attribute_length) :: no3_variable  = ''  ! dissolved nitrate
-   character(len=attribute_length) :: nh4_variable  = ''  ! dissolved ammonium
-   character(len=attribute_length) :: dic_variable  = ''  ! dissolved inorganic carbon
 !!------- Initial values of model mpb -------
    real(rk)  :: mpbCHL_init   ! MicroPhytoBenthos chlorophyll
    real(rk)  :: mpbC_init     ! MicroPhytoBenthos carbon
@@ -117,6 +113,14 @@
    real(rk)  :: k0            ! Extinction coefficient of sediment
    real(rk)  :: Achla         ! Absorption factor of chlorophyll
    real(rk)  :: bTemp         ! Temperature increase
+!!------- Optional external dependencies -------
+   character(len=attribute_length) :: no3_variable  = ''  ! dissolved nitrate
+   character(len=attribute_length) :: nh4_variable  = ''  ! dissolved ammonium
+   character(len=attribute_length) :: oxy_variable  = ''  ! dissolved oxygen
+   character(len=attribute_length) :: ldet_variable = ''  ! labile detritus carbon (fast decay)
+   character(len=attribute_length) :: dic_variable  = ''  ! dissolved inorganic carbon
+   character(len=attribute_length) :: zbC_variable  = ''  ! zoobenthos carbon
+   character(len=attribute_length) :: zbN_variable  = ''  ! zoobenthos nitrogen
 
    namelist /hzg_mpb/ rLdet, rSdet, rNCldet, &
           mumax, alpha, gamma, Qmin, Qmax, thetamax, uptmax, KNH4, KNO3, KinNH4,   &
@@ -124,16 +128,17 @@
           mpbCHL_init, mpbC_init, mpbN_init, eps_init
 
    namelist /hzg_mpb_dependencies/  &
-          ldet_variable, oxy_variable, no3_variable, nh4_variable, dic_variable!, &
-          !ldet_default_conc, oxy_default_conc, no3_default_conc, nh4_default_conc
+          no3_variable, nh4_variable, oxy_variable, ldet_variable, &
+          dic_variable, zbC_variable, zbN_variable
+
 !EOP
 !-----------------------------------------------------------------------
 !BOC
 
    ! Read the namelist
    if (configunit>0) then
-     write(0,*) ' read namelists ....'
-     read(configunit, nml=hzg_mpb, err=99, end=100)
+     read(configunit, nml=hzg_mpb, err=98, end=100)
+     read(configunit, nml=hzg_mpb_dependencies, err=99, end=101)
    endif
 
    ! Store parameter values in our own derived type
@@ -162,11 +167,6 @@
    self%Achla       = Achla
    self%bTemp       = bTemp
 
-   !self%ldet_conc = ldet_default_conc
-   !self%oxy_conc  = oxy_default_conc
-   !self%no3_conc  = no3_default_conc
-   !self%nh4_conc  = nh4_default_conc
-
    ! Register state variables
    call self%register_state_variable(self%id_mpbCHL, 'mpbCHL', 'mmolN/m**3', &
          'MicroPhytoBenthos chlorophyll mpbCHL',                             &
@@ -189,35 +189,53 @@
    call self%set_variable_property(self%id_eps, 'particulate', .false.)
 
    ! Register link to external dependencies, if variable names are provided in namelist.
-   self%use_ldet = ldet_variable/=''
-   if (self%use_ldet) then
-      call self%register_state_dependency(self%id_ldet, ldet_variable, 'mmolC/m**3',  &
-            'detritus labile carbon', required=.true.)
-      call self%request_coupling(self%id_ldet, ldet_variable)
-   endif
    self%use_no3 = no3_variable/=''
    if (self%use_no3) then
       call self%register_state_dependency(self%id_no3, no3_variable, 'mmolN/m**3',   &
             'dissolved nitrate', required=.true.)
       call self%request_coupling(self%id_no3, no3_variable)
    endif
+
    self%use_nh4 = nh4_variable/=''
    if (self%use_nh4) then
       call self%register_state_dependency(self%id_nh4, nh4_variable, 'mmolN/m**3',   &
             'dissolved ammonium', required=.true.)
       call self%request_coupling(self%id_nh4, nh4_variable)
    endif
+
    self%use_oxy  = oxy_variable/=''
    if (self%use_oxy) then
       call self%register_state_dependency(self%id_oxy, oxy_variable, 'mmolO2/m**3',  &
             'dissolved oxygen', required=.true.)
       call self%request_coupling(self%id_oxy, oxy_variable)
    endif
+
+   self%use_ldet = ldet_variable/=''
+   if (self%use_ldet) then
+      call self%register_state_dependency(self%id_ldet, ldet_variable, 'mmolC/m**3',  &
+            'detritus labile carbon', required=.false.)
+      call self%request_coupling(self%id_ldet, ldet_variable)
+   endif
+
    self%use_dic  = dic_variable/=''
    if (self%use_dic) then
       call self%register_state_dependency(self%id_dic, dic_variable, 'mmol/m**3',   &
             'dissolved inorganic carbon', required=.false.)
       call self%request_coupling(self%id_dic, dic_variable)
+   endif
+
+   self%use_zbC  = zbC_variable/=''
+   if (self%use_zbC) then
+      call self%register_state_dependency(self%id_zbC, zbC_variable, 'mmolC/m**3',   &
+            'ZooBenthos carbon', required=.false.)
+      call self%request_coupling(self%id_zbC, zbC_variable)
+   endif
+
+   self%use_zbN  = zbN_variable/=''
+   if (self%use_zbN) then
+      call self%register_state_dependency(self%id_zbN, zbN_variable, 'mmolN/m**3',   &
+            'ZooBenthos nitrogen', required=.false.)
+      call self%request_coupling(self%id_zbN, zbN_variable)
    endif
 
    ! Register diagnostic variables
@@ -233,6 +251,13 @@
          'MPB carbon export (zoobenthos grazing)',    output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_expNProd, 'expNProd', 'mmolN/m**2/d',  &
          'MPB nitrogen export (zoobenthos grazing)',  output=output_instantaneous)
+! temporary for debugging:
+   call self%register_diagnostic_variable(self%id_MPB_DIN, 'DIN', 'mmolN/m**2/d',  &
+         'MPB DIN',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_MPB_no3, 'MPB_no3', 'mmolN/m**2/d',  &
+         'MPB no3',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_MPB_nh4, 'MPB_nh4', 'mmolN/m**2/d',  &
+         'MPB nh4',  output=output_instantaneous)
 
    ! Register dependencies
    call self%register_dependency(self%id_temp, standard_variables%temperature)
@@ -240,9 +265,11 @@
 
    return
 
-99 call self%fatal_error('hzg_mpb_initialize','Error reading namelist hzg_mpb.')
+98 call self%fatal_error('hzg_mpb_initialize','Error reading namelist hzg_mpb.')
+99 call self%fatal_error('hzg_mpb_initialize','Error reading namelist hzg_mpb_dependencies')
 
 100 call self%fatal_error('hzg_mpb_initialize','Namelist hzg_mpb was not found.')
+101 call self%fatal_error('hzg_mpb_initialize','Namelist hzg_mpb_dependencies was not found.')
 
    end subroutine initialize
 !EOC
@@ -279,6 +306,12 @@
 !BOC
    ! Enter spatial loops (if any)
    _LOOP_BEGIN_
+
+   ! initialize local external dependencies
+   no3  = -9999.
+   nh4  = -9999.
+   oxy  = -9999.
+   ldet = -9999.
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_temp, temp_celsius) ! sediment-water temperature
@@ -366,19 +399,25 @@
    _SET_ODE_(self%id_eps,    (prodeps - f_T * CprodEPS ) _CONV_UNIT_)
    ! external dependencies
    ! If externally maintained variables are present, change the pools accordingly
-   if (self%use_ldet) _SET_ODE_(self%id_ldet, (faecesC) _CONV_UNIT_)
-   if (self%use_oxy)  _SET_ODE_(self%id_oxy , (- respzoo - respphyto) _CONV_UNIT_)
    if (self%use_no3)  _SET_ODE_(self%id_no3 , (- uptNO3) _CONV_UNIT_)
    if (self%use_nh4)  _SET_ODE_(self%id_nh4 , (exud - uptNH4) _CONV_UNIT_)
+   if (self%use_oxy)  _SET_ODE_(self%id_oxy , (- respzoo - respphyto) _CONV_UNIT_)
+   if (_AVAILABLE_(self%id_ldet))_SET_ODE_(self%id_ldet, (faecesC) _CONV_UNIT_)
    if (_AVAILABLE_(self%id_dic)) _SET_ODE_(self%id_dic , (respzoo + respphyto) _CONV_UNIT_)
+   if (_AVAILABLE_(self%id_zbC)) _SET_ODE_(self%id_zbC , (exportC) _CONV_UNIT_)
+   if (_AVAILABLE_(self%id_zbN)) _SET_ODE_(self%id_zbN , (exportN) _CONV_UNIT_)
 
    ! Export diagnostic variables
-   _SET_DIAGNOSTIC_(self%id_PrimProd, PP)            !step_integrated MPB primary production rate
-   _SET_DIAGNOSTIC_(self%id_par, par)                !step_integrated photosynthetically active radiation
-   _SET_DIAGNOSTIC_(self%id_Q_N, Q_N)                !step_integrated MPB nitrogen quota
-   _SET_DIAGNOSTIC_(self%id_Q_chl, Q_chl)            !step_integrated MPB CHL:C ratio
-   _SET_DIAGNOSTIC_(self%id_expCProd, exportC)       !step_integrated MPB primary production rate
-   _SET_DIAGNOSTIC_(self%id_expNProd, exportN)       !step_integrated MPB primary production rate
+   _SET_DIAGNOSTIC_(self%id_PrimProd, PP)            !instantaneous MPB primary production rate
+   _SET_DIAGNOSTIC_(self%id_par, par)                !instantaneous photosynthetically active radiation
+   _SET_DIAGNOSTIC_(self%id_Q_N, Q_N)                !instantaneous MPB N:C quota
+   _SET_DIAGNOSTIC_(self%id_Q_chl, Q_chl)            !instantaneous MPB CHL:C ratio
+   _SET_DIAGNOSTIC_(self%id_expCProd, exportC)       !instantaneous MPB export production carbon
+   _SET_DIAGNOSTIC_(self%id_expNProd, exportN)       !instantaneous MPB export production nitrogen
+! temporary for debugging:
+   _SET_DIAGNOSTIC_(self%id_mpb_din, nh4+no3)        !instantaneous external DIN
+   _SET_DIAGNOSTIC_(self%id_mpb_no3, no3)            !instantaneous external no3
+   _SET_DIAGNOSTIC_(self%id_mpb_nh4, nh4)            !instantaneous external nh4
 
    ! Leave spatial loops (if any)
    _LOOP_END_

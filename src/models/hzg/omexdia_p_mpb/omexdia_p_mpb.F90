@@ -42,6 +42,7 @@
       ! for omexdia_p
       type (type_state_variable_id)        :: id_ldetC, id_sdetC, id_detP
       type (type_state_variable_id)        :: id_no3, id_nh3, id_oxy, id_po4, id_odu
+      type (type_state_variable_id)        :: id_dic, id_zbC, id_zbN
       type (type_dependency_id)            :: id_temp
       type (type_diagnostic_variable_id)   :: id_denit, id_adsp
       ! for mpbC
@@ -59,8 +60,10 @@
       logical  :: MPhytoBenOn   ! use MicroPhytoBenthos (MPB)
       real(rk) :: rLdet, rSdet, rNCldet
       real(rk) :: mumax, alpha, gamma, Qmin, Qmax, thetamax, uptmax, KNH4, KNO3
-      real(rk) :: KinNH4, keps, resp, Kresp, graz, kout, kexu, rzoo, PAR0max
-      real(rk) :: k0, Achla, bTemp
+      real(rk) :: KinNH4, keps, resp, Kresp, graz, kout, kexu, rzoo
+      real(rk) :: PAR0max, k0, Achla, bTemp
+      ! for all
+      logical  :: use_dic, use_zbC, use_zbN
 
       contains
 
@@ -154,6 +157,10 @@
    real(rk)  :: k0            ! Extinction coefficient of sediment
    real(rk)  :: Achla         ! Absorption factor of chlorophyll
    real(rk)  :: bTemp         ! Temperature increase
+!!------- Optional external dependencies -------
+   character(len=attribute_length) :: dic_variable  = ''  ! dissolved inorganic carbon
+   character(len=attribute_length) :: zbC_variable  = ''  ! zoobenthos carbon
+   character(len=attribute_length) :: zbN_variable  = ''  ! zoobenthos nitrogen
 
    namelist /hzg_omexdia_p/  &
           rFast, rSlow, NCrLdet, NCrSdet, PAds, PAdsODU, NH3Ads, &
@@ -162,21 +169,26 @@
           ldetC_init, sdetC_init, oxy_init, odu_init, no3_init, nh3_init,          &
           detP_init, po4_init
 
-   namelist /hzg_omexdia_p/ MPhytoBenOn
+   namelist /hzg_omexdia_p_mpb/ MPhytoBenOn
+
+   namelist /hzg_omexdia_p_mpb_dependencies/  &
+          dic_variable, zbC_variable, zbN_variable
 
    namelist /hzg_mpb/ rLdet, rSdet, rNCldet, &
           mumax, alpha, gamma, Qmin, Qmax, thetamax, uptmax, KNH4, KNO3, KinNH4,   &
           keps, resp, Kresp, graz, kout, kexu, rzoo, PAR0max, k0, Achla, bTemp,    &
           mpbCHL_init, mpbC_init, mpbN_init, eps_init
+
 !EOP
 !-----------------------------------------------------------------------
 !BOC
 
    ! Read the namelist
    if (configunit>0) then
-     write(0,*) ' read namelists ....'
-     read(configunit,nml=hzg_omexdia_p,err=98,end=100)
-     read(configunit,nml=hzg_mpb,err=99,end=101)
+     read(configunit, nml=hzg_omexdia_p, err=96, end=100)
+     read(configunit, nml=hzg_omexdia_p_mpb, err=97, end=101)
+     read(configunit, nml=hzg_omexdia_p_mpb_dependencies, err=98, end=102)
+     read(configunit, nml=hzg_mpb, err=99, end=103)
    endif
 
    ! Store parameter values in our own derived type
@@ -282,6 +294,27 @@
             'Extracellular Polymeric Substances  eps',                          &
             eps_init, minimum=0.0_rk, no_river_dilution=.true.)
       call self%set_variable_property(self%id_eps, 'particulate', .false.)
+
+      ! Register link to external dependencies, if variable names are provided in namelist.
+      self%use_dic  = dic_variable/=''
+      if (self%use_dic) then
+          call self%register_state_dependency(self%id_dic, dic_variable, 'mmol/m**3',   &
+                'dissolved inorganic carbon', required=.false.)
+          call self%request_coupling(self%id_dic, dic_variable)
+      endif
+      self%use_zbC  = zbC_variable/=''
+      if (self%use_zbC) then
+          call self%register_state_dependency(self%id_zbC, zbC_variable, 'mmolC/m**3',   &
+                'ZooBenthos carbon', required=.false.)
+          call self%request_coupling(self%id_zbC, zbC_variable)
+      endif
+      self%use_zbN  = zbN_variable/=''
+      if (self%use_zbN) then
+          call self%register_state_dependency(self%id_zbN, zbN_variable, 'mmolN/m**3',   &
+                'ZooBenthos nitrogen', required=.false.)
+          call self%request_coupling(self%id_zbN, zbN_variable)
+      endif
+
    endif
 
    ! Register diagnostic variables
@@ -292,18 +325,18 @@
 
    self%MPhytoBenOn = MPhytoBenOn
    if (self%MPhytoBenOn) then
-      call self%register_diagnostic_variable(self%id_PrimProd, 'PrimProd', 'mmolC/m**3/d', &
+      call self%register_diagnostic_variable(self%id_PrimProd, 'PrimProd', 'mmolC/m**3/d',  &
             'MPB primary production rate PrimProd',    output=output_instantaneous)
-      call self%register_diagnostic_variable(self%id_par,      'par', 'w/m2',          &
+      call self%register_diagnostic_variable(self%id_par,      'par', 'w/m2',               &
             'photosynthetically active radiation par', output=output_instantaneous)
-      call self%register_diagnostic_variable(self%id_Q_N,      'Q_N', '-',             &
+      call self%register_diagnostic_variable(self%id_Q_N,      'Q_N', '-',                  &
             'MPB nitrogen quota Q_N',                  output=output_instantaneous)
-      call self%register_diagnostic_variable(self%id_Q_chl,    'Q_chl', '-',           &
+      call self%register_diagnostic_variable(self%id_Q_chl,    'Q_chl', '-',                &
             'MPB CHL:C ratio Q_chl',                   output=output_instantaneous)
       call self%register_diagnostic_variable(self%id_expCProd, 'expCProd', 'mmolC/m**2/d',  &
-            'carbon export from MPB to zoobenthos',    output=output_instantaneous)
+            'MPB carbon export (zoobenthos grazing)',    output=output_instantaneous)
       call self%register_diagnostic_variable(self%id_expNProd, 'expNProd', 'mmolN/m**2/d',  &
-            'nitrogen export from MPB to zoobenthos',  output=output_instantaneous)
+            'MPB nitrogen export (zoobenthos grazing)',  output=output_instantaneous)
    endif
 
    ! Register dependencies
@@ -312,11 +345,15 @@
 
    return
 
-98 call self%fatal_error('hzg_omexdia_p_mpb_initialize','Error reading namelist hzg_omexdia_p.')
+96 call self%fatal_error('hzg_omexdia_p_mpb_initialize','Error reading namelist hzg_omexdia_p.')
+97 call self%fatal_error('hzg_omexdia_p_mpb_initialize','Error reading namelist hzg_omexdia_p_mpb.')
+98 call self%fatal_error('hzg_omexdia_p_mpb_initialize','Error reading namelist hzg_omexdia_p_mpb_dependencies.')
 99 call self%fatal_error('hzg_omexdia_p_mpb_initialize','Error reading namelist hzg_mpb.')
 
 100 call self%fatal_error('hzg_omexdia_p_mpb_initialize','Namelist hzg_omexdia_p was not found.')
-101 call self%fatal_error('hzg_omexdia_p_mpb_initialize','Namelist hzg_mpb was not found.')
+101 call self%fatal_error('hzg_omexdia_p_mpb_initialize','Namelist hzg_omexdia_p_mpb was not found.')
+102 call self%fatal_error('hzg_omexdia_p_mpb_initialize','Namelist hzg_omexdia_p_mpb_dependencies was not found.')
+103 call self%fatal_error('hzg_omexdia_p_mpb_initialize','Namelist hzg_mpb was not found.')
 
    end subroutine initialize
 !EOC
@@ -395,11 +432,6 @@
 
    CprodF = f_T * self%rFast * ldetC
    CprodS = f_T * self%rSlow * sdetC
-   if (self%MPhytoBenOn) then
-     CprodEPS = sqrt(self%rFast*self%rSlow) * eps
-   else
-     CprodEPS = 0.0_rk
-   endif
 
    ! assume upper reactive surface area for POC hydrolysis
    if (CprodS > self%CprodMax) CprodS = self%CprodMax
@@ -475,6 +507,7 @@
 
       ! Carbohydrate exudation:
       prodeps = self%keps * prod
+      CprodEPS = sqrt(self%rLdet*self%rSdet) * eps
 
       ! Respiration:
       respphyto = self%resp * mpbC * oxy/(oxy+self%Kresp)
@@ -485,7 +518,7 @@
       grazingChl = self%graz * mpbCHL
       faecesC    = self%kout * grazingC
       faecesN    = self%kout * grazingC * self%rNCldet ! Hochard et al 2010
-      !faecesN    = self%kout * grazingN ! alternative proposed Markus Kreus
+      !faecesN    = self%kout * grazingN ! alternative proposed by Markus Kreus
       exud       = self%kexu * grazingN
       respzoo    = self%rzoo * grazingC * oxy/(oxy+self%Kresp)
       exportC    = grazingC - faecesC - respzoo ! exported carbon   (open closure term)
@@ -499,6 +532,7 @@
       exud      = 0.0_rk
       uptNH4    = 0.0_rk
       uptNO3    = 0.0_rk
+      CprodEPS  = 0.0_rk
    end if
 
 #define _CONV_UNIT_ *one_pr_day
@@ -517,16 +551,21 @@
       _SET_ODE_(self%id_mpbC,   ( prod - grazingC - respphyto - prodeps ) _CONV_UNIT_)
       _SET_ODE_(self%id_mpbN,   ( uptN - grazingN ) _CONV_UNIT_)
       _SET_ODE_(self%id_eps,    ( prodeps - f_T * CprodEPS ) _CONV_UNIT_)
+      if (_AVAILABLE_(self%id_dic)) _SET_ODE_(self%id_dic , (respzoo + respphyto) _CONV_UNIT_)
+      if (_AVAILABLE_(self%id_zbC)) _SET_ODE_(self%id_zbC , (exportC) _CONV_UNIT_)
+      if (_AVAILABLE_(self%id_zbN)) _SET_ODE_(self%id_zbN , (exportN) _CONV_UNIT_)
    end if
 
    ! Export diagnostic variables
    _SET_DIAGNOSTIC_(self%id_denit,0.8_rk*Denitrific)    !last denitrification rate
-   _SET_DIAGNOSTIC_(self%id_adsp ,radsP)                !step_integrated phosphate adsorption
+   _SET_DIAGNOSTIC_(self%id_adsp ,radsP)                !instantaneous phosphate adsorption
    if (self%MPhytoBenOn) then
-      _SET_DIAGNOSTIC_(self%id_PrimProd, PP)            !step_integrated MPB primary production rate
-      _SET_DIAGNOSTIC_(self%id_par, par)                !step_integrated photosynthetically active radiation
-      _SET_DIAGNOSTIC_(self%id_Q_N, Q_N)                !step_integrated MPB nitrogen quota
-      _SET_DIAGNOSTIC_(self%id_Q_chl, Q_chl)            !step_integrated MPB CHL:C ratio
+      _SET_DIAGNOSTIC_(self%id_PrimProd, PP)            !instantaneous MPB primary production rate
+      _SET_DIAGNOSTIC_(self%id_par, par)                !instantaneous photosynthetically active radiation
+      _SET_DIAGNOSTIC_(self%id_Q_N, Q_N)                !instantaneous MPB N:C quota
+      _SET_DIAGNOSTIC_(self%id_Q_chl, Q_chl)            !instantaneous MPB CHL:C ratio
+      _SET_DIAGNOSTIC_(self%id_expCProd, exportC)       !instantaneous MPB export production carbon
+      _SET_DIAGNOSTIC_(self%id_expNProd, exportN)       !instantaneous MPB export production nitrogen
    endif
 
    ! Leave spatial loops (if any)
