@@ -40,7 +40,7 @@
       type (type_dependency_id)            :: id_temp, id_parz, id_porosity
       type (type_diagnostic_variable_id)   :: id_PrimProd, id_par, id_Q_N, id_Q_chl
       type (type_diagnostic_variable_id)   :: id_expCProd, id_expNProd
-      type (type_diagnostic_variable_id)   :: id_NPP, id_SGR, id_TGR, id_SPR
+      type (type_diagnostic_variable_id)   :: id_NPP, id_SGR, id_TGR, id_SPR, id_SMR
 ! temporary for debugging
       type (type_diagnostic_variable_id)   :: id_MPB_din, id_MPB_no3, id_mpb_nh4
 
@@ -272,12 +272,14 @@
          'MPB nitrogen export (zoobenthos grazing)', output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_NPP, 'MPB_NPP',  'mmolC/m**3/d',       &
          'MPB net primary production rate NPP',      output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_SGR, 'MPB_SGR',  'mmolC/m**3/d',       &
+   call self%register_diagnostic_variable(self%id_SGR, 'MPB_SGR',  '1/d',                &
          'MPB specific growth rate SGR',             output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_TGR, 'MPB_TGR',  'mmolC/m**3/d',       &
+   call self%register_diagnostic_variable(self%id_TGR, 'MPB_TGR',  '1/d',                &
          'MPB total growth rate TGR',                output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_SPR, 'MPB_SPR',  '1/d',                &
          'MPB specific photosynthesis rate SPR',     output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_SMR, 'MPB_SMR',  '1/d',                &
+         'MPB specific mortality rate (grazing) SMR', output=output_instantaneous)
 ! temporary for debugging:
    call self%register_diagnostic_variable(self%id_MPB_DIN, 'DIN', 'mmolN/m**2/d',        &
          'MPB DIN',  output=output_instantaneous)
@@ -326,7 +328,7 @@
    real(rk) :: prodChl, k, theta, Q_N, Q_chl, Pmax,  PP, prod, prodeps, fac
    real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto, faecesC, faecesN
    real(rk) :: exud, grazingC, grazingN, grazingChl, respzoo, exportC, exportN
-   real(rk) :: NPP, SGR, TGR
+   real(rk) :: NPP, SGR, TGR, GRZ
 
 !EOP
 !-----------------------------------------------------------------------
@@ -417,9 +419,10 @@
    exportC    = grazingC - faecesC - respzoo ! exported carbon   (open closure term)
    exportN    = grazingN - faecesN - exud    ! exported nitrogen (open closure term)
 
-   NPP = prod - respphyto
-   SGR = prod - respphyto - prodeps
-   TGR = prod - grazingC - respphyto - prodeps
+   NPP =  prod - respphyto
+   SGR = (prod - respphyto - prodeps ) /mpbC
+   TGR = (prod - grazingC - respphyto - prodeps) /mpbC
+   GRZ = (grazingC) /mpbC
 
 #define _CONV_UNIT_ *one_pr_day
    ! reaction rates
@@ -438,17 +441,18 @@
    if (_AVAILABLE_(self%id_zbN)) _SET_ODE_(self%id_zbN , (exportN) _CONV_UNIT_)
 
    ! Export diagnostic variables
-   !_SET_DIAGNOSTIC_(self%id_PrimProd, PP)            !instantaneous MPB primary production rate
-   _SET_DIAGNOSTIC_(self%id_PrimProd, prod)          !instantaneous MPB primary production rate
+   !_SET_DIAGNOSTIC_(self%id_PrimProd, PP)            !instantaneous MPB primary production rate (d-1)
+   _SET_DIAGNOSTIC_(self%id_PrimProd, prod)          !instantaneous MPB primary production rate (molC m-3 d-1)
    _SET_DIAGNOSTIC_(self%id_par, par)                !instantaneous MPB photosynthetically active radiation
    _SET_DIAGNOSTIC_(self%id_Q_N, Q_N)                !instantaneous MPB N:C quota
    _SET_DIAGNOSTIC_(self%id_Q_chl, Q_chl)            !instantaneous MPB CHL:C ratio
    _SET_DIAGNOSTIC_(self%id_expCProd, exportC)       !instantaneous MPB export production carbon
    _SET_DIAGNOSTIC_(self%id_expNProd, exportN)       !instantaneous MPB export production nitrogen
-   _SET_DIAGNOSTIC_(self%id_NPP, NPP)                !instantaneous MPB net primary production rate
-   _SET_DIAGNOSTIC_(self%id_SGR, SGR)                !instantaneous MPB specific growth rate
-   _SET_DIAGNOSTIC_(self%id_TGR, TGR)                !instantaneous MPB total growth rate
-   _SET_DIAGNOSTIC_(self%id_SPR, PP)                 !instantaneous MPB specific photosynthesis rate
+   _SET_DIAGNOSTIC_(self%id_NPP, NPP)                !instantaneous MPB net primary production rate (molC m-3 d-1)
+   _SET_DIAGNOSTIC_(self%id_SGR, SGR)                !instantaneous MPB specific growth rate (d-1)
+   _SET_DIAGNOSTIC_(self%id_TGR, TGR)                !instantaneous MPB total growth rate (d-1)
+   _SET_DIAGNOSTIC_(self%id_SPR, PP)                 !instantaneous MPB specific photosynthesis rate (d-1)
+   _SET_DIAGNOSTIC_(self%id_SMR, GRZ)                !instantaneous MPB specific mortality rate (d-1)
 ! temporary for debugging:
    _SET_DIAGNOSTIC_(self%id_mpb_din, nh4+no3)        !instantaneous external DIN
    _SET_DIAGNOSTIC_(self%id_mpb_no3, no3)            !instantaneous external no3
