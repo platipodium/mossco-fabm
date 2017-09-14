@@ -194,6 +194,11 @@
       call self%register_state_dependency(self%id_no3, no3_variable, 'mmolN/m**3',   &
             'dissolved nitrate', required=.true.)
       call self%request_coupling(self%id_no3, no3_variable)
+   else
+      call self%register_state_variable(self%id_no3, 'no3', 'mmolN/m**3',  &
+            'dissolved nitrate', 20._rk, minimum=0.0_rk,  &
+            standard_variable=standard_variables%mole_concentration_of_nitrate)
+      call self%set_variable_property(self%id_no3, 'particulate', .false.)
    endif
 
    self%use_nh4 = nh4_variable/=''
@@ -201,6 +206,11 @@
       call self%register_state_dependency(self%id_nh4, nh4_variable, 'mmolN/m**3',   &
             'dissolved ammonium', required=.true.)
       call self%request_coupling(self%id_nh4, nh4_variable)
+   else
+      call self%register_state_variable(self%id_nh4, 'nh4', 'mmolN/m**3',  &
+            'dissolved ammonium', 40._rk, minimum=0.0_rk,  &
+            standard_variable=standard_variables%mole_concentration_of_ammonium)
+      call self%set_variable_property(self%id_nh4, 'particulate', .false.)
    endif
 
    self%use_oxy  = oxy_variable/=''
@@ -208,6 +218,10 @@
       call self%register_state_dependency(self%id_oxy, oxy_variable, 'mmolO2/m**3',  &
             'dissolved oxygen', required=.true.)
       call self%request_coupling(self%id_oxy, oxy_variable)
+   else
+      call self%register_state_variable(self%id_oxy, 'oxy', 'mmolO2/m**3',  &
+            'dissolved oxygen', 100.0_rk, minimum=0.0_rk)
+      call self%set_variable_property(self%id_oxy, 'particulate', .false.)
    endif
 
    self%use_ldet = ldet_variable/=''
@@ -215,6 +229,10 @@
       call self%register_state_dependency(self%id_ldet, ldet_variable, 'mmolC/m**3',  &
             'detritus labile carbon', required=.false.)
       call self%request_coupling(self%id_ldet, ldet_variable)
+   else
+      call self%register_state_variable(self%id_ldet, 'ldet', 'mmolC/m**3',  &
+            'detritus labile carbon', 4.e3_rk, minimum=0.0_rk)
+      call self%set_variable_property(self%id_ldet, 'particulate', .true.)
    endif
 
    self%use_dic  = dic_variable/=''
@@ -240,23 +258,23 @@
 
    ! Register diagnostic variables
    call self%register_diagnostic_variable(self%id_PrimProd, 'PrimProd', 'mmolC/m**3/d',  &
-         'MPB primary production rate PrimProd',    output=output_instantaneous)
+         'MPB primary production rate PrimProd',     output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_par,      'par', 'w/m2',               &
-         'photosynthetically active radiation par', output=output_instantaneous)
+         'MPB photosynthetically active radiation',  output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_Q_N,      'Q_N', '-',                  &
-         'MPB nitrogen quota Q_N',                  output=output_instantaneous)
+         'MPB nitrogen quota Q_N',                   output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_Q_chl,    'Q_chl', '-',                &
-         'MPB CHL:C ratio Q_chl',                   output=output_instantaneous)
+         'MPB CHL:C ratio Q_chl',                    output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_expCProd, 'expCProd', 'mmolC/m**2/d',  &
-         'MPB carbon export (zoobenthos grazing)',    output=output_instantaneous)
+         'MPB carbon export (zoobenthos grazing)',   output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_expNProd, 'expNProd', 'mmolN/m**2/d',  &
-         'MPB nitrogen export (zoobenthos grazing)',  output=output_instantaneous)
+         'MPB nitrogen export (zoobenthos grazing)', output=output_instantaneous)
 ! temporary for debugging:
-   call self%register_diagnostic_variable(self%id_MPB_DIN, 'DIN', 'mmolN/m**2/d',  &
+   call self%register_diagnostic_variable(self%id_MPB_DIN, 'DIN', 'mmolN/m**2/d',        &
          'MPB DIN',  output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_MPB_no3, 'MPB_no3', 'mmolN/m**2/d',  &
+   call self%register_diagnostic_variable(self%id_MPB_no3, 'MPB_no3', 'mmolN/m**2/d',    &
          'MPB no3',  output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_MPB_nh4, 'MPB_nh4', 'mmolN/m**2/d',  &
+   call self%register_diagnostic_variable(self%id_MPB_nh4, 'MPB_nh4', 'mmolN/m**2/d',    &
          'MPB nh4',  output=output_instantaneous)
 
    ! Register dependencies
@@ -300,7 +318,6 @@
    real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto, faecesC, faecesN
    real(rk) :: exud, grazingC, grazingN, grazingChl, respzoo, exportC, exportN
 
-
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -320,11 +337,11 @@
    _GET_(self%id_mpbC,   mpbC)    ! MicroPhytoBenthos carbon in mmolC/m**3
    _GET_(self%id_mpbN,   mpbN)    ! MicroPhytoBenthos nitrogen in mmolN/m**3
    _GET_(self%id_eps,    eps)     ! Extracellular Polymeric Substances  in mmolC/m**3
-   ! Retrieve current (local) external dependencies if available
-   if (self%use_no3)  _GET_(self%id_no3,  no3)  ! dissolved nitrate in mmolN/m**3
-   if (self%use_nh4)  _GET_(self%id_nh4,  nh4)  ! dissolved ammonium in mmolN/m**3
-   if (self%use_oxy)  _GET_(self%id_oxy,  oxy)  ! dissolved oxygen in mmolO2/m**3
-   if (self%use_ldet) _GET_(self%id_ldet, ldet) ! fast decaying detritus C in mmolC/m**3
+   ! Retrieve current external (local) dependencies if available
+   _GET_(self%id_no3,    no3)     ! dissolved nitrate in mmolN/m**3
+   _GET_(self%id_nh4,    nh4)     ! dissolved ammonium in mmolN/m**3
+   _GET_(self%id_oxy,    oxy)     ! dissolved oxygen in mmolO2/m**3
+   _GET_(self%id_ldet,   ldet)    ! fast decaying detritus C in mmolC/m**3
 
    temp_kelvin = 273.15_rk + temp_celsius
    E_a = 0.1_rk*log(Q10b)*T0*(T0+10.0_rk);
@@ -390,7 +407,6 @@
    exportC    = grazingC - faecesC - respzoo ! exported carbon   (open closure term)
    exportN    = grazingN - faecesN - exud    ! exported nitrogen (open closure term)
 
-
 #define _CONV_UNIT_ *one_pr_day
    ! reaction rates
    _SET_ODE_(self%id_mpbCHL, (prodchl - grazingChl ) _CONV_UNIT_)
@@ -399,10 +415,10 @@
    _SET_ODE_(self%id_eps,    (prodeps - f_T * CprodEPS ) _CONV_UNIT_)
    ! external dependencies
    ! If externally maintained variables are present, change the pools accordingly
-   if (self%use_no3)  _SET_ODE_(self%id_no3 , (- uptNO3) _CONV_UNIT_)
-   if (self%use_nh4)  _SET_ODE_(self%id_nh4 , (exud - uptNH4) _CONV_UNIT_)
-   if (self%use_oxy)  _SET_ODE_(self%id_oxy , (- respzoo - respphyto) _CONV_UNIT_)
-   if (_AVAILABLE_(self%id_ldet))_SET_ODE_(self%id_ldet, (faecesC) _CONV_UNIT_)
+   _SET_ODE_(self%id_no3 , (- uptNO3) _CONV_UNIT_)
+   _SET_ODE_(self%id_nh4 , (exud - uptNH4) _CONV_UNIT_)
+   _SET_ODE_(self%id_oxy , (- respzoo - respphyto) _CONV_UNIT_)
+   _SET_ODE_(self%id_ldet, (faecesC) _CONV_UNIT_)
    if (_AVAILABLE_(self%id_dic)) _SET_ODE_(self%id_dic , (respzoo + respphyto) _CONV_UNIT_)
    if (_AVAILABLE_(self%id_zbC)) _SET_ODE_(self%id_zbC , (exportC) _CONV_UNIT_)
    if (_AVAILABLE_(self%id_zbN)) _SET_ODE_(self%id_zbN , (exportN) _CONV_UNIT_)
