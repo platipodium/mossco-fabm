@@ -165,22 +165,22 @@
 
    ! Register state variables
    call self%register_state_variable(self%id_mpbCHL, 'mpbCHL', 'gChla m-3', &
-         'MicroPhytoBenthos chlorophyll mpbCHL',                             &
+         'MicroPhytoBenthos chlorophyll mpbCHL',                            &
          mpbCHL_init, minimum=0.0_rk, no_river_dilution=.true.)
    call self%set_variable_property(self%id_mpbCHL, 'particulate', .true.)
 
    call self%register_state_variable(self%id_mpbC,   'mpbC', 'mmolC m-3',   &
-         'MicroPhytoBenthos carbon mpbC',                                    &
+         'MicroPhytoBenthos carbon mpbC',                                   &
          mpbC_init, minimum=0.0_rk, no_river_dilution=.true.)
    call self%set_variable_property(self%id_mpbC, 'particulate', .true.)
 
    call self%register_state_variable(self%id_mpbN,   'mpbN', 'mmolN m-3',   &
-         'MicroPhytoBenthos nitrogen mpbN',                                  &
+         'MicroPhytoBenthos nitrogen mpbN',                                 &
          mpbN_init, minimum=0.0_rk, no_river_dilution=.true.)
    call self%set_variable_property(self%id_mpbN, 'particulate', .true.)
 
    call self%register_state_variable(self%id_eps,    'eps', 'mmolC m-3',    &
-         'Extracellular Polymeric Substances eps',                           &
+         'Extracellular Polymeric Substances eps',                          &
          eps_init, minimum=0.0_rk, no_river_dilution=.true.)
    call self%set_variable_property(self%id_eps, 'particulate', .false.)
 
@@ -191,8 +191,8 @@
             'dissolved nitrate', required=.true.)
       call self%request_coupling(self%id_no3, no3_variable)
    else
-      call self%register_state_variable(self%id_no3, 'no3', 'mmolN m-3',  &
-            'dissolved nitrate', 20._rk, minimum=0.0_rk,  &
+      call self%register_state_variable(self%id_no3, 'no3', 'mmolN m-3',    &
+            'dissolved nitrate', 20._rk, minimum=0.0_rk,                    &
             standard_variable=standard_variables%mole_concentration_of_nitrate)
       call self%set_variable_property(self%id_no3, 'particulate', .false.)
    endif
@@ -203,8 +203,8 @@
             'dissolved ammonium', required=.true.)
       call self%request_coupling(self%id_nh4, nh4_variable)
    else
-      call self%register_state_variable(self%id_nh4, 'nh4', 'mmolN m-3',  &
-            'dissolved ammonium', 40._rk, minimum=0.0_rk,  &
+      call self%register_state_variable(self%id_nh4, 'nh4', 'mmolN m-3',    &
+            'dissolved ammonium', 40._rk, minimum=0.0_rk,                   &
             standard_variable=standard_variables%mole_concentration_of_ammonium)
       call self%set_variable_property(self%id_nh4, 'particulate', .false.)
    endif
@@ -215,7 +215,7 @@
             'dissolved oxygen', required=.true.)
       call self%request_coupling(self%id_oxy, oxy_variable)
    else
-      call self%register_state_variable(self%id_oxy, 'oxy', 'mmolO2 m-3',  &
+      call self%register_state_variable(self%id_oxy, 'oxy', 'mmolO2 m-3',   &
             'dissolved oxygen', 100.0_rk, minimum=0.0_rk)
       call self%set_variable_property(self%id_oxy, 'particulate', .false.)
    endif
@@ -253,13 +253,13 @@
    endif
 
    ! Register diagnostic variables
-   call self%register_diagnostic_variable(self%id_PrimProd, 'PrimProd', 'mmolC m-3 d-1',  &
+   call self%register_diagnostic_variable(self%id_PrimProd, 'MPB_PP', 'mmolC m-3 d-1',  &
          'MPB primary production rate PrimProd',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_par,      'par', 'W m-2',             &
+   call self%register_diagnostic_variable(self%id_par,      'par', 'W m-2',               &
          'MPB photosynthetically active radiation',  output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_Q_N,      'Q_N', '-',                  &
+   call self%register_diagnostic_variable(self%id_Q_N,      'Q_N', 'mmolN mmolC-1',       &
          'MPB nitrogen quota Q_N',                   output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_Q_chl,    'Q_chl', '-',                &
+   call self%register_diagnostic_variable(self%id_Q_chl,    'Q_chl', 'gChla mmolC-1',     &
          'MPB CHL:C ratio Q_chl',                    output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_expCProd, 'expCProd', 'mmolC m-2 d-1',  &
          'MPB carbon export (zoobenthos grazing)',   output=output_instantaneous)
@@ -267,13 +267,13 @@
          'MPB nitrogen export (zoobenthos grazing)', output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_NPP, 'MPB_NPP',  'mmolC m-3 d-1',       &
          'MPB net primary production rate NPP',      output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_SGR, 'MPB_SGR',  '1 d-1',                &
+   call self%register_diagnostic_variable(self%id_SGR, 'MPB_SGR',  'd-1',                 &
          'MPB specific growth rate SGR',             output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_TGR, 'MPB_TGR',  '1 d-1',                &
+   call self%register_diagnostic_variable(self%id_TGR, 'MPB_TGR',  'd-1',                 &
          'MPB total growth rate TGR',                output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_SPR, 'MPB_SPR',  '1 d-1',                &
+   call self%register_diagnostic_variable(self%id_SPR, 'MPB_SPR',  'd-1',                 &
          'MPB specific photosynthesis rate SPR',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_SMR, 'MPB_SMR',  '1 d-1',                &
+   call self%register_diagnostic_variable(self%id_SMR, 'MPB_SMR',  'd-1',                 &
          'MPB specific mortality rate (grazing) SMR', output=output_instantaneous)
 ! temporary for debugging:
    call self%register_diagnostic_variable(self%id_MPB_DIN, 'DIN', 'mmolN m-2 d-1',        &
@@ -316,8 +316,8 @@
 !  Original author(s): Markus Kreus, Richard Hofmeister & Kai Wirtz
 !
 ! !LOCAL VARIABLES:
-   real(rk), parameter :: T0 = 288.15_rk ! reference Temperature fixed to 15 degC
-   real(rk), parameter :: btempb = 1.5_rk
+   real(rk), parameter :: T0       = 288.15_rk ! reference Temperature fixed to 15 degC
+   real(rk), parameter :: Q10b     = 1.5_rk    ! q10 temperature coefficient (source?)
    real(rk) :: mpbC, mpbN, mpbCHL, eps, no3, nh4, oxy, ldet
    real(rk) :: temp_celsius, temp_kelvin, f_T, E_a, parz, porosity, CprodEPS
    real(rk) :: prodChl, k, theta, Q_N, Q_chl, Pmax,  PP, prod, prodeps, fac
@@ -350,14 +350,15 @@
    _GET_(self%id_oxy,    oxy)     ! dissolved oxygen in mmolO2 m-3
    _GET_(self%id_ldet,   ldet)    ! fast decaying detritus C in mmolC m-3
 
+   ! temperature dependency
    temp_kelvin = 273.15_rk + temp_celsius
-   E_a = 0.1_rk*log(btempb)*T0*(T0+10.0_rk);
-   f_T = 1.0_rk*exp(-E_a*(1.0_rk/temp_kelvin - 1.0_rk/T0))
+   E_a = 0.1_rk*log(Q10b)*T0*(T0+10.0_rk)
+   f_T = 1.0_rk*exp(-E_a*(1.0_rk/temp_kelvin - 1.0_rk/T0)) ! temperature factor (-)
 
    !----- intracellular N:C:Chl stoichiometry
-   Q_N    = mpbN   / mpbC
-   Q_chl  = mpbCHL / mpbC
-   theta  = mpbCHL / mpbN
+   Q_N    = mpbN   / mpbC      ! mmolN mmolC-1
+   Q_chl  = mpbCHL / mpbC      ! gChla mmolC-1
+   theta  = mpbCHL / mpbN      ! gChla mmolN-1
 
    !----- photosnythesis rate
    fac    = max( 0.0, 1.0 - self%Qmin/Q_N)
