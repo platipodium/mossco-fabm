@@ -11,8 +11,10 @@
 ! !DESCRIPTION:
 !
 ! The OMEXDIA+P model is based on the OMEXDIA model (see Soetard et al. 1996a)
-! and is intended to simulate early diagenesis in the sea sediments. The major
-! difference to the original OMEXDIA is an added phosphorus cycle.
+! and is intended to simulate early diagenesis in the sea sediments.
+! The major difference to the original OMEXDIA model is an added phosphorus cycle
+! added by Kai Wirtz. Further modifications comprise efficient reaction and
+! limitation terms to facilitate simple numerics (kai wirtz).
 !
 ! !USES:
    use fabm_types
@@ -301,8 +303,8 @@
    _SET_ODE_(self%id_detP, (radsP - Pprod - self%NH3Ads*detP)              _CONV_UNIT_)  ! (mmolP  m-3 d-1)
 
    ! Export diagnostic variables
-   _SET_DIAGNOSTIC_(self%id_denit, Denitrific*gammaNO3)
-   _SET_DIAGNOSTIC_(self%id_adsp, radsP)
+   _SET_DIAGNOSTIC_(self%id_denit, Denitrific*gammaNO3)  !last denitrification rate
+   _SET_DIAGNOSTIC_(self%id_adsp, radsP)                 !instantaneous phosphate adsorption
 
    ! Leave spatial loops (if any)
    _LOOP_END_

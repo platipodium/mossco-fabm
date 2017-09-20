@@ -3,19 +3,19 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: fabm_hzg_omexdia_p_mpb --- Fortran 2003 version of OMEXDIA+P biogeochemical model
+! !MODULE: fabm_hzg_omexdia_p_mpb --- Fortran 2003 version of OMEXDIA+P+MicroPhytoBenthos model
 !
 ! !INTERFACE:
    module hzg_omexdia_p_mpb
 !
 ! !DESCRIPTION:
 !
-! The OMEXDIA+P+MPB model is based on the OMEXDIA model (see Soetard et al. 1996a)
-! and is intended to simulate early diagenesis in the sea sediments. The major
-! difference to the original OMEXDIA is an added phosphorus cycle.
-! P-cycle is added by kai wirtz
-! efficient reaction and limitation terms to facilitate simple numerics added by kai wirtz
-! MPB model from Hochard et al EcoMod 2010 added by kai wirtz
+! The OMEXDIA+P+MPB model is based on the model published by Hochard et al EcoMod 2010.
+! This model is based on the OMEXDIA model (see Soetard et al. 1996a) and is intended to
+! simulate early diagenesis in the sea sediments as well the benthic mircophytofauna.
+! The major difference to the original OMEXDIA+MPB model is an added phosphorus cycle
+! added by Kai Wirtz. Further modifications comprise efficient reaction and
+! limitation terms to facilitate simple numerics (kai wirtz).
 !
 ! !USES:
    use fabm_types
@@ -33,7 +33,7 @@
    real(rk), parameter :: one_pr_day  = 1.0_rk / secs_pr_day
 !
 ! !REVISION HISTORY:!
-!  Original author(s): Richard Hofmeister & Kai Wirtz
+!  Original author(s): Markus Kreus, Richard Hofmeister & Kai Wirtz
 !
 !
 ! !PUBLIC DERIVED TYPES:
@@ -48,8 +48,11 @@
       ! for mpbC
       type (type_state_variable_id)        :: id_mpbCHL, id_mpbC, id_mpbN, id_eps
       type (type_dependency_id)            :: id_parz, id_porosity
-      type (type_diagnostic_variable_id)   :: id_PrimProd, id_par, id_Q_N, id_Q_chl
+      type (type_diagnostic_variable_id)   :: id_PrimProd, id_par, id_Q_N, id_Q_chl, id_Theta_N
       type (type_diagnostic_variable_id)   :: id_expCProd, id_expNProd
+      type (type_diagnostic_variable_id)   :: id_NPP, id_SGR, id_TGR, id_SPR, id_SMR
+! temporary for debugging
+      type (type_diagnostic_variable_id)   :: id_MPB_din, id_MPB_no3, id_mpb_nh3
 
 !     Model parameters
       !for omexdia_p
@@ -59,9 +62,9 @@
       ! for mpbC
       logical  :: MPhytoBenOn   ! use MicroPhytoBenthos (MPB)
       real(rk) :: rLdet, rSdet, rNCldet
-      real(rk) :: mumax, alpha, gamma, Qmin, Qmax, thetamax, uptmax, KNH4, KNO3
-      real(rk) :: KinNH4, keps, resp, Kresp, graz, kout, kexu, rzoo
-      real(rk) :: PAR0max, k0, Achla, bTemp
+      real(rk) :: Tref, mumax, alpha, gamma, Qmin, Qmax, thetamax, uptmax, KNH4, KNO3
+      real(rk) :: KinNH4, kEPS, rEPS, resp, Kresp, graz, kout, kexu, rzoo
+      real(rk) :: k0, Achla, btemp
       ! for all
       logical  :: use_dic, use_zbC, use_zbN
 
@@ -91,72 +94,76 @@
 !
 ! !INPUT PARAMETERS:
    class (type_hzg_omexdia_p_mpb),intent(inout),target  :: self
-   integer,                    intent(in)            :: configunit
+   integer,                       intent(in)            :: configunit
 !
 ! !REVISION HISTORY:
-!  Original author(s): Richard Hofmeister & Kai Wirtz
+!  Original author(s): Markus Kreus, Richard Hofmeister & Kai Wirtz
 !
 ! !LOCAL VARIABLES:
 !!------- Initial values of model omexdia_p -------
-   real(rk)  :: ldetC_init    ! labile detritus carbon (fast decay)
-   real(rk)  :: sdetC_init    ! semilabile detritus carbon (slow decay)
-   real(rk)  :: detP_init     ! detritus phosphorus
-   real(rk)  :: po4_init      ! dissolved phosphate
-   real(rk)  :: no3_init      ! dissolved nitrate
-   real(rk)  :: nh3_init      ! dissolved ammonium
-   real(rk)  :: oxy_init      ! dissolved oxygen
-   real(rk)  :: odu_init      ! dissolved reduced substances
+   real(rk)  :: ldetC_init    ! labile detritus carbon (fast decay)         (        mmolC  m-3 solid)
+   real(rk)  :: sdetC_init    ! semilabile detritus carbon (slow decay)     (        mmolC  m-3 solid)
+   real(rk)  :: detP_init     ! detritus phosphorus                         (        mmolO2 m-3 liquid)
+   real(rk)  :: po4_init      ! dissolved phosphate                         (        mmol   m-3 liquid)
+   real(rk)  :: no3_init      ! dissolved nitrate                           (        mmolN  m-3 liquid)
+   real(rk)  :: nh3_init      ! dissolved ammonium                          (        mmolN  m-3 liquid)
+   real(rk)  :: oxy_init      ! dissolved oxygen                            (        mmolP  m-3 solid)
+   real(rk)  :: odu_init      ! dissolved reduced substances                (        mmolP  m-3 liquid)
 !!------- Parameters for model omexdia_p -------
-   real(rk)  :: rFast         ! decay rate labile detritus (fast decay)
-   real(rk)  :: rSlow         ! decay rate semilabile detritus (slow decay)
-   real(rk)  :: NCrLdet       ! NC ratio labile detritus (fast decay)
-   real(rk)  :: NCrSdet       ! NC ratio semilabile detritus (slow decay)
-   real(rk)  :: PAds          ! Adsorption coeff phosphorus
-   real(rk)  :: PAdsODU       ! PO4-Fe dissolution threshold in terms of [FeS]/ODU
-   real(rk)  :: NH3Ads        ! Adsorption coeff ammonium
-   real(rk)  :: CprodMax=48.0 ! Max C-degrad rate for numeric stability
-   real(rk)  :: rnit          ! Max nitrification rate
-   real(rk)  :: ksO2nitri     ! half-sat O2 in nitrification
-   real(rk)  :: rODUox        ! Max rate oxidation of ODU
-   real(rk)  :: ksO2oduox     ! half-sat O2 in oxidation of ODU
-   real(rk)  :: ksO2oxic      ! half-sat O2 in oxic mineralis
-   real(rk)  :: ksNO3denit    ! half-sat NO3 in denitrif
-   real(rk)  :: kinO2denit    ! half-sat O2 inhib denitrif
-   real(rk)  :: kinNO3anox    ! half-sat NO3 inhib anoxic min
-   real(rk)  :: kinO2anox     ! half-sat O2 inhib anoxic min
+   real(rk)  :: rFast         ! decay rate labile detritus (fast decay)     (        d-1)
+   real(rk)  :: rSlow         ! decay rate semilabile detritus (slow decay) (        d-1)
+   real(rk)  :: NCrLdet       ! N/C ratio labile detritus (fast decay)      (0.1509  molN molC-1)
+   real(rk)  :: NCrSdet       ! N/C ratio semilabile detritus (slow decay)  (0.1333  molN molC-1)
+   real(rk)  :: PAds          ! Adsorption coeff phosphorus                 (        -)
+   real(rk)  :: PAdsODU       ! PO4-Fe dissolution threshold in terms of [FeS]/ODU ( -)
+   real(rk)  :: NH3Ads        ! Adsorption coeff ammonium                   (1.3     -)
+   real(rk)  :: CprodMax=48.0 ! Max C-degrad rate for numeric stability     (        -)
+   real(rk)  :: rnit          ! Max nitrification rate                      (20.0    d-1)
+   real(rk)  :: ksO2nitri     ! half-sat for O2  limitation in nitrification                 (1.0  mmolO2 m-3)
+   real(rk)  :: rODUox        ! Max rate oxidation rate of ODU              (20.0    d-1)
+   real(rk)  :: ksO2oduox     ! half-sat for O2  limitation in oxidation of reduced nutriens (1.0  mmolO2 m-3)
+   real(rk)  :: ksO2oxic      ! half-sat for O2  limitation in oxic mineralization           (3.0  mmolO2 m-3)
+   real(rk)  :: ksNO3denit    ! half-sat for NO3 limitation in denitrification               (6.18 mmolN  m-3 := 30.0 mmolNO3 m-3)
+   real(rk)  :: kinO2denit    ! half-sat for O2  inhibition in denitrification               (10.0 mmolO2 m-3)
+   real(rk)  :: kinNO3anox    ! half-sat for NO3 inhibition in anoxic mineralization         (1.03 mmolN  m-3 := 5.0 mmolNO3 m-3)
+   real(rk)  :: kinO2anox     ! half-sat for O2  inhibition in anoxic mineralization         (5.0  mmolO2 m-3)
 !!------- Initial values of model mpb -------
-   real(rk)  :: mpbCHL_init   ! MicroPhytoBenthos chlorophyll
-   real(rk)  :: mpbC_init     ! MicroPhytoBenthos carbon
-   real(rk)  :: mpbN_init     ! MicroPhytoBenthos nitrogen
-   real(rk)  :: eps_init      ! Extracellular Polymeric Substances
+   !Note: At Hochard et al (2010) units for mpbCHL was given as mgChla/l.
+   !      MK assumed that to be a typo and defined its unit to mgChla m-3, which
+   !      correspondents much better to other literature refering to the "Geider" model.
+   real(rk)  :: mpbCHL_init   ! MicroPhytoBenthos chlorophyll               (mgChla m-3)
+   real(rk)  :: mpbC_init     ! MicroPhytoBenthos carbon                    (mmolC m-3)
+   real(rk)  :: mpbN_init     ! MicroPhytoBenthos nitrogen                  (mmolN m-3)
+   real(rk)  :: eps_init      ! Extracellular Polymeric Substances          (mmolC m-3)
 !!------- Switch for MicroPhytoBenthos model -------
    logical   :: MPhytoBenOn   ! use MicroPhytoBenthos (MPB)
 !!------- Parameters for model mpb originating from omexdia_p -------
-   real(rk)  :: rLdet         ! decay rate labile detritus (fast decay)
-   real(rk)  :: rSdet         ! decay rate semilabile detritus (slow decay)
-   real(rk)  :: rNCldet       ! NC ratio labile detritus (fast decay)
-!!------- Parameters for model mpb -------
-   real(rk)  :: mumax         ! Maximum growth rate
-   real(rk)  :: alpha         ! ific initial slope of the PI-curve
-   real(rk)  :: gamma         ! Mol O2 produced per mol C fixed by photosynthesis
-   real(rk)  :: Qmin          ! Minimum N/C ratio
-   real(rk)  :: Qmax          ! Maximum N/C ratio
-   real(rk)  :: thetamax      ! Maximum Chla/N ratio
-   real(rk)  :: uptmax        ! Maximum uptake rate per carbon unit for NH4 & NO3
-   real(rk)  :: KNH4          ! Half-saturation conc. for NH4 uptake
-   real(rk)  :: KNO3          ! Half-saturation conc. for NO3 uptake
-   real(rk)  :: KinNH4        ! Half-saturation conc. for NO3 uptake inhibition by ammonium
-   real(rk)  :: keps          ! fraction of primary production exudated as EPS
-   real(rk)  :: resp          ! Respiration rate
-   real(rk)  :: Kresp         ! Half-saturation conc. O2 lim. for resp
-   real(rk)  :: graz          ! Grazing rate
-   real(rk)  :: kout          ! Faeces production coeff.
-   real(rk)  :: kexu          ! Nitrogen exudation coeff.
-   real(rk)  :: rzoo          ! Respiration rate for zoobenthos
-   real(rk)  :: PAR0max       ! maximum light intensity
-   real(rk)  :: k0            ! Extinction coefficient of sediment
-   real(rk)  :: Achla         ! Absorption factor of chlorophyll
-   real(rk)  :: bTemp         ! Temperature increase
+!    real(rk)  :: rLdet         ! decay rate labile detritus (fast decay)     (0.075  d-1)
+!    real(rk)  :: rSdet         ! decay rate semilabile detritus (slow decay) (0.003  d-1)
+!    real(rk)  :: rNCldet       ! N/C ratio labile detritus (fast decay)      (0.230  molN molC-1)
+!!------- Parameters for model mpb -------  (reference Values refer to Hochard (2010))
+   real(rk)  :: Tref          ! Reference Temperature for rate parameters   (0.0   degC)
+   real(rk)  :: mumax         ! Maximum growth rate  (at Tref)              (0.70  d-1)
+   real(rk)  :: btemp         ! Temperature factor                          (0.063  - )
+   real(rk)  :: alpha         ! initial slope of the PI-curve               (1.296 m2 molC (gChla W d) := 1.5e-5  m2 molC (gChla J)-1)
+   real(rk)  :: gamma         ! Mol O2 produced per mol C fixed by photosynthesis (1.0  molO2 molC-1)
+   real(rk)  :: Qmin          ! Minimum N/C ratio                           (0.05  molN molC-1)
+   real(rk)  :: Qmax          ! Maximum N/C ratio                           (0.20  molN molC-1)
+   real(rk)  :: thetamax      ! Maximum Chla/N ratio                        (3.80  gChla molN-1 => 0.27 gChla gN-1)
+   real(rk)  :: uptmax        ! Maximum N uptake rate per carbon unit (at Tref) (0.20  molN molC-1 d-1)
+   real(rk)  :: KNH4          ! Half-saturation conc. for NH4 uptake        (3.00  mmolN m-3)
+   real(rk)  :: KNO3          ! Half-saturation conc. for NO3 uptake        (3.00  mmolN m-3)
+   real(rk)  :: KinNH4        ! Half-saturation conc. for NO3 uptake inhibition by NH4  (10.00  mmolN m-3)
+   real(rk)  :: keps          ! fraction of primary production exudated as EPS  (0.20  -)
+   real(rk)  :: rEPS          ! decay rate for EPS                          (0.02  d-1)
+   real(rk)  :: resp          ! Respiration rate                            (0.10  d-1)
+   real(rk)  :: Kresp         ! Half-saturation conc. O2 lim. for resp      (1.00  mmolO2 m-3)
+   real(rk)  :: graz          ! Grazing rate                                (0.10  d-1)
+   real(rk)  :: kout          ! Faeces production coeff. (-> exportN)       (0.10  -)
+   real(rk)  :: kexu          ! Nitrogen exudation coeff.                   (0.15  -)
+   real(rk)  :: rzoo          ! Respiration rate for zoobenthos             (0.10  d-1)
+   real(rk)  :: k0            !*Extinction coefficient of sediment          (20.0  cm-1)         *obsolete/currently not used!!!
+   real(rk)  :: Achla         !*Absorption factor of chlorophyll            (0.02  m2 mgChla-1)  *obsolete/currently not used!!!
 !!------- Optional external dependencies -------
    character(len=attribute_length) :: dic_variable  = ''  ! dissolved inorganic carbon
    character(len=attribute_length) :: zbC_variable  = ''  ! zoobenthos carbon
@@ -174,9 +181,9 @@
    namelist /hzg_omexdia_p_mpb_dependencies/  &
           dic_variable, zbC_variable, zbN_variable
 
-   namelist /hzg_mpb/ rLdet, rSdet, rNCldet, &
-          mumax, alpha, gamma, Qmin, Qmax, thetamax, uptmax, KNH4, KNO3, KinNH4,   &
-          keps, resp, Kresp, graz, kout, kexu, rzoo, PAR0max, k0, Achla, bTemp,    &
+   namelist /hzg_mpb/ &
+          Tref, mumax, btemp, alpha, gamma, Qmin, Qmax, thetamax, uptmax, KNH4, KNO3,   &
+          KinNH4, kEPS, rEPS, resp, Kresp, graz, kout, kexu, rzoo, k0, Achla,           &
           mpbCHL_init, mpbC_init, mpbN_init, eps_init
 
 !EOP
@@ -211,48 +218,47 @@
    self%kinO2anox  = kinO2anox
 
    ! Register state variables
-   call self%register_state_variable(self%id_ldetC, 'ldetC', 'mmolC/m**3',  &
+   call self%register_state_variable(self%id_ldetC, 'ldetC', 'mmolC m-3',  &
                                     'detritus labile carbon', ldetC_init, minimum=0.0_rk)
    call self%set_variable_property(self%id_ldetC, 'particulate', .true.)
 
-   call self%register_state_variable(self%id_sdetC, 'sdetC', 'mmolC/m**3',  &
+   call self%register_state_variable(self%id_sdetC, 'sdetC', 'mmolC m-3',  &
                                     'detritus semilabile carbon', sdetC_init, minimum=0.0_rk)
    call self%set_variable_property(self%id_sdetC, 'particulate', .true.)
 
-   call self%register_state_variable(self%id_detP, 'detP', 'mmolP/m**3',  &
+   call self%register_state_variable(self%id_detP, 'detP', 'mmolP m-3',  &
                                     'detritus phosphorus', detP_init, minimum=0.0_rk)
    call self%set_variable_property(self%id_detP, 'particulate', .true.)
 
-   call self%register_state_variable(self%id_po4, 'po4', 'mmolP/m**3',  &
+   call self%register_state_variable(self%id_po4, 'po4', 'mmolP m-3',  &
                                     'dissolved phosphate', po4_init, minimum=0.0_rk,  &
                                     standard_variable=standard_variables%mole_concentration_of_phosphate)
    call self%set_variable_property(self%id_po4, 'particulate', .false.)
 
-   call self%register_state_variable(self%id_no3, 'no3', 'mmolN/m**3',  &
+   call self%register_state_variable(self%id_no3, 'no3', 'mmolN m-3',  &
                                     'dissolved nitrate', no3_init, minimum=0.0_rk,  &
                                     standard_variable=standard_variables%mole_concentration_of_nitrate)
    call self%set_variable_property(self%id_no3, 'particulate', .false.)
 
-   call self%register_state_variable(self%id_nh3, 'nh3', 'mmolN/m**3',  &
+   call self%register_state_variable(self%id_nh3, 'nh3', 'mmolN m-3',  &
                                     'dissolved ammonium', nh3_init, minimum=0.0_rk,  &
                                     standard_variable=standard_variables%mole_concentration_of_ammonium)
    call self%set_variable_property(self%id_nh3, 'particulate', .false.)
 
-   call self%register_state_variable(self%id_oxy, 'oxy', 'mmolO2/m**3',  &
+   call self%register_state_variable(self%id_oxy, 'oxy', 'mmolO2 m-3',  &
                                     'dissolved oxygen', oxy_init, minimum=0.0_rk)
    call self%set_variable_property(self%id_oxy, 'particulate', .false.)
 
-   call self%register_state_variable(self%id_odu,'odu','mmol/m**3',  &
+   call self%register_state_variable(self%id_odu,'odu','mmolO2 m-3',  &
                                     'dissolved reduced substances', odu_init, minimum=0.0_rk)
    call self%set_variable_property(self%id_odu,'particulate', .false.)
 
    if (MPhytoBenOn) then
       ! Store parameter values in our own derived type
       self%MPhytoBenOn = MPhytoBenOn
-      self%rLdet       = rLdet
-      self%rSdet       = rSdet
-      self%rNCldet     = rNCldet
+      self%Tref        = Tref
       self%mumax       = mumax
+      self%btemp       = btemp
       self%alpha       = alpha
       self%gamma       = gamma
       self%Qmin        = Qmin
@@ -269,74 +275,95 @@
       self%kout        = kout
       self%kexu        = kexu
       self%rzoo        = rzoo
-      self%PAR0max     = PAR0max
       self%k0          = k0
       self%Achla       = Achla
-      self%bTemp       = bTemp
 
       ! Register state variables
-      call self%register_state_variable(self%id_mpbCHL, 'mpbCHL', 'mmolN/m**3', &
-            'MicroPhytoBenthos chlorophyll mpbCHL',                             &
+      call self%register_state_variable(self%id_mpbCHL, 'mpbCHL', 'mgChla m-3', &
+            'MicroPhytoBenthos chlorophyll mpbCHL',                            &
             mpbCHL_init, minimum=0.0_rk, no_river_dilution=.true.)
       call self%set_variable_property(self%id_mpbCHL, 'particulate', .true.)
+      !Note: At Hochard et al (2010) units for mpbCHL was given as mgChla/l.
+      !      I (MK) assume that to be a typo and define its unit to mgChla m-3, which
+      !      correspondents much better to other literature refering to the "Geider" model.
 
-      call self%register_state_variable(self%id_mpbC,  'mpbC', 'mmolC/m**3',    &
-            'MicroPhytoBenthos carbon mpbC',                                    &
+      call self%register_state_variable(self%id_mpbC,   'mpbC', 'mmolC m-3',   &
+            'MicroPhytoBenthos carbon mpbC',                                   &
             mpbC_init, minimum=0.0_rk, no_river_dilution=.true.)
       call self%set_variable_property(self%id_mpbC, 'particulate', .true.)
 
-      call self%register_state_variable(self%id_mpbN,  'mpbN', 'mmolN/m**3',    &
-            'MicroPhytoBenthos nitrogen mpbN',                                  &
+      call self%register_state_variable(self%id_mpbN,   'mpbN', 'mmolN m-3',   &
+            'MicroPhytoBenthos nitrogen mpbN',                                 &
             mpbN_init, minimum=0.0_rk, no_river_dilution=.true.)
       call self%set_variable_property(self%id_mpbN, 'particulate', .true.)
 
-      call self%register_state_variable(self%id_eps,   'eps', 'mmolC/m**3',     &
-            'Extracellular Polymeric Substances  eps',                          &
+      call self%register_state_variable(self%id_eps,    'eps', 'mmolC m-3',    &
+            'Extracellular Polymeric Substances eps',                          &
             eps_init, minimum=0.0_rk, no_river_dilution=.true.)
       call self%set_variable_property(self%id_eps, 'particulate', .false.)
 
       ! Register link to external dependencies, if variable names are provided in namelist.
       self%use_dic  = dic_variable/=''
       if (self%use_dic) then
-          call self%register_state_dependency(self%id_dic, dic_variable, 'mmol/m**3',   &
+        call self%register_state_dependency(self%id_dic, dic_variable, 'mmolC m-3',   &
                 'dissolved inorganic carbon', required=.false.)
           call self%request_coupling(self%id_dic, dic_variable)
       endif
+
       self%use_zbC  = zbC_variable/=''
       if (self%use_zbC) then
-          call self%register_state_dependency(self%id_zbC, zbC_variable, 'mmolC/m**3',   &
+          call self%register_state_dependency(self%id_zbC, zbC_variable, 'mmolC m-3',   &
                 'ZooBenthos carbon', required=.false.)
           call self%request_coupling(self%id_zbC, zbC_variable)
       endif
+
       self%use_zbN  = zbN_variable/=''
       if (self%use_zbN) then
-          call self%register_state_dependency(self%id_zbN, zbN_variable, 'mmolN/m**3',   &
+          call self%register_state_dependency(self%id_zbN, zbN_variable, 'mmolN m-3',   &
                 'ZooBenthos nitrogen', required=.false.)
           call self%request_coupling(self%id_zbN, zbN_variable)
       endif
-
    endif
 
    ! Register diagnostic variables
-   call self%register_diagnostic_variable(self%id_adsp, 'adsP', 'mmolP/m**3',  &
+   call self%register_diagnostic_variable(self%id_adsp, 'adsP', 'mmolP m-3',  &
          'phosphate adsorption', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_denit, 'denit', 'mmol/m**3/d',  &
+   call self%register_diagnostic_variable(self%id_denit, 'denit', 'mmolN m-3 d-1',  &
          'denitrification rate', output=output_instantaneous)
 
    self%MPhytoBenOn = MPhytoBenOn
    if (self%MPhytoBenOn) then
-      call self%register_diagnostic_variable(self%id_PrimProd, 'PrimProd', 'mmolC/m**3/d',  &
-            'MPB primary production rate PrimProd',    output=output_instantaneous)
-      call self%register_diagnostic_variable(self%id_par,      'par', 'w/m2',               &
-            'photosynthetically active radiation par', output=output_instantaneous)
-      call self%register_diagnostic_variable(self%id_Q_N,      'Q_N', '-',                  &
-            'MPB nitrogen quota Q_N',                  output=output_instantaneous)
-      call self%register_diagnostic_variable(self%id_Q_chl,    'Q_chl', '-',                &
-            'MPB CHL:C ratio Q_chl',                   output=output_instantaneous)
-      call self%register_diagnostic_variable(self%id_expCProd, 'expCProd', 'mmolC/m**2/d',  &
-            'MPB carbon export (zoobenthos grazing)',    output=output_instantaneous)
-      call self%register_diagnostic_variable(self%id_expNProd, 'expNProd', 'mmolN/m**2/d',  &
-            'MPB nitrogen export (zoobenthos grazing)',  output=output_instantaneous)
+      call self%register_diagnostic_variable(self%id_PrimProd, 'MPB_PP', 'mmolC m-3 d-1',    &
+            'MPB primary production rate PrimProd',     output=output_instantaneous)
+      call self%register_diagnostic_variable(self%id_par,      'par', 'W m-2',               &
+            'MPB photosynthetically active radiation',  output=output_instantaneous)
+      call self%register_diagnostic_variable(self%id_Q_N,      'Q_N', 'molN molC-1',         &
+            'MPB nitrogen quota Q_N',                   output=output_instantaneous)
+      call self%register_diagnostic_variable(self%id_Q_chl,    'Q_chl', 'gChla gC-1',        &
+            'MPB CHL-to-C ratio Q_chl',                 output=output_instantaneous)
+      call self%register_diagnostic_variable(self%id_Theta_N,  'Theta_N','gChla molN-1',     &
+            'MPB CHL-to-N ratio Theta_N',               output=output_instantaneous)
+      call self%register_diagnostic_variable(self%id_expCProd, 'expCProd', 'mmolC m-3 d-1',  &
+            'MPB carbon export (zoobenthos grazing)',   output=output_instantaneous)
+      call self%register_diagnostic_variable(self%id_expNProd, 'expNProd', 'mmolN m-3 d-1',  &
+            'MPB nitrogen export (zoobenthos grazing)', output=output_instantaneous)
+      call self%register_diagnostic_variable(self%id_NPP, 'MPB_NPP',  'mmolC m-3 d-1',       &
+            'MPB net primary production rate NPP',      output=output_instantaneous)
+      call self%register_diagnostic_variable(self%id_SGR, 'MPB_SGR',  'd-1',                 &
+            'MPB specific growth rate SGR',             output=output_instantaneous)
+      call self%register_diagnostic_variable(self%id_TGR, 'MPB_TGR',  'd-1',                 &
+            'MPB total growth rate TGR',                output=output_instantaneous)
+      call self%register_diagnostic_variable(self%id_SPR, 'MPB_SPR',  'd-1',                 &
+            'MPB specific photosynthesis rate SPR',     output=output_instantaneous)
+      call self%register_diagnostic_variable(self%id_SMR, 'MPB_SMR',  'd-1',                 &
+            'MPB specific mortality rate (grazing) SMR', output=output_instantaneous)
+      ! temporary for debugging:
+      call self%register_diagnostic_variable(self%id_MPB_DIN, 'DIN', 'mmolN m-3 d-1',        &
+            'MPB DIN',  output=output_instantaneous)
+      call self%register_diagnostic_variable(self%id_MPB_no3, 'MPB_no3', 'mmolN m-3 d-1',    &
+            'MPB no3',  output=output_instantaneous)
+      call self%register_diagnostic_variable(self%id_MPB_nh3, 'MPB_nh3', 'mmolN m-3 d-1',    &
+            'MPB nh3',  output=output_instantaneous)
    endif
 
    ! Register dependencies
@@ -364,7 +391,7 @@
 ! !IROUTINE: Right hand sides of OMEXDIA+P model
 !
 ! !INTERFACE:
-   subroutine do(self,_ARGUMENTS_DO_)
+   subroutine do(self, _ARGUMENTS_DO_)
 !
 ! !DESCRIPTION:
 !
@@ -373,25 +400,28 @@
    _DECLARE_ARGUMENTS_DO_
 !
 ! !REVISION HISTORY:
-!  Original author(s): Richard Hofmeister & Kai Wirtz
+!  Original author(s): Markus Kreus, Richard Hofmeister & Kai Wirtz
 !
 ! !LOCAL VARIABLES:
 !!------- for model omexdia_p -------
-   real(rk),parameter :: relaxO2=0.04_rk
-   real(rk),parameter :: T0 = 288.15_rk ! reference Temperature fixed to 15 degC
-   real(rk),parameter :: Q10b = 1.5_rk
+   real(rk), parameter :: gammaNO3 = 0.8_rk    ! molN  used per molC in denitrification     !RH 0.8-> ~104/106?
+   real(rk), parameter :: gammaO2  = 1.0_rk    ! molO2 used per molC in oxic mineralization !RH 1.0->150/106*OxicMin (if [oxy]=mmolO2/m**3)
+   real(rk), parameter :: gammaNH3 = 2.0_rk    ! molO2 needed to oxidize one molNH3 in nitrification
+   real(rk), parameter :: T0       = 288.15_rk ! reference Temperature fixed to 15 degC
+   real(rk), parameter :: Q10b     = 1.5_rk    ! q10 temperature coefficient (source?)
+   real(rk), parameter :: relaxO2  = 0.04_rk   ! (source?)
    real(rk) :: ldetC, sdetC, oxy, odu, no3, nh3, detP, po4
    real(rk) :: temp_celsius, temp_kelvin, f_T, E_a
    real(rk) :: radsP, Oxicminlim, Denitrilim, Anoxiclim, Rescale, rP
-
    real(rk) :: CprodF, CprodS, Cprod, Nprod, Pprod
    real(rk) :: AnoxicMin, Denitrific, OxicMin, Nitri, OduDepo, OduOx, pDepo
 !!------- for model mpb -------
    real(rk) :: mpbC, mpbN, mpbCHL, eps
-   real(rk) :: par, parz, porosity, CprodEPS
-   real(rk) :: prodChl, k, theta, Q_N, Q_chl, Pmax,  PP, prod, prodeps, fac
+   real(rk) :: parz, porosity, CprodEPS
+   real(rk) :: prodChl, k, theta, Q_N, Q_chl, Pmax,  PP, prod, prodeps, fac, tfac
    real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto, faecesC, faecesN
    real(rk) :: exud, grazingC, grazingN, grazingChl, respzoo, exportC, exportN
+   real(rk) :: NPP, SGR, TGR, GRZ
 
 !EOP
 !-----------------------------------------------------------------------
@@ -400,129 +430,135 @@
    _LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
-   _GET_(self%id_temp, temp_celsius) ! sediment-water temperature
-   _GET_(self%id_ldetC, ldetC)       ! labile detritus C in mmolC/m**3
-   _GET_(self%id_sdetC, sdetC)       ! semilabile detritus C in mmolC/m**3
-   _GET_(self%id_detP, detP)         ! detritus P in mmolP/m**3
-   _GET_(self%id_oxy, oxy)           ! dissolved oxygen in mmolO2/m**3
-   _GET_(self%id_odu, odu)           ! dissolved reduced substances in mmolO2/m**3
-   _GET_(self%id_no3, no3)           ! dissolved nitrate in mmolN/m**3
-   _GET_(self%id_nh3, nh3)           ! dissolved ammonium in mmolN/m**3
-   _GET_(self%id_po4, po4)           ! dissolved phosphate in mmolP/m**3
+   _GET_(self%id_temp, temp_celsius) ! sediment-water temperature (degC)
+   _GET_(self%id_ldetC, ldetC)       ! labile detritus C          (mmolC/m**3)
+   _GET_(self%id_sdetC, sdetC)       ! semilabile detritus C      (mmolC/m**3)
+   _GET_(self%id_detP, detP)         ! detritus P                 (mmolP/m**3)
+   _GET_(self%id_oxy, oxy)           ! dissolved oxygen           (mmolO2/m**3)
+   _GET_(self%id_odu, odu)           ! dissolved oxygen demand units (mmolO2/m**3)
+   _GET_(self%id_no3, no3)           ! dissolved nitrate          (mmolN/m**3)
+   _GET_(self%id_nh3, nh3)           ! dissolved ammonium         (mmolN/m**3)
+   _GET_(self%id_po4, po4)           ! dissolved phosphate        (mmolP/m**3)
    if (self%MPhytoBenOn) then
-      _GET_(self%id_parz,   parz)    ! sediment light normalized to one at top
-      _GET_(self%id_mpbCHL, mpbCHL)  ! MicroPhytoBenthos chlorophyll in mmolN/m**3
-      _GET_(self%id_mpbC,   mpbC)    ! MicroPhytoBenthos carbon in mmolC/m**3
-      _GET_(self%id_mpbN,   mpbN)    ! MicroPhytoBenthos nitrogen in mmolN/m**3
-      _GET_(self%id_eps,    eps)     ! Extracellular Polymeric Substances  in mmolC/m**3
+      _GET_(self%id_parz,   parz)    ! sediment light in W m-2
+      _GET_(self%id_mpbCHL, mpbCHL)  ! MicroPhytoBenthos chlorophyll in mgChla m-3
+      _GET_(self%id_mpbC,   mpbC)    ! MicroPhytoBenthos carbon in mmolC m-3
+      _GET_(self%id_mpbN,   mpbN)    ! MicroPhytoBenthos nitrogen in mmolN m-3
+      _GET_(self%id_eps,    eps)     ! Extracellular Polymeric Substances in mmolC m-3
    end if
 
+   ! temperature dependency
    temp_kelvin = 273.15_rk + temp_celsius
    E_a = 0.1_rk*log(Q10b)*T0*(T0+10.0_rk)
-   f_T = 1.0_rk*exp(-E_a*(1.0_rk/temp_kelvin - 1.0_rk/T0))
+   f_T = 1.0_rk*exp(-E_a*(1.0_rk/temp_kelvin - 1.0_rk/T0)) ! temperature factor (-)
 
-   if (2*oxy < -self%kinO2anox) oxy = -self%kinO2anox/2
+   if (2*oxy < -self%kinO2anox) oxy = -self%kinO2anox/2    ! limit anoxic conditions
 
-   Oxicminlim = oxy/(oxy+self%ksO2oxic+relaxO2*(nh3+odu))                ! limitation terms
+   ! limitation terms
+   Oxicminlim = oxy/(oxy+self%ksO2oxic+relaxO2*(nh3+odu))                                ! (-)
+   Denitrilim = (1.0_rk-oxy/(oxy+self%kinO2denit)) * NO3/(no3+self%ksNO3denit)           ! (-)
+   Anoxiclim  = (1.0_rk-oxy/(oxy+self%kinO2anox)) * (1.0_rk-no3/(no3+self%kinNO3anox))   ! (-)
+   if(Oxicminlim - 1E-3 < -Denitrilim-Anoxiclim) Oxicminlim = 1E-3-Denitrilim-Anoxiclim  ! (-)
+   Rescale    = 1.0_rk/(Oxicminlim+Denitrilim+Anoxiclim)     !Soetaert eq 3.4
 
-   Denitrilim = (1.0_rk-oxy/(oxy+self%kinO2denit)) * NO3/(no3+self%ksNO3denit)
-   Anoxiclim  = (1.0_rk-oxy/(oxy+self%kinO2anox)) * (1.0_rk-no3/(no3+self%kinNO3anox))
-   if(Oxicminlim - 1E-3 < -Denitrilim-Anoxiclim) Oxicminlim = 1E-3-Denitrilim-Anoxiclim
-   Rescale    = 1.0_rk/(Oxicminlim+Denitrilim+Anoxiclim)
+   CprodF = f_T * self%rFast * ldetC   ! (mmolC m-3 d-1)
+   CprodS = f_T * self%rSlow * sdetC   ! (mmolC m-3 d-1)
 
-   CprodF = f_T * self%rFast * ldetC
-   CprodS = f_T * self%rSlow * sdetC
-
-   ! assume upper reactive surface area for POC hydrolysis
+   ! assume upper reactive surface area for POC hydrolysis (introduced by Kai Wirtz ?)
    if (CprodS > self%CprodMax) CprodS = self%CprodMax
    if (CprodF > self%CprodMax) CprodF = self%CprodMax
 
-   Cprod  = CprodF + CprodS
-   Nprod  = CprodF * self%NCrLdet + CprodS * self%NCrSdet
-
+   Cprod  = CprodF + CprodS                               ! (mmolC m-3 d-1)
+   Nprod  = CprodF * self%NCrLdet + CprodS * self%NCrSdet ! (mmolN m-3 d-1) !MK: how to implement N/C-ratio from (coupled) external model?
 
    ! PO4-adsorption ceases when critical capacity is reached
    ! [FeS] approximated by ODU
    ! TODO: temperature dependency
-   radsP  = self%PAds  * po4 * 1.0_rk/(1.0_rk+exp(-5.0_rk+(odu-oxy)/self%PAdsODU))
-   rP     = f_T * self%rFast * 2 ! (1.0_rk - Oxicminlim)
-   Pprod  = rP * detP
+   radsP  = self%PAds  * po4 * 1.0_rk/(1.0_rk+exp(-5.0_rk+(odu-oxy)/self%PAdsODU)) ! (?)
+   rP     = f_T * self%rFast * 2 ! (1.0_rk - Oxicminlim)  ! (d-1)
+   Pprod  = rP * detP                                     ! (mmolP m-3 d-1)
 
    ! Oxic mineralisation, denitrification, anoxic mineralisation
    ! then the mineralisation rates
-   OxicMin    = Cprod*Oxicminlim*Rescale        ! oxic mineralisation
-   Denitrific = Cprod*Denitrilim*Rescale        ! Denitrification
-   AnoxicMin  = Cprod*Anoxiclim *Rescale        ! anoxic mineralisation
+   OxicMin    = Cprod*Oxicminlim*Rescale  ! carbon oxidized by O2              (mmolC m-3 d-1) !Soetaert eq 3.1
+   Denitrific = Cprod*Denitrilim*Rescale  ! carbon oxidized by denitrification (mmolC m-3 d-1) !Soetaert eq 3.2
+   AnoxicMin  = Cprod*Anoxiclim *Rescale  ! carbon oxidized by other oxidants  (mmolC m-3 d-1) !Soetaert eq 3.3
 
-   ! reoxidation and ODU deposition
-   Nitri      = f_T * self%rnit   * nh3 * oxy/(oxy + self%ksO2nitri + relaxO2*(ldetC + odu))
-   OduOx      = f_T * self%rODUox * odu * oxy/(oxy + self%ksO2oduox + relaxO2*(nh3 + ldetC))
+   ! Ammonium (NH3) nitrified (mmolN m-3 d-1) !Soetaert eq 3.7
+   Nitri      = f_T * self%rnit   * nh3 * oxy/(oxy + self%ksO2nitri + relaxO2*(ldetC + odu)) !Soetaert eq 3.7, but where does the relax* term comes from?
+
+   ! Oxygen consumed in the oxidation of reduced substances (mmolO2 m-3 d-1) !Soetaert eq 3.6
+   OduOx      = f_T * self%rODUox * odu * oxy/(oxy + self%ksO2oduox + relaxO2*(nh3 + ldetC)) !Soetaert eq 3.6, but where does the relax* term comes from?
    if (OduOx > self%CprodMax) OduOx = self%CprodMax
 
-   !  pDepo      = min(1.0_rk,0.233_rk*(wDepo)**0.336_rk )
+   ! ODU deposition
+   !pDepo      = min(1.0_rk,0.233_rk*(wDepo)**0.336_rk )
    pDepo      = 0.0_rk
-   OduDepo    = AnoxicMin*pDepo
+   OduDepo    = AnoxicMin*pDepo           ! ODU deposited as solids (in O2-equivalents) (mmolO2 m-3 d-1) !Soetaert eq 3.5
 
    if (self%MPhytoBenOn) then
-      par    = self%PAR0max * parz
+      ! light climate (obsolete)
+      !par    = self%PAR0max * parz
       !print*,'par#386: ',par, parz
       !k      = self%k0 + self%Achla * mpbCHL
 
       !----- intracellular N:C:Chl stoichiometry
-      Q_N    = mpbN   / mpbC
-      Q_chl  = mpbCHL / mpbC
-      theta  = mpbCHL / mpbN
+      Q_N    = mpbN   / mpbC      ! molN  molC-1
+      Q_chl  = mpbCHL / mpbC      ! gChla molC-1
+      theta  = mpbCHL / mpbN      ! gChla molN-1
 
-      !----- photosnythesis rate
-      fac    = 1.0 - self%Qmin/Q_N
-      if (fac .lt. 0.0) fac = 0.0
-      Pmax   = 2*self%mumax * exp(self%bTemp * temp_celsius) * fac
-      PP     = Pmax * (1.0 - exp(-self%alpha * parz*Q_chl/Pmax))
-      prod   = PP * mpbC
-      prodO2 = self%gamma * prod
+      !----- photosynthesis rate
+      tfac   = exp( self%btemp * (temp_celsius-self%Tref) )           ! (-) (@HochardEtAl Tref:=0degC)
+      fac    = max( 0.0, 1.0 - self%Qmin/Q_N)                         ! (-)
+      Pmax   = self%mumax * tfac * fac                                ! (d-1)  [eq. 19]
+      PP     = Pmax * (1.0 - exp(-self%alpha * parz*Q_chl/Pmax))      ! (d-1)  [eq. 18]
+      prod   = PP * mpbC                                              ! (mmolC m-3 d-1)
+      prodO2 = self%gamma * prod                                      ! (mmolO2 m-3 d-1)
 
-      if (parz .gt. 0.0) then
-        rhochl = self%thetamax * PP/(self%alpha * parz * Q_chl)
-      else
-        rhochl = 0.0
-      endif
-      !write(*,'(''#407'',6e20.10)') rhochl, self%thetamax, PP, self%alpha, parz, Q_chl
+      rhochl = 0.0
+      if (parz .gt. 0.0) rhochl = self%thetamax * PP/(self%alpha * parz * Q_chl) ! (gChla molN-1)
 
       !----- nutrient uptake (TODO add dependencies on P, Si)
-      uptNO3 = self%uptmax * no3/(no3 + self%KNO3)
-      uptNH4 = self%uptmax * nh3/(nh3 + self%KNH4)
-      uptN   = uptNO3 + uptNH4
+      !NOTE (mk): In Hochard et al (2010) no temperature dependency is considered for
+      !           eq. 25+26 even though it is in the model they refer to (Geider,1998) !!
+      uptNO3 = self%uptmax * tfac * no3/(no3 + self%KNO3)             ! (molN molC-1 d-1)
+      uptNH4 = self%uptmax * tfac * nh3/(nh3 + self%KNH4)             ! (molN molC-1 d-1)
+      uptN   = uptNO3 + uptNH4                                        ! (molN molC-1 d-1)
       !----- chlorophyll synthesis
-      fac    = 1.0 - theta/self%thetamax
-      if (fac .lt. 0.0) fac = 0.0
-      uptchl = uptN * fac/(fac + 0.05)
-      prodChl= rhochl * uptchl * mpbC
-      ! write(*,'(''#525'',6e20.10)') prodChl, rhochl, uptchl, mpbC
+      fac    = max(0.0, 1.0 - theta/self%thetamax)                    ! (-)
+      uptchl = uptN * fac/(fac + 0.05)                                ! (molN molC-1 d-1)
+      prodChl= rhochl * uptchl * mpbC                                 ! (mgChla d-1)
+      prodChl= prodChl  - 0.001 * mpbCHL  !MK: add maintenance loss   ! (mgChla d-1)
 
-      fac    = (self%Qmax - Q_N) / (self%Qmax - self%Qmin)
-      if (fac .lt. 0.0) fac = 0.0
-      uptNO3 = uptNO3 * fac * (1.0 - nh3/(nh3 + self%KinNH4)) * mpbC
-      uptNH4 = uptNH4 * fac * mpbC
-      uptN   = uptNO3 + uptNH4
+      fac    = max(0.0, (self%Qmax - Q_N) / (self%Qmax - self%Qmin))  ! (-)
+      uptNO3 = uptNO3 * fac * (1.0 - nh3/(nh3 + self%KinNH4)) * mpbC  ! (mmolN d-1)
+      uptNH4 = uptNH4 * fac * mpbC                                    ! (mmolN d-1)
+      uptN   = uptNO3 + uptNH4                                        ! (mmolN d-1)
 
       ! Carbohydrate exudation:
-      prodeps = self%keps * prod
-      CprodEPS = sqrt(self%rLdet*self%rSdet) * eps
+      prodeps = self%keps * prod                                      ! (mmolC m-3 d-1)
+      !CprodEPS = sqrt(self%rLdet*self%rSdet) * eps  ! Source of this formulation? Kai Wirtz ??
+      CprodEPS = self%rEPS * eps                                      ! (mmolC m-3 d-1)
 
       ! Respiration:
-      respphyto = self%resp * mpbC * oxy/(oxy+self%Kresp)
+      respphyto = self%resp * mpbC * oxy/(oxy+self%Kresp)             ! (mmolC m-3 d-1)
 
       ! Zoobenthos grazing and associated processes:
-      grazingC   = self%graz * mpbC
-      grazingN   = self%graz * mpbN
-      grazingChl = self%graz * mpbCHL
-      faecesC    = self%kout * grazingC
-      faecesN    = self%kout * grazingC * self%rNCldet ! Hochard et al 2010
-      !faecesN    = self%kout * grazingN ! alternative proposed by Markus Kreus
-      exud       = self%kexu * grazingN
-      respzoo    = self%rzoo * grazingC * oxy/(oxy+self%Kresp)
-      exportC    = grazingC - faecesC - respzoo ! exported carbon   (open closure term)
-      exportN    = grazingN - faecesN - exud    ! exported nitrogen (open closure term)
+      grazingC   = self%graz * mpbC                                   ! (mmolC m-3 d-1)
+      grazingN   = self%graz * mpbN                                   ! (mmolN m-3 d-1)
+      grazingChl = self%graz * mpbCHL                                 ! (mgChla m-3 d-1)
+      faecesC    = self%kout * grazingC                               ! (mmolC m-3 d-1)
+      !faecesN    = self%kout * grazingC * 0.23 !(:=rNCldet) ! Hochard et al 2010
+      faecesN    = self%kout * grazingN ! alternative proposed by Markus Kreus  ! (mmolN m-3 d-1)
+      exud       = self%kexu * grazingN                               ! (mmolN m-3 d-1)
+      respzoo    = self%rzoo * grazingC * oxy/(oxy+self%Kresp)        ! (mmolC m-3 d-1)
+      exportC    = grazingC - faecesC - respzoo ! exported carbon   (open closure term)   ! (mmolC m-3 d-1)
+      exportN    = grazingN - faecesN - exud    ! exported nitrogen (open closure term)   ! (mmolN m-3 d-1)
+
+      NPP =  prod - respphyto                                         ! (mmolC m-3 d-1)
+      SGR = (prod - respphyto - prodeps ) /mpbC                       ! (d-1)
+      TGR = (prod - grazingC - respphyto - prodeps) /mpbC             ! (d-1)
+      GRZ = (grazingC) /mpbC                                          ! (d-1)
 
    else
       faecesC   = 0.0_rk
@@ -536,36 +572,50 @@
    end if
 
 #define _CONV_UNIT_ *one_pr_day
-   ! reaction rates
-   _SET_ODE_(self%id_ldetC, (-CprodF + faecesC) _CONV_UNIT_)
-   _SET_ODE_(self%id_sdetC, (-CprodS) _CONV_UNIT_)
-   _SET_ODE_(self%id_oxy , (-OxicMin - 2.0_rk* Nitri - OduOx - respzoo - respphyto) _CONV_UNIT_) !RH 1.0->150/106*OxicMin (if [oxy]=mmolO2/m**3)
-   _SET_ODE_(self%id_no3 , (-0.8_rk*Denitrific + Nitri - uptNO3) _CONV_UNIT_)     !RH 0.8-> ~104/106?
-!   _SET_ODE_(self%id_nh3 , (Nprod - Nitri + exud - uptNH4) / (1.0_rk + self%NH3Ads) _CONV_UNIT_)
-   _SET_ODE_(self%id_nh3 , (Nprod - Nitri + exud - uptNH4) _CONV_UNIT_)
-   _SET_ODE_(self%id_odu , (AnoxicMin - OduOx - OduDepo) _CONV_UNIT_)
-   _SET_ODE_(self%id_po4 , (Pprod - radsP) _CONV_UNIT_)
-   _SET_ODE_(self%id_detP, (radsP - Pprod - self%NH3Ads*detP) _CONV_UNIT_)
+! reaction rates
+   _SET_ODE_(self%id_ldetC, (-CprodF)                                       _CONV_UNIT_)  ! (mmolC  m-3 d-1)
+   _SET_ODE_(self%id_sdetC, (-CprodS)                                       _CONV_UNIT_)  ! (mmolC  m-3 d-1)
+   _SET_ODE_(self%id_oxy,   (-OxicMin*gammaO2     - Nitri*gammaNH3 - OduOx) _CONV_UNIT_)  ! (mmolO2 m-3 d-1)
+   _SET_ODE_(self%id_no3,   (-Denitrific*gammaNO3 + Nitri)                  _CONV_UNIT_)  ! (mmolN  m-3 d-1)
+!   _SET_ODE_(self%id_nh3,   (Nprod - Nitri) / (1.0_rk + self%NH3Ads)       _CONV_UNIT_)  ! (mmolN  m-3 d-1)
+   _SET_ODE_(self%id_nh3,   (Nprod - Nitri)                                 _CONV_UNIT_)  ! (mmolN  m-3 d-1)
+   _SET_ODE_(self%id_odu,   (AnoxicMin - OduOx - OduDepo)                   _CONV_UNIT_)  ! (mmolO2 m-3 d-1)
+   _SET_ODE_(self%id_po4,   (Pprod - radsP)                                 _CONV_UNIT_)  ! (mmolP  m-3 d-1)
+   _SET_ODE_(self%id_detP,  (radsP - Pprod - self%NH3Ads*detP)              _CONV_UNIT_)  ! (mmolP  m-3 d-1)
    if (self%MPhytoBenOn) then
-      _SET_ODE_(self%id_mpbCHL, ( prodchl - grazingChl ) _CONV_UNIT_)
-      _SET_ODE_(self%id_mpbC,   ( prod - grazingC - respphyto - prodeps ) _CONV_UNIT_)
-      _SET_ODE_(self%id_mpbN,   ( uptN - grazingN ) _CONV_UNIT_)
-      _SET_ODE_(self%id_eps,    ( prodeps - f_T * CprodEPS ) _CONV_UNIT_)
+      _SET_ODE_(self%id_mpbCHL, (prodchl                    - grazingChl)         _CONV_UNIT_)
+      _SET_ODE_(self%id_mpbC,   (prod - respphyto - prodeps - grazingC)           _CONV_UNIT_)
+      _SET_ODE_(self%id_mpbN,   (uptN                       - grazingN)           _CONV_UNIT_)
+      _SET_ODE_(self%id_eps,    (prodeps - f_T * CprodEPS )                       _CONV_UNIT_)
+      _SET_ODE_(self%id_no3 ,   (-uptNO3)                                         _CONV_UNIT_)
+      _SET_ODE_(self%id_nh3 ,   (exud - uptNH4)                                   _CONV_UNIT_)
+      _SET_ODE_(self%id_oxy ,   ( (-respzoo - respphyto) *gammaO2)                _CONV_UNIT_)
+      _SET_ODE_(self%id_ldetC,  (faecesC)                                         _CONV_UNIT_)
       if (_AVAILABLE_(self%id_dic)) _SET_ODE_(self%id_dic , (respzoo + respphyto) _CONV_UNIT_)
-      if (_AVAILABLE_(self%id_zbC)) _SET_ODE_(self%id_zbC , (exportC) _CONV_UNIT_)
-      if (_AVAILABLE_(self%id_zbN)) _SET_ODE_(self%id_zbN , (exportN) _CONV_UNIT_)
+      if (_AVAILABLE_(self%id_zbC)) _SET_ODE_(self%id_zbC , (exportC)             _CONV_UNIT_)
+      if (_AVAILABLE_(self%id_zbN)) _SET_ODE_(self%id_zbN , (exportN)             _CONV_UNIT_)
    end if
 
    ! Export diagnostic variables
-   _SET_DIAGNOSTIC_(self%id_denit,0.8_rk*Denitrific)    !last denitrification rate
-   _SET_DIAGNOSTIC_(self%id_adsp ,radsP)                !instantaneous phosphate adsorption
+   _SET_DIAGNOSTIC_(self%id_denit, Denitrific*gammaNO3)  !last denitrification rate
+   _SET_DIAGNOSTIC_(self%id_adsp, radsP)                 !instantaneous phosphate adsorption
    if (self%MPhytoBenOn) then
-      _SET_DIAGNOSTIC_(self%id_PrimProd, PP)            !instantaneous MPB primary production rate
-      _SET_DIAGNOSTIC_(self%id_par, par)                !instantaneous photosynthetically active radiation
-      _SET_DIAGNOSTIC_(self%id_Q_N, Q_N)                !instantaneous MPB N:C quota
-      _SET_DIAGNOSTIC_(self%id_Q_chl, Q_chl)            !instantaneous MPB CHL:C ratio
-      _SET_DIAGNOSTIC_(self%id_expCProd, exportC)       !instantaneous MPB export production carbon
-      _SET_DIAGNOSTIC_(self%id_expNProd, exportN)       !instantaneous MPB export production nitrogen
+      _SET_DIAGNOSTIC_(self%id_SPR, PP)                 !instantaneous MPB specific photosynthesis rate (d-1)
+      _SET_DIAGNOSTIC_(self%id_PrimProd, prod)          !instantaneous MPB primary production rate (molC m-3 d-1)
+      _SET_DIAGNOSTIC_(self%id_par, parz)               !instantaneous MPB photosynthetically active radiation (W m-2)
+      _SET_DIAGNOSTIC_(self%id_Q_N, Q_N)                !instantaneous MPB N:C quota (molN molC-1)
+      _SET_DIAGNOSTIC_(self%id_Q_chl, Q_chl/12.)        !instantaneous MPB CHL:C ratio (gChla gC-1)
+      _SET_DIAGNOSTIC_(self%id_Theta_N, theta)          !instantaneous MPB CHL:N ratio (gChla molN-1)
+      _SET_DIAGNOSTIC_(self%id_expCProd, exportC)       !instantaneous MPB export production carbon (mmolC m-3 d-1)
+      _SET_DIAGNOSTIC_(self%id_expNProd, exportN)       !instantaneous MPB export production nitrogen (mmolN m-3 d-1)
+      _SET_DIAGNOSTIC_(self%id_NPP, NPP)                !instantaneous MPB net primary production rate (molC m-3 d-1)
+      _SET_DIAGNOSTIC_(self%id_SGR, SGR)                !instantaneous MPB specific growth rate (d-1)
+      _SET_DIAGNOSTIC_(self%id_TGR, TGR)                !instantaneous MPB total growth rate (d-1)
+      _SET_DIAGNOSTIC_(self%id_SMR, GRZ)                !instantaneous MPB specific mortality rate (d-1)
+      ! temporary for debugging:
+      _SET_DIAGNOSTIC_(self%id_mpb_din, nh3+no3)        !instantaneous external DIN (mmolN m-3)
+      _SET_DIAGNOSTIC_(self%id_mpb_no3, no3)            !instantaneous external no3 (mmolN m-3)
+      _SET_DIAGNOSTIC_(self%id_mpb_nh3, nh3)            !instantaneous external nh3 (mmolN m-3)
    endif
 
    ! Leave spatial loops (if any)
