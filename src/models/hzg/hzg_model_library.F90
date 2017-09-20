@@ -5,6 +5,7 @@ module hzg_model_library
    use hzg_omexdia_p
    use hzg_omexdia_p_mpb
    use hzg_mpb
+   use hzg_mpb_cnp
    use hzg_jelly
    use hzg_n2pzdq
    use hzg_medmac
@@ -38,6 +39,7 @@ contains
          case ('omexdia_p'); allocate(type_hzg_omexdia_p::model)
          case ('omexdia_p_mpb'); allocate(type_hzg_omexdia_p_mpb::model)
          case ('mpb'); allocate(type_hzg_mpb::model)
+         case ('mpb_cnp'); allocate(type_hzg_mpb_cnp::model)
          case ('jelly'); allocate(type_hzg_jelly::model)
          case ('n2pzdq'); allocate(type_hzg_n2pzdq::model)
          case ('maecs'); allocate(type_hzg_maecs::model)

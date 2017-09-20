@@ -3,6 +3,7 @@ add_library(fabm_models_hzg OBJECT
             omexdia_p/omexdia_p.F90
             omexdia_p_mpb/omexdia_p_mpb.F90
             mpb/mpb.F90
+            mpb_cnp/mpb_cnp.F90
             jelly/jelly.F90
             n2pzdq/n2pzdq.F90
             Ndepoden/Ndepoden.F90
