@@ -416,12 +416,13 @@
    real(rk) :: CprodF, CprodS, Cprod, Nprod, Pprod
    real(rk) :: AnoxicMin, Denitrific, OxicMin, Nitri, OduDepo, OduOx, pDepo
 !!------- for model mpb -------
+   real(rk), parameter :: zero = 0.0_rk, one = 1.0_rk
    real(rk) :: mpbC, mpbN, mpbCHL, eps
    real(rk) :: parz, porosity, CprodEPS
    real(rk) :: prodChl, k, theta, Q_N, Q_chl, Pmax,  PP, prod, prodeps, fac, tfac
-   real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto, faecesC, faecesN
-   real(rk) :: exud, grazingC, grazingN, grazingChl, respzoo, exportC, exportN
-   real(rk) :: NPP, SGR, TGR, GRZ
+   real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto, lossphyto
+   real(rk) :: grazingC, grazingN, grazingChl, respzoo, exud, faecesC, faecesN
+   real(rk) :: exportC, exportN, NPP, SGR, TGR, GRZ
 
 !EOP
 !-----------------------------------------------------------------------
@@ -475,8 +476,8 @@
    ! [FeS] approximated by ODU
    ! TODO: temperature dependency
    radsP  = self%PAds  * po4 * 1.0_rk/(1.0_rk+exp(-5.0_rk+(odu-oxy)/self%PAdsODU)) ! (?)
-   rP     = f_T * self%rFast * 2 ! (1.0_rk - Oxicminlim)  ! (d-1)
-   Pprod  = rP * detP                                     ! (mmolP m-3 d-1)
+   rP     = f_T * self%rFast * 2.0_rk ! (1.0_rk - Oxicminlim)  ! (d-1)
+   Pprod  = rP * detP                                          ! (mmolP m-3 d-1)
 
    ! Oxic mineralisation, denitrification, anoxic mineralisation
    ! then the mineralisation rates
@@ -508,63 +509,91 @@
       theta  = mpbCHL / mpbN      ! gChla molN-1
 
       !----- photosynthesis rate
-      tfac   = exp( self%btemp * (temp_celsius-self%Tref) )           ! (-) (@HochardEtAl Tref:=0degC)
-      fac    = max( 0.0, 1.0 - self%Qmin/Q_N)                         ! (-)
-      Pmax   = self%mumax * tfac * fac                                ! (d-1)  [eq. 19]
-      PP     = Pmax * (1.0 - exp(-self%alpha * parz*Q_chl/Pmax))      ! (d-1)  [eq. 18]
-      prod   = PP * mpbC                                              ! (mmolC m-3 d-1)
-      prodO2 = self%gamma * prod                                      ! (mmolO2 m-3 d-1)
+      tfac   = exp( self%btemp * (temp_celsius-self%Tref) )           ! (-) (@HochardEtAl Tref:=0degC) [eq. 19]
+      fac    = max( zero, one - self%Qmin/Q_N)                        ! (-)               [eq. 19]
+      Pmax   = self%mumax * tfac * fac                                ! (d-1)             [eq. 19]
+      PP     = Pmax * (one - exp(-self%alpha *parz *Q_chl /Pmax))     ! (d-1)             [eq. 18]
+      prod   = PP * mpbC                                              ! (mmolC m-3 d-1)   [eq. 17]
+      prodO2 = self%gamma * prod                                      ! (mmolO2 m-3 d-1)  [eq. 20]
 
-      rhochl = 0.0
-      if (parz .gt. 0.0) rhochl = self%thetamax * PP/(self%alpha * parz * Q_chl) ! (gChla molN-1)
+#ifdef HochardEtAl
+      !----- chlorophyll synthesis (eq. 21,22,23)
+      rhochl = zero
+      if (parz .gt. zero) then
+          rhochl = self%thetamax * PP/(self%alpha * parz * Q_chl)      ! (gChla molN-1)    [eq. 22]
+      endif
+      fac    = max(zero, one - theta/self%thetamax)                   ! (-)               [eq. 23]
+      uptNH4 = self%uptmax *nh3/(nh3 + self%KNH4)                     ! (molN molC-1 d-1) [eq. 23]
+      uptNO3 = self%uptmax *no3/(no3 + self%KNO3)                     ! (molN molC-1 d-1) [eq. 23]
+      uptchl = uptNO3 + uptNH4 * fac/(fac + 0.05_rk)                  ! (molN molC-1 d-1) [eq. 23]
+      prodChl= rhochl *uptchl *mpbC                                   ! (mgChla d-1)      [eq. 21]
 
+      !----- nutrient uptake (TODO add dependencies on P, Si)
+      fac    = max(zero, (self%Qmax - Q_N) / (self%Qmax - self%Qmin)) ! (-)               [eq. 25,26]
+      uptNO3 = uptNO3 *fac *mpbC *(one - nh3/(nh3 + self%KinNH4))     ! (mmolN d-1)       [eq. 26]
+      uptNH4 = uptNH4 *fac *mpbC                                      ! (mmolN d-1)       [eq. 25]
+      uptN   = uptNO3 + uptNH4                                        ! (mmolN d-1)       [eq. 24]
+#else
       !----- nutrient uptake (TODO add dependencies on P, Si)
       !NOTE (mk): In Hochard et al (2010) no temperature dependency is considered for
       !           eq. 25+26 even though it is in the model they refer to (Geider,1998) !!
-      uptNO3 = self%uptmax * tfac * no3/(no3 + self%KNO3)             ! (molN molC-1 d-1)
-      uptNH4 = self%uptmax * tfac * nh3/(nh3 + self%KNH4)             ! (molN molC-1 d-1)
-      uptN   = uptNO3 + uptNH4                                        ! (molN molC-1 d-1)
-      !----- chlorophyll synthesis
-      fac    = max(0.0, 1.0 - theta/self%thetamax)                    ! (-)
-      uptchl = uptN * fac/(fac + 0.05)                                ! (molN molC-1 d-1)
-      prodChl= rhochl * uptchl * mpbC                                 ! (mgChla d-1)
-      prodChl= prodChl  - 0.001 * mpbCHL  !MK: add maintenance loss   ! (mgChla d-1)
+      fac    = max(zero, (self%Qmax - Q_N) / (self%Qmax - self%Qmin)) ! (-)               [eq. 25]
+      uptNH4 = self%uptmax *fac *nh3/(nh3 + self%KNH4) *mpbC          ! (mmolN d-1)       [eq. 23]
+      uptNO3 = self%uptmax *fac *no3/(no3 + self%KNO3) *mpbC  &
+                                *(one - nh3/(nh3 + self%KinNH4))      ! (mmolN d-1)       [eq. 23]
+      uptN   = uptNO3 + uptNH4                                        ! (mmolN d-1)       [eq. 24]
 
-      fac    = max(0.0, (self%Qmax - Q_N) / (self%Qmax - self%Qmin))  ! (-)
-      uptNO3 = uptNO3 * fac * (1.0 - nh3/(nh3 + self%KinNH4)) * mpbC  ! (mmolN d-1)
-      uptNH4 = uptNH4 * fac * mpbC                                    ! (mmolN d-1)
-      uptN   = uptNO3 + uptNH4                                        ! (mmolN d-1)
+      !----- chlorophyll synthesis (eq. 21,22,23)
+      !NOTE (mk): In Geider et al (1998) chlorophyll synthesis was related to nitrogen uptake !!
+      rhochl = zero
+      if (parz .gt. zero) then
+          rhochl = self%thetamax * PP/(self%alpha *parz *Q_chl)       ! (gChla molN-1)    [eq. 22]
+      endif
+      fac    = max(zero, one - theta/self%thetamax)                   ! (-)               [eq. 23]
+      uptchl = uptN * fac/(fac + 0.05_rk)                             ! (mmolN  d-1)      [eq. 23]
+      prodChl = rhochl *uptChl                                        ! (mgChla d-1)      [eq. 21]
+#endif
 
       ! Carbohydrate exudation:
-      prodeps = self%keps * prod                                      ! (mmolC m-3 d-1)
+      prodeps = self%keps * prod                                      ! (mmolC m-3 d-1)   [eq. 27]
       !CprodEPS = sqrt(self%rLdet*self%rSdet) * eps  ! Source of this formulation? Kai Wirtz ??
       CprodEPS = self%rEPS * eps                                      ! (mmolC m-3 d-1)
 
       ! Respiration:
-      respphyto = self%resp * mpbC * oxy/(oxy+self%Kresp)             ! (mmolC m-3 d-1)
+      respphyto = self%resp * mpbC * oxy/(oxy+self%Kresp)             ! (mmolC m-3 d-1)   [eq. 28]
+      lossphyto = zero
+#ifndef HochardEtAl
+      !NOTE (mk): In Geider et al (1998) respiration accounts for costs of biosynthesis (Zeta)
+      if (mu_C .gt. TINY) then ! limit respiration according to N/P-losses if numbers get very low
+        respphyto = respphyto + 2.3_rk*uptNO3 + 1.8_rk*uptNH4         ! (mmolC m-3 d-1)   [-]
+      endif
+      !NOTE (mk): In Geider et al (1998) loss due to cell lysis/damage was accounted for as well
+      lossphyto = self%resp * mpbN                                    ! (mmolN m-3 d-1)   [-]
+      prodChl   = prodChl - self%resp * mpbChl                        ! (mgChla m-3 d-1)  [-]
+#endif
 
       ! Zoobenthos grazing and associated processes:
-      grazingC   = self%graz * mpbC                                   ! (mmolC m-3 d-1)
-      grazingN   = self%graz * mpbN                                   ! (mmolN m-3 d-1)
-      grazingChl = self%graz * mpbCHL                                 ! (mgChla m-3 d-1)
-      faecesC    = self%kout * grazingC                               ! (mmolC m-3 d-1)
+      grazingC   = self%graz * mpbC                                   ! (mmolC m-3 d-1)   [eq. 29]
+      grazingN   = self%graz * mpbN                                   ! (mmolN m-3 d-1)   [eq. 30]
+      grazingChl = self%graz * mpbCHL                                 ! (mgChla m-3 d-1)  [eq. 31]
+      faecesC    = self%kout * grazingC                               ! (mmolC m-3 d-1)   [eq. 32]
       !faecesN    = self%kout * grazingC * 0.23 !(:=rNCldet) ! Hochard et al 2010
-      faecesN    = self%kout * grazingN ! alternative proposed by Markus Kreus  ! (mmolN m-3 d-1)
-      exud       = self%kexu * grazingN                               ! (mmolN m-3 d-1)
-      respzoo    = self%rzoo * grazingC * oxy/(oxy+self%Kresp)        ! (mmolC m-3 d-1)
-      exportC    = grazingC - faecesC - respzoo ! exported carbon   (open closure term)   ! (mmolC m-3 d-1)
-      exportN    = grazingN - faecesN - exud    ! exported nitrogen (open closure term)   ! (mmolN m-3 d-1)
+      faecesN    = self%kout * grazingN ! alternative proposed by Markus Kreus  ! (mmolN m-3 d-1)   [eq. 32]
+      exud       = self%kexu * grazingN                               ! (mmolN m-3 d-1)   [eq. 33]
+      respzoo    = self%rzoo * grazingC * oxy/(oxy+self%Kresp)        ! (mmolC m-3 d-1)   [eq. 34]
+      exportC    = grazingC - faecesC - respzoo ! exported carbon   (open closure term)   ! (mmolC m-3 d-1) [eq. 35]
+      exportN    = grazingN - faecesN - exud    ! exported nitrogen (open closure term)   ! (mmolN m-3 d-1) [eq. 35]
 
       NPP =  prod - respphyto                                         ! (mmolC m-3 d-1)
       SGR = (prod - respphyto - prodeps ) /mpbC                       ! (d-1)
       TGR = (prod - grazingC - respphyto - prodeps) /mpbC             ! (d-1)
-      GRZ = (grazingC) /mpbC                                          ! (d-1)
-
+      GRZ = (grazingC) /mpbC
    else
       faecesC   = 0.0_rk
       faecesN   = 0.0_rk
       respzoo   = 0.0_rk
       respphyto = 0.0_rk
+      lossphyto = 0.0_rk
       exud      = 0.0_rk
       uptNH4    = 0.0_rk
       uptNO3    = 0.0_rk
@@ -585,10 +614,10 @@
    if (self%MPhytoBenOn) then
       _SET_ODE_(self%id_mpbCHL, (prodchl                    - grazingChl)         _CONV_UNIT_)
       _SET_ODE_(self%id_mpbC,   (prod - respphyto - prodeps - grazingC)           _CONV_UNIT_)
-      _SET_ODE_(self%id_mpbN,   (uptN                       - grazingN)           _CONV_UNIT_)
+      _SET_ODE_(self%id_mpbN,   (uptN - lossphyto           - grazingN)           _CONV_UNIT_)
       _SET_ODE_(self%id_eps,    (prodeps - f_T * CprodEPS )                       _CONV_UNIT_)
-      _SET_ODE_(self%id_no3 ,   (-uptNO3)                                         _CONV_UNIT_)
-      _SET_ODE_(self%id_nh3 ,   (exud - uptNH4)                                   _CONV_UNIT_)
+      _SET_ODE_(self%id_no3 ,   (- uptNO3)                                        _CONV_UNIT_)
+      _SET_ODE_(self%id_nh3 ,   (- uptNH4 + lossphyto + exud)                     _CONV_UNIT_)
       _SET_ODE_(self%id_oxy ,   ( (-respzoo - respphyto) *gammaO2)                _CONV_UNIT_)
       _SET_ODE_(self%id_ldetC,  (faecesC)                                         _CONV_UNIT_)
       if (_AVAILABLE_(self%id_dic)) _SET_ODE_(self%id_dic , (respzoo + respphyto) _CONV_UNIT_)
@@ -597,25 +626,25 @@
    end if
 
    ! Export diagnostic variables
-   _SET_DIAGNOSTIC_(self%id_denit, Denitrific*gammaNO3)  !last denitrification rate
-   _SET_DIAGNOSTIC_(self%id_adsp, radsP)                 !instantaneous phosphate adsorption
+   _SET_DIAGNOSTIC_(self%id_denit,       Denitrific*gammaNO3)  !last denitrification rate
+   _SET_DIAGNOSTIC_(self%id_adsp,        radsP)                !instantaneous phosphate adsorption
    if (self%MPhytoBenOn) then
-      _SET_DIAGNOSTIC_(self%id_SPR, PP)                 !instantaneous MPB specific photosynthesis rate (d-1)
+      _SET_DIAGNOSTIC_(self%id_SPR,      PP)            !instantaneous MPB specific photosynthesis rate (d-1)
       _SET_DIAGNOSTIC_(self%id_PrimProd, prod)          !instantaneous MPB primary production rate (molC m-3 d-1)
-      _SET_DIAGNOSTIC_(self%id_par, parz)               !instantaneous MPB photosynthetically active radiation (W m-2)
-      _SET_DIAGNOSTIC_(self%id_Q_N, Q_N)                !instantaneous MPB N:C quota (molN molC-1)
-      _SET_DIAGNOSTIC_(self%id_Q_chl, Q_chl/12.)        !instantaneous MPB CHL:C ratio (gChla gC-1)
-      _SET_DIAGNOSTIC_(self%id_Theta_N, theta)          !instantaneous MPB CHL:N ratio (gChla molN-1)
+      _SET_DIAGNOSTIC_(self%id_par,      parz)          !instantaneous MPB photosynthetically active radiation (W m-2)
+      _SET_DIAGNOSTIC_(self%id_Q_N,      Q_N)           !instantaneous MPB N:C quota (molN molC-1)
+      _SET_DIAGNOSTIC_(self%id_Q_chl,    Q_chl/12._rk)  !instantaneous MPB CHL:C ratio (gChla gC-1)
+      _SET_DIAGNOSTIC_(self%id_Theta_N,  theta)         !instantaneous MPB CHL:N ratio (gChla molN-1)
       _SET_DIAGNOSTIC_(self%id_expCProd, exportC)       !instantaneous MPB export production carbon (mmolC m-3 d-1)
       _SET_DIAGNOSTIC_(self%id_expNProd, exportN)       !instantaneous MPB export production nitrogen (mmolN m-3 d-1)
-      _SET_DIAGNOSTIC_(self%id_NPP, NPP)                !instantaneous MPB net primary production rate (molC m-3 d-1)
-      _SET_DIAGNOSTIC_(self%id_SGR, SGR)                !instantaneous MPB specific growth rate (d-1)
-      _SET_DIAGNOSTIC_(self%id_TGR, TGR)                !instantaneous MPB total growth rate (d-1)
-      _SET_DIAGNOSTIC_(self%id_SMR, GRZ)                !instantaneous MPB specific mortality rate (d-1)
+      _SET_DIAGNOSTIC_(self%id_NPP,      NPP)           !instantaneous MPB net primary production rate (molC m-3 d-1)
+      _SET_DIAGNOSTIC_(self%id_SGR,      SGR)           !instantaneous MPB specific growth rate (d-1)
+      _SET_DIAGNOSTIC_(self%id_TGR,      TGR)           !instantaneous MPB total growth rate (d-1)
+      _SET_DIAGNOSTIC_(self%id_SMR,      GRZ)           !instantaneous MPB specific mortality rate (d-1)
       ! temporary for debugging:
-      _SET_DIAGNOSTIC_(self%id_mpb_din, nh3+no3)        !instantaneous external DIN (mmolN m-3)
-      _SET_DIAGNOSTIC_(self%id_mpb_no3, no3)            !instantaneous external no3 (mmolN m-3)
-      _SET_DIAGNOSTIC_(self%id_mpb_nh3, nh3)            !instantaneous external nh3 (mmolN m-3)
+      _SET_DIAGNOSTIC_(self%id_mpb_din,  nh3+no3)       !instantaneous external DIN (mmolN m-3)
+      _SET_DIAGNOSTIC_(self%id_mpb_no3,  no3)           !instantaneous external no3 (mmolN m-3)
+      _SET_DIAGNOSTIC_(self%id_mpb_nh3,  nh3)           !instantaneous external nh3 (mmolN m-3)
    endif
 
    ! Leave spatial loops (if any)

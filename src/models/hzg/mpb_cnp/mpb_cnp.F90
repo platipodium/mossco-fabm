@@ -77,7 +77,7 @@
 !
 ! !INPUT PARAMETERS:
    class (type_hzg_mpb_cnp),intent(inout),target  :: self
-   integer,             intent(in)            :: configunit
+   integer,                 intent(in)            :: configunit
 !
 ! !REVISION HISTORY:
 !  Original author(s): Markus Kreus, Richard Hofmeister & Kai Wirtz
@@ -304,39 +304,39 @@
    endif
 
    ! Register diagnostic variables
-   call self%register_diagnostic_variable(self%id_PrimProd, 'MPB_PP', 'mmolC m-3 d-1',    &
-         'MPB primary production rate PrimProd',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_par,      'par', 'W m-2',               &
-         'MPB photosynthetically active radiation',  output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_qNC,      'qNC', 'molN molC-1',         &
-         'MPB nitrogen quota qNC',                   output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_Q_chl,    'Q_chl', 'gChla gC-1',        &
-         'MPB CHL-to-C ratio Q_chl',                 output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_ThetaN,   'ThetaN', 'gChla molN-1',     &
-         'MPB CHL-to-N ratio ThetaN',                output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_expCProd, 'expCProd', 'mmolC m-3 d-1',  &
-         'MPB carbon export (zoobenthos grazing)',   output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_expNProd, 'expNProd', 'mmolN m-3 d-1',  &
-         'MPB nitrogen export (zoobenthos grazing)', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_NPP, 'MPB_NPP',  'mmolC m-3 d-1',       &
-         'MPB net primary production rate NPP',      output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_SGR, 'MPB_SGR',  'd-1',                 &
-         'MPB specific growth rate SGR',             output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_TGR, 'MPB_TGR',  'd-1',                 &
-         'MPB total growth rate TGR',                output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_SPR, 'MPB_SPR',  'd-1',                 &
-         'MPB specific photosynthesis rate SPR',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_SMR, 'MPB_SMR',  'd-1',                 &
-         'MPB specific mortality rate (grazing) SMR', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_PrimProd, 'MPB_PP',     'mmolC m-3 d-1',   &
+         'MPB-CNP primary production rate PrimProd',        output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_par,      'MPB_par',    'W m-2',           &
+         'MPB-CNP photosynthetically active radiation',     output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_qNC,      'MPB_qNC',    'molN molC-1',     &
+         'MPB-CNP nitrogen quota qNC',                      output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_Q_chl,    'MPB_Q_chl',  'gChla gC-1',      &
+         'MPB-CNP CHL-to-C ratio Q_chl',                    output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_ThetaN,   'MPB_ThetaN', 'gChla molN-1',    &
+         'MPB-CNP CHL-to-N ratio ThetaN',                   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_expCProd, 'MPB_expCProd', 'mmolC m-3 d-1', &
+         'MPB-CNP carbon export (zoobenthos grazing)',      output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_expNProd, 'MPB_expNProd', 'mmolN m-3 d-1', &
+         'MPB-CNP nitrogen export (zoobenthos grazing)',    output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_NPP,      'MPB_NPP',    'mmolC m-3 d-1',   &
+         'MPB-CNP net primary production rate NPP',         output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_SGR,      'MPB_SGR',    'd-1',             &
+         'MPB-CNP specific growth rate SGR',                output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_TGR,      'MPB_TGR',    'd-1',             &
+         'MPB-CNP total growth rate TGR',                   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_SPR,      'MPB_SPR',    'd-1',             &
+         'MPB-CNP specific photosynthesis rate SPR',        output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_SMR,      'MPB_SMR',    'd-1',             &
+         'MPB-CNP specific mortality rate (grazing) SMR',   output=output_instantaneous)
 ! temporary for debugging:
-   call self%register_diagnostic_variable(self%id_MPB_DIN, 'MPB_DIN', 'mmolN m-3 d-1',    &
-         'MPB DIN',  output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_MPB_no3, 'MPB_no3', 'mmolN m-3 d-1',    &
-         'MPB no3',  output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_MPB_nh4, 'MPB_nh4', 'mmolN m-3 d-1',    &
-         'MPB nh4',  output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_MPB_po4, 'MPB_po4', 'mmolP m-3 d-1',    &
-         'MPB po4',  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_MPB_DIN,  'MPB_DIN',    'mmolN m-3 d-1',   &
+         'MPB-CNP DIN',                                     output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_MPB_no3,  'MPB_no3',    'mmolN m-3 d-1',   &
+         'MPB-CNP no3',                                     output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_MPB_nh4,  'MPB_nh4',    'mmolN m-3 d-1',   &
+         'MPB-CNP nh4',                                     output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_MPB_po4,  'MPB_po4',    'mmolP m-3 d-1',   &
+         'MPB-CNP po4',                                     output=output_instantaneous)
 
    ! Register dependencies
    call self%register_dependency(self%id_temp, standard_variables%temperature)
@@ -376,7 +376,7 @@
    real(rk), parameter :: Q10b     = 1.5_rk    ! q10 temperature coefficient (source?)
    real(rk) :: mpbC, mpbN, mpbP, mpbCHL, eps, no3, nh4, po4, oxy, ldet
    real(rk) :: temp_celsius, temp_kelvin, f_T, E_a, tfac, parz, porosity
-   real(rk) :: qNC, qPN, Q_chl, theta, mu_C, mu_N, mu_P, mu_chl, limN, limP, limO2
+   real(rk) :: qNC, qPN, Q_chl, theta, mu_C, mu_N, mu_P, mu_chl, limN, limP, limO2, limGraz
    real(rk) :: Pmax, f_IR, f_RCN, f_RPC, f_RPN, f_RNP, f_RNC, frac_NH4
    real(rk) :: prod, prodChl, prodO2, respphyto, uptP, uptN, uptNO3, uptNH4, prodEPS, degrEPS
    real(rk) :: grazingC, grazingN, grazingP, grazingChl, faecesC, faecesN, faecesP
@@ -390,11 +390,11 @@
    _LOOP_BEGIN_
 
    ! initialize local external dependencies
-   no3  = -9999.
-   nh4  = -9999.
-   po4  = -9999.
-   oxy  = -9999.
-   ldet = -9999.
+   no3  = -9999._rk
+   nh4  = -9999._rk
+   po4  = -9999._rk
+   oxy  = -9999._rk
+   ldet = -9999._rk
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_temp, temp_celsius) ! sediment-water temperature in deg C
@@ -422,9 +422,11 @@
    qPN    = mpbP   / mpbN      ! molP  molN-1
    Q_chl  = mpbCHL / mpbC      ! gChla molC-1
    theta  = mpbCHL / mpbN      ! gChla molN-1
+   !print*,'#425 ', mpbC, mpbN, mpbP, mpbChl
+   !print*,'#425 ', qNC, qPN, Q_chl, theta
 
    !----- microphytes temperature dependency
-   tfac = exp( log(self%Q10)*((temp_celsius-10.)/10.) )                ! (-)
+   tfac = exp( log(self%Q10)*((temp_celsius-10._rk)/10._rk) )          ! (-)
 
    !----- oxygen limitation factor
    limO2 = max( zero, oxy / (oxy+self%KO2resp) )                       ! (-)
@@ -432,17 +434,21 @@
    !----- photosynthesis and carbon assimilation
    f_RCN = max( zero, (qNC-self%QNCmin)/(self%QNCmax-self%QNCmin) )    ! (-)
    Pmax = self%mu_max *tfac *min(one,f_RCN)                            ! (d-1)
-   print*,'#435 ', Pmax, tfac, f_RCN
+   !print*,'#435 ', Pmax, tfac, f_RCN
 
    ! - for comparism: Pmax as formulated in i.e. Baumert, Pahlow etc.
    !Pmax = self%mu_max *tfac *(one- self%QNCmin/qNC)                   ! (d-1)
-   ! light limitation
-   f_IR = one -exp(-self%alpha *theta *parz /Pmax)                     ! (-)
-   ! carbon assimilation rate
-   mu_C = Pmax *f_IR *limO2                                            ! (d-1)
+   f_IR = zero
+   mu_C = zero
+   if (Pmax > zero) then
+     ! light limitation
+     f_IR = one -exp(-self%alpha *theta *parz /Pmax)                   ! (-)
+     ! carbon assimilation rate
+     mu_C = Pmax *f_IR *limO2                                          ! (d-1)
+   endif
    prod = mu_C * mpbC                                                  ! (mmolC m-3 d-1)
 
-   print*,'#443 ', prod, Pmax, f_IR, limO2
+   !print*,'#443 ', prod, Pmax, f_IR, limO2
 
    !----- phosphorus assimilation and regulation
    limP  = max( zero, po4/(self%KPO4 + po4) )                          ! (-)
@@ -453,7 +459,7 @@
    ! P-assimilation is not directly related to amount of proteins (as "expressed" by qNC)
    mu_P = self%QPNupt *self%mu_max *tfac *f_RPC *f_RPN *limP *limO2    ! (mmolP mmolN-1 d-1)
    ! net P uptake rate
-   uptP = (mu_P * mpbN) - self%resp0*tfac*mpbP
+   uptP = (mu_P * mpbN) - self%resp0 *tfac *mpbP
 
    !----- nitrogen assimilation and regulation
    limN = no3/(no3+self%KNO3) *(one - nh4/(nh4+self%KinNH4) ) + nh4/(nh4+self%KNH4) ! (-)
@@ -481,17 +487,20 @@
    prodO2  = self%gamma * prod                                         ! (mmolO2 m-3 d-1)
    respphyto = self%resp0 *tfac *limO2 *mpbC +  &
                uptNO3 *self%zeta_NO3 + uptNH4 *self%zeta_NH4           ! (mmolC m-3 d-1)
+   ! limit respiration according to N/P-losses if numbers get very low
+   if (mu_C .lt. TINY) respphyto = self%resp0 *tfac *limO2 *mpbC       ! (mmolC m-3 d-1)
 
    !----- Carbohydrate exudation:
    prodEPS = self%fracEPS *prod                                        ! (mmolC m-3 d-1)
    !CprodEPS = sqrt(self%rLdet*self%rSdet) * eps  ! Source of this formulation? Kai Wirtz ??
-   degrEPS = max(zero, f_T *self%degrEPS *(eps-tiny) )                 ! (mmolC m-3 d-1)
+   degrEPS = max( zero, f_T *self%degrEPS *(eps-tiny) )                ! (mmolC m-3 d-1)
 
    !----- Zoobenthos grazing and associated processes:
-   grazingC   = self%graz *limO2 * mpbC                                ! (mmolC m-3 d-1)
-   grazingN   = self%graz *limO2 * mpbN                                ! (mmolN m-3 d-1)
-   grazingP   = self%graz *limO2 * mpbP                                ! (mmolP m-3 d-1)
-   grazingChl = self%graz *limO2 * mpbCHL                              ! (mgChla m-3 d-1)
+   limGraz    = max( zero, (mpbC - tiny) /mpbC )
+   grazingC   = self%graz *limO2 *limGraz *mpbC                        ! (mmolC m-3 d-1)
+   grazingN   = self%graz *limO2 *limGraz *mpbN                        ! (mmolN m-3 d-1)
+   grazingP   = self%graz *limO2 *limGraz *mpbP                        ! (mmolP m-3 d-1)
+   grazingChl = self%graz *limO2 *limGraz *mpbCHL                      ! (mgChla m-3 d-1)
    faecesC    = (one -self%aeff) * grazingC                            ! (mmolC m-3 d-1)
    faecesN    = (one -self%aeff) * grazingN                            ! (mmolN m-3 d-1)
    faecesP    = (one -self%aeff) * grazingP                            ! (mmolN m-3 d-1)
@@ -513,6 +522,7 @@
    _SET_ODE_(self%id_mpbCHL, (prodchl                       - grazingChl)      _CONV_UNIT_)
    _SET_ODE_(self%id_mpbC,   (prod    - respphyto - prodeps - grazingC)        _CONV_UNIT_)
    _SET_ODE_(self%id_mpbN,   (uptN                          - grazingN)        _CONV_UNIT_)
+   _SET_ODE_(self%id_mpbP,   (uptP                          - grazingP)        _CONV_UNIT_)
    _SET_ODE_(self%id_eps,    (prodEPS - degrEPS)                               _CONV_UNIT_)
    ! external dependencies
    ! If externally maintained variables are present, change the pools accordingly
@@ -531,7 +541,7 @@
    _SET_DIAGNOSTIC_(self%id_PrimProd, prod)           !instantaneous MPB primary production rate (molC m-3 d-1)
    _SET_DIAGNOSTIC_(self%id_par,      parz)           !instantaneous MPB photosynthetically active radiation (W m-2)
    _SET_DIAGNOSTIC_(self%id_qNC,      qNC)            !instantaneous MPB N:C quota (molN molC-1)
-   _SET_DIAGNOSTIC_(self%id_Q_chl,    Q_chl/12.)      !instantaneous MPB CHL:C ratio (gChla gC-1)
+   _SET_DIAGNOSTIC_(self%id_Q_chl,    Q_chl/12._rk)   !instantaneous MPB CHL:C ratio (gChla gC-1)
    _SET_DIAGNOSTIC_(self%id_ThetaN,   theta)          !instantaneous MPB CHL:N ratio (gChla molN-1)
    _SET_DIAGNOSTIC_(self%id_expCProd, exportC)        !instantaneous MPB export production carbon (mmolC m-3 d-1)
    _SET_DIAGNOSTIC_(self%id_expNProd, exportN)        !instantaneous MPB export production nitrogen (mmolN m-3 d-1)
