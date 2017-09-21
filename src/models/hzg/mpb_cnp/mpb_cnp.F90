@@ -427,11 +427,13 @@
    tfac = exp( log(self%Q10)*((temp_celsius-10.)/10.) )                ! (-)
 
    !----- oxygen limitation factor
-   limO2 = oxy / (oxy+self%KO2resp)                                    ! (-)
+   limO2 = max( zero, oxy / (oxy+self%KO2resp) )                       ! (-)
 
    !----- photosynthesis and carbon assimilation
    f_RCN = max( zero, (qNC-self%QNCmin)/(self%QNCmax-self%QNCmin) )    ! (-)
    Pmax = self%mu_max *tfac *min(one,f_RCN)                            ! (d-1)
+   print*,'#435 ', Pmax, tfac, f_RCN
+
    ! - for comparism: Pmax as formulated in i.e. Baumert, Pahlow etc.
    !Pmax = self%mu_max *tfac *(one- self%QNCmin/qNC)                   ! (d-1)
    ! light limitation
@@ -440,8 +442,10 @@
    mu_C = Pmax *f_IR *limO2                                            ! (d-1)
    prod = mu_C * mpbC                                                  ! (mmolC m-3 d-1)
 
+   print*,'#443 ', prod, Pmax, f_IR, limO2
+
    !----- phosphorus assimilation and regulation
-   limP  = po4/(self%KPO4 + po4)
+   limP  = max( zero, po4/(self%KPO4 + po4) )                          ! (-)
    ! down-regulation of P-uptake if cell is P-replete
    f_RPC = one                                                         ! (-)
    ! down-regulation of P-uptake due to higher P:N-quota caused by N-limitation
@@ -454,8 +458,8 @@
    !----- nitrogen assimilation and regulation
    limN = no3/(no3+self%KNO3) *(one - nh4/(nh4+self%KinNH4) ) + nh4/(nh4+self%KNH4) ! (-)
    frac_NH4 = nh4/(nh4 + self%KNH4) /limN                              ! (-)
-   f_RNP = max(zero, one - (self%QPNmin /qPN) )                        ! (-) (Droop)
-   f_RNC = one /( one + exp(-self%sigma_NC *(self%QNCmax-qNC)) )            ! (-)
+   f_RNP = max( zero, one - (self%QPNmin /qPN) )                       ! (-) (Droop)
+   f_RNC = one /( one + exp(-self%sigma_NC *(self%QNCmax-qNC)) )       ! (-)
    ! carbon specific nitrogen uptake rate
    mu_N = self%QNCupt *self%mu_max *tfac *f_RNP *f_RNC *limN *limO2    ! (mmolN mmolC-1 d-1) (vgl. Geider)
    if (mu_N .lt. TINY .or. qNC .gt. self%QNCmax) mu_N = zero           ! (mmolN mmolC-1 d-1)
@@ -481,7 +485,7 @@
    !----- Carbohydrate exudation:
    prodEPS = self%fracEPS *prod                                        ! (mmolC m-3 d-1)
    !CprodEPS = sqrt(self%rLdet*self%rSdet) * eps  ! Source of this formulation? Kai Wirtz ??
-   degrEPS = f_T *self%degrEPS *eps                                    ! (mmolC m-3 d-1)
+   degrEPS = max(zero, f_T *self%degrEPS *(eps-tiny) )                 ! (mmolC m-3 d-1)
 
    !----- Zoobenthos grazing and associated processes:
    grazingC   = self%graz *limO2 * mpbC                                ! (mmolC m-3 d-1)
@@ -505,22 +509,22 @@
    GRZ = (grazingC) /mpbC                                              ! (d-1)
 
 #define _CONV_UNIT_ *one_pr_day
-!    ! reaction rates
-!    _SET_ODE_(self%id_mpbCHL, (prodchl                       - grazingChl)      _CONV_UNIT_)
-!    _SET_ODE_(self%id_mpbC,   (prod    - respphyto - prodeps - grazingC)        _CONV_UNIT_)
-!    _SET_ODE_(self%id_mpbN,   (uptN                          - grazingN)        _CONV_UNIT_)
-!    _SET_ODE_(self%id_eps,    (prodEPS - degrEPS)                               _CONV_UNIT_)
-!    ! external dependencies
-!    ! If externally maintained variables are present, change the pools accordingly
-!    _SET_ODE_(self%id_no3,    (        - uptNO3)                                _CONV_UNIT_)
-!    _SET_ODE_(self%id_nh4,    (exudZoN - uptNH4)                                _CONV_UNIT_)
-!    _SET_ODE_(self%id_po4,    (exudZoP - uptP)                                  _CONV_UNIT_)
-!    _SET_ODE_(self%id_oxy,    (prodO2  - respphyto - respZoo )                  _CONV_UNIT_)
-!    _SET_ODE_(self%id_ldet,   (faecesC)                                         _CONV_UNIT_)
-!    if (_AVAILABLE_(self%id_dic)) _SET_ODE_(self%id_dic , (respphyto + respZoo) _CONV_UNIT_)
-!    if (_AVAILABLE_(self%id_zbC)) _SET_ODE_(self%id_zbC , (exportC)             _CONV_UNIT_)
-!    if (_AVAILABLE_(self%id_zbN)) _SET_ODE_(self%id_zbN , (exportN)             _CONV_UNIT_)
-!    if (_AVAILABLE_(self%id_zbP)) _SET_ODE_(self%id_zbP , (exportP)             _CONV_UNIT_)
+   ! reaction rates
+   _SET_ODE_(self%id_mpbCHL, (prodchl                       - grazingChl)      _CONV_UNIT_)
+   _SET_ODE_(self%id_mpbC,   (prod    - respphyto - prodeps - grazingC)        _CONV_UNIT_)
+   _SET_ODE_(self%id_mpbN,   (uptN                          - grazingN)        _CONV_UNIT_)
+   _SET_ODE_(self%id_eps,    (prodEPS - degrEPS)                               _CONV_UNIT_)
+   ! external dependencies
+   ! If externally maintained variables are present, change the pools accordingly
+   _SET_ODE_(self%id_no3,    (        - uptNO3)                                _CONV_UNIT_)
+   _SET_ODE_(self%id_nh4,    (exudZoN - uptNH4)                                _CONV_UNIT_)
+   _SET_ODE_(self%id_po4,    (exudZoP - uptP)                                  _CONV_UNIT_)
+   _SET_ODE_(self%id_oxy,    (prodO2  - respphyto - respZoo )                  _CONV_UNIT_)
+   _SET_ODE_(self%id_ldet,   (faecesC)                                         _CONV_UNIT_)
+   if (_AVAILABLE_(self%id_dic)) _SET_ODE_(self%id_dic , (respphyto + respZoo) _CONV_UNIT_)
+   if (_AVAILABLE_(self%id_zbC)) _SET_ODE_(self%id_zbC , (exportC)             _CONV_UNIT_)
+   if (_AVAILABLE_(self%id_zbN)) _SET_ODE_(self%id_zbN , (exportN)             _CONV_UNIT_)
+   if (_AVAILABLE_(self%id_zbP)) _SET_ODE_(self%id_zbP , (exportP)             _CONV_UNIT_)
 
    ! Export diagnostic variables
    _SET_DIAGNOSTIC_(self%id_SPR,      mu_C)           !instantaneous MPB specific photosynthesis rate (d-1)
