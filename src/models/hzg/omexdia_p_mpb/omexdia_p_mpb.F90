@@ -416,7 +416,7 @@
    real(rk) :: CprodF, CprodS, Cprod, Nprod, Pprod
    real(rk) :: AnoxicMin, Denitrific, OxicMin, Nitri, OduDepo, OduOx, pDepo
 !!------- for model mpb -------
-   real(rk), parameter :: zero = 0.0_rk, one = 1.0_rk
+   real(rk), parameter :: zero = 0.0_rk, one = 1.0_rk, TINY = 1.0e-3
    real(rk) :: mpbC, mpbN, mpbCHL, eps
    real(rk) :: parz, porosity, CprodEPS
    real(rk) :: prodChl, k, theta, Q_N, Q_chl, Pmax,  PP, prod, prodeps, fac, tfac
@@ -564,7 +564,7 @@
       lossphyto = zero
 #ifndef HochardEtAl
       !NOTE (mk): In Geider et al (1998) respiration accounts for costs of biosynthesis (Zeta)
-      if (mu_C .gt. TINY) then ! limit respiration according to N/P-losses if numbers get very low
+      if (prod .gt. TINY) then ! limit respiration according to N/P-losses if numbers get very low
         respphyto = respphyto + 2.3_rk*uptNO3 + 1.8_rk*uptNH4         ! (mmolC m-3 d-1)   [-]
       endif
       !NOTE (mk): In Geider et al (1998) loss due to cell lysis/damage was accounted for as well

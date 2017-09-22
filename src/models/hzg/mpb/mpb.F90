@@ -327,7 +327,7 @@
 !  Original author(s): Markus Kreus, Richard Hofmeister & Kai Wirtz
 !
 ! !LOCAL VARIABLES:
-   real(rk), parameter :: zero = 0.0_rk, one = 1.0_rk
+   real(rk), parameter :: zero = 0.0_rk, one = 1.0_rk, TINY = 1.0e-3
    real(rk), parameter :: gammaO2  = 1.0_rk    ! molO2 used per molC respired
    real(rk), parameter :: T0       = 288.15_rk ! reference Temperature fixed to 15 degC
    real(rk), parameter :: Q10b     = 1.5_rk    ! q10 temperature coefficient (source?)
@@ -434,7 +434,7 @@
    lossphyto = zero
 #ifndef HochardEtAl
    !NOTE (mk): In Geider et al (1998) respiration accounts for costs of biosynthesis (Zeta)
-   if (mu_C .gt. TINY) then
+   if (prod .gt. TINY) then
      respphyto = respphyto + 2.3_rk*uptNO3 + 1.8_rk*uptNH4         ! (mmolC m-3 d-1)   [-]
    endif
    !NOTE (mk): In Geider et al (1998) loss due to cell lysis/damage was accounted for as well
