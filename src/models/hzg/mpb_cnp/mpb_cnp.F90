@@ -43,9 +43,9 @@
       type (type_diagnostic_variable_id)   :: id_expCProd, id_expNProd, id_expPProd
       type (type_diagnostic_variable_id)   :: id_NPP, id_SGR, id_TGR, id_SPR, id_SMR
 ! temporary for debugging
-      type (type_diagnostic_variable_id)   :: id_MPB_din, id_MPB_no3, id_MPB_nh4, id_MPB_po4
-      type (type_diagnostic_variable_id)   :: id_fIR, id_flimN, id_flimP
-      type (type_diagnostic_variable_id)   :: id_fRChl, id_fRCN, id_fRNC, id_fRNP, id_fRPN
+      type (type_diagnostic_variable_id)   :: id_MPB_din, id_MPB_no3, id_MPB_nh4, id_MPB_po4, id_MPB_temp
+      type (type_diagnostic_variable_id)   :: id_fIR, id_flimN, id_flimP, id_flimO2, id_uptN, id_uptP
+      type (type_diagnostic_variable_id)   :: id_fRChl, id_fRCN, id_fRNC, id_fRNP, id_fRPN, id_ftfac
 
 !     Model parameters
       real(rk) :: Tref, Q10, alpha, mu_max, resp0, zeta_NO3, zeta_NH4, kPO4, kNO3, kNH4, kInNH4
@@ -226,7 +226,7 @@
       call self%request_coupling(self%id_no3, no3_variable)
    else
       call self%register_state_variable(self%id_no3, 'no3', 'mmolN m-3',    &
-            'dissolved nitrate', 10._rk, minimum=0.0_rk,                    &
+            'dissolved nitrate', 10.0_rk, minimum=0.0_rk,                   &
             standard_variable=standard_variables%mole_concentration_of_nitrate)
       call self%set_variable_property(self%id_no3, 'particulate', .false.)
    endif
@@ -238,7 +238,7 @@
       call self%request_coupling(self%id_nh4, nh4_variable)
    else
       call self%register_state_variable(self%id_nh4, 'nh4', 'mmolN m-3',    &
-            'dissolved ammonium', 4._rk, minimum=0.0_rk,                    &
+            'dissolved ammonium', 4.0_rk, minimum=0.0_rk,                   &
             standard_variable=standard_variables%mole_concentration_of_ammonium)
       call self%set_variable_property(self%id_nh4, 'particulate', .false.)
    endif
@@ -250,7 +250,7 @@
       call self%request_coupling(self%id_po4, po4_variable)
    else
       call self%register_state_variable(self%id_po4, 'po4', 'mmolP m-3',    &
-            'dissolved phosphate', 4._rk, minimum=0.0_rk,                   &
+            'dissolved phosphate', 1.0_rk, minimum=0.0_rk,                  &
             standard_variable=standard_variables%mole_concentration_of_phosphate)
       call self%set_variable_property(self%id_po4, 'particulate', .false.)
    endif
@@ -306,8 +306,6 @@
    endif
 
    ! Register diagnostic variables
-   call self%register_diagnostic_variable(self%id_PrimProd, 'MPB_CNP_PP',     'mmolC m-3 d-1',   &
-         'MPB-CNP primary production rate PrimProd',        output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_par,      'MPB_CNP_par',    'W m-2',           &
          'MPB-CNP photosynthetically active radiation',     output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_qNC,      'MPB_CNP_qNC',    'molN molC-1',     &
@@ -320,6 +318,9 @@
          'MPB-CNP carbon export (zoobenthos grazing)',      output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_expNProd, 'MPB_CNP_expNProd', 'mmolN m-3 d-1', &
          'MPB-CNP nitrogen export (zoobenthos grazing)',    output=output_instantaneous)
+   ! production rates
+   call self%register_diagnostic_variable(self%id_PrimProd, 'MPB_CNP_PP',     'mmolC m-3 d-1',   &
+         'MPB-CNP primary production rate PrimProd',        output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_NPP,      'MPB_CNP_NPP',    'mmolC m-3 d-1',   &
          'MPB-CNP net primary production rate NPP',         output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_SGR,      'MPB_CNP_SGR',    'd-1',             &
@@ -330,7 +331,34 @@
          'MPB-CNP specific photosynthesis rate SPR',        output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_SMR,      'MPB_CNP_SMR',    'd-1',             &
          'MPB-CNP specific mortality rate (grazing) SMR',   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_uptN,     'MPB_CNP_uptN',   'd-1',             &
+         'MPB-CNP specific nitrogen assimilation rate uptN', output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_uptP,     'MPB_CNP_uptP',   'd-1',             &
+         'MPB-CNP specific phosphorus assimilation rate uptP', output=output_instantaneous)
+   ! limitation factors
+   call self%register_diagnostic_variable(self%id_ftfac,    'MPB_CNP_ftfac',  '-',               &
+         'MPB-CNP ftfac',                                   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_fIR,      'MPB_CNP_fIR',    '-',               &
+         'MPB-CNP fIR',                                     output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_flimN,    'MPB_CNP_flimN',  '-',               &
+         'MPB-CNP flimN',                                   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_flimP,    'MPB_CNP_flimP',  '-',               &
+         'MPB-CNP flimP',                                   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_flimO2,   'MPB_CNP_flimO2', '-',               &
+         'MPB-CNP flimO2',                                  output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_fRChl,    'MPB_CNP_fRCHl',  '-',               &
+         'MPB-CNP fRChl',                                   output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_fRCN,     'MPB_CNP_fRCN',   '-',               &
+         'MPB-CNP fRCN',                                    output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_fRNC,     'MPB_CNP_fRNC',   '-',               &
+         'MPB-CNP fRNC',                                    output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_fRNP,     'MPB_CNP_fRNP',   '-',               &
+         'MPB-CNP fRNP',                                    output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_fRPN,     'MPB_CNP_fRPN',   '-',               &
+         'MPB-CNP fRPN',                                    output=output_instantaneous)
 ! temporary for debugging:
+   call self%register_diagnostic_variable(self%id_MPB_temp, 'MPB_CNP_temp',   'degC',            &
+         'MPB-CNP temperature',                             output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_MPB_DIN,  'MPB_CNP_DIN',    'mmolN m-3 d-1',   &
          'MPB-CNP DIN',                                     output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_MPB_no3,  'MPB_CNP_no3',    'mmolN m-3 d-1',   &
@@ -339,23 +367,6 @@
          'MPB-CNP nh4',                                     output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_MPB_po4,  'MPB_CNP_po4',    'mmolP m-3 d-1',   &
          'MPB-CNP po4',                                     output=output_instantaneous)
-   ! limitation factors
-   call self%register_diagnostic_variable(self%id_fIR,      'MPB_CNP_fIR',    '-',   &
-         'MPB-CNP fIR',                                     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_flimN,    'MPB_CNP_flimN',  '-',   &
-         'MPB-CNP flimN',                                     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_flimP,    'MPB_CNP_flimP',  '-',   &
-         'MPB-CNP flimP',                                     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_fRChl,    'MPB_CNP_fRCHl',  '-',   &
-         'MPB-CNP fRChl',                                   output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_fRCN,     'MPB_CNP_fRCN',   '-',   &
-         'MPB-CNP fRCN',                                    output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_fRNC,     'MPB_CNP_fRNC',   '-',   &
-         'MPB-CNP fRNC',                                    output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_fRNP,     'MPB_CNP_fRNP',   '-',   &
-         'MPB-CNP fRNP',                                    output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_fRPN,     'MPB_CNP_fRPN',   '-',   &
-         'MPB-CNP fRPN',                                    output=output_instantaneous)
 
    ! Register dependencies
    call self%register_dependency(self%id_temp, standard_variables%temperature)
@@ -391,16 +402,18 @@
 !
 ! !LOCAL VARIABLES:
    real(rk), parameter :: zero = 0.0_rk, one = 1.0_rk, TINY = 1.0e-3
+   real(rk), parameter :: gammaO2  = 1.0_rk    ! molO2 used per molC respired
    real(rk), parameter :: T0       = 288.15_rk ! reference Temperature fixed to 15 degC
    real(rk), parameter :: Q10b     = 1.5_rk    ! q10 temperature coefficient (source?)
-   real(rk) :: mpbC, mpbN, mpbP, mpbCHL, eps, no3, nh4, po4, oxy, ldet
+   real(rk) :: mpbC, mpbN, mpbP, mpbCHL, eps, no3, nh4, po4, oxy, ldet, DIN
    real(rk) :: temp_celsius, temp_kelvin, f_T, E_a, tfac, parz, porosity
-   real(rk) :: qNC, qPN, Q_chl, theta, mu_C, mu_N, mu_P, mu_chl, limN, limP, limO2, limGraz
+   real(rk) :: qNC, qPN, Q_chl, theta, mu_C, mu_N, mu_P, mu_chl, limN, limP, limO2
    real(rk) :: Pmax, f_IR, f_RCN, f_RPC, f_RPN, f_RNP, f_RNC, frac_NH4
-   real(rk) :: prod, prodChl, prodO2, respphyto, uptP, uptN, uptNO3, uptNH4, prodEPS, degrEPS
+   real(rk) :: prod, prodChl, prodO2, respphyto, lossphytN, lossphytP
+   real(rk) :: uptP, uptN, uptNO3, uptNH4, prodEPS, degrEPS, limGraz
    real(rk) :: grazingC, grazingN, grazingP, grazingChl, faecesC, faecesN, faecesP
    real(rk) :: respZoo, exudZoN, exudZoP, exportC, exportN, exportP
-   real(rk) :: NPP, SGR, TGR, GRZ, fac, f_RChl, limNO3, limNH4
+   real(rk) :: NPP, SGR, TGR, GRZ, ruptN, ruptP, fac, f_RChl, limNO3, limNH4
 
 !EOP
 !-----------------------------------------------------------------------
@@ -431,6 +444,7 @@
    _GET_(self%id_po4,    po4)     ! dissolved phosphate in mmolP m-3
    _GET_(self%id_oxy,    oxy)     ! dissolved oxygen in mmolO2 m-3
    _GET_(self%id_ldet,   ldet)    ! fast decaying detritus C in mmolC m-3
+   DIN = no3+nh4
 
    ! global temperature dependency
    temp_kelvin = 273.15_rk + temp_celsius
@@ -480,20 +494,20 @@
    ! P-assimilation is not directly related to amount of proteins (as "expressed" by qNC)
    mu_P = self%QPNupt *self%mu_max *tfac *f_RPC *f_RPN *limP *limO2    ! (mmolP mmolN-1 d-1)
    ! net P uptake rate
-   uptP = (mu_P * mpbN) - self%resp0 *tfac *mpbP
+   uptP = (mu_P * mpbN) - self%resp0 *tfac *mpbP                       ! (mmolP d-1)
 
    !----- nitrogen assimilation and regulation
-   limN     = (nh4+no3) /(nh4+no3+self%KNO3)
-   frac_NH4 = nh4/(nh4+self%KinNH4)
-!    limNO3 = zero
-!    limNH4 = zero
-!    if (no3 .gt. tiny) limNO3 = no3/(no3+self%KNO3)
-!    if (nh4 .gt. tiny) then
-!      limNO3 = limNO3 *( one - nh4/(nh4+self%KinNH4) )
-!      limNH4 = nh4/(nh4+self%KNH4)
-!    endif
-!    limN     = min(one, limNO3 + limNH4)
-!    frac_NH4 = limNH4 /(limNO3 + limNH4)                                ! (-)
+   frac_NH4 = nh4/(nh4+self%KinNH4)                                    ! (-)
+   if (isnan(frac_NH4)) frac_NH4 = zero
+   limN = nh4/(nh4 + self%KNH4) + no3/(no3 + self%KNO3) *(one - frac_NH4) ! (-)
+   if (no3+nh4 < 0.1_rk) then
+      frac_NH4 = one
+      limN     = zero
+   endif
+   if (limN > zero) then
+      frac_NH4 = min( one, max(zero, nh4/(nh4 + self%KNH4) /limN) )    ! (-)
+      limN     = min(limN, one)                                        ! (-)
+   endif
    f_RNP = max( zero, one - (self%QPNmin /qPN) )                       ! (-) (Droop)
    f_RNC = one /( one + exp(-self%sigma_NC *(self%QNCmax-qNC)) )       ! (-)
    ! carbon specific nitrogen uptake rate
@@ -520,12 +534,14 @@
    ! net Chl synthesis
    prodchl = mu_chl *f_RChl *mpbC - self%resp0 *tfac *mpbCHL           ! (mgChla m-3 d-1)
 
-   !----- oxygen production and respiration loss:
+   !----- oxygen production and respiration / maintenance loss:
    prodO2  = self%gamma * prod                                         ! (mmolO2 m-3 d-1)
    respphyto = self%resp0 *tfac *limO2 *mpbC +  &
                uptNO3 *self%zeta_NO3 + uptNH4 *self%zeta_NH4           ! (mmolC m-3 d-1)
    ! limit respiration according to N/P-losses if numbers get very low
    if (mu_C .lt. TINY) respphyto = self%resp0 *tfac *limO2 *mpbC       ! (mmolC m-3 d-1)
+   lossphytN = self%resp0 *tfac *mpbN                                  ! (mmolN m-3 d-1)
+   lossphytP = self%resp0 *tfac *mpbP                                  ! (mmolN m-3 d-1)
 
    !----- Zoobenthos grazing and associated processes:
    limGraz    = max( zero, (mpbC - tiny) /mpbC )
@@ -549,20 +565,29 @@
    TGR = (prod - grazingC - respphyto - prodeps) /mpbC                 ! (d-1)
    GRZ = (grazingC) /mpbC                                              ! (d-1)
 
+   ruptN = zero
+   if (uptN>tiny) ruptN = uptN/mpbN                                    ! (d-1)
+
+   ruptP = zero
+   if (uptP>tiny) ruptP = uptP/mpbP                                    ! (d-1)
+
+   if (mpbN<TINY) lossphytN = zero
+   if (mpbP<TINY) lossphytP = zero
+
 #define _CONV_UNIT_ *one_pr_day
    ! reaction rates
-   _SET_ODE_(self%id_mpbCHL, (prodchl                       - grazingChl)      _CONV_UNIT_)
+   _SET_ODE_(self%id_mpbCHL, (prodchl - lossphytN *theta    - grazingChl)      _CONV_UNIT_)
    _SET_ODE_(self%id_mpbC,   (prod    - respphyto - prodeps - grazingC)        _CONV_UNIT_)
-   _SET_ODE_(self%id_mpbN,   (uptN                          - grazingN)        _CONV_UNIT_)
+   _SET_ODE_(self%id_mpbN,   (uptN    - lossphytN           - grazingN)        _CONV_UNIT_)
    !_SET_ODE_(self%id_mpbN,    zero                                               _CONV_UNIT_)
-   _SET_ODE_(self%id_mpbP,   (uptP                          - grazingP)        _CONV_UNIT_)
+   _SET_ODE_(self%id_mpbP,   (uptP    - lossphytP           - grazingP)        _CONV_UNIT_)
    _SET_ODE_(self%id_eps,    (prodEPS - degrEPS)                               _CONV_UNIT_)
    ! external dependencies
    ! If externally maintained variables are present, change the pools accordingly
-   _SET_ODE_(self%id_no3,    (        - uptNO3)                                _CONV_UNIT_)
-   _SET_ODE_(self%id_nh4,    (exudZoN - uptNH4)                                _CONV_UNIT_)
-   _SET_ODE_(self%id_po4,    (exudZoP - uptP)                                  _CONV_UNIT_)
-   _SET_ODE_(self%id_oxy,    (prodO2  - respphyto - respZoo )                  _CONV_UNIT_)
+   _SET_ODE_(self%id_no3,    (-uptNO3)                                         _CONV_UNIT_)
+   _SET_ODE_(self%id_nh4,    (-uptNH4 + lossphytN + exudZoN)                   _CONV_UNIT_)
+   _SET_ODE_(self%id_po4,    (-uptP   + lossphytP + exudZoP)                   _CONV_UNIT_)
+   _SET_ODE_(self%id_oxy,    (prodO2  -(respphyto + respZoo) *gammaO2)         _CONV_UNIT_)
    _SET_ODE_(self%id_ldet,   (faecesC)                                         _CONV_UNIT_)
    if (_AVAILABLE_(self%id_dic)) _SET_ODE_(self%id_dic , (respphyto + respZoo) _CONV_UNIT_)
    if (_AVAILABLE_(self%id_zbC)) _SET_ODE_(self%id_zbC , (exportC)             _CONV_UNIT_)
@@ -570,8 +595,6 @@
    if (_AVAILABLE_(self%id_zbP)) _SET_ODE_(self%id_zbP , (exportP)             _CONV_UNIT_)
 
    ! Export diagnostic variables
-   _SET_DIAGNOSTIC_(self%id_SPR,      mu_C)           !instantaneous MPB specific photosynthesis rate (d-1)
-   _SET_DIAGNOSTIC_(self%id_PrimProd, prod)           !instantaneous MPB primary production rate (molC m-3 d-1)
    _SET_DIAGNOSTIC_(self%id_par,      parz)           !instantaneous MPB photosynthetically active radiation (W m-2)
    _SET_DIAGNOSTIC_(self%id_qNC,      qNC)            !instantaneous MPB N:C quota (molN molC-1)
    _SET_DIAGNOSTIC_(self%id_Q_chl,    Q_chl/12._rk)   !instantaneous MPB CHL:C ratio (gChla gC-1)
@@ -579,24 +602,32 @@
    _SET_DIAGNOSTIC_(self%id_expCProd, exportC)        !instantaneous MPB export production carbon (mmolC m-3 d-1)
    _SET_DIAGNOSTIC_(self%id_expNProd, exportN)        !instantaneous MPB export production nitrogen (mmolN m-3 d-1)
    _SET_DIAGNOSTIC_(self%id_expPProd, exportP)        !instantaneous MPB export production nitrogen (mmolN m-3 d-1)
+   ! production rates
+   _SET_DIAGNOSTIC_(self%id_SPR,      mu_C)           !instantaneous MPB specific photosynthesis rate (d-1)
+   _SET_DIAGNOSTIC_(self%id_PrimProd, prod)           !instantaneous MPB primary production rate (molC m-3 d-1)
    _SET_DIAGNOSTIC_(self%id_NPP,      NPP)            !instantaneous MPB net primary production rate (molC m-3 d-1)
    _SET_DIAGNOSTIC_(self%id_SGR,      SGR)            !instantaneous MPB specific growth rate (d-1)
    _SET_DIAGNOSTIC_(self%id_TGR,      TGR)            !instantaneous MPB total growth rate (d-1)
    _SET_DIAGNOSTIC_(self%id_SMR,      GRZ)            !instantaneous MPB specific mortality rate (d-1)
-! temporary for debugging:
-   _SET_DIAGNOSTIC_(self%id_mpb_din,  nh4+no3)        !instantaneous external DIN (mmolN m-3)
-   _SET_DIAGNOSTIC_(self%id_mpb_no3,  no3)            !instantaneous external no3 (mmolN m-3)
-   _SET_DIAGNOSTIC_(self%id_mpb_nh4,  nh4)            !instantaneous external nh4 (mmolN m-3)
-   _SET_DIAGNOSTIC_(self%id_mpb_po4,  po4)            !instantaneous external nh4 (mmolN m-3)
+   _SET_DIAGNOSTIC_(self%id_uptN,     ruptN)          !instantaneous MPB specific N assimilation rate (d-1)
+   _SET_DIAGNOSTIC_(self%id_uptP,     ruptP)          !instantaneous MPB specific P assimilation rate (d-1)
    ! limitation factors
+   _SET_DIAGNOSTIC_(self%id_ftfac,    tfac)           !instantaneous temperature dependency
    _SET_DIAGNOSTIC_(self%id_fIR,      f_IR)           !instantaneous light limitation factor
    _SET_DIAGNOSTIC_(self%id_flimN,    limN)           !instantaneous DIN limitation factor
    _SET_DIAGNOSTIC_(self%id_flimP,    limP)           !instantaneous DIN limitation factor
+   _SET_DIAGNOSTIC_(self%id_flimO2,   limO2)          !instantaneous oxygen limitation factor
    _SET_DIAGNOSTIC_(self%id_fRChl,    f_RChl)         !instantaneous Chla synthesis regulation
    _SET_DIAGNOSTIC_(self%id_fRCN,     f_RCN)          !instantaneous C uptake downregulation due to qNC
    _SET_DIAGNOSTIC_(self%id_fRNC,     f_RNC)          !instantaneous N uptake downregulation due to qNC
    _SET_DIAGNOSTIC_(self%id_fRNP,     f_RNP)          !instantaneous N uptake downregulation due to qNP
    _SET_DIAGNOSTIC_(self%id_fRPN,     f_RPN)          !instantaneous P uptake downregulation due to qNP
+! temporary for debugging:
+   _SET_DIAGNOSTIC_(self%id_mpb_temp, temp_celsius)   !instantaneous MPB temperature (degC)
+   _SET_DIAGNOSTIC_(self%id_mpb_din,  DIN)            !instantaneous external DIN (mmolN m-3)
+   _SET_DIAGNOSTIC_(self%id_mpb_no3,  no3)            !instantaneous external no3 (mmolN m-3)
+   _SET_DIAGNOSTIC_(self%id_mpb_nh4,  nh4)            !instantaneous external nh4 (mmolN m-3)
+   _SET_DIAGNOSTIC_(self%id_mpb_po4,  po4)            !instantaneous external nh4 (mmolN m-3)
 
    ! Leave spatial loops (if any)
    _LOOP_END_
