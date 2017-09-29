@@ -384,7 +384,7 @@
    real(rk) :: prodChl, theta, Q_N, Q_chl, Pmax, PP, prod, prodeps, fac, tfac
    real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto, lossphyto
    real(rk) :: grazingC, grazingN, grazingChl, respzoo, exud, faecesC, faecesN
-   real(rk) :: exportC, exportN, NPP, SGR, TGR, GRZ, ruptN, ruptP
+   real(rk) :: exportC, exportN, NPP, SGR, TGR, GRZ, ruptN, ruptP, x1, x2
    real(rk) :: f_IR, f_RChl, f_RCN, f_RPC, f_RPN, f_RNP, f_RNC
    real(rk) :: frac_NH4, limN, limP, limO2
 
@@ -404,8 +404,8 @@
    ldet = -9999._rk
 
    ! Retrieve current (local) state variable values.
-!   _GET_(self%id_temp, temp_celsius) ! sediment-water temperature in deg C
-!   _GET_(self%id_parz,   parz)    ! sediment light in W m-2
+   _GET_(self%id_temp, temp_celsius) ! sediment-water temperature in deg C
+   _GET_(self%id_parz,   parz)    ! sediment light in W m-2
    _GET_(self%id_mpbCHL, mpbCHL)  ! MicroPhytoBenthos chlorophyll in mgChla m-3
    _GET_(self%id_mpbC,   mpbC)    ! MicroPhytoBenthos carbon in mmolC m-3
    _GET_(self%id_mpbN,   mpbN)    ! MicroPhytoBenthos nitrogen in mmolN m-3
@@ -510,30 +510,28 @@
    endif
 #else
    !----- nutrient uptake (TODO add dependencies on P, Si)
-   frac_NH4 = nh4 / (nh4 + self%KinNH4)                            ! (-)               [eq. 26]
+   frac_NH4 = nh4 /(nh4 + self%KinNH4)                             ! (-)
    if (isnan(frac_NH4)) frac_NH4 = zero
-   !if (isnan(frac_NH4)) print*,'mpb#477: (frac_NH4)',frac_NH4,nh4-tiny_N,nh4 + self%KinNH4
-   limN = nh4/(nh4 + self%KNH4) + no3/(no3 + self%KNO3) *(one - frac_NH4) ! (-)        [eq. 23,26]
-   if (no3+nh4 < 0.1_rk) then
+   x1 = no3 /self%KNO3
+   x2 = nh4 /self%KNH4
+   limN = (x1+x2) /(one+x1+x2)
+   !limN = (no3+nh4) /(self%KNO3+no3+nh4)
+   !limN = nh4/(nh4 + self%KNH4) + no3/(no3 + self%KNO3) *(one - frac_NH4) ! (-)
+   if (no3+nh4 < tiny) then
       frac_NH4 = one
       limN     = zero
    endif
    if (limN > zero) then
-      frac_NH4 = max( zero, nh4/(nh4 + self%KNH4) /limN)           ! (-)
-      limN     = min(limN, one)                                    ! (-)
+      frac_NH4 = max( zero, one-( x1*(one-frac_NH4)/(one+x1+x2)) ) ! (-)
+      !frac_NH4 = max( zero, one-( no3*(one-frac_NH4)/(self%KNO3+no3+nh4)) ) ! (-)
    endif
    !NOTE (mk): In Hochard et al (2010) no temperature dependency is considered for
    !           eq. 25+26 even though it is in the model they refer to (Geider,1998) !!
-   f_RNC    = max(zero, (self%Qmax - Q_N) / (self%Qmax - self%Qmin)) ! (-)             [eq. 25]
+   f_RNC  = max(zero, (self%Qmax - Q_N) / (self%Qmax - self%Qmin)) ! (-)               [eq. 25]
    uptNH4 = self%uptmax *tfac *f_RNC *(      frac_NH4) *limN *mpbC ! (mmolN d-1)       [eq. 23]
    uptNO3 = self%uptmax *tfac *f_RNC *(one - frac_NH4) *limN *mpbC ! (mmolN d-1)       [eq. 23]
    !if (isnan(uptNH4)) print*,'mpb#491: (uptNH4)',uptNH4,tfac,f_RNC,frac_NH4,limN,mpbC
    uptN   = max(zero, uptNO3 + uptNH4)                             ! (mmolN d-1)       [eq. 24]
-!    if (no3+nh4 < 0.1) then
-!       uptNH4 = zero
-!       uptNO3 = zero
-!       uptN   = zero
-!    endif
 #endif
 
    !----- Carbohydrate exudation:
@@ -550,7 +548,7 @@
    fac    = max(zero, one - theta/self%thetamax)                   ! (-)               [eq. 23]
    f_RChl = fac/(fac + 0.05_rk)                                    ! (-)               [eq. 23]
    uptchl = uptN *f_RChl                                           ! (mmolN  d-1)      [eq. 23]
-   prodChl= rhochl *uptChl - self%resp *tfac *mpbCHL               ! (mgChla d-1)      [eq. 21]
+   prodChl = rhochl *uptChl                                         ! (mgChla d-1)      [eq. 21]
 #endif
 
    !----- phosphorus uptake (TODO)
@@ -572,8 +570,6 @@
    endif
    !NOTE (mk): In Geider et al (1998) loss due to cell lysis/damage was accounted for as well
    lossphyto = self%resp *tfac *mpbN                               ! (mmolN m-3 d-1)   [-]
-   prodChl = prodChl - self%resp *tfac *mpbChl                     ! (mgChla m-3 d-1)  [-]
-   if (mpbChl > TINY) prodChl = max( zero, prodChl )
 #endif
 
    ! Zoobenthos grazing and associated processes:
@@ -605,7 +601,7 @@
 
 #define _CONV_UNIT_ *one_pr_day
    ! reaction rates
-   _SET_ODE_(self%id_mpbCHL, (prodChl                    - grazingChl)         _CONV_UNIT_)
+   _SET_ODE_(self%id_mpbCHL, (prodChl - lossphyto *theta - grazingChl)         _CONV_UNIT_)
    _SET_ODE_(self%id_mpbC,   (prod - respphyto - prodeps - grazingC)           _CONV_UNIT_)
    _SET_ODE_(self%id_mpbN,   (uptN - lossphyto           - grazingN)           _CONV_UNIT_)
    _SET_ODE_(self%id_eps,    (prodEPS - degrEPS)                               _CONV_UNIT_)

@@ -413,7 +413,7 @@
    real(rk) :: uptP, uptN, uptNO3, uptNH4, prodEPS, degrEPS, limGraz
    real(rk) :: grazingC, grazingN, grazingP, grazingChl, faecesC, faecesN, faecesP
    real(rk) :: respZoo, exudZoN, exudZoP, exportC, exportN, exportP
-   real(rk) :: NPP, SGR, TGR, GRZ, ruptN, ruptP, fac, f_RChl, limNO3, limNH4
+   real(rk) :: NPP, SGR, TGR, GRZ, ruptN, ruptP, x1, x2, fac, f_RChl, limNO3, limNH4
 
 !EOP
 !-----------------------------------------------------------------------
@@ -431,8 +431,8 @@
    ldet = -9999._rk
 
    ! Retrieve current (local) state variable values.
-!   _GET_(self%id_temp, temp_celsius) ! sediment-water temperature in deg C
-!   _GET_(self%id_parz,   parz)    ! sediment light in W m-2
+   _GET_(self%id_temp, temp_celsius) ! sediment-water temperature in deg C
+   _GET_(self%id_parz,   parz)    ! sediment light in W m-2
    _GET_(self%id_mpbCHL, mpbCHL)  ! MicroPhytoBenthos chlorophyll in mgChla m-3
    _GET_(self%id_mpbC,   mpbC)    ! MicroPhytoBenthos carbon in mmolC m-3
    _GET_(self%id_mpbN,   mpbN)    ! MicroPhytoBenthos nitrogen in mmolN m-3
@@ -497,18 +497,22 @@
    uptP = (mu_P * mpbN) - self%resp0 *tfac *mpbP                       ! (mmolP d-1)
 
    !----- nitrogen assimilation and regulation
-   frac_NH4 = nh4/(nh4+self%KinNH4)                                    ! (-)
+   frac_NH4 = nh4 /(nh4 + self%KinNH4)                                 ! (-)
    if (isnan(frac_NH4)) frac_NH4 = zero
-   limN = nh4/(nh4 + self%KNH4) + no3/(no3 + self%KNO3) *(one - frac_NH4) ! (-)
-   if (no3+nh4 < 0.1_rk) then
+   x1 = no3 /self%KNO3
+   x2 = nh4 /self%KNH4
+   limN = (x1+x2) /(one+x1+x2)
+   !limN = (no3+nh4) /(self%KNO3+no3+nh4)
+   !limN = nh4/(nh4 + self%KNH4) + no3/(no3 + self%KNO3) *(one - frac_NH4) ! (-)
+   if (no3+nh4 < TINY) then
       frac_NH4 = one
       limN     = zero
    endif
    if (limN > zero) then
-      frac_NH4 = min( one, max(zero, nh4/(nh4 + self%KNH4) /limN) )    ! (-)
-      limN     = min(limN, one)                                        ! (-)
+      frac_NH4 = max( zero, one-( x1*(one-frac_NH4)/(one+x1+x2)) )     ! (-)
+      !frac_NH4 = max( zero, one-( no3*(one-frac_NH4)/(self%KNO3+no3+nh4)) ) ! (-)
    endif
-   f_RNP = max( zero, one - (self%QPNmin /qPN) )                       ! (-) (Droop)
+   f_RNP = max( zero, one-(self%QPNmin /qPN) )                         ! (-) (Droop)
    f_RNC = one /( one + exp(-self%sigma_NC *(self%QNCmax-qNC)) )       ! (-)
    ! carbon specific nitrogen uptake rate
    mu_N = self%QNCupt *self%mu_max *tfac *f_RNP *f_RNC *limN *limO2    ! (mmolN mmolC-1 d-1) (vgl. Geider)
@@ -521,7 +525,7 @@
    !----- Carbohydrate exudation:
    prodEPS = self%fracEPS *prod                                        ! (mmolC m-3 d-1)
    !CprodEPS = sqrt(self%rLdet*self%rSdet) * eps  ! Source of this formulation? Kai Wirtz ??
-   degrEPS = max( zero, f_T *self%degrEPS *(eps-tiny) )                ! (mmolC m-3 d-1)
+   degrEPS = max( zero, f_T *self%degrEPS *(eps-TINY) )                ! (mmolC m-3 d-1)
 
    !----- chlorophyll synthesis
    if (mu_C .le. TINY) then
@@ -531,20 +535,21 @@
    endif
    fac    = max(zero, one - theta/self%theta_max)                      ! (-)   [vgl. HochardEtAl(2010) eq. 23]
    f_RChl = fac/(fac + 0.05_rk)                                        ! (-)   [vgl. HochardEtAl(2010) eq. 23]
-   ! net Chl synthesis
-   prodchl = mu_chl *f_RChl *mpbC - self%resp0 *tfac *mpbCHL           ! (mgChla m-3 d-1)
+   prodchl = mu_chl *f_RChl *mpbC                                      ! (mgChla m-3 d-1)
 
    !----- oxygen production and respiration / maintenance loss:
    prodO2  = self%gamma * prod                                         ! (mmolO2 m-3 d-1)
-   respphyto = self%resp0 *tfac *limO2 *mpbC +  &
-               uptNO3 *self%zeta_NO3 + uptNH4 *self%zeta_NH4           ! (mmolC m-3 d-1)
+   respphyto = self%resp0 *tfac *limO2 *mpbC                           ! (mmolC m-3 d-1)
+   if (self%resp0>zero) then
+      respphyto = respphyto + uptNO3 *self%zeta_NO3 + uptNH4 *self%zeta_NH4 ! (mmolC m-3 d-1)
+   endif
    ! limit respiration according to N/P-losses if numbers get very low
    if (mu_C .lt. TINY) respphyto = self%resp0 *tfac *limO2 *mpbC       ! (mmolC m-3 d-1)
    lossphytN = self%resp0 *tfac *mpbN                                  ! (mmolN m-3 d-1)
    lossphytP = self%resp0 *tfac *mpbP                                  ! (mmolN m-3 d-1)
 
    !----- Zoobenthos grazing and associated processes:
-   limGraz    = max( zero, (mpbC - tiny) /mpbC )
+   limGraz    = max( zero, (mpbC - TINY) /mpbC )
    grazingC   = self%graz *limO2 *limGraz *mpbC                        ! (mmolC m-3 d-1)
    grazingN   = self%graz *limO2 *limGraz *mpbN                        ! (mmolN m-3 d-1)
    grazingP   = self%graz *limO2 *limGraz *mpbP                        ! (mmolP m-3 d-1)
@@ -566,20 +571,19 @@
    GRZ = (grazingC) /mpbC                                              ! (d-1)
 
    ruptN = zero
-   if (uptN>tiny) ruptN = uptN/mpbN                                    ! (d-1)
+   if (uptN>TINY) ruptN = uptN/mpbN                                    ! (d-1)
 
    ruptP = zero
-   if (uptP>tiny) ruptP = uptP/mpbP                                    ! (d-1)
+   if (uptP>TINY) ruptP = uptP/mpbP                                    ! (d-1)
 
    if (mpbN<TINY) lossphytN = zero
    if (mpbP<TINY) lossphytP = zero
 
 #define _CONV_UNIT_ *one_pr_day
    ! reaction rates
-   _SET_ODE_(self%id_mpbCHL, (prodchl - lossphytN *theta    - grazingChl)      _CONV_UNIT_)
+   _SET_ODE_(self%id_mpbCHL, (prodChl - lossphytN *theta    - grazingChl)      _CONV_UNIT_)
    _SET_ODE_(self%id_mpbC,   (prod    - respphyto - prodeps - grazingC)        _CONV_UNIT_)
    _SET_ODE_(self%id_mpbN,   (uptN    - lossphytN           - grazingN)        _CONV_UNIT_)
-   !_SET_ODE_(self%id_mpbN,    zero                                               _CONV_UNIT_)
    _SET_ODE_(self%id_mpbP,   (uptP    - lossphytP           - grazingP)        _CONV_UNIT_)
    _SET_ODE_(self%id_eps,    (prodEPS - degrEPS)                               _CONV_UNIT_)
    ! external dependencies
@@ -615,7 +619,7 @@
    _SET_DIAGNOSTIC_(self%id_ftfac,    tfac)           !instantaneous temperature dependency
    _SET_DIAGNOSTIC_(self%id_fIR,      f_IR)           !instantaneous light limitation factor
    _SET_DIAGNOSTIC_(self%id_flimN,    limN)           !instantaneous DIN limitation factor
-   _SET_DIAGNOSTIC_(self%id_flimP,    limP)           !instantaneous DIN limitation factor
+   _SET_DIAGNOSTIC_(self%id_flimP,    limP)           !instantaneous DIP limitation factor
    _SET_DIAGNOSTIC_(self%id_flimO2,   limO2)          !instantaneous oxygen limitation factor
    _SET_DIAGNOSTIC_(self%id_fRChl,    f_RChl)         !instantaneous Chla synthesis regulation
    _SET_DIAGNOSTIC_(self%id_fRCN,     f_RCN)          !instantaneous C uptake downregulation due to qNC
