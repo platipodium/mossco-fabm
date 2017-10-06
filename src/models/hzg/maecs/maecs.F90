@@ -668,17 +668,17 @@ call self%register_state_variable(self%id_domN,  'domN','mmol-N/m**3','Dissolved
    domN_initial, minimum=_ZERO_, no_river_dilution=.false. )
 call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_domN)
 
-if (self%RubiscoOn) then
+!if (self%RubiscoOn) then
     Rub = frac_Rub_ini * phyC_initial  ! trait times biomass
     call self%register_state_variable(self%id_Rub,   'Rub','-','fraction of Rubisco Rub', &
        Rub, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution )
-end if
+!end if
 
-if (self%PhotoacclimOn) then
+!if (self%PhotoacclimOn) then
     chl = frac_chl_ini * phyC_initial  ! trait times biomass
     call self%register_state_variable(self%id_chl,   'chl','mg-Chl/m**3','Chl chl', &
        chl, minimum=_ZERO_, no_river_dilution=plankton_no_river_dilution )
-end if
+!end if
 
 if (self%PhosphorusOn) then
     call self%register_state_variable(self%id_nutP,  'nutP','mmol-P/m**3','Dissolved Inorganic Phosphorus DIP nutP', &

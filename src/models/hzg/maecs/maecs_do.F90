@@ -681,9 +681,13 @@ end if !IsCritical
   _SET_ODE_(self%id_domN, rhsv%domN UNIT)
 if (self%RubiscoOn) then
       _SET_ODE_(self%id_Rub, rhsv%Rub UNIT)
+else 
+      _SET_ODE_(self%id_Rub, 0)
 end if
 if (self%PhotoacclimOn) then
       _SET_ODE_(self%id_chl, rhsv%chl UNIT)
+else 
+      _SET_ODE_(self%id_chl, 0)
 end if
 if (self%PhosphorusOn) then
       _SET_ODE_(self%id_nutP, rhsv%nutP UNIT)
