@@ -44,7 +44,7 @@
       type (type_diagnostic_variable_id)   :: id_denit, id_adsp
 
 !     Model parameters
-      real(rk) :: rFast, rSlow, NCrLdet, NCrSdet, PAds, PAdsODU
+      real(rk) :: rLabile, rSemilabile, NCrLdet, NCrSdet, PAds, PAdsODU
       real(rk) :: NH3Ads, rnit, ksO2nitri,rODUox, CprodMax
       real(rk) :: ksO2oduox, ksO2oxic, ksNO3denit, kinO2denit, kinNO3anox, kinO2anox
 
@@ -90,8 +90,8 @@
    real(rk)  :: oxy_init      ! dissolved oxygen                            (        mmolP  m-3 solid)
    real(rk)  :: odu_init      ! dissolved reduced substances                (        mmolP  m-3 liquid)
 !!------- Parameters -------  ! (reference Values refer to Soetaert (1996))
-   real(rk)  :: rFast         ! decay rate labile detritus (fast decay)     (        d-1)
-   real(rk)  :: rSlow         ! decay rate semilabile detritus (slow decay) (        d-1)
+   real(rk)  :: rLabile         ! decay rate labile detritus (fast decay)     (        d-1)
+   real(rk)  :: rSemilabile         ! decay rate semilabile detritus (slow decay) (        d-1)
    real(rk)  :: NCrLdet       ! N/C ratio labile detritus (fast decay)      (0.1509  molN molC-1)
    real(rk)  :: NCrSdet       ! N/C ratio semilabile detritus (slow decay)  (0.1333  molN molC-1)
    real(rk)  :: PAds          ! Adsorption coeff phosphorus                 (        -)
@@ -109,7 +109,7 @@
    real(rk)  :: kinO2anox     ! half-sat for O2  inhibition in anoxic mineralization         (5.0  mmolO2 m-3)
 
    namelist /hzg_omexdia_p/  &
-          rFast, rSlow, NCrLdet, NCrSdet, PAds, PAdsODU, NH3Ads, &
+          rLabile, rSemilabile, NCrLdet, NCrSdet, PAds, PAdsODU, NH3Ads, &
           CprodMax, rnit, ksO2nitri, rODUox, ksO2oduox, ksO2oxic, ksNO3denit,      &
           kinO2denit, kinNO3anox, kinO2anox,                                       &
           ldetC_init, sdetC_init, oxy_init, odu_init, no3_init, nh3_init,          &
@@ -122,8 +122,8 @@
    if (configunit>0) read(configunit,nml=hzg_omexdia_p,err=99,end=100)
 
    ! Store parameter values in our own derived type
-   self%rFast      = rFast
-   self%rSlow      = rSlow
+   self%rLabile    = rLabile
+   self%rSemilabile= rSemilabile
    self%NCrLdet    = NCrLdet
    self%NCrSdet    = NCrSdet
    self%PAds       = PAds
@@ -221,7 +221,7 @@
    real(rk) :: ldetC, sdetC, oxy, odu, no3, nh3, detP, po4
    real(rk) :: temp_celsius, temp_kelvin, f_T, E_a
    real(rk) :: radsP, Oxicminlim, Denitrilim, Anoxiclim, Rescale, rP
-   real(rk) :: CprodF, CprodS, Cprod, Nprod, Pprod
+   real(rk) :: CprodL, CprodS, Cprod, Nprod, Pprod
    real(rk) :: AnoxicMin, Denitrific, OxicMin, Nitri, OduDepo, OduOx, pDepo
 !   real(rk) :: CprodMax = 24.0 ! d^-1 maximal C-degrad rate for numeric stability
 !EOP
@@ -255,21 +255,21 @@
    if(Oxicminlim - 1E-3 < -Denitrilim-Anoxiclim) Oxicminlim = 1E-3-Denitrilim-Anoxiclim  ! (-)
    Rescale    = 1.0_rk/(Oxicminlim+Denitrilim+Anoxiclim)     !Soetaert eq 3.4
 
-   CprodF = f_T * self%rFast * ldetC   ! (mmolC m-3 d-1)
-   CprodS = f_T * self%rSlow * sdetC   ! (mmolC m-3 d-1)
+   CprodL = f_T * self%rLabile * ldetC   ! (mmolC m-3 d-1)
+   CprodS = f_T * self%rSemilabile * sdetC   ! (mmolC m-3 d-1)
 
 ! assume upper reactive surface area for POC hydrolysis (introduced by Kai Wirtz ?)
    if (CprodS > self%CprodMax) CprodS = self%CprodMax
-   if (CprodF > self%CprodMax) CprodF = self%CprodMax
+   if (CprodL > self%CprodMax) CprodL = self%CprodMax
 
-   Cprod  = CprodF + CprodS                               ! (mmolC m-3 d-1)
-   Nprod  = CprodF * self%NCrLdet + CprodS * self%NCrSdet ! (mmolN m-3 d-1) !MK: how to implement N/C-ratio from (coupled) external model?
+   Cprod  = CprodL + CprodS                               ! (mmolC m-3 d-1)
+   Nprod  = CprodL * self%NCrLdet + CprodS * self%NCrSdet ! (mmolN m-3 d-1) !MK: how to implement N/C-ratio from (coupled) external model?
 
 ! PO4-adsorption ceases when critical capacity is reached
 ! [FeS] approximated by ODU
 ! TODO: temperature dependency
    radsP  = self%PAds  * po4 * 1.0_rk/(1.0_rk+exp(-5.0_rk+(odu-oxy)/self%PAdsODU)) ! (?)
-   rP     = f_T * self%rFast * 2 ! (1.0_rk - Oxicminlim)  ! (d-1)
+   rP     = f_T * self%rLabile * 2 ! (1.0_rk - Oxicminlim)  ! (d-1)
    Pprod  = rP * detP                                     ! (mmolP m-3 d-1)
 
 ! Oxic mineralisation, denitrification, anoxic mineralisation
@@ -292,7 +292,7 @@
 
 #define _CONV_UNIT_ *one_pr_day
 ! reaction rates
-   _SET_ODE_(self%id_ldetC, -CprodF                                        _CONV_UNIT_)  ! (mmolC  m-3 d-1)
+   _SET_ODE_(self%id_ldetC, -CprodL                                        _CONV_UNIT_)  ! (mmolC  m-3 d-1)
    _SET_ODE_(self%id_sdetC, -CprodS                                        _CONV_UNIT_)  ! (mmolC  m-3 d-1)
    _SET_ODE_(self%id_oxy,  (-OxicMin*gammaO2     - Nitri*gammaNH3 - OduOx) _CONV_UNIT_)  ! (mmolO2 m-3 d-1)
    _SET_ODE_(self%id_no3,  (-Denitrific*gammaNO3 + Nitri)                  _CONV_UNIT_)  ! (mmolN  m-3 d-1)
