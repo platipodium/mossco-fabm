@@ -867,7 +867,9 @@ call self%register_horizontal_dependency(self%id_zmax,standard_variables%bottom_
 
 !call self%register_dependency(self%id_o2flux, standard_variable=type_horizontal_standard_variable('dissolved_oxygen_upward_flux_at_soil_surface','mmolO2 m-2','dissolved_oxygen_upward_flux_at_soil_surface'))
 !call self%register_dependency(self%id_oduflux, standard_variable=type_horizontal_standard_variable('dissolved_reduced_substances_upward_flux_at_soil_surface','mmolO2 m-2','dissolved_reduced_substances_upward_flux_at_soil_surface'))
-call self%register_dependency(self%id_tke_bot, standard_variable=type_horizontal_standard_variable('turbulent_kinetic_energy_at_soil_surface','m3','turbulent_kinetic_energy_at_soil_surface'))
+if (self%kwFzmaxMeth .eq. 4) then
+    call self%register_dependency(self%id_tke_bot, standard_variable=type_horizontal_standard_variable('turbulent_kinetic_energy_at_soil_surface','m3','turbulent_kinetic_energy_at_soil_surface'))
+end if
 
 call self%register_horizontal_dependency(self%id_lat,standard_variables%latitude)
 call self%register_horizontal_dependency(self%id_lon,standard_variables%longitude)
