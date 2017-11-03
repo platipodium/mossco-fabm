@@ -36,7 +36,7 @@
    type,extends(type_base_model) :: type_hzg_mpb_cnp
 !     Variable identifiers
       type (type_state_variable_id)        :: id_no3, id_nh4, id_po4, id_oxy, id_ldetC, id_ldetN, id_ldetP
-      type (type_state_variable_id)        :: id_dic, id_zbC, id_zbN, id_zbP
+      type (type_state_variable_id)        :: id_dic, id_zbC, id_zbN, id_zbP, id_sdetN
       type (type_state_variable_id)        :: id_mpbCHL, id_mpbC, id_mpbN, id_mpbP, id_eps
       type (type_dependency_id)            :: id_temp, id_parz, id_porosity
       type (type_diagnostic_variable_id)   :: id_PrimProd, id_par, id_qNC, id_Q_chl, id_ThetaN
@@ -52,7 +52,7 @@
       real(rk) :: Tref, Q10, alpha, mu_max, resp0, zeta_NO3, zeta_NH4, kPO4, kNO3, kNH4, kInNH4
       real(rk) :: theta_max, QNCmin, QNCmax, QNCupt, QPNmin, QPNmax, QPNupt, sigma_NC, sigma_PN
       real(rk) :: kO2resp, gamma, fracEPS, degrEPS, graz, aeff, exud, rzoo
-      logical  :: use_no3, use_nh4, use_po4, use_oxy, use_ldetC, use_ldetN, use_ldetP
+      logical  :: use_no3, use_nh4, use_po4, use_oxy, use_ldetC, use_ldetN, use_ldetP, use_sdetN
       logical  :: use_dic, use_zbC, use_zbN, use_zbP
 
       contains
@@ -131,17 +131,18 @@
    real(rk)  :: rzoo          ! Respiration rate for zoobenthos             (0.10  d-1)
 !
 !!------- Optional external dependencies -------
-   character(len=attribute_length) :: no3_variable  = ''  ! dissolved nitrate
-   character(len=attribute_length) :: nh4_variable  = ''  ! dissolved ammonium
-   character(len=attribute_length) :: po4_variable  = ''  ! dissolved phosphate
-   character(len=attribute_length) :: oxy_variable  = ''  ! dissolved oxygen
+   character(len=attribute_length) :: no3_variable   = ''  ! dissolved nitrate
+   character(len=attribute_length) :: nh4_variable   = ''  ! dissolved ammonium
+   character(len=attribute_length) :: po4_variable   = ''  ! dissolved phosphate
+   character(len=attribute_length) :: oxy_variable   = ''  ! dissolved oxygen
    character(len=attribute_length) :: ldetC_variable = ''  ! labile detritus carbon (fast decay)
    character(len=attribute_length) :: ldetN_variable = ''  ! labile detritus nitrogen (fast decay)
    character(len=attribute_length) :: ldetP_variable = ''  ! labile detritus phosphorus (fast decay)
-   character(len=attribute_length) :: dic_variable  = ''  ! dissolved inorganic carbon
-   character(len=attribute_length) :: zbC_variable  = ''  ! zoobenthos carbon
-   character(len=attribute_length) :: zbN_variable  = ''  ! zoobenthos nitrogen
-   character(len=attribute_length) :: zbP_variable  = ''  ! zoobenthos phosphorus
+   character(len=attribute_length) :: sdetN_variable = ''  ! semilabile detritus nitrogen (slow decay)
+   character(len=attribute_length) :: dic_variable   = ''  ! dissolved inorganic carbon
+   character(len=attribute_length) :: zbC_variable   = ''  ! zoobenthos carbon
+   character(len=attribute_length) :: zbN_variable   = ''  ! zoobenthos nitrogen
+   character(len=attribute_length) :: zbP_variable   = ''  ! zoobenthos phosphorus
 
    namelist /hzg_mpb_cnp/ &
           Tref, Q10, alpha, mu_max, resp0, zeta_NO3, zeta_NH4, kPO4, kNO3, kNH4, kInNH4, &
@@ -150,8 +151,8 @@
           mpbCHL_init, mpbC_init, mpbN_init, mpbP_init, eps_init
 
    namelist /hzg_mpb_cnp_dependencies/  &
-          no3_variable, nh4_variable, po4_variable, oxy_variable, &
-          ldetC_variable, ldetN_variable, ldetP_variable,         &
+          no3_variable, nh4_variable, po4_variable, oxy_variable,         &
+          ldetC_variable, ldetN_variable, ldetP_variable, sdetN_variable, &
           dic_variable, zbC_variable, zbN_variable, zbP_variable
 
 !EOP
@@ -231,7 +232,7 @@
       call self%request_coupling(self%id_no3, no3_variable)
    else
       call self%register_state_variable(self%id_no3, 'no3', 'mmolN m-3',    &
-            'dissolved nitrate', 10.0_rk, minimum=0.0_rk,                   &
+            'dissolved nitrate', 20.0_rk, minimum=0.0_rk,                   &
             standard_variable=standard_variables%mole_concentration_of_nitrate)
       call self%set_variable_property(self%id_no3, 'particulate', .false.)
    endif
@@ -243,7 +244,7 @@
       call self%request_coupling(self%id_nh4, nh4_variable)
    else
       call self%register_state_variable(self%id_nh4, 'nh4', 'mmolN m-3',    &
-            'dissolved ammonium', 4.0_rk, minimum=0.0_rk,                   &
+            'dissolved ammonium', 40._rk, minimum=0.0_rk,                   &
             standard_variable=standard_variables%mole_concentration_of_ammonium)
       call self%set_variable_property(self%id_nh4, 'particulate', .false.)
    endif
@@ -255,7 +256,7 @@
       call self%request_coupling(self%id_po4, po4_variable)
    else
       call self%register_state_variable(self%id_po4, 'po4', 'mmolP m-3',    &
-            'dissolved phosphate', 1.0_rk, minimum=0.0_rk,                  &
+            'dissolved phosphate', 10._rk, minimum=0.0_rk,                  &
             standard_variable=standard_variables%mole_concentration_of_phosphate)
       call self%set_variable_property(self%id_po4, 'particulate', .false.)
    endif
@@ -278,7 +279,7 @@
       call self%request_coupling(self%id_ldetC, ldetC_variable)
    else
       call self%register_state_variable(self%id_ldetC, 'ldetC', 'mmolC m-3',  &
-            'detritus labile carbon', 1.0_rk, minimum=0.0_rk)
+            'detritus labile carbon', 4.e3_rk, minimum=0.0_rk)
       call self%set_variable_property(self%id_ldetC, 'particulate', .true.)
    endif
 
@@ -289,7 +290,7 @@
       call self%request_coupling(self%id_ldetN, ldetN_variable)
    else
       call self%register_state_variable(self%id_ldetN, 'ldetN', 'mmolN m-3',  &
-            'detritus labile nitrogen', 0.23_rk, minimum=0.0_rk)
+            'detritus labile nitrogen', 9.2e2_rk, minimum=0.0_rk)
       call self%set_variable_property(self%id_ldetN, 'particulate', .true.)
    endif
 
@@ -300,8 +301,16 @@
       call self%request_coupling(self%id_ldetP, ldetP_variable)
    else
       call self%register_state_variable(self%id_ldetP, 'ldetP', 'mmolP m-3',  &
-            'detritus labile phosphorus', 0.1_rk, minimum=0.0_rk)
+            'detritus labile phosphorus', 4.0_rk, minimum=0.0_rk)
       call self%set_variable_property(self%id_ldetP, 'particulate', .true.)
+   endif
+
+   ! optional external dependencies
+   self%use_sdetN = sdetN_variable/=''
+   if (self%use_sdetN) then
+      call self%register_state_dependency(self%id_sdetN, sdetN_variable, 'mmolN m-3',  &
+            'detritus semilabile nitrogen', required=.false.)
+      call self%request_coupling(self%id_sdetN, sdetN_variable)
    endif
 
    self%use_dic  = dic_variable/=''
@@ -436,7 +445,7 @@
    real(rk), parameter :: gammaO2  = 1.0_rk    ! molO2 used per molC respired
    real(rk), parameter :: T0       = 288.15_rk ! reference Temperature fixed to 15 degC
    real(rk), parameter :: Q10b     = 1.5_rk    ! q10 temperature coefficient (source?)
-   real(rk) :: mpbC, mpbN, mpbP, mpbCHL, eps, no3, nh4, po4, oxy, ldetC, ldetN, ldetP, DIN
+   real(rk) :: mpbC, mpbN, mpbP, mpbCHL, eps, no3, nh4, po4, oxy, ldetC, ldetN, ldetP, sdetN, DIN
    real(rk) :: temp_celsius, temp_kelvin, f_T, E_a, tfac, parz, porosity
    real(rk) :: qNC, qPN, Q_chl, theta, mu_C, mu_N, mu_P, mu_chl, limN, limP, limO2
    real(rk) :: Pmax, f_IR, f_RCN, f_RPC, f_RPN, f_RNP, f_RNC, frac_NH4
@@ -462,10 +471,12 @@
    ldetC = -9999._rk
    ldetN = -9999._rk
    ldetP = -9999._rk
+   sdetN =     4._rk
+   !sdetN =   0.01_rk
 
    ! Retrieve current (local) state variable values.
-  ! _GET_(self%id_temp, temp_celsius) ! sediment-water temperature in deg C
-  ! _GET_(self%id_parz,   parz)    ! sediment light in W m-2
+   _GET_(self%id_temp, temp_celsius) ! sediment-water temperature in deg C
+   _GET_(self%id_parz,   parz)    ! sediment light in W m-2
    _GET_(self%id_mpbCHL, mpbCHL)  ! MicroPhytoBenthos chlorophyll in mgChla m-3
    _GET_(self%id_mpbC,   mpbC)    ! MicroPhytoBenthos carbon in mmolC m-3
    _GET_(self%id_mpbN,   mpbN)    ! MicroPhytoBenthos nitrogen in mmolN m-3
@@ -479,8 +490,9 @@
    _GET_(self%id_ldetC,  ldetC)   ! fast decaying detritus C in mmolC m-3
    _GET_(self%id_ldetN,  ldetN)   ! fast decaying detritus N in mmolN m-3
    _GET_(self%id_ldetP,  ldetP)   ! fast decaying detritus P in mmolP m-3
+    if (self%use_sdetN) _GET_(self%id_sdetN,  sdetN)   ! slow decaying detritus N in mmolN m-3
    DIN = no3+nh4
-   totN = DIN + mpbN + ldetN
+   totN = DIN + mpbN + ldetN + sdetN
    totP = po4 + mpbP + ldetP
 
    ! global temperature dependency
@@ -516,7 +528,7 @@
      ! light limitation
      f_IR = one -exp(-self%alpha *theta *parz /Pmax)                   ! (-)
      ! carbon assimilation rate
-     mu_C = Pmax *f_IR *limO2                                          ! (d-1)
+     mu_C = Pmax *f_IR                                                 ! (d-1)
    endif
    prod = mu_C * mpbC                                                  ! (mmolC m-3 d-1)
 
@@ -530,7 +542,7 @@
    f_RPN = one/( one + exp(-self%sigma_PN *(self%QPNmax-qPN)) )        ! (-)
    !f_RPN = max( zero, two/( one + exp(-self%sigma_PN *(self%QPNmax-qPN)) ) -one ) ! (-)
    ! P-assimilation is not directly related to amount of proteins (as "expressed" by qNC)
-   mu_P = self%QPNupt *self%mu_max *tfac *f_RPC *f_RPN *limP *limO2    ! (mmolP mmolN-1 d-1)
+   mu_P = self%QPNupt *self%mu_max *tfac *f_RPC *f_RPN *limP           ! (mmolP mmolN-1 d-1)
    ! net P uptake rate
    uptP = mu_P * mpbN                                                  ! (mmolP d-1)
 
@@ -551,7 +563,7 @@
    f_RNC = one /( one + exp(-self%sigma_NC *(self%QNCmax-qNC)) )       ! (-)
    !f_RNC = max( zero, two/( one + exp(-self%sigma_NC *(self%QNCmax-qNC)) ) -one ) ! (-)
    ! carbon specific nitrogen uptake rate
-   mu_N = self%QNCupt *self%mu_max *tfac *f_RNP *f_RNC *limN *limO2    ! (mmolN mmolC-1 d-1) (vgl. Geider)
+   mu_N = self%QNCupt *self%mu_max *tfac *f_RNP *f_RNC *limN           ! (mmolN mmolC-1 d-1) (vgl. Geider)
    if (mu_N .lt. TINY ) mu_N = zero                                    ! (mmolN mmolC-1 d-1)
    ! N uptake rates
    uptNH4  = (      frac_NH4)*mu_N*mpbC                                ! (mmolN d-1)

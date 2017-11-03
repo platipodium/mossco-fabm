@@ -35,7 +35,7 @@
 ! !PUBLIC DERIVED TYPES:
    type,extends(type_base_model) :: type_hzg_mpb
 !     Variable identifiers
-      type (type_state_variable_id)        :: id_no3, id_nh4, id_po4, id_oxy, id_ldet
+      type (type_state_variable_id)        :: id_no3, id_nh4, id_po4, id_oxy, id_ldetC
       type (type_state_variable_id)        :: id_dic, id_zbC, id_zbN, id_zbP
       type (type_state_variable_id)        :: id_mpbCHL, id_mpbC, id_mpbN, id_eps
       type (type_dependency_id)            :: id_temp, id_parz, id_porosity
@@ -43,7 +43,8 @@
       type (type_diagnostic_variable_id)   :: id_expCProd, id_expNProd, id_mpbP
       type (type_diagnostic_variable_id)   :: id_NPP, id_SGR, id_TGR, id_SPR, id_SMR
 ! temporary for debugging
-      type (type_diagnostic_variable_id)   :: id_MPB_din, id_MPB_no3, id_MPB_nh4, id_MPB_po4, id_MPB_temp
+      type (type_diagnostic_variable_id)   :: id_MPB_din, id_MPB_no3, id_MPB_nh4, id_MPB_po4
+      type (type_diagnostic_variable_id)   :: id_MPB_temp, id_MPB_totN, id_MPB_totP
       type (type_diagnostic_variable_id)   :: id_fIR, id_flimN, id_flimP, id_flimO2, id_uptN, id_uptP
       type (type_diagnostic_variable_id)   :: id_fRChl, id_fRCN, id_fRNC, id_fRNP, id_fRPN, id_ftfac
 
@@ -51,7 +52,7 @@
       real(rk) :: Tref, mumax, alpha, gamma, Qmin, Qmax, thetamax, uptmax, KNH4, KNO3
       real(rk) :: KinNH4, kEPS, rEPS, resp, Kresp, graz, kout, kexu, rzoo
       real(rk) :: k0, Achla, btemp
-      logical  :: use_no3, use_nh4, use_po4, use_oxy, use_ldet, use_dic, use_zbC, use_zbN
+      logical  :: use_no3, use_nh4, use_po4, use_oxy, use_ldetC, use_dic, use_zbC, use_zbN
 
       contains
 
@@ -121,14 +122,14 @@
    real(rk)  :: k0            !*Extinction coefficient of sediment          (20.0  cm-1)         *obsolete/currently not used!!!
    real(rk)  :: Achla         !*Absorption factor of chlorophyll            (0.02  m2 mgChla-1)  *obsolete/currently not used!!!
 !!------- Optional external dependencies -------
-   character(len=attribute_length) :: no3_variable  = ''  ! dissolved nitrate
-   character(len=attribute_length) :: nh4_variable  = ''  ! dissolved ammonium
-   character(len=attribute_length) :: po4_variable  = ''  ! dissolved phosphorus
-   character(len=attribute_length) :: oxy_variable  = ''  ! dissolved oxygen
-   character(len=attribute_length) :: ldet_variable = ''  ! labile detritus carbon (fast decay)
-   character(len=attribute_length) :: dic_variable  = ''  ! dissolved inorganic carbon
-   character(len=attribute_length) :: zbC_variable  = ''  ! zoobenthos carbon
-   character(len=attribute_length) :: zbN_variable  = ''  ! zoobenthos nitrogen
+   character(len=attribute_length) :: no3_variable   = ''  ! dissolved nitrate
+   character(len=attribute_length) :: nh4_variable   = ''  ! dissolved ammonium
+   character(len=attribute_length) :: po4_variable   = ''  ! dissolved phosphorus
+   character(len=attribute_length) :: oxy_variable   = ''  ! dissolved oxygen
+   character(len=attribute_length) :: ldetC_variable = ''  ! labile detritus carbon (fast decay)
+   character(len=attribute_length) :: dic_variable   = ''  ! dissolved inorganic carbon
+   character(len=attribute_length) :: zbC_variable   = ''  ! zoobenthos carbon
+   character(len=attribute_length) :: zbN_variable   = ''  ! zoobenthos nitrogen
 
    namelist /hzg_mpb/ &
           Tref, mumax, btemp, alpha, gamma, Qmin, Qmax, thetamax, uptmax, KNH4, KNO3,   &
@@ -136,7 +137,7 @@
           mpbCHL_init, mpbC_init, mpbN_init, eps_init
 
    namelist /hzg_mpb_dependencies/  &
-          no3_variable, nh4_variable, po4_variable, oxy_variable, ldet_variable, &
+          no3_variable, nh4_variable, po4_variable, oxy_variable, ldetC_variable, &
           dic_variable, zbC_variable, zbN_variable
 
 !EOP
@@ -207,7 +208,7 @@
       call self%request_coupling(self%id_no3, no3_variable)
    else
       call self%register_state_variable(self%id_no3, 'no3', 'mmolN m-3',    &
-            'dissolved nitrate', 10.0_rk, minimum=0.0_rk,                   &
+            'dissolved nitrate', 20.0_rk, minimum=0.0_rk,                   &
             standard_variable=standard_variables%mole_concentration_of_nitrate)
       call self%set_variable_property(self%id_no3, 'particulate', .false.)
    endif
@@ -219,7 +220,7 @@
       call self%request_coupling(self%id_nh4, nh4_variable)
    else
       call self%register_state_variable(self%id_nh4, 'nh4', 'mmolN m-3',    &
-            'dissolved ammonium', 4.0_rk, minimum=0.0_rk,                   &
+            'dissolved ammonium', 40.0_rk, minimum=0.0_rk,                  &
             standard_variable=standard_variables%mole_concentration_of_ammonium)
       call self%set_variable_property(self%id_nh4, 'particulate', .false.)
    endif
@@ -231,7 +232,7 @@
       call self%request_coupling(self%id_po4, po4_variable)
    else
       call self%register_state_variable(self%id_po4, 'po4', 'mmolP m-3',    &
-            'dissolved phosphate', 1.0_rk, minimum=0.0_rk,                  &
+            'dissolved phosphate', 10.0_rk, minimum=0.0_rk,                 &
             standard_variable=standard_variables%mole_concentration_of_phosphate)
       call self%set_variable_property(self%id_po4, 'particulate', .false.)
    endif
@@ -247,15 +248,15 @@
       call self%set_variable_property(self%id_oxy, 'particulate', .false.)
    endif
 
-   self%use_ldet = ldet_variable/=''
-   if (self%use_ldet) then
-      call self%register_state_dependency(self%id_ldet, ldet_variable, 'mmolC m-3',  &
+   self%use_ldetC = ldetC_variable/=''
+   if (self%use_ldetC) then
+      call self%register_state_dependency(self%id_ldetC, ldetC_variable, 'mmolC m-3',  &
             'detritus labile carbon', required=.false.)
-      call self%request_coupling(self%id_ldet, ldet_variable)
+      call self%request_coupling(self%id_ldetC, ldetC_variable)
    else
-      call self%register_state_variable(self%id_ldet, 'ldet', 'mmolC m-3',  &
-            'detritus labile carbon', 4.0_rk, minimum=0.0_rk)
-      call self%set_variable_property(self%id_ldet, 'particulate', .true.)
+      call self%register_state_variable(self%id_ldetC, 'ldetC', 'mmolC m-3',  &
+            'detritus labile carbon', 4.e3_rk, minimum=0.0_rk)
+      call self%set_variable_property(self%id_ldetC, 'particulate', .true.)
    endif
 
    self%use_dic  = dic_variable/=''
@@ -333,14 +334,18 @@
   ! temporary for debugging:
    call self%register_diagnostic_variable(self%id_MPB_temp, 'MPB_temp',   'degC',            &
          'MPB temperature',                                 output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_MPB_DIN,  'MPB_DIN',    'mmolN m-3 d-1',   &
+   call self%register_diagnostic_variable(self%id_MPB_DIN,  'MPB_DIN',    'mmolN m-3',       &
          'MPB DIN',                                         output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_MPB_no3,  'MPB_no3',    'mmolN m-3 d-1',   &
+   call self%register_diagnostic_variable(self%id_MPB_no3,  'MPB_no3',    'mmolN m-3',       &
          'MPB no3',                                         output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_MPB_nh4,  'MPB_nh4',    'mmolN m-3 d-1',   &
+   call self%register_diagnostic_variable(self%id_MPB_nh4,  'MPB_nh4',    'mmolN m-3',       &
          'MPB nh4',                                         output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_MPB_po4,  'MPB_po4',    'mmolP m-3 d-1',   &
+   call self%register_diagnostic_variable(self%id_MPB_po4,  'MPB_po4',    'mmolP m-3',       &
          'MPB po4',                                         output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_MPB_totN, 'MPB_totN',   'mmolN m-3',       &
+         'MPB totN',                                        output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_MPB_totP, 'MPB_totP',   'mmolP m-3',       &
+         'MPB totP',                                        output=output_instantaneous)
 
    ! Register dependencies
    call self%register_dependency(self%id_temp, standard_variables%temperature)
@@ -379,14 +384,15 @@
    real(rk), parameter :: gammaO2  = 1.0_rk    ! molO2 used per molC respired
    real(rk), parameter :: T0       = 288.15_rk ! reference Temperature fixed to 15 degC
    real(rk), parameter :: Q10b     = 1.5_rk    ! q10 temperature coefficient (source?)
-   real(rk) :: mpbC, mpbN, mpbP, mpbCHL, eps, no3, nh4, po4, oxy, ldet, DIN
+   real(rk), parameter :: NCrLdet  = 0.20_rk   ! N/C ratio labile detritus (fast decay)
+   real(rk) :: mpbC, mpbN, mpbP, mpbCHL, eps, no3, nh4, po4, oxy, ldetC, DIN
    real(rk) :: temp_celsius, temp_kelvin, f_T, E_a, parz, porosity, degrEPS
-   real(rk) :: prodChl, theta, Q_N, Q_chl, Pmax, PP, prod, prodeps, fac, tfac
-   real(rk) :: prodO2, rhochl, uptNH4, uptNO3, uptchl, uptN, respphyto, lossphyto
+   real(rk) :: prodChl, theta, Q_N, Q_chl, Pmax, PP, prod, prodEPS, fac, tfac, totN, totP
+   real(rk) :: prodO2, rhoChl, uptNH4, uptNO3, uptChl, uptN, respphyto, lossphyto
    real(rk) :: grazingC, grazingN, grazingChl, respzoo, exud, faecesC, faecesN
    real(rk) :: exportC, exportN, NPP, SGR, TGR, GRZ, ruptN, ruptP, x1, x2
-   real(rk) :: f_IR, f_RChl, f_RCN, f_RPC, f_RPN, f_RNP, f_RNC
-   real(rk) :: frac_NH4, limN, limP, limO2
+   real(rk) :: f_IR, f_RCN, f_RPC, f_RPN, f_RNP, f_RNC, f_RChl
+   real(rk) :: lim_NO3, lim_NH4, limN, limP, limO2
 
 !EOP
 !-----------------------------------------------------------------------
@@ -397,11 +403,11 @@
    ! initialize local external dependencies
    temp_celsius = 15.0_rk
    parz         = 50.0_rk
-   no3  = -9999._rk
-   nh4  = -9999._rk
-   po4  = -9999._rk
-   oxy  = -9999._rk
-   ldet = -9999._rk
+   no3   = -9999._rk
+   nh4   = -9999._rk
+   po4   = -9999._rk
+   oxy   = -9999._rk
+   ldetC = -9999._rk
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_temp, temp_celsius) ! sediment-water temperature in deg C
@@ -416,9 +422,10 @@
    _GET_(self%id_nh4,    nh4)     ! dissolved ammonium in mmolN m-3
    _GET_(self%id_po4,    po4)     ! dissolved phosphate in mmolP m-3
    _GET_(self%id_oxy,    oxy)     ! dissolved oxygen in mmolO2 m-3
-   _GET_(self%id_ldet,   ldet)    ! fast decaying detritus C in mmolC m-3
+   _GET_(self%id_ldetC,  ldetC)   ! fast decaying detritus C in mmolC m-3
    DIN = no3+nh4
-!if (isnan(DIN)) print*,'mpb#416: (DIN,no3,nh4)',DIN, no3, nh4
+   totN = DIN + mpbN
+   totP = po4 + mpbP
 
    ! temperature dependency
    temp_kelvin = 273.15_rk + temp_celsius
@@ -434,8 +441,6 @@
    Q_N    = mpbN   / mpbC      ! molN  molC-1
    Q_chl  = mpbCHL / mpbC      ! gChla molC-1
    theta  = mpbCHL / mpbN      ! gChla molN-1
-!if (isnan(Q_chl)) print*,'mpb#431: (Q_chl,mpbCHL,mpbC)',Q_chl, mpbCHL, mpbC
-!if (isnan(theta)) print*,'mpb#432: (theta,mpbCHL,mpbN)',theta, mpbCHL, mpbN
 
    !----- microphytes temperature dependency
    tfac   = exp( self%btemp * (temp_celsius-self%Tref) )           ! (-) (@HochardEtAl Tref:=0degC) [eq. 19]
@@ -458,16 +463,16 @@
 
 #ifdef HochardEtAl
    !----- chlorophyll synthesis (eq. 21,22,23)
-   rhochl = zero
+   rhoChl = zero
    if (parz .gt. zero) then
-      rhochl = self%thetamax * PP/(self%alpha * parz * Q_chl)      ! (gChla molN-1)    [eq. 22]
+      rhoChl = self%thetamax * PP/(self%alpha * parz * Q_chl)      ! (gChla molN-1)    [eq. 22]
    endif
    fac    = max(zero, one - theta/self%thetamax)                   ! (-)               [eq. 23]
    f_RChl = fac/(fac + 0.05_rk)                                    ! (-)               [eq. 23]
    uptNH4 = self%uptmax *nh4/(nh4 + self%KNH4)                     ! (molN molC-1 d-1) [eq. 23]
    uptNO3 = self%uptmax *no3/(no3 + self%KNO3)                     ! (molN molC-1 d-1) [eq. 23]
-   uptchl = (uptNO3 + uptNH4) *f_RChl                              ! (molN molC-1 d-1) [eq. 23]
-   prodChl= rhochl *uptchl *mpbC                                   ! (mgChla d-1)      [eq. 21]
+   uptChl = (uptNO3 + uptNH4) *f_RChl                              ! (molN molC-1 d-1) [eq. 23]
+   prodChl= rhoChl *uptChl *mpbC                                   ! (mgChla d-1)      [eq. 21]
 
    !----- nutrient uptake (TODO add dependencies on P, Si)
    f_RNC  = max(zero, (self%Qmax - Q_N) / (self%Qmax - self%Qmin)) ! (-)               [eq. 25,26]
@@ -475,64 +480,23 @@
    uptNH4 = uptNH4 *f_RNC *mpbC                                    ! (mmolN d-1)       [eq. 25]
    uptN   = uptNO3 + uptNH4                                        ! (mmolN d-1)       [eq. 24]
 
-   ! normalize uptN vs. limN
-   limN = (nh4+no3) /(nh4+no3+self%KNO3)                           ! (-)
-   uptNO3 = uptNO3/uptN *limN
-   uptNH4 = uptNNH/uptN *limN
-   uptN   = uptNO3 + uptNH4
+   ! normalized limN
+   limN = 0.5* ( no3/(no3 + self%KNO3) *(one - nh4/(nh4 + self%KinNH4)) &
+               + nh4/(nh4 + self%KNH4) )                           ! (-)
 
 #else
-#ifdef MKTEST
    !----- nutrient uptake (TODO add dependencies on P, Si)
-   frac_NH4 = max( zero, (nh4-tiny_N)/(nh4 + self%KinNH4) )        ! (-)               [eq. 26]
-   !if (isnan(frac_NH4)) print*,'mpb#477: (frac_NH4)',frac_NH4,nh4-tiny_N,nh4 + self%KinNH4
-   limN = max( zero, (nh4-tiny_N)/(nh4 + self%KNH4)) +   &
-          max( zero, (no3-tiny_N)/(no3 + self%KNO3)) *(one - frac_NH4) ! (-)           [eq. 23,26]
-   if (no3+nh4 < tiny_N) then
-      frac_NH4 = one
-      limN     = zero
-   endif
-   if (limN > zero) then
-      frac_NH4 = max( zero, (nh4-tiny_N)/(nh4 + self%KNH4) /limN)  ! (-)
-      limN     = min(limN, one)                                    ! (-)
-   endif
+   f_RNC  = max(zero, (self%Qmax - Q_N) / (self%Qmax - self%Qmin)) ! (-)               [eq. 25,26]
+   lim_NO3 = no3/(no3 + self%KNO3) *(one - nh4/(nh4 + self%KinNH4))! (-)               [eq. 25]
+   lim_NH4 = nh4/(nh4 + self%KNH4)                                 ! (-)               [eq. 26]
    !NOTE (mk): In Hochard et al (2010) no temperature dependency is considered for
    !           eq. 25+26 even though it is in the model they refer to (Geider,1998) !!
-   f_RNC    = max(zero, (self%Qmax - Q_N) / (self%Qmax - self%Qmin)) ! (-)             [eq. 25]
-   uptNH4 = self%uptmax *tfac *f_RNC *(      frac_NH4) *limN *mpbC ! (mmolN d-1)       [eq. 23]
-   uptNO3 = self%uptmax *tfac *f_RNC *(one - frac_NH4) *limN *mpbC ! (mmolN d-1)       [eq. 23]
-   !if (isnan(uptNH4)) print*,'mpb#491: (uptNH4)',uptNH4,tfac,f_RNC,frac_NH4,limN,mpbC
-   uptN   = max(zero, uptNO3 + uptNH4)                             ! (mmolN d-1)       [eq. 24]
-   if (no3+nh4 < 0.1) then
-      uptNH4 = zero
-      uptNO3 = zero
-      uptN   = zero
-   endif
-#else
-   !----- nutrient uptake (TODO add dependencies on P, Si)
-   frac_NH4 = nh4 /(nh4 + self%KinNH4)                             ! (-)
-   if (isnan(frac_NH4)) frac_NH4 = zero
-   x1 = no3 /self%KNO3
-   x2 = nh4 /self%KNH4
-   limN = (x1+x2) /(one+x1+x2)
-   !limN = (no3+nh4) /(self%KNO3+no3+nh4)
-   !limN = nh4/(nh4 + self%KNH4) + no3/(no3 + self%KNO3) *(one - frac_NH4) ! (-)
-   if (no3+nh4 < tiny) then
-      frac_NH4 = one
-      limN     = zero
-   endif
-   if (limN > zero) then
-      frac_NH4 = max( zero, one-( x1*(one-frac_NH4)/(one+x1+x2)) ) ! (-)
-      !frac_NH4 = max( zero, one-( no3*(one-frac_NH4)/(self%KNO3+no3+nh4)) ) ! (-)
-   endif
-   !NOTE (mk): In Hochard et al (2010) no temperature dependency is considered for
-   !           eq. 25+26 even though it is in the model they refer to (Geider,1998) !!
-   f_RNC  = max(zero, (self%Qmax - Q_N) / (self%Qmax - self%Qmin)) ! (-)               [eq. 25]
-   uptNH4 = self%uptmax *tfac *f_RNC *(      frac_NH4) *limN *mpbC ! (mmolN d-1)       [eq. 23]
-   uptNO3 = self%uptmax *tfac *f_RNC *(one - frac_NH4) *limN *mpbC ! (mmolN d-1)       [eq. 23]
-   !if (isnan(uptNH4)) print*,'mpb#491: (uptNH4)',uptNH4,tfac,f_RNC,frac_NH4,limN,mpbC
-   uptN   = max(zero, uptNO3 + uptNH4)                             ! (mmolN d-1)       [eq. 24]
-#endif
+   uptNO3 = self%uptmax *tfac *f_RNC *lim_NO3 *mpbC                ! (mmolN d-1)       [eq. 25]
+   uptNH4 = self%uptmax *tfac *f_RNC *lim_NH4 *mpbC                ! (mmolN d-1)       [eq. 26]
+   uptN   = uptNO3 + uptNH4                                        ! (mmolN d-1)       [eq. 24]
+
+   ! normalized limN
+   limN = 0.5* (lim_NO3 + lim_NH4)                                 ! (-)
 
    !----- Carbohydrate exudation:
    prodEPS = self%keps *prod                                       ! (mmolC m-3 d-1)   [eq. 27]
@@ -541,14 +505,14 @@
 
    !----- chlorophyll synthesis (eq. 21,22,23)
    !NOTE (mk): In Geider et al (1998) chlorophyll synthesis was related to nitrogen uptake !!
-   rhochl = zero
+   rhoChl = zero
    if (parz .gt. tiny) then
-      rhochl = self%thetamax * PP/(self%alpha * parz * Q_chl)      ! (gChla molN-1)    [eq. 22]
+      rhoChl = self%thetamax * PP/(self%alpha * parz * Q_chl)      ! (gChla molN-1)    [eq. 22]
    endif
    fac    = max(zero, one - theta/self%thetamax)                   ! (-)               [eq. 23]
    f_RChl = fac/(fac + 0.05_rk)                                    ! (-)               [eq. 23]
-   uptchl = uptN *f_RChl                                           ! (mmolN  d-1)      [eq. 23]
-   prodChl = rhochl *uptChl                                         ! (mgChla d-1)      [eq. 21]
+   uptChl = uptN *f_RChl                                           ! (mmolN  d-1)      [eq. 23]
+   prodChl = rhoChl *uptChl                                        ! (mgChla d-1)      [eq. 21]
 #endif
 
    !----- phosphorus uptake (TODO)
@@ -577,17 +541,23 @@
    grazingN   = self%graz *mpbN                                    ! (mmolN m-3 d-1)   [eq. 30]
    grazingChl = self%graz *mpbCHL                                  ! (mgChla m-3 d-1)  [eq. 31]
    faecesC    = self%kout *grazingC                                ! (mmolC m-3 d-1)   [eq. 32]
-   !faecesN    = self%kout *grazingC * 0.23 !(:=rNCldet) ! Hochard et al 2010
-   faecesN    = self%kout *grazingN  ! alternative proposed by Markus Kreus  ! (mmolN m-3 d-1)   [eq. 32]
+   faecesN    = faecesC * NCrLdet                                  ! (mmolN m-3 d-1)   [eq. 32]
    exud       = self%kexu *grazingN                                ! (mmolN m-3 d-1)   [eq. 33]
    respzoo    = self%rzoo *grazingC *limO2                         ! (mmolC m-3 d-1)   [eq. 34]
    exportC    = grazingC - faecesC - respzoo ! exported carbon   (open closure term)   ! (mmolC m-3 d-1) [eq. 35]
    exportN    = grazingN - faecesN - exud    ! exported nitrogen (open closure term)   ! (mmolN m-3 d-1) [eq. 35]
+   !NOTE (mk):
+   !Die Formulierung für faecesN und exportN ist nicht ganz unproblematisch:
+   !a) Dadurch, dass faeces stets ein Ratio "NCrLdet" (:= C/N=5) aufweisen welches i.d.R kleiner als das des MPB ist,
+   !   wird u.U. der Export ein "überhöhtes" C/N aufweisen. Diesen Effekt könnte man ggfs. durch geeignete Wahl von
+   !   rzoo und exud kompensieren. Aus meiner Sicht wäre es jedoch sinnvoller, eine "export stöchiometrie" festzulegen,
+   !   die dem der Zoobenthos Biomasse entspricht. Die Größe "exud" ergibt sich dann diagnostisch aus der Summenbilanz.
+   !b) Die gegenwärtige Formulierung kann dazu führen, dass exportN negativ wird. Das muß abgefangen werden!!!
 
    !----- Diagnostic parameters
    NPP =  prod - respphyto                                         ! (mmolC m-3 d-1)
-   SGR = (prod - respphyto - prodeps ) /mpbC                       ! (d-1)
-   TGR = (prod - grazingC - respphyto - prodeps) /mpbC             ! (d-1)
+   SGR = (prod - respphyto - prodEPS ) /mpbC                       ! (d-1)
+   TGR = (prod - grazingC - respphyto - prodEPS) /mpbC             ! (d-1)
    GRZ = (grazingC) /mpbC                                          ! (d-1)
 
    ruptN = zero
@@ -602,7 +572,7 @@
 #define _CONV_UNIT_ *one_pr_day
    ! reaction rates
    _SET_ODE_(self%id_mpbCHL, (prodChl - lossphyto *theta - grazingChl)         _CONV_UNIT_)
-   _SET_ODE_(self%id_mpbC,   (prod - respphyto - prodeps - grazingC)           _CONV_UNIT_)
+   _SET_ODE_(self%id_mpbC,   (prod - respphyto - prodEPS - grazingC)           _CONV_UNIT_)
    _SET_ODE_(self%id_mpbN,   (uptN - lossphyto           - grazingN)           _CONV_UNIT_)
    _SET_ODE_(self%id_eps,    (prodEPS - degrEPS)                               _CONV_UNIT_)
    ! external dependencies
@@ -610,7 +580,7 @@
    _SET_ODE_(self%id_no3 ,   (- uptNO3)                                        _CONV_UNIT_)
    _SET_ODE_(self%id_nh4 ,   (- uptNH4 + lossphyto + exud )                    _CONV_UNIT_)
    _SET_ODE_(self%id_oxy ,   (prodO2   -(respphyto + respzoo) *gammaO2)        _CONV_UNIT_)
-   _SET_ODE_(self%id_ldet,   (faecesC)                                         _CONV_UNIT_)
+   _SET_ODE_(self%id_ldetC,  (faecesC)                                         _CONV_UNIT_)
    if (_AVAILABLE_(self%id_dic)) _SET_ODE_(self%id_dic , (respphyto + respzoo) _CONV_UNIT_)
    if (_AVAILABLE_(self%id_zbC)) _SET_ODE_(self%id_zbC , (exportC)             _CONV_UNIT_)
    if (_AVAILABLE_(self%id_zbN)) _SET_ODE_(self%id_zbN , (exportN)             _CONV_UNIT_)
@@ -633,22 +603,24 @@
    _SET_DIAGNOSTIC_(self%id_uptN,     ruptN)         !instantaneous MPB specific N assimilation rate (d-1)
    _SET_DIAGNOSTIC_(self%id_uptP,     ruptP)         !instantaneous MPB specific P assimilation rate (d-1)
    ! limitation factors
-   _SET_DIAGNOSTIC_(self%id_ftfac,   tfac)           !instantaneous temperature dependency
-   _SET_DIAGNOSTIC_(self%id_fIR,     f_IR)           !instantaneous light limitation factor
-   _SET_DIAGNOSTIC_(self%id_flimN,   limN)           !instantaneous DIN limitation factor
-   _SET_DIAGNOSTIC_(self%id_flimP,   limP)           !instantaneous DIP limitation factor
-   _SET_DIAGNOSTIC_(self%id_flimO2,  limO2)          !instantaneous oxygen limitation factor
-   _SET_DIAGNOSTIC_(self%id_fRChl,   f_RChl)         !instantaneous Chla synthesis regulation
-   _SET_DIAGNOSTIC_(self%id_fRCN,    f_RCN)          !instantaneous C uptake downregulation due to qNC
-   _SET_DIAGNOSTIC_(self%id_fRNC,    f_RNC)          !instantaneous N uptake downregulation due to qNC
-   _SET_DIAGNOSTIC_(self%id_fRNP,    f_RNP)          !instantaneous N uptake downregulation due to qNP
-   _SET_DIAGNOSTIC_(self%id_fRPN,    f_RPN)          !instantaneous P uptake downregulation due to qNP
-! temporary for debugging:
+   _SET_DIAGNOSTIC_(self%id_ftfac,    tfac)          !instantaneous temperature dependency
+   _SET_DIAGNOSTIC_(self%id_fIR,      f_IR)          !instantaneous light limitation factor
+   _SET_DIAGNOSTIC_(self%id_flimN,    limN)          !instantaneous DIN limitation factor
+   _SET_DIAGNOSTIC_(self%id_flimP,    limP)          !instantaneous DIP limitation factor
+   _SET_DIAGNOSTIC_(self%id_flimO2,   limO2)         !instantaneous oxygen limitation factor
+   _SET_DIAGNOSTIC_(self%id_fRChl,    f_RChl)        !instantaneous Chla synthesis regulation
+   _SET_DIAGNOSTIC_(self%id_fRCN,     f_RCN)         !instantaneous C uptake downregulation due to qNC
+   _SET_DIAGNOSTIC_(self%id_fRNC,     f_RNC)         !instantaneous N uptake downregulation due to qNC
+   _SET_DIAGNOSTIC_(self%id_fRNP,     f_RNP)         !instantaneous N uptake downregulation due to qNP
+   _SET_DIAGNOSTIC_(self%id_fRPN,     f_RPN)         !instantaneous P uptake downregulation due to qNP
+   ! temporary for debugging:
    _SET_DIAGNOSTIC_(self%id_mpb_temp, temp_celsius)  !instantaneous MPB temperature (degC)
    _SET_DIAGNOSTIC_(self%id_mpb_din,  DIN)           !instantaneous external DIN (mmolN m-3)
    _SET_DIAGNOSTIC_(self%id_mpb_no3,  no3)           !instantaneous external no3 (mmolN m-3)
    _SET_DIAGNOSTIC_(self%id_mpb_nh4,  nh4)           !instantaneous external nh4 (mmolN m-3)
    _SET_DIAGNOSTIC_(self%id_mpb_po4,  po4)           !instantaneous external po4 (mmolN m-3)
+   _SET_DIAGNOSTIC_(self%id_mpb_totN, totN)          !instantaneous total N (mmolN m-3)
+   _SET_DIAGNOSTIC_(self%id_mpb_totP, totP)          !instantaneous total P (mmolP m-3)
 
    ! Leave spatial loops (if any)
    _LOOP_END_

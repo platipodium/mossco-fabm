@@ -83,15 +83,15 @@
 !!------- Initial values -------
    real(rk)  :: ldetC_init    ! labile detritus carbon (fast decay)         (        mmolC  m-3 solid)
    real(rk)  :: sdetC_init    ! semilabile detritus carbon (slow decay)     (        mmolC  m-3 solid)
-   real(rk)  :: detP_init     ! detritus phosphorus                         (        mmolO2 m-3 liquid)
+   real(rk)  :: detP_init     ! detritus phosphorus                         (        mmolP  m-3 liquid)
    real(rk)  :: po4_init      ! dissolved phosphate                         (        mmol   m-3 liquid)
    real(rk)  :: no3_init      ! dissolved nitrate                           (        mmolN  m-3 liquid)
    real(rk)  :: nh3_init      ! dissolved ammonium                          (        mmolN  m-3 liquid)
-   real(rk)  :: oxy_init      ! dissolved oxygen                            (        mmolP  m-3 solid)
+   real(rk)  :: oxy_init      ! dissolved oxygen                            (        mmolO2 m-3 solid)
    real(rk)  :: odu_init      ! dissolved reduced substances                (        mmolP  m-3 liquid)
 !!------- Parameters -------  ! (reference Values refer to Soetaert (1996))
-   real(rk)  :: rLabile         ! decay rate labile detritus (fast decay)     (        d-1)
-   real(rk)  :: rSemilabile         ! decay rate semilabile detritus (slow decay) (        d-1)
+   real(rk)  :: rLabile       ! decay rate labile detritus (fast decay)     (        d-1)
+   real(rk)  :: rSemilabile   ! decay rate semilabile detritus (slow decay) (        d-1)
    real(rk)  :: NCrLdet       ! N/C ratio labile detritus (fast decay)      (0.1509  molN molC-1)
    real(rk)  :: NCrSdet       ! N/C ratio semilabile detritus (slow decay)  (0.1333  molN molC-1)
    real(rk)  :: PAds          ! Adsorption coeff phosphorus                 (        -)
@@ -255,7 +255,7 @@
    if(Oxicminlim - 1E-3 < -Denitrilim-Anoxiclim) Oxicminlim = 1E-3-Denitrilim-Anoxiclim  ! (-)
    Rescale    = 1.0_rk/(Oxicminlim+Denitrilim+Anoxiclim)     !Soetaert eq 3.4
 
-   CprodL = f_T * self%rLabile * ldetC   ! (mmolC m-3 d-1)
+   CprodL = f_T * self%rLabile     * ldetC   ! (mmolC m-3 d-1)
    CprodS = f_T * self%rSemilabile * sdetC   ! (mmolC m-3 d-1)
 
 ! assume upper reactive surface area for POC hydrolysis (introduced by Kai Wirtz ?)
@@ -300,7 +300,8 @@
    _SET_ODE_(self%id_nh3,  (Nprod - Nitri)                                 _CONV_UNIT_)  ! (mmolN  m-3 d-1)
    _SET_ODE_(self%id_odu,  (AnoxicMin - OduOx - OduDepo)                   _CONV_UNIT_)  ! (mmolO2 m-3 d-1)
    _SET_ODE_(self%id_po4,  (Pprod - radsP)                                 _CONV_UNIT_)  ! (mmolP  m-3 d-1)
-   _SET_ODE_(self%id_detP, (radsP - Pprod - self%NH3Ads*detP)              _CONV_UNIT_)  ! (mmolP  m-3 d-1)
+!   _SET_ODE_(self%id_detP, (radsP - Pprod - self%NH3Ads*detP)              _CONV_UNIT_)  ! (mmolP  m-3 d-1)
+   _SET_ODE_(self%id_detP, (radsP - Pprod)                                 _CONV_UNIT_)  ! (mmolP  m-3 d-1)
 
    ! Export diagnostic variables
    _SET_DIAGNOSTIC_(self%id_denit, Denitrific*gammaNO3)  !last denitrification rate
