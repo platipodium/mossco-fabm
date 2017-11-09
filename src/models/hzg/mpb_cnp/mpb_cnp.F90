@@ -354,6 +354,8 @@
          'MPB-CNP carbon export (zoobenthos grazing)',      output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_expNProd, 'MPB_CNP_expNProd', 'mmolN m-3 d-1', &
          'MPB-CNP nitrogen export (zoobenthos grazing)',    output=output_instantaneous)
+   call self%register_diagnostic_variable(self%id_expPProd, 'MPB_CNP_expPProd', 'mmolP m-3 d-1', &
+         'MPB-CNP phosphorus export (zoobenthos grazing)',  output=output_instantaneous)
    ! production rates
    call self%register_diagnostic_variable(self%id_PrimProd, 'MPB_CNP_PP',     'mmolC m-3 d-1',   &
          'MPB-CNP primary production rate PrimProd',        output=output_instantaneous)
@@ -490,7 +492,7 @@
    _GET_(self%id_ldetC,  ldetC)   ! fast decaying detritus C in mmolC m-3
    _GET_(self%id_ldetN,  ldetN)   ! fast decaying detritus N in mmolN m-3
    _GET_(self%id_ldetP,  ldetP)   ! fast decaying detritus P in mmolP m-3
-    if (self%use_sdetN) _GET_(self%id_sdetN,  sdetN)   ! slow decaying detritus N in mmolN m-3
+   if (self%use_sdetN) _GET_(self%id_sdetN,  sdetN)   ! slow decaying detritus N in mmolN m-3
    DIN = no3+nh4
    totN = DIN + mpbN + ldetN + sdetN
    totP = po4 + mpbP + ldetP
@@ -506,8 +508,8 @@
    qPN    = mpbP   / mpbN      ! molP  molN-1
    Q_chl  = mpbCHL / mpbC      ! gChla molC-1
    theta  = mpbCHL / mpbN      ! gChla molN-1
-   !print*,'#425 ', mpbC, mpbN, mpbP, mpbChl
-   !print*,'#425 ', qNC, qPN, Q_chl, theta
+   !print*,'mpb_cnp#425 ', mpbC, mpbN, mpbP, mpbChl
+   !print*,'mpb_cnp#425 ', qNC, qPN, Q_chl, theta
 
    !----- microphytes temperature dependency
    tfac = exp( log(self%Q10)*((temp_celsius-10._rk)/10._rk) )          ! (-)

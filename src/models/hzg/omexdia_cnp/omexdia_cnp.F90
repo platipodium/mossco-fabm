@@ -3,18 +3,20 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE: fabm_hzg_omexdia_cnp --- Fortran 2003 version of OMEXDIA+P biogeochemical model
+! !MODULE: fabm_hzg_omexdia_cnp --- Fortran 2003 version of OMEXDIA+CNP biogeochemical model
 !
 ! !INTERFACE:
    module hzg_omexdia_cnp
 !
 ! !DESCRIPTION:
 !
-! The OMEXDIA+P model is based on the OMEXDIA model (see Soetard et al. 1996a)
+! The OMEXDIA+CNP model is based on the OMEXDIA model (see Soetard et al. 1996a)
 ! and is intended to simulate early diagenesis in the sea sediments.
 ! The major difference to the original OMEXDIA model is an added phosphorus cycle
 ! added by Kai Wirtz. Further modifications comprise efficient reaction and
 ! limitation terms to facilitate simple numerics (kai wirtz).
+! OMEXDIA+CNP include an explizit formulation of detritus C:N:P content
+! (no longer forced beeing constant) introduced by Markus Kreus.
 !
 ! !USES:
    use fabm_types
