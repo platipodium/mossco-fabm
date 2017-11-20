@@ -494,8 +494,8 @@
    _GET_(self%id_ldetP,  ldetP)   ! fast decaying detritus P in mmolP m-3
    if (self%use_sdetN) _GET_(self%id_sdetN,  sdetN)   ! slow decaying detritus N in mmolN m-3
    DIN = no3+nh4
-   totN = DIN + mpbN + ldetN + sdetN
-   totP = po4 + mpbP + ldetP
+   totN = DIN + mpbN !+ ldetN + sdetN
+   totP = po4 + mpbP !+ ldetP
 
    ! global temperature dependency
    temp_kelvin = 273.15_rk + temp_celsius
@@ -518,17 +518,19 @@
    limO2 = max( zero, oxy / (oxy+self%KO2resp) )                       ! (-)
 
    !----- photosynthesis and carbon assimilation
-   f_RCN = max( zero, (qNC-self%QNCmin)/(self%QNCmax-self%QNCmin) )    ! (-)
+   !f_RCN = max( zero, (qNC-self%QNCmin)/(self%QNCmax-self%QNCmin) )    ! (-) [vgl. GeiderEtAl(1998), SchartauEtAl(2007), KreusEtAl(2015)
+   f_RCN  = max( zero, one - self%QNCmin/qNC)      ! (-) [vgl. HochardEtAl(2010) eq. 19]
    Pmax = self%mu_max *tfac *min(one,f_RCN)                            ! (d-1)
-   !print*,'#435 ', Pmax, tfac, f_RCN
-
    ! - for comparism: Pmax as formulated in i.e. Baumert, Pahlow etc.
    !Pmax = self%mu_max *tfac *(one- self%QNCmin/qNC)                   ! (d-1)
+
+   !print*,'#435 ', Pmax, tfac, f_RCN
+
    f_IR = zero
    mu_C = zero
    if (Pmax > zero) then
      ! light limitation
-     f_IR = one -exp(-self%alpha *theta *parz /Pmax)                   ! (-)
+     f_IR = one -exp(-self%alpha *Q_chl *parz /Pmax)                   ! (-)
      ! carbon assimilation rate
      mu_C = Pmax *f_IR                                                 ! (d-1)
    endif
@@ -571,6 +573,7 @@
    uptNH4  = (      frac_NH4)*mu_N*mpbC                                ! (mmolN d-1)
    uptNO3  = (one - frac_NH4)*mu_N*mpbC                                ! (mmolN d-1)
    uptN    = uptNO3 + uptNH4                                           ! (mmolN d-1)
+   !uptP = uptN/16.
 
    !----- Carbohydrate exudation:
    prodEPS = self%fracEPS *prod                                        ! (mmolC m-3 d-1)
@@ -581,7 +584,7 @@
    if (mu_C .le. TINY) then
       mu_chl = mu_N *self%theta_max                                    ! (mgChla mmolC-1)
    else
-      mu_chl = mu_N *self%theta_max *mu_C/(self%alpha *theta *parz)    ! (mgChla mmolC-1)
+      mu_chl = mu_N *self%theta_max *mu_C/(self%alpha *Q_chl *parz)    ! (mgChla mmolC-1)
    endif
    fac    = max(zero, one - theta/self%theta_max)                      ! (-)   [vgl. HochardEtAl(2010) eq. 23]
    f_RChl = fac/(fac + 0.05_rk)                                        ! (-)   [vgl. HochardEtAl(2010) eq. 23]
@@ -625,6 +628,7 @@
 
    ruptP = zero
    if (uptP>TINY) ruptP = uptP/mpbP                                    ! (d-1)
+   !if (uptN>TINY) ruptP = ruptN/16.                                    ! (d-1)
 
    if (mpbN<TINY) lossphytN = zero
    if (mpbP<TINY) lossphytP = zero
