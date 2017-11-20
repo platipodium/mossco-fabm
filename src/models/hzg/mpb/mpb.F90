@@ -385,6 +385,7 @@
    real(rk), parameter :: T0       = 288.15_rk ! reference Temperature fixed to 15 degC
    real(rk), parameter :: Q10b     = 1.5_rk    ! q10 temperature coefficient (source?)
    real(rk), parameter :: NCrLdet  = 0.20_rk   ! N/C ratio labile detritus (fast decay)
+   real(rk), parameter :: qNP      = 16._rk    ! N/P quota microphytobenthos
    real(rk) :: mpbC, mpbN, mpbP, mpbCHL, eps, no3, nh4, po4, oxy, ldetC, DIN
    real(rk) :: temp_celsius, temp_kelvin, f_T, E_a, parz, porosity, degrEPS
    real(rk) :: prodChl, theta, Q_N, Q_chl, Pmax, PP, prod, prodEPS, fac, tfac, totN, totP
@@ -392,7 +393,7 @@
    real(rk) :: grazingC, grazingN, grazingChl, respzoo, exud, faecesC, faecesN
    real(rk) :: exportC, exportN, NPP, SGR, TGR, GRZ, ruptN, ruptP, x1, x2
    real(rk) :: f_IR, f_RCN, f_RPC, f_RPN, f_RNP, f_RNC, f_RChl
-   real(rk) :: lim_NO3, lim_NH4, limN, limP, limO2
+   real(rk) :: lim_NO3, lim_NH4, limN, limP, limO2, mu_N, frac_NH4
 
 !EOP
 !-----------------------------------------------------------------------
@@ -415,7 +416,7 @@
    _GET_(self%id_mpbCHL, mpbCHL)  ! MicroPhytoBenthos chlorophyll in mgChla m-3
    _GET_(self%id_mpbC,   mpbC)    ! MicroPhytoBenthos carbon in mmolC m-3
    _GET_(self%id_mpbN,   mpbN)    ! MicroPhytoBenthos nitrogen in mmolN m-3
-   mpbP = mpbN/16._rk             ! MicroPhytoBenthos phosphorus in mmolP m-3
+   mpbP = mpbN/qNP                ! MicroPhytoBenthos phosphorus in mmolP m-3
    _GET_(self%id_eps,    eps)     ! Extracellular Polymeric Substances  in mmolC m-3
    ! Retrieve current external (local) dependencies if available
    _GET_(self%id_no3,    no3)     ! dissolved nitrate in mmolN m-3
@@ -450,7 +451,8 @@
 
    !----- photosynthesis rate
    f_RCN  = max( zero, one - self%Qmin/Q_N)                        ! (-)               [eq. 19]
-   Pmax   = self%mumax * tfac * f_RCN                              ! (d-1)             [eq. 19]
+   !Pmax   = self%mumax *tfac *f_RCN                                ! (d-1)             [eq. 19]
+   Pmax   = self%mumax *tfac *min(one,f_RCN)                       ! (d-1)             [eq. 19]
    f_IR   = zero
    PP     = zero
    if (Pmax > zero) then
@@ -486,17 +488,44 @@
 
 #else
    !----- nutrient uptake (TODO add dependencies on P, Si)
-   f_RNC  = max(zero, (self%Qmax - Q_N) / (self%Qmax - self%Qmin)) ! (-)               [eq. 25,26]
-   lim_NO3 = no3/(no3 + self%KNO3) *(one - nh4/(nh4 + self%KinNH4))! (-)               [eq. 25]
-   lim_NH4 = nh4/(nh4 + self%KNH4)                                 ! (-)               [eq. 26]
-   !NOTE (mk): In Hochard et al (2010) no temperature dependency is considered for
-   !           eq. 25+26 even though it is in the model they refer to (Geider,1998) !!
-   uptNO3 = self%uptmax *tfac *f_RNC *lim_NO3 *mpbC                ! (mmolN d-1)       [eq. 25]
-   uptNH4 = self%uptmax *tfac *f_RNC *lim_NH4 *mpbC                ! (mmolN d-1)       [eq. 26]
-   uptN   = uptNO3 + uptNH4                                        ! (mmolN d-1)       [eq. 24]
 
-   ! normalized limN
-   limN = 0.5* (lim_NO3 + lim_NH4)                                 ! (-)
+!    f_RNC  = max(zero, (self%Qmax - Q_N) / (self%Qmax - self%Qmin)) ! (-)               [eq. 25,26]
+!    lim_NO3 = no3/(no3 + self%KNO3) *(one - nh4/(nh4 + self%KinNH4))! (-)               [eq. 25]
+!    lim_NH4 = nh4/(nh4 + self%KNH4)                                 ! (-)               [eq. 26]
+!    !NOTE (mk): In Hochard et al (2010) no temperature dependency is considered for
+!    !           eq. 25+26 even though it is in the model they refer to (Geider,1998) !!
+!    uptNO3 = self%uptmax *tfac *f_RNC *lim_NO3 *mpbC                ! (mmolN d-1)       [eq. 25]
+!    uptNH4 = self%uptmax *tfac *f_RNC *lim_NH4 *mpbC                ! (mmolN d-1)       [eq. 26]
+!    uptN   = uptNO3 + uptNH4                                        ! (mmolN d-1)       [eq. 24]
+!
+!    ! normalized limN
+!    limN = 0.5* (lim_NO3 + lim_NH4)
+! (-)
+   !----- nitrogen assimilation and regulation @ KreusEtAl
+   frac_NH4 = max( zero, nh4 /(nh4 + self%KinNH4) )                    ! (-)
+   x1 = max( zero, no3 /self%KNO3 )
+   x2 = max( zero, nh4 /self%KNH4 )
+   limN = (x1+x2) /(one+x1+x2)
+   !limN = (no3+nh4) /(self%KNO3+no3+nh4)
+   !limN = nh4/(nh4 + self%KNH4) + no3/(no3 + self%KNO3) *(one - frac_NH4) ! (-)
+   if (limN > zero) then
+      frac_NH4 = max( zero, one-( x1*(one-frac_NH4)/(one+x1+x2)) )     ! (-)
+      !frac_NH4 = max( zero, one-( no3*(one-frac_NH4)/(self%KNO3+no3+nh4)) ) ! (-)
+   endif
+   if (nh4 <= zero) frac_NH4 = zero
+
+   f_RNC = max(zero, (self%Qmax - Q_N) / (self%Qmax - self%Qmin)) ! (-)               [eq. 25,26]
+   !f_RNC = one /( one + exp(-100. *(self%Qmax-Q_N)) )       ! (-) !for comparism @ KreusEtAl
+   !f_RNC = max( zero, two/( one + exp(-self%sigma_NC *(self%QNCmax-qNC)) ) -one ) ! (-)
+   ! carbon specific nitrogen uptake rate
+   mu_N = self%Qmax *self%mumax *tfac *f_RNC *limN                     ! (mmolN mmolC-1 d-1) (vgl. Geider)
+   if (mu_N .lt. TINY ) mu_N = zero                                    ! (mmolN mmolC-1 d-1)
+   ! N uptake rates
+   uptNH4  = (      frac_NH4)*mu_N*mpbC                                ! (mmolN d-1)
+   uptNO3  = (one - frac_NH4)*mu_N*mpbC                                ! (mmolN d-1)
+   uptN    = uptNO3 + uptNH4                                           ! (mmolN d-1)
+
+
 
    !----- Carbohydrate exudation:
    prodEPS = self%keps *prod                                       ! (mmolC m-3 d-1)   [eq. 27]
@@ -562,6 +591,7 @@
 
    ruptN = zero
    if (uptN>tiny) ruptN = uptN/mpbN                                ! (d-1)
+   ruptP = ruptN/qNP                                               ! (d-1)
 
    if (mpbN<TINY) lossphyto = zero
 
