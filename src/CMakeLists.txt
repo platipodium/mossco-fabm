@@ -106,7 +106,7 @@ if(FABM_FORCED_REAL_KIND)
   set(FABM_REAL_KIND ${FABM_FORCED_REAL_KIND})
 else()
   # FABM_REAL_KIND is user-configurable [as advanced variable]
-  set(FABM_REAL_KIND "selected_real_kind(13)" CACHE STRING "Fortran kind to use for real data type.")
+  set(FABM_REAL_KIND "selected_real_kind\(13\)" CACHE STRING "Fortran kind to use for real data type.")
   mark_as_advanced(FABM_REAL_KIND)
 endif()
 add_definitions(-D_FABM_REAL_KIND_=${FABM_REAL_KIND})
