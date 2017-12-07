@@ -296,7 +296,7 @@
 
    self%use_ldetP = ldetP_variable/=''
    if (self%use_ldetP) then
-      call self%register_state_dependency(self%id_ldetP, ldetP_variable, 'mmolC m-3',  &
+      call self%register_state_dependency(self%id_ldetP, ldetP_variable, 'mmolP m-3',  &
             'detritus labile phosphorus', required=.false.)
       call self%request_coupling(self%id_ldetP, ldetP_variable)
    else
@@ -610,9 +610,9 @@
    faecesC    = (one -self%aeff) * grazingC                            ! (mmolC m-3 d-1)
    faecesN    = (one -self%aeff) * grazingN                            ! (mmolN m-3 d-1)
    faecesP    = (one -self%aeff) * grazingP                            ! (mmolN m-3 d-1)
-   respZoo    = self%rzoo * grazingC                                   ! (mmolC m-3 d-1)
-   exudZoN    = self%exud * grazingN                                   ! (mmolN m-3 d-1)
-   exudZoP    = self%exud * grazingP                                   ! (mmolP m-3 d-1)
+   respZoo    = self%rzoo * (grazingC - faecesC)                       ! (mmolC m-3 d-1)
+   exudZoN    = self%exud * (grazingN - faecesN)                       ! (mmolN m-3 d-1)
+   exudZoP    = self%exud * (grazingP - faecesP)                       ! (mmolP m-3 d-1)
    exportC    = grazingC - faecesC - respZoo ! exported carbon   (open closure term)   ! (mmolC m-3 d-1)
    exportN    = grazingN - faecesN - exudZoN ! exported nitrogen (open closure term)   ! (mmolN m-3 d-1)
    exportP    = grazingP - faecesP - exudZoP ! exported nitrogen (open closure term)   ! (mmolN m-3 d-1)
@@ -687,7 +687,7 @@
    _SET_DIAGNOSTIC_(self%id_mpb_din,  DIN)            !instantaneous external DIN (mmolN m-3)
    _SET_DIAGNOSTIC_(self%id_mpb_no3,  no3)            !instantaneous external no3 (mmolN m-3)
    _SET_DIAGNOSTIC_(self%id_mpb_nh4,  nh4)            !instantaneous external nh4 (mmolN m-3)
-   _SET_DIAGNOSTIC_(self%id_mpb_po4,  po4)            !instantaneous external nh4 (mmolN m-3)
+   _SET_DIAGNOSTIC_(self%id_mpb_po4,  po4)            !instantaneous external po4 (mmolP m-3)
    _SET_DIAGNOSTIC_(self%id_mpb_totN, totN)           !instantaneous total N (mmolN m-3)
    _SET_DIAGNOSTIC_(self%id_mpb_totP, totP)           !instantaneous total P (mmolP m-3)
 
