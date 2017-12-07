@@ -175,7 +175,7 @@
 
    ! Register state variables
    call self%register_state_variable(self%id_mpbCHL, 'mpbCHL', 'mgChla m-3', &
-         'MicroPhytoBenthos chlorophyll mpbCHL',                            &
+         'MicroPhytoBenthos chlorophyll mpbCHL',                             &
          mpbCHL_init, minimum=0.0_rk, no_river_dilution=.true.)
    call self%set_variable_property(self%id_mpbCHL, 'particulate', .true.)
    !Note: At Hochard et al (2010) units for mpbCHL was given as mgChla/l.
@@ -207,8 +207,8 @@
             'dissolved nitrate', required=.true.)
       call self%request_coupling(self%id_no3, no3_variable)
    else
-      call self%register_state_variable(self%id_no3, 'no3', 'mmolN m-3',    &
-            'dissolved nitrate', 20.0_rk, minimum=0.0_rk,                   &
+      call self%register_state_variable(self%id_no3,   'no3', 'mmolN m-3',   &
+            'dissolved nitrate', 20.0_rk, minimum=0.0_rk,                    &
             standard_variable=standard_variables%mole_concentration_of_nitrate)
       call self%set_variable_property(self%id_no3, 'particulate', .false.)
    endif
@@ -219,8 +219,8 @@
             'dissolved ammonium', required=.true.)
       call self%request_coupling(self%id_nh4, nh4_variable)
    else
-      call self%register_state_variable(self%id_nh4, 'nh4', 'mmolN m-3',    &
-            'dissolved ammonium', 40.0_rk, minimum=0.0_rk,                  &
+      call self%register_state_variable(self%id_nh4,   'nh4', 'mmolN m-3',   &
+            'dissolved ammonium', 40.0_rk, minimum=0.0_rk,                   &
             standard_variable=standard_variables%mole_concentration_of_ammonium)
       call self%set_variable_property(self%id_nh4, 'particulate', .false.)
    endif
@@ -231,8 +231,8 @@
             'dissolved phosphate', required=.true.)
       call self%request_coupling(self%id_po4, po4_variable)
    else
-      call self%register_state_variable(self%id_po4, 'po4', 'mmolP m-3',    &
-            'dissolved phosphate', 10.0_rk, minimum=0.0_rk,                 &
+      call self%register_state_variable(self%id_po4,   'po4', 'mmolP m-3',   &
+            'dissolved phosphate', 10.0_rk, minimum=0.0_rk,                  &
             standard_variable=standard_variables%mole_concentration_of_phosphate)
       call self%set_variable_property(self%id_po4, 'particulate', .false.)
    endif
@@ -243,7 +243,7 @@
             'dissolved oxygen', required=.true.)
       call self%request_coupling(self%id_oxy, oxy_variable)
    else
-      call self%register_state_variable(self%id_oxy, 'oxy', 'mmolO2 m-3',   &
+      call self%register_state_variable(self%id_oxy,   'oxy', 'mmolO2 m-3',  &
             'dissolved oxygen', 100.0_rk, minimum=0.0_rk)
       call self%set_variable_property(self%id_oxy, 'particulate', .false.)
    endif
@@ -254,28 +254,28 @@
             'detritus labile carbon', required=.false.)
       call self%request_coupling(self%id_ldetC, ldetC_variable)
    else
-      call self%register_state_variable(self%id_ldetC, 'ldetC', 'mmolC m-3',  &
+      call self%register_state_variable(self%id_ldetC,   'ldetC', 'mmolC m-3',  &
             'detritus labile carbon', 4.e3_rk, minimum=0.0_rk)
       call self%set_variable_property(self%id_ldetC, 'particulate', .true.)
    endif
 
    self%use_dic  = dic_variable/=''
    if (self%use_dic) then
-      call self%register_state_dependency(self%id_dic, dic_variable, 'mmolC m-3',   &
+      call self%register_state_dependency(self%id_dic, 'dic', 'mmolC m-3',   &
             'dissolved inorganic carbon', required=.false.)
       call self%request_coupling(self%id_dic, dic_variable)
    endif
 
    self%use_zbC  = zbC_variable/=''
    if (self%use_zbC) then
-      call self%register_state_dependency(self%id_zbC, zbC_variable, 'mmolC m-3',   &
+      call self%register_state_dependency(self%id_zbC, 'zbC', 'mmolC m-3',   &
             'ZooBenthos carbon', required=.false.)
       call self%request_coupling(self%id_zbC, zbC_variable)
    endif
 
    self%use_zbN  = zbN_variable/=''
    if (self%use_zbN) then
-      call self%register_state_dependency(self%id_zbN, zbN_variable, 'mmolN m-3',   &
+      call self%register_state_dependency(self%id_zbN, 'zbN', 'mmolN m-3',   &
             'ZooBenthos nitrogen', required=.false.)
       call self%request_coupling(self%id_zbN, zbN_variable)
    endif
@@ -571,8 +571,8 @@
    grazingChl = self%graz *mpbCHL                                  ! (mgChla m-3 d-1)  [eq. 31]
    faecesC    = self%kout *grazingC                                ! (mmolC m-3 d-1)   [eq. 32]
    faecesN    = faecesC * NCrLdet                                  ! (mmolN m-3 d-1)   [eq. 32]
-   exud       = self%kexu *grazingN                                ! (mmolN m-3 d-1)   [eq. 33]
-   respzoo    = self%rzoo *grazingC *limO2                         ! (mmolC m-3 d-1)   [eq. 34]
+   exud       = self%kexu *(grazingN-faecesN)                      ! (mmolN m-3 d-1)   [eq. 33]
+   respzoo    = self%rzoo *(grazingC-faecesC) *limO2               ! (mmolC m-3 d-1)   [eq. 34]
    exportC    = grazingC - faecesC - respzoo ! exported carbon   (open closure term)   ! (mmolC m-3 d-1) [eq. 35]
    exportN    = grazingN - faecesN - exud    ! exported nitrogen (open closure term)   ! (mmolN m-3 d-1) [eq. 35]
    !NOTE (mk):
@@ -609,6 +609,7 @@
    ! If externally maintained variables are present, change the pools accordingly
    _SET_ODE_(self%id_no3 ,   (- uptNO3)                                        _CONV_UNIT_)
    _SET_ODE_(self%id_nh4 ,   (- uptNH4 + lossphyto + exud )                    _CONV_UNIT_)
+   _SET_ODE_(self%id_po4,    ( -(uptN - lossphyto - grazingN) /qNP )           _CONV_UNIT_)
    _SET_ODE_(self%id_oxy ,   (prodO2   -(respphyto + respzoo) *gammaO2)        _CONV_UNIT_)
    _SET_ODE_(self%id_ldetC,  (faecesC)                                         _CONV_UNIT_)
    if (_AVAILABLE_(self%id_dic)) _SET_ODE_(self%id_dic , (respphyto + respzoo) _CONV_UNIT_)
