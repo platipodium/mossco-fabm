@@ -3,8 +3,9 @@ module hzg_model_library
    use fabm_types, only: type_base_model_factory,type_base_model
 
    use hzg_omexdia_p
-   use hzg_omexdia_cnp
    use hzg_omexdia_p_mpb
+   use hzg_omexdia_cnp
+   use hzg_omexdia_mpb
    use hzg_mpb
    use hzg_mpb_cnp
    use hzg_jelly
@@ -38,8 +39,9 @@ contains
 
      select case (name)
          case ('omexdia_p'); allocate(type_hzg_omexdia_p::model)
-         case ('omexdia_cnp'); allocate(type_hzg_omexdia_cnp::model)
          case ('omexdia_p_mpb'); allocate(type_hzg_omexdia_p_mpb::model)
+         case ('omexdia_cnp'); allocate(type_hzg_omexdia_cnp::model)
+         case ('omexdia_mpb'); allocate(type_hzg_omexdia_mpb::model)
          case ('mpb'); allocate(type_hzg_mpb::model)
          case ('mpb_cnp'); allocate(type_hzg_mpb_cnp::model)
          case ('jelly'); allocate(type_hzg_jelly::model)
