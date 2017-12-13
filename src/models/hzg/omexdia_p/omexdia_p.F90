@@ -142,45 +142,53 @@
 
    ! Register state variables
    call self%register_state_variable(self%id_ldetC, 'ldetC', 'mmolC/m**3',  &
-                                    'detritus labile carbon', ldetC_init, minimum=0.0_rk)
+                                    'detritus labile carbon', ldetC_init, &
+                                    minimum=0.0_rk,missing_value=-1.e30_rk)
    call self%set_variable_property(self%id_ldetC, 'particulate', .true.)
 
    call self%register_state_variable(self%id_sdetC, 'sdetC', 'mmolC/m**3',  &
-                                    'detritus semilabile carbon', sdetC_init, minimum=0.0_rk)
+                                    'detritus semilabile carbon', sdetC_init, &
+                                    minimum=0.0_rk,missing_value=-1.e30_rk)
    call self%set_variable_property(self%id_sdetC, 'particulate', .true.)
 
    call self%register_state_variable(self%id_detP, 'detP', 'mmolP/m**3',  &
-                                    'detritus phosphorus', detP_init, minimum=0.0_rk)
+                                    'detritus phosphorus', detP_init, &
+                                    minimum=0.0_rk,missing_value=-1.e30_rk)
    call self%set_variable_property(self%id_detP, 'particulate', .true.)
 
    call self%register_state_variable(self%id_po4, 'po4', 'mmolP/m**3',  &
                                     'dissolved phosphate', po4_init, minimum=0.0_rk,  &
-                                    standard_variable=standard_variables%mole_concentration_of_phosphate)
+                                    standard_variable=standard_variables%mole_concentration_of_phosphate, &
+                                    missing_value=-1.e30_rk)
    call self%set_variable_property(self%id_po4, 'particulate', .false.)
 
    call self%register_state_variable(self%id_no3, 'no3', 'mmolN/m**3',  &
                                     'dissolved nitrate', no3_init, minimum=0.0_rk,  &
-                                    standard_variable=standard_variables%mole_concentration_of_nitrate)
+                                    standard_variable=standard_variables%mole_concentration_of_nitrate, &
+                                    missing_value=-1.e30_rk)
    call self%set_variable_property(self%id_no3, 'particulate', .false.)
 
    call self%register_state_variable(self%id_nh3, 'nh3', 'mmolN/m**3',  &
                                     'dissolved ammonium', nh3_init, minimum=0.0_rk,  &
-                                    standard_variable=standard_variables%mole_concentration_of_ammonium)
+                                    standard_variable=standard_variables%mole_concentration_of_ammonium, &
+                                    missing_value=-1.e30_rk)
    call self%set_variable_property(self%id_nh3, 'particulate', .false.)
 
    call self%register_state_variable(self%id_oxy, 'oxy', 'mmolO2/m**3',  &
-                                    'dissolved oxygen', oxy_init, minimum=0.0_rk)
+                                    'dissolved oxygen', oxy_init, &
+                                    minimum=0.0_rk, missing_value=-1.e30_rk)
    call self%set_variable_property(self%id_oxy, 'particulate', .false.)
 
    call self%register_state_variable(self%id_odu,'odu','mmol/m**3',  &
-                                    'dissolved reduced substances', odu_init, minimum=0.0_rk)
+                                    'dissolved reduced substances', odu_init, &
+                                    minimum=0.0_rk, missing_value=-1.e30_rk)
    call self%set_variable_property(self%id_odu,'particulate', .false.)
 
    ! Register diagnostic variables
    call self%register_diagnostic_variable(self%id_adsp, 'adsP', 'mmolP/m**3',  &
-         'phosphate adsorption', output=output_instantaneous)
+         'phosphate adsorption', output=output_instantaneous, missing_value=-1.e30_rk)
    call self%register_diagnostic_variable(self%id_denit, 'denit', 'mmolN/m**3/d',  &
-         'denitrification rate', output=output_instantaneous)
+         'denitrification rate', output=output_instantaneous, missing_value=-1.e30_rk)
 
    ! Register dependencies
    call self%register_dependency(self%id_temp, standard_variables%temperature)
@@ -316,4 +324,3 @@
 !-----------------------------------------------------------------------
    end module hzg_omexdia_p
 !-----------------------------------------------------------------------
-
