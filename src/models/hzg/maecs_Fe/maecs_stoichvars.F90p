@@ -1,0 +1,67 @@
+! carbon makes final resource
+     i = self%nutind%nutnum
+elem(i)%Q         = 1.0d0
+elem(i)%relQ      = 1.0d0
+zeta_X(i)         = 0.0d0
+
+! nitrogen
+     i = self%nutind%iN
+!elem(i)%relQ      = smooth_small(phy%relQ%N,eps)
+! no lower boundary check needed because already done in calc_internal_states()
+elem(i)%Q         = phy%Q%N
+elem(i)%relQ      = phy%relQ%N
+elem(i)%upt_pot   => sens%upt_pot%N
+elem(i)%upt_act   => upt_act%N
+elem(i)%upt       => uptake%N
+elem(i)%iKQ       = self%iK_QN
+elem(i)%aV        => acc%aV%N
+if (self%sigma .lt. 0.5d0 .or. self%zeta_CN .gt. 2.0d0) then
+  !zeta_X(i)         = self%zeta_CN 
+!else
+!N2-fixing cyanobacteria: increase N-uptake cost prop to P:C
+  zeta_X(i)  = self%zeta_CN + (phy%relQ%P-1.0d0)
+end if
+
+! phosphorus
+if (self%PhosphorusOn) then
+  i = self%nutind%iP
+  !elem(i)%relQ      = smooth_small(phy%relQ%P,eps)
+  !elem(i)%Q         = smooth_small(phy%Q%P,eps)
+  elem(i)%relQ      = phy%relQ%P
+  elem(i)%Q         = phy%Q%P
+  elem(i)%upt_pot   => sens%upt_pot%P
+  elem(i)%upt_act   => upt_act%P
+  elem(i)%upt       => uptake%P
+  elem(i)%iKQ       = self%iK_QP
+  elem(i)%aV        => acc%aV%P
+!zeta_X(i)         = self%zeta_CN * ((1.-f_Lip)*q_NoLip + f_Lip*q_Lip)
+  zeta_X(i)        = zeta_X(self%nutind%iN) * (q_Lip + self%zstoich_PN)
+end if
+
+! silicon
+if (self%SiliconOn) then
+  i = self%nutind%iSi
+  elem(i)%relQ      = smooth_small(phy%relQ%Si,eps)
+  elem(i)%Q         = smooth_small(phy%Q%Si,eps) 
+  elem(i)%upt_pot   => sens%upt_pot%Si
+  elem(i)%upt_act   => upt_act%Si  
+  elem(i)%upt       => uptake%Si
+  elem(i)%iKQ       = self%iK_QSi
+  elem(i)%aV        => acc%aV%Si  
+  zeta_X(i)         = 0.0_rk
+  
+end if
+
+! iron
+if (self%IronOn) then
+  i = self%nutind%iFe
+!  write (*,'(A,2(I4))') 'iFe:',i,self%nutind%iFe 
+  elem(i)%relQ      = smooth_small(phy%relQ%Fe,eps)
+  elem(i)%Q         = smooth_small(phy%Q%Fe,eps)
+  elem(i)%upt_pot   => sens%upt_pot%Fe
+  elem(i)%upt_act   => upt_act%Fe
+  elem(i)%upt       => uptake%Fe
+  elem(i)%iKQ       = self%iK_QFe
+  elem(i)%aV        => acc%aV%Fe
+  zeta_X(i)         = 0.0_rk  
+end if

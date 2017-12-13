@@ -1,0 +1,176 @@
+\documentclass[openany]{book} %doxygen default: twoside
+%\documentclass[preprint,authoryear,12pt]{elsarticle} %New elsarticle package
+
+% Packages required by doxygen
+\usepackage{calc}
+\usepackage{doxygen}
+%\usepackage{graphicx}         ->already defined in textual/textual_defines
+\usepackage[utf8]{inputenc}
+\usepackage{makeidx}
+\usepackage{multicol}
+\usepackage{multirow}
+%\usepackage{textcomp}         ->already defined in textual/textual_defines
+%\usepackage[table]{xcolor}    ->already defined in textual/textual_defines
+
+% Font selection
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx}
+\usepackage[scaled=.90]{helvet}
+\usepackage{courier}
+\usepackage{amssymb}
+\usepackage{sectsty}
+\renewcommand{\familydefault}{\sfdefault}
+\allsectionsfont{%
+  \fontseries{bc}\selectfont%
+  \color{darkgray}%
+}
+\renewcommand{\DoxyLabelFont}{%
+  \fontseries{bc}\selectfont%
+  \color{darkgray}%
+}
+
+% Page & text layout
+\usepackage{geometry}
+\geometry{%
+  a4paper,%
+  top=2.5cm,%
+  bottom=2.5cm,%
+  left=2.5cm,%
+  right=2.5cm%
+}
+\tolerance=750
+\hfuzz=15pt
+\hbadness=750
+\setlength{\emergencystretch}{15pt}
+\setlength{\parindent}{0cm}
+\setlength{\parskip}{0.2cm}
+\makeatletter
+\renewcommand{\paragraph}{%
+  \@startsection{paragraph}{4}{0ex}{-1.0ex}{1.0ex}{%
+    \normalfont\normalsize\bfseries\SS@parafont%
+  }%
+}
+\renewcommand{\subparagraph}{%
+  \@startsection{subparagraph}{5}{0ex}{-1.0ex}{1.0ex}{%
+    \normalfont\normalsize\bfseries\SS@subparafont%
+  }%
+}
+\makeatother
+
+% Headers & footers
+\usepackage{fancyhdr}
+\pagestyle{fancyplain}
+\fancyhead[LE]{\fancyplain{}{\bfseries\thepage}}
+\fancyhead[CE]{\fancyplain{}{}}
+\fancyhead[RE]{\fancyplain{}{\bfseries\leftmark}}
+\fancyhead[LO]{\fancyplain{}{\bfseries\rightmark}}
+\fancyhead[CO]{\fancyplain{}{}}
+\fancyhead[RO]{\fancyplain{}{\bfseries\thepage}}
+\fancyfoot[LE]{\fancyplain{}{}}
+\fancyfoot[CE]{\fancyplain{}{}}
+\fancyfoot[RE]{\fancyplain{}{\bfseries\scriptsize Generated on \today for MAECS by Doxygen }}
+\fancyfoot[LO]{\fancyplain{}{\bfseries\scriptsize Generated on \today for MAECS by Doxygen }}
+\fancyfoot[CO]{\fancyplain{}{}}
+\fancyfoot[RO]{\fancyplain{}{}}
+\renewcommand{\footrulewidth}{0.4pt}
+%clash with elsarticle documentclass
+\renewcommand{\chaptermark}[1]{%
+  \markboth{#1}{}%
+}
+\renewcommand{\sectionmark}[1]{%
+  \markright{\thesection\ #1}%
+}
+
+% Indices & bibliography
+%\usepackage{natbib} ->already defined in textual/textual_defines
+\usepackage[titles]{tocloft}
+\setcounter{tocdepth}{3}
+\setcounter{secnumdepth}{5}
+\makeindex
+
+% Packages requested by user
+\usepackage{nomencl}
+
+% Hyperlinks (required, but should be loaded last)
+\usepackage{ifpdf}
+\ifpdf
+  \usepackage[pdftex,pagebackref=true]{hyperref}
+\else
+  \usepackage[ps2pdf,pagebackref=true]{hyperref}
+\fi
+\hypersetup{%
+  colorlinks=true,%
+  linkcolor=blue,%
+  citecolor=blue,%
+  unicode%
+}
+
+% Custom commands
+\newcommand{\clearemptydoublepage}{
+\newpage{\pagestyle{empty}\cleardoublepage} }
+
+% ============ take nomenclature package into account
+\makenomenclature
+\renewcommand{\nomname}{Symbols} % sectiontitle for nomenclature
+\renewcommand{\nomgroup}[1]{
+	      \item[\textbf{Symbols used in formulas, respective model parameters, and their descriptions\phantomsection}]% for the foot note, replace ] with $^*$]
+              \addcontentsline{toc}{section}{Symbols}%
+              \markboth{\nomname}{Roman symbols and description}~ \\%
+              \hspace*{-\leftmargin} \rule{\textwidth}{0.5pt}{}}
+\setlength{\nomitemsep}{-\parsep+1pt}    % skip between the nomenclature entries
+%\renewcommand{\nompreamble}{Symbol \hspace{4pt} Description\vspace*{-10pt}\\ \rule{\textwidth}{0.5pt}}
+%\setlength{\nomlabelwidth}{45pt}   % Length between symbol and description
+%\renewcommand{\nompostamble}{\rule{\textwidth}{0.5pt}\\%
+%             $^*$\,\small{Note that some few symbols are not listed here which become clear in the context of the text.}}
+\renewcommand{\eqdeclaration}[1]{, e.\,g. in Eq.\,(#1)}
+
+%A dirty hack to avoid doxygen interpreting the \n of \nomenclature, occuring when the nomenclature command is aliased
+\newcommand{\omenclature}[2]{\nomenclature{#1}{#2}}
+%of course now we should use the \omenclature command in the alias
+%======== end of declaration for nomenclature package 
+
+%MAECS-related
+\input{textual_defines}
+
+\begin{document}
+
+% Titlepage & ToC
+\hypersetup{pageanchor=false}
+\pagenumbering{roman}
+
+%maecs-style title page
+% \begin{frontmatter} 
+% \title{Model for Adaptive Ecosystems in Coastal Seas (MAECS)\\[2ex] Complete Set of Equations\\for the Physiological (Non-size) Version} % spatio-temporal
+% \author{Kai W.~Wirtz$^{1}$ } \author{Richard~Hofmeister$^{1}$ }
+% \author{Markus~Schartau$^{2,1}$ }\author{Carsten Lemmen$^{1}$ ??} \author{Onur~Kerimoglu$^{1}$ }
+% \address{$^{1}$ Institute of Coastal Research, Helmholtz Zentrum Geesthacht, Germany}
+%  \date{} 
+% \end{frontmatter}
+% \renewcommand{\baselinestretch}{1.4}\normalsize
+
+
+%doxygen-style title page
+\begin{titlepage}
+\vspace*{7cm}
+\begin{center}%
+{\Large M\-A\-E\-C\-S }\\
+\vspace*{1cm}
+{\large Generated by Doxygen 1.8.4}\\
+\vspace*{0.5cm}
+{\small \today}\\
+\end{center}
+\end{titlepage}
+
+%\clearemptydoublepage
+%\newpage
+\tableofcontents
+%\clearemptydoublepage
+%\newpage
+\pagenumbering{arabic}
+\hypersetup{pageanchor=true}
+
+\printnomenclature
+
+%extra stuff
+
+%from here on should start the auto-generated content

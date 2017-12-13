@@ -1,0 +1,664 @@
+% Macros & definitions 
+%\input{defines} 
+% --------------------------------------------------------------------------------------- 
+% \begin{document}
+% \begin{frontmatter} 
+% \title{Model for Adaptive Ecosystems in Coastal Seas (MAECS)\\[2ex] Complete Set of Equations\\for the Physiological (Non-size) Version} % spatio-temporal
+% \author{Kai W.~Wirtz$^{1}$ } \author{Richard~Hofmeister$^{1}$ }
+% \author{Markus~Schartau$^{2,1}$ }\author{Carsten Lemmen$^{1}$ ??} \author{Onur~Kerimoglu$^{1}$ }
+% \address{$^{1}$ Institute of Coastal Research, Helmholtz Zentrum Geesthacht, Germany}
+%  \date{} 
+% \end{frontmatter}
+% \renewcommand{\baselinestretch}{1.4}\normalsize
+% % --------------------------------------------------------------------------------------------- 
+% -----------------------------------------------------------------------------------------
+
+%\section{Model structure}\label{sec:ModStr}
+\begin{section}{Model structure}\label{sec:ModStr}
+
+MAECS resolves major functional groups and their dynamics not unlike simple state-of-the-art ecosystem models. All energy and material fluxes in the ecosystem derive from primary production of phytoplankton, here expressed in terms of biomass carbon (C) concentration. Phytoplankton experiences various local and trait dependent loss rates, from sinking, respiration, exudation, to grazing. 
+MAECS versions differ in the degree of resolution in ecological processes; a full account of grazing interactions in the plankton is only addressed by versions that includes size as a major trait. Grazers convert only a fraction of captured phytoplankton to their own biomass; in size-based variants of MAECS we have implemented different formulations for whether this fraction immediately contributes to the biomass of adult grazers or their egg stage, or how many grazer groups are simulated (see below).
+
+Physiological regulation in unicellular autotrophs makes the very kernel of the MAECS version documented here. 
+The intracellular nutrient quotas, in this model version resolved for nitrogen (N), phosphorus (P), and silicon (Si), change over time when uptake does not match demand due to biomass build-up. Differential uptake regulation then leads to highly variable stoichiometries, that not only reflect ambient nutrient and light concentration, but also generalized optimality criteria.
+
+For describing the living compartment of plankton ecosystems MAECS employs much more trait variables (e.g., allocation coefficients) compared to bulk variables (e.g., phytoplankton or zooplankton biomass). The adaptive trait dynamics infers the need of calculating (sometimes long) derivative terms, which also challenges this documentation; however, the gradient-derived terms include very few  additional process parameters, so that the number of tunable parameters in relation to simulated and testable dynamics is significantly reduced compared to models that share a similar resolution in plankton physiology or ecology. Most importantly, MAECS seeks to account for biophysical and evolutionary principles as much as possible; resulting in expressions replacing heuristic functions such as Michaelis-Menten approximations of nutrient uptake, Droop representation of cell growth, or Liebig's rule of minimum. Biophysical origins of model formulations further reduces the number of tunable parameters, in particular in the ecological part. Prominent counter-examples, i.e.~yet uncertain model formulations or parameters, comprise aggregation dynamics or variations in metabolic interdependency. 
+
+
+%\subsection{Mass equations}\label{sec:masseq}
+\begin{subsection}{Mass equations}\label{sec:masseq}
+
+Basic mass equations common to the two MAECS variants (size and physiology). All coefficients and their meanings are listed in \tabref{tab:par}. 
+
+Net change in autotroph C, N, P, Si (cf.~\Eq{eq:biogrowth} and \Eq{eq:phyxdyn}) $\ldots$
+\beql{eq:dynphyc}
+\dift\phyc =\uref{\rgr_\mathrm{tot}}{rgr_tot}\cdot\phyc
+\eeq
+\beql{eq:dynphyx}
+\dift\phyx = \uref{V_{\nind}}{uptake}\cdot \phyc  - \uref{M}{rgr_tot}\cdot\phyx 
+   \msep \nind= \mathrm{N, P, Si}  
+\eeq
+
+%[TODO: unify  notation, e.g. capital letter abrreviations]
+
+$\ldots$ in dissolved inorganic nutrients ($\nind$=N, P), optionally including silicate  
+\beql{eq:dyndix}
+\dift\mathrm{DI}\nind = - V_\nind\: \phyc + \uref{\omega_\mathrm{DOM}}{hydrol}\:\mathrm{DO}\nind
+\eeq
+\beql{eq:dyndsi}
+\dift\mathrm{DSi} = - V_\mathrm{Si}\: \phyc + \uref{\omega_\mathrm{Det}}{hydrol}\:\mathrm{Det}_\mathrm{Si}
+\eeq
+[TODO: include DIC into code]
+
+$\ldots$ in dissolved organic nutrients ($\nind$=C, N, P),
+\beql{eq:dyndom}
+\dift\mathrm{DO}\nind = E\:\phyx +\omega_\mathrm{Det}\:\mathrm{Det}_{\nind}-\omega_\mathrm{DOM}\:\mathrm{DO}\nind
+\eeq
+
+$\ldots$ and in the detrital pool ($\nind$=C, N, P, Si).
+\beql{eq:dyndet}
+\dift\mathrm{Det}_{\nind} = M'\:\phyx + M_Z\:\zoox-\omega_\mathrm{Det}\:\mathrm{Det}_{\nind}
+\eeq
+where the phytoplankton mortality $M'$ collects contributions from sloppy grazing ($(1-y)G$) and, in 0D setups, and from sinking ($S$ in \Eq{eq:sink}). Remineralization of DOM $\omega_\mathrm{DOM}$ and hydrolysis of detritus $\omega_\mathrm{Det}$ both change with ambient temperature and substrate quality
+\beql{eq:hydrol}
+ \omega_\mathrm{DOM} = f_T\:\fracd{\mathrm{DON}}{\mathrm{DOC}}\:\omega_\mathrm{DOM}^*
+\qquad\qquad
+ \omega_\mathrm{Det} = f_T\:\fracd{\mathrm{Det}_\mathrm{N}}{\mathrm{Det}_\mathrm{C}}\:\omega_\mathrm{Det}^*
+\eeq
+%in analogy to POM
+Because of the quality dependency in degradation rates [TODO: justify], element cycles in the water column are easily decoupled within MAECS.
+
+Note that in a chemostat mode, to the dynamics of \emph{all} concentration variables a dilution ($D$) loss is added, which only for dissolved nutrients also contains reservoir inflow ($-D\cdot(\mathrm{DI}\nind-\mathrm{DI}\nind^0$).
+
+[TODO: Parameter table]
+
+\end{subsection}
+\end{section} %model structure
+
+%
+% -------------------------------------  growth rate components
+%
+%\vspace{8mm} \hrule
+%\section{Process Descriptions}\label{sec:prdesc}
+%\subsection{Growth rate components and primary production}\label{sec:GrRate}
+\begin{section}{Process Descriptions} \label{sec:prdesc}
+\begin{subsection}{Growth rate components and primary production}\label{sec:GrRate}
+
+%\emph{Auxiliary variables:} \\
+%\setcounter{tblEqCounter}{\theequation} \begin{footnotesize} \begin{table}[ht]\caption{Basic equations} \vspace{1mm}\label{tab:par}\rowcolors{1}{}{lightgrey} \begin{tabular}{p{48mm}p{72mm}l}\vspace{8mm} \hrule
+Temporal changes of the bulk phytoplankton concentration $\phyc$ are per construction given in terms of the over all relative growth rate $\rgr_\mathrm{tot}$:
+\beql{eq:biogrowth}
+%\rgr_\mathrm{tot} = \underset{\rgr}{P - \uref{R}{resp} - E} - G - S = \underset{\rgr}{P - \uref{R}{resp} - E} - G - S 
+\dift\phyc = \rgr_\mathrm{tot}\cdot\phyc
+\eeq
+
+The relative growth rate of autotrophic unicells (phytoplankton) collects primary production and a number of loss terms
+\beql{eq:rgr_tot}
+%\rgr_\mathrm{tot} = \underset{\rgr}{P - \uref{R}{resp} - E} - G - S = \underset{\rgr}{P - \uref{R}{resp} - E} - G - S 
+\rgr_\mathrm{tot} = \underbrace{P - \uref{R}{resp}}_{\rgr} -\, (\underbrace{\uref{E}{exud} + \uref{\fracd{G\,\zooc}{\phyc}}{graz} + \uref{S}{sink} + \uref{AF}{agg} + D}_{M})  = \rgr - M
+\eeq
+with sinking loss given in \Eq{eq:sink} (relevant only in 0D), aggregate formation in \Eq{eq:agg} [TODO: living cells in aggregates], grazing $G$ explained in \secref{sec:grazing}, exudation rate $E$ formulated in \Eq{eq:exud}, dilution rate $D$ (for running the model in a chemostat mode), and respiration $R$ in \Eq{eq:resp}.
+
+Gross C assimilation $P$ changes with stoichiometric balance as expressed by the multi--nutrient co--limitation factor $\climf$(\Eq{eq:totc}), maximal photosynthetic capacity $P_\mathrm{max}$ (further depending on, e.g. partitioning, \Eq{eq:Pmax}, or size in the ecological version, \cite{Wirtz2011,Wirtz2013a}) and light harvesting success $LH$
+\beql{eq:primprod}
+P = \uref{P_\mathrm{max}}{Pmax}\cdot\uref{\climf}{totc}\cdot \mathrm{LH}
+\eeq
+
+Light harvesting $\mathrm{LH}$ is primarily controlled by ambient light intensity PAR and light adsorption by chloroplasts $\alpha\cdot\theta$ proportional to the chlorophyll concentration $\theta$ (cf.\Eq{eq:ftheta}). Its functional form derives from Poisson arrival statistics of photons
+\beql{eq:LH}
+ \mathrm{LH} = 1-\eh{-\alpha\theta \textrm{PAR}/P_\mathrm{max}}
+\eeq
+\end{subsection}
+
+
+%
+% -------------------------------------  Auxiliary
+%
+\vspace{8mm} \hrule
+
+\begin{subsection}{Respiration and temperature}\label{sec:resptemp}
+
+Respiratory losses reflect costs of N uptake \cite[][]{Raven1984,Pahlow2005}, while neglecting energetic costs of P- and Si-assimilation
+\beql{eq:resp}
+R =  \zeta\:\Vn
+\eeq
+%e.g.~expenditures for nitrate reductase
+
+Temperature dependency of respiration thus follows from the factor $f_T$  in the uptake coefficients in \Eq{eq:uptakecoeff}.
+In the current MAECS version, all metabolic rates equally increase with rising temperature following the Arrhenius equation,
+\beql{eq:arrhenius}
+f_T = \eh{-E_{a}(T^{-1}-T_0^{-1})} \quad\textrm{with}\quad E_{a}=\fracd{T_0^{2}}{10}
+\cdot\log(Q_{10}) 
+\eeq
+with a reference temperature $T_0$ (here 18$^o$C) where $f_T$ equals one.
+
+\end{subsection}
+
+%
+% ------------------------------------- multi--nutrient co--limitation 
+%
+\vspace{8mm} \hrule
+\begin{subsection}{Multi--nutrient co--limitation}\label{sec:colim}
+The co-limitation factor $\climf$ is constructed within a metabolic network view of cellular physiology. There, $\climf$ reflects not only the availability of singular resources (nutrients) but also how dependent the sub-networks (protein turnover) associated to those nutrients can evolve. In this view, $\climf$ quantifies the turnover of the first sub-process (here intracellular nitrogen turnover) times the queuing function that gives the intermittency between the first and the other sub-processes (associated to elements X):
+\beql{eq:totc}
+\climf = q_\mathrm{N}\cdot \uref{g_h}{queuefunc}(q_\mathrm{X}'/q_\mathrm{N}) \cdot c_{hq} \msep c_{hq}=1+\uref{c_h}{ch}+h\cdot q_\mathrm{N} \uref{q_\mathrm{X}'}{multi2} 
+\eeq
+The relative quota $q_\nind$ expresses the  availability of nutrient $\nind$ above a subsistence threshold $Q_\nind^0$ normalized by  a reference pool size $Q_\nind^*-Q_\nind^0$. In contrast to most other models resolving variable internal stores \citep[e.g.][]{Morel1987}, $Q_\nind^*$ does not impose [TODO: 'does not impose'=? is it rather 'is not a prescribed'? but what is it then?] an upper boundary of the cell quota $Q_\nind$.
+\beql{eq:relquot}
+ q_\nind = \frac{Q_\nind-Q_\nind^0}{\Delta Q_\nind} \msep \Delta Q_\nind = Q_\nind^*-Q_\nind^0 \qquad \mathrm{and}\quad\nind=\mathrm{N}, \mathrm{P}, \mathrm{Si}, \ldots
+\eeq
+In \Eq{eq:totc}, the product $h q_\mathrm{N}q_\nind'$ describes the non-linear metabolic interdependency between intracellular turnover of element N and $\nind$ that is not covered by the simple queuing function. $g_h$ expresses a ''stop and go'' dependency while neglecting possible amplification and inhibition effects as explained by Wirtz\&Kerimoglu (in prep.). The product term leads to a quadratic influence of the first element ($q_\mathrm{N}$) and can be considered as most simple account of non-linear metabolic interdependency. It also ensures symmetry of $\climf$ with respect to exchanging the order of nutrients as $\fQ{1}g_h(\fQ{2}'/\fQ{1}) c_{hq12} \approx  \fQ{2}g_h(\fQ{1}'/\fQ{2}) c_{hq21}$.
+
+The queuing function $g_h$ can be derived from assuming Poisson statistics in phase-locking of sub-networks [TODO: 'Poisson statistics in phase-locking of sub-networks' sounds scary, please expand!]:
+\beql{eq:queuefunc}
+g_h(x)=\fracd{x-x_h}{1-x_h} \msep x_h=x^{1+h^{-1}}
+\eeq
+The function $g_h$ introduces as new control parameter the metabolic interdependency $h$. $h$ resembles the processing intermittency introduced by \cite{Wirtz2012b}, which describes the probability of phase-locking [TODO: 'phase-locking' is again an unusual term: expand with a sentence?] in independent sub-steps in a process chain.
+
+The  correction coefficient $c_h$ in \Eq{eq:totc} follows from imposing convergence of $\climf$ to the product and Liebig rules. Compliance to the Liebig rule leads to $c_0=0$ since $g_0$ describes a stepwise linear function [TODO: it's not clear: when ch=h=0, \Eq{eq:totc} reduces to $\fQ{N}g_0(\fQ{X}'/\fQ{N}), with g_0=-\inf/-\inf$]. For the product rule, we use the identity $g_h(1)=1/(1+h)$ and assume that $q_\nind=q_\mathrm{Y}=1/2$,  to obtain $1/4 = 1/2\cdot(1+h/4+c_h)/(1+h)$ [TODO: it's very unclear where this equation came from], or $c_h=-1/2+h/4$. However, the offset in this linear relation conflicts with the condition $c_0=0$. Both conditions can be approximately reconciled by a logarithmic function [TODO: does \Eq{eq:ch} have something to do with all the other equations in this paragraph? if so, how? if not, why not directly listing those 'conditions', providing \Eq{eq:ch} saying that it is one of the potentially many pragmatic solutions?] 
+\beql{eq:ch}
+c_h  = \log(1/4^h + h/2)
+\eeq
+
+It is mandatory in MAECS to resolve nitrogen. If optionally one, two, or more further nutrients are considered (e.g., P \emph{or} Si, P \emph{and} Si, or a micro-nutrient), a recursive scheme is applied. The limiting effect of element $\nind+1$ on the processing of element $\nind$ ($\fQ{\nind}'$) is then formally equivalent to the $\climf$ of the first element (N) limited by the remainder metabolism ($\climf=\fQ{N}'$) as given in \Eq{eq:totc}:
+\beql{eq:multi2}
+\fQ{\nind}' = \fQ{\nind} \cdot g_h(\fQ{\nind+1}'/\fQ{\nind})\cdot c_{hq}\qquad
+\nind=\mathrm{P}, \mathrm{Si}, \ldots
+\eeq
+For the final element we have $\fQ{\nind}' = \fQ{\nind}$. From the (subjective) ordering of elements in the recursive scheme only a small asymmetry arises. [TODO: no matter how small it is, the asymmetry probably requires us to document (and maybe also provide justification, if any) the order we chose]  
+%marginal C gain  (WP10)&	&\nTblEq{eq:upact}\\[0.ex]
+
+\end{subsection}
+
+%
+% ------------------------------------- allocation 
+%
+\vspace{8mm} \hrule
+\begin{subsection}{Uptake system allocation and PI-coefficients}\label{sec:uptsys}
+It is assumed that the fraction of free proteins or allocatable resources does not change. [TODO: it is not clear what this means: maybe a diagram helps?] Structural compounds such as cell wall, nucleus, or other non directly functional components are thus kept at a fixed ratio. The pool of free organics (in terms of cellular carbon) is partitioned between photosynthetic machinery and nutrient uptake. Photosynthetic machinery is further sub-divided into light harvesting and processing. The relative pool size of free resource (here in units C!) invested into light-independent reactions, primarily those in Rubisco and the Calvin cycle \citep{Friend1991} is denoted as $f_R$, the one for the light harvesting complex (LHC) $f_\theta$.
+This way, the coefficient $f_V$ for C-allocation to nutrient uptake becomes a linear function of the C-allocation to LHC $f_\theta$ and to Rubisco $f_R$:
+\beql{eq:alloc}
+f_V =1- f_R -f_\theta
+\eeq
+
+Maximum photosynthesis rate $P_\mathrm{max}$ is controlled by the pool fraction $f_R$ invested into Rubisco/processing and a temperature dependency $f_T$ given in \Eq{eq:arrhenius}, while the effect of nutrient limitation (namely N) is already included in \Eq{eq:primprod}
+\beql{eq:Pmax}
+P_\mathrm{max} = f_R\cdot \uref{f_T}{arrhenius}\cdot P_\mathrm{max}^*
+\eeq
+
+The fraction of light harvesting carbon depends on the C-fraction partitioned to photosystem processing (electron chain) and the chloroplast chlorophyll concentration $\theta$ (relative to a reference value $\theta_{C}$):
+\beql{eq:ftheta}
+f_\theta = f_R\:\fQ{N}^\sigma \:\theta/\theta_{C} \quad\mathrm{or}\quad\theta= f_\theta/f_R\:\fQ{N}^{-\sigma}  \theta_{C} 
+\eeq
+where C stoichiometry of pigment complexes is denoted by $\theta_{C}$. The exponent $\sigma$ describes an additional linkage of LHC synthesis on the N-status of the cell. \cite{Wirtz2010} proposed that $\sigma=1$ for diatoms, while $\sigma=0$ for other autotrophs.
+
+[TODO: 1) so far, it's not clear what's the relevance of $\theta$ or $f_\theta$ for physiological processes. Maybe a sentence. 2) it's also not clear where these novel and mysterious parameters such as $f_R$ and $\theta$ come from. Maybe it's helpful to hint that they are being dynamically optimized, referring to \secref{sec:adapreg}]
+\end{subsection}
+
+%
+% -------------------------------------  Nutrient uptake
+%
+\vspace{8mm} \hrule
+\begin{subsection}{Nutrient uptake} \label{sec:nutup}
+
+Nutrient uptake rate of the cell varies with a number of internal, physiological factors, such as
+ the partitioning coefficient $f_V$ (see above) and the (enzymatic) activity $a_{\mathrm{V},\nind}$ ($\nind$= N, P, Si, $\ldots$), and is furthermore determined by the potential uptake $V_\nind^*$
+\beql{eq:potuptake}
+V_\nind = \uref{f_V}{alloc}\cdot \uref{a_{\mathrm{V},\nind}}{uptact}\cdot V_\nind^* 
+\eeq
+Potential uptake $V_\nind^*$  reflects ambient nutrient concentration, but also affinity and transport capacities denoted by $A_\nind$ and $\vmax{\nind}$. Nutrient uptake is a sequential 2-stage process (membrane uptake and intracellular transport) as described by the nutrient affinity $A_\nind$ and maximal uptake rate $\vmax{\nind}$ such that the effective uptake time equals the sum of turnover times in each stage: 
+\beql{eq:uptake}
+V_\nind^{*-1}  = \vmax{\nind}^{-1} + (A_\nind\:\mathrm{DI}\nind)^{-1} \msep\mathrm{DI}\nind=\mathrm{DIN}, \mathrm{DIP}, \mathrm{DSi}, \ldots 
+\eeq
+
+Nutrient uptake characteristics are temperature sensitive and assumed to depend on a sub-partitioning of allocatable proteins expressed by the coefficient $f_{A,\nind}$
+\beal{eq:uptakecoeff}
+\vmax{\nind} &=& (1-f_{A,\nind})   \cdot Q_0\cdot\uref{f_T}{arrhenius}\cdot\vmax{\nind}^0\\[1ex]
+A_\nind      &=& \quad f_{A,\nind}\quad\:\: \cdot Q_0\cdot f_T\cdot A_\nind^0
+\eea
+
+ONUR: What's presently implemented is:  
+\beal{eq:uptakecoeffcurr}
+\vmax{\nind} &=& (1-f_{A,\nind})   \cdot \uref{f_T}{arrhenius}\cdot\vmax{\nind}^0\\[1ex]
+A_\nind      &=& \quad f_{A,\nind}\quad\:\: \cdot A_\nind^0
+\eea
+
+[TODO: differential temperature sensitivity; see Smith 2013]
+
+Protein sub-partitioning of overall uptake machinery ($f_V$) into affinity and transport capabilities is instantaneously optimized 
+\beq
+\pdiff{V_\nind^*}{f_{A,\nind}} = 0
+\eeq
+and the resulting optimal sub-partitioning depends on nutrient availability \citep{Pahlow2005,Smith2009}
+\beql{eq:optutpalloc}
+f_{A,\nind}  = \Big(1+\sqrt{A_\nind^0\cdot\mathrm{DI}\nind/\vmax{\nind}^0}\Big)^{-1} 
+\eeq
+
+In terms of the autotroph nutrient quota $\qx{\nind}$ ($\nind$=N, P, Si) imbalance between nutrient uptake and growth demand leads to
+\beql{eq:quotadyn}
+\dift\qx{\nind} =V_{\nind}-\rgr\cdot\qx{\nind}
+\eeq
+or, in the MAECS notation where traits/characteristics are transported as bulk biomasses $\phyx$ parallel to the basic phytoplankton concentration $\phyc$
+\beql{eq:phyxdyn}
+\dift \phyx = V_{\nind}\cdot \phyc  - \uref{M}{rgr_tot}\cdot\phyx 
+   \msep \qx{\nind} = \fracd{\phyx}{\phyc}  
+\eeq
+
+[TODO: exudation]
+\end{subsection}
+
+%
+% -------------------------------------  Grazing
+%
+\vspace{8mm} \hrule
+
+\begin{subsection}{Grazing}\label{sec:grazing}
+
+Before merging with the ecological MAECS version, we use primitive (non-biophysical) standards for describing heterotrophic activities:
+
+\beql{eq:dynzoo}
+\dift{\zooc} =  (y \cdot{G} - \tau_\mathrm{C}- M_Z)\cdot \zooc
+\eeq
+with quadratic and temperature sensitive mortality to represent top-down pressure
+\beql{eq:mortzoo}
+ M_Z = f_T \cdot M_Z^0\cdot \zooc
+\eeq
+and a Holling-III response function for functional grazing response:
+\beql{eq:graz}
+ G =  g_\mathrm{max}\,f_T \cdot\fracd{\phyc^2}{K_G^2 + \phyc^2}
+\eeq
+
+[TODO: more complicated loss/leakage terms $\tau_\nind$ to ensure homeostasis and mass conservation]
+
+\end{subsection}
+
+\vspace{8mm} \hrule
+%
+% -------------------------------------  Sinking loss 
+%
+
+\begin{subsection}{Sinking loss} \label{sec:sink}
+Vertical losses account for enhanced settling due to aggregate formation which occurs under high concentrations of particles and exopolymeres. As a coastal model, already the basic version of MAECS resolves a benthic compartment independently from the coupled diagenesis model (see below).
+
+The relative loss rate $S$ is, in an idealized picture, the ratio between $v_\mathrm{s}$ and the mixed layer depth (MLD)
+\beql{eq:sink}
+S  = (1+\uref{f_\mathrm{agg}}{agg})\cdot\fracd{v_\mathrm{s}}{\mathrm{MLD}}
+\eeq
+
+[TODO: add size as trait or explicit parameter; the following part comes from the size-based model version]
+
+The velocity $v_\mathrm{s}$ of a sinking particle is described by Stokes' law, which for a spherical cell with diameter ESD$=\eh{\lcsize}$ reads 
+\beql{eq:stokes}
+v_\mathrm{s} = \fracd{g\, \rho'(\lcsize)\,\eh{2\lcsize}}{18 \nu(T)} 
+\eeq
+
+The unitless excess density $\rho'$, the density difference between water and the suspended body, divided by water density, is known to be a function of the physiology and size of the suspended cells \citep{Waite1997,Kioerboe1998,Miklasz2010}. Dead cells are relatively heavy-weighted ($\rho'=\rho^\dag$, $\rho^\dag>0$), but $\rho^\dag$ decreases in large (siliceous) phytoplankton due to an increasing fraction of vacuoles. The allometric relation of vacuolation and excess density reduction is 
+\beql{eq:densallom}
+ \rho^\dag = \rho^\dag_0\,\eh{-\alpha_\rho\lcsize}
+\eeq
+As vacuoles usually contain a higher concentration of inorganic compounds than the surrounding cytoplasm, the exponent $\alpha_\rho$ should be close to the size scaling slope reported for carbon density by \cite{Menden2000}.
+
+Linear dependency between excess density and relative production
+\beql{eq:dens}
+\rho' =  ( 1 - f_\mathrm{vac}\cdot p)\cdot\,\rho^\dag
+\eeq
+$f_\mathrm{vac}$ is the relative volumetric fraction that can be filled with material of reduced density (e.g., gases, lipids, or solutes, the latter listed in \cite{Boyd2002}). This quantity relates to the vacuole structure \citep{Raven2004} and can therefore be formulated as the relative density difference with respect to cells without vacuolation ($\rho^\dag_0$ in \Eq{eq:densallom})
+\beql{eq:vac}
+f_\mathrm{vac} = \displaystyle\frac{\rho^\dag_0 -\rho^\dag}{\rho^\dag_0} = 1-\eh{-\alpha_\rho\lcsize}
+%\csize^{-\alpha_\rho}
+\eeq
+\end{subsection}
+
+\vspace{8mm} \hrule
+%
+% -------------------------------------   aggregation
+%
+
+\begin{subsection}{Particle aggregation}\label{sec:partagg}
+
+[check with Richard; re-introduce into code]
+
+Aggregation depends on stickiness and particle surface
+\beql{eq:agg}
+f_\mathrm{agg} =f_\mathrm{agg}^*\:\mathrm{EP}\cdot\phyc\cdot\textrm{ESD}^n
+\eeq
+
+The relative fraction of exopolymeres within the DOM pool is inversely related to DOM quality, which is expressed in terms of the N:C stoichiometry. 
+Stickiness associated with exopolymeres ($\mathrm{EP}$) correlates with DOM quantity and inverse quality
+\beql{eq:ep}
+\mathrm{EP}=\fracd{\mathrm{DOC}}{\mathrm{DON}}\:\mathrm{DOC}
+\eeq
+Stickiness not only enhances coagulation efficiency in particle aggregation, it also increases the critical bottom shear stress for sediment resuspension (''biostabilization'').
+Resuspension of benthic material occurs when bottom shear stress exceeds that ''sticky'' threshold.
+
+\beql{eq:resus}
+\mathrm{RS} = \mathrm{RS}^*\:\max\Big\{V_\mathrm{bshear}-V^*_\mathrm{EP}\:\mathrm{EP}, 0\Big\}\
+\eeq
+
+so we have for  material fluxes due to resuspension
+\beql{eq:rs_flux}
+ \dift C_{X}^\mathrm{z=H} = \ldots + \mathrm{RS} C_{X}^\mathrm{ben}
+\msep C_X=\phyx, \mathrm{Det}_{X}	
+\eeq
+
+\end{subsection}
+
+\vspace{8mm} \hrule
+%
+% -------------------------------------  auxiliary
+%
+\begin{subsection}{Other stuff}
+
+Photoinhibition by depletion of D1-protein
+\beql{eq:inhibit}
+u = \fracd{\fQ{N}}{\fQ{N}+u^*\:\chlc^2}
+\eeq
+
+Exudation reflects imbalance between C uptake and assimilation 
+\beql{eq:exud}
+E= e^*\:P_\mathrm{max}^*\:f_T\:\mathrm{LH}
+\eeq
+
+\end{subsection}
+
+
+\end{section} %process descriptions
+%
+% -------------------------------------  trait dynamics and derivatives
+%
+%\vspace{8mm} \hrule
+
+\begin{section}{Adaptive trait regulation and differential trade-off} \label{sec:adapreg}
+
+Adaptive trait dynamics in its general form has been proposed as an optimality-seeking principle guiding transient adaptive regulation phenomena on very different levels of description, from organ physiology to population ecology \citep{Wirtz2000,Wirtz2003,Smith2011}. 
+This principle/equation is applied to all physiological traits in MAECS, in particular to those that primarily control nutrient uptake ($f_\textrm{R}$ and $\theta$ through $f_\textrm{V}$, and activity $a_{\mathrm{V},\nind}$. 
+C-growth as goal function needs to be extended by ''hidden'' or indirect effects through a differential link between nutrient uptake $V_\nind$ and quota $\qx{\nind}$ for all macro-nutrients:
+
+\beql{eq:traitdyn}
+\diff{f_{m,\nind}}{t} = \delta_{m} \Big(\pdiff{\mu}{f_{m,\nind}} + \sum_\mathrm{x}\uref{\pdiff{\mu}{Q_\nind}}{qderiv0}
+\uref{\diff{Q_\nind}{V_\nind}\Big|_\mathrm{tot}}{qn_uptot}\pdiff{V_\nind}{f_{m,\nind}}\Big)
+\msep f_{m,\nind}=f_\textrm{R}, \theta, a_{\mathrm{V},\nind}\qquad 
+\nind=\mathrm{N}, \mathrm{P}, \mathrm{Si}, \ldots
+\eeq
+
+[TODO: reduce text or spread to individual euqations]
+
+Diverging from most standard ecosystem models, however, MAECS assumes intricate interdependencies between independent C, N, or P  assimilation functions while avoiding prescribed stoichiometric control settings such as maximal N:C or P:C ratios. For doing so, it implies optimality criteria already in the description of basic uptake formulations (lower part of \tabref{tab:basic}). These criteria control shifts between high affinity and fast transport nutrient uptake (see above \Eq{eq:optutpalloc}) and in the enzymatic down-regulation of all nutrient uptake activities. Adaptive control in activity secures phytoplankton cells from non-beneficial intracellular accumulation of nutrients, but in the model also requires to formulate an extended optimality principle by which C costs of nutrient uptake have to be balanced with corresponding C benefits arising fro associated quota changes (\Eq{eq:upactiv}). For both regulations (uptake site/transport partitioning, activity), steady-state solutions or approximations are calculated since physiological uptake regulations proceed at very high speed.
+
+For nitrogen (N), the differential effect of increasing nutrient uptake rate on the quota derives from functional variation applied to the quota uptake equation \Eq{eq:quotadyn}:
+\beql{eq:vmu_var}
+\delta V_\nind + \pdiff{V_\nind}{Q_\nind}\delta Q_\nind - \rgr\cdot\delta Q_\nind - Q_\nind\cdot\pdiff{\rgr}{Q_\nind}\delta Q_\nind - Q_\nind\cdot\pdiff{\rgr}{V_\nind}\delta V_\nind =0
+%\delta\Vn + \pdiff{\Vn}{\qn}\delta\qn - \rgr\cdot\delta\qn - \qn\cdot\pdiff{\rgr}{\qn}\delta\qn - \qn\cdot\pdiff{\Vn}{\qn}\delta\Vn =0
+\eeq
+or
+\beql{eq:qn_up}
+\diff{Q_\nind}{V_\nind} = (1+\zeta_\nind Q_\nind)\cdot\Big(\rgr+Q_\nind\pdiff{\rgr}{Q_\nind}- \pdiff{V_\nind}{Q_\nind}\Big)^{-1} 
+\eeq
+
+where the derivative of uptake rate on quota may only become non-zero (1) for nitrogen (N) and (2) if C-partitioning to chlorophyll ($f_\theta$ in \Eq{eq:ftheta}) is hardwired to the N-quota:
+\beql{eq:up_qn}
+\pdiff{\Vn}{\qn}  =\fracd{\Vn}{f_V}\pdiff{f_V}{\qn}  = - \fracd{\sigma f_R\theta}{f_V\theta_{C} \Delta\qn} \Vn = -\sigma' \Vn
+\eeq
+%\end{subsection}
+
+%
+% -------------------------------------  derivatives under co-limitation
+%
+\vspace{8mm} \hrule
+\begin{subsection}{Growth derivatives under co-limitation}\label{sec:grder}
+
+For the N-turnover and regulation, the differential dependency of $\Vn$ on $\qn$ also enters the marginal increase in primary production when raising intracellular quota; an analytical derivation of the photosynthesis rate $P$ in \Eq{eq:primprod} with respect to each co-limiting quota $Q_\nind$ reads
+\bea
+\pdiff{\rgr}{Q_\nind} &=& \fracd{P}{\climf}\,\pdiff{\climf}{\fQ{\nind}}\,\pdiff{\fQ{\nind}}{Q_\nind} -\zeta\pdiff{\Vn}{Q_\nind} \nonumber\\[1.1ex]
+&=&  d_\mathrm{\nind}\fracd{\rgr+\zeta\Vn}{\Delta Q_\nind} +\sigma'\zeta\Vn 
+     \qquad\qquad\qquad\msep d_\nind = \climf^{-1}\pdiff{\climf}{\fQ{\nind}} \nonumber\\[1.1ex]
+&=&  \Big(d_\nind\fracd{1+\zeta\qn}{\Delta Q_\nind} +\sigma'\zeta\qn\Big)\cdot\rgr \nonumber\\[1.1ex]
+&=&  \qquad\qquad\quad d_{Q\nind}\qquad\qquad\cdot\rgr \label{eq:rgr_qx}
+\eea
+where we assumed a balanced growth relation between growth and uptake ($\rgr\qn = \Vn$), used the relation $P=\rgr + \zeta\Vn$. In light of \Eq{eq:up_qn} we have $\sigma'_N=\sigma'$ and $\sigma'_\nind=0$ for other elements that lack direct influence on N-uptake rate.
+
+The derivation result $d_\nind$ of the (recursive) co-limitation factor $\climf\equiv\fQ{1}'$ may contain a number of product terms, depending on where in the scheme the limiting effect of $Q_\nind$ is calculated.
+Consider the series of limitation factors $\fQ{1}$, $\fQ{2}$, $\ldots$ $\fQ{No^{nut}}$ (e.g., for $\fQ{N}$, $\fQ{P}$, $\fQ{Si}$) we start from the first element where the recursive scheme \Eq{eq:multi2} has been invoked only once. For example, if MAECS just resolves  its basic element N, 
+\beql{eq:d_N1}
+d_{N} = \fracd{1}{\fQ{N}'} \hspace{6.cm} \mathrm{for}\quad \mathrm{No^{nut}}=1
+\eeq
+or N \emph{and} P,
+\beql{eq:d_N2P}
+d_\mathrm{N} = \fracd{1}{\fQ{N}'} \pdiff{\fQ{N}'}{\fQ{N}} \qquad
+d_\mathrm{P} = \fracd{1}{\fQ{N}'} \pdiff{\fQ{N}'}{\fQ{P}'}\pdiff{\fQ{P}'}{\fQ{P}}\qquad\qquad\mathrm{for}\quad \mathrm{No^{nut}}=2
+\eeq
+
+Note that $\partial\fQ{P}'/\partial \fQ{P}$ is one because P makes the last element in the list, so that the metabolic effect of $Q_\mathrm{P}$ as quantified by $\fQ{P}'$ exclusively depends on the availability of $Q_\mathrm{P}$ as quantified by $\fQ{P}$.
+The general form for an arbitrary $\mathrm{No^{nut}}$ continues the sequential differentiation from the first element (here usually N) to the element $\nind$ under consideration. So starting from $\fQ{1}'$ we calculate the use efficiency of element $\nind$ again using the chain-rule:
+\beql{eq:d_x}
+d_{\nind} = \fracd{1}{\fQ{1}'}\pdiff{\fQ{1}'}{\fQ{2}'}
+\pdiff{\fQ{2}'}{\fQ{3}'} \cdots \pdiff{\fQ{\nind}'}{\fQ{\nind}}
+\eeq
+Note that the last term in the  product of differentials  ($\partial\fQ{\nind}'/ \partial \fQ{\nind}$) is either one if $\nind$ is the last element in the sequence, and otherwise given by \Eq{eq:rgr_qq2}.
+%The co-limitation scheme complicates the differentiation of the net growth rate $\rgr$ with respect to the  quota $Q_\nind$ where $\nind$ respresent any nutrient except for nitrogen.
+The differentials in \Eqs{eq:d_N1}{eq:d_x} characterize the recursive effect of metabolic efficiencies of $\fQ{\nind}'$ formulated in \Eq{eq:multi2} 
+\beql{eq:rgr_qq2}
+\pdiff{\fQ{\nind}'}{\fQ{\nind}} =\fQ{\nind}' \cdot\Big(\fQ{\nind}^{-1}-\pdiff{g_h}{x}\fracd{\fQ{\nind+1}'}{g_h\fQ{\nind}^2} + \fracd{h\,\fQ{\nind+1}'}{c_{hq}}\Big)
+\eeq
+
+or, if we differentiate with respect to the second efficiency:
+\beql{eq:rgr_qq3}
+\pdiff{\fQ{\nind}'}{\fQ{\nind+1}'} =\fQ{\nind}' \cdot\Big(\pdiff{g_h}{x}\fracd{1}{g_h\fQ{\nind}} + \fracd{h\,\fQ{\nind}}{c_{hq}}\Big)
+\eeq
+
+where the coefficient $c_{hq}$ given in \Eq{eq:totc} is written without nutrient specific indices.  Step-wise derivation of the queuing function $(x-x_h)/(1-x_h)$ with $x_h=x^{1+h^{-1}}$
+in \Eq{eq:queuefunc} yields
+\beal{eq:qderiv0}
+\pdiff{g_h}{x} &=& \fracd{(1-(1+h^{-1})x_h/x)\cdot(1-x_h) +(x-x_h)\cdot(1+h^{-1})x_h/x}{(1-x_h)^2}
+\nonumber\\[1.1ex]
+&=& \fracd{(x\,h-(h+1)x_h)\cdot(1-{x_h}) +(x-{x_h})\cdot(h+1)x_h}{x\,h\cdot(1-x_h)^2}
+\nonumber\\[1.1ex]
+&=& \fracd{
+x\,h-(h+1)x_h -\cancel{x\,h\,x_h}+\cancel{(h+1)x_h^2} + x\cdot(\cancel{h}+1)x_h - \cancel{(h+1)x_h^2}}{x\,h\cdot(1-x_h)^2}
+\nonumber\\[1.1ex]
+              &=& \fracd{x\,h+(x-1-h)\cdot x_h}{x\,h\cdot(1-x_h)^2} 
+\eea
+
+[TODO: numerical approximation to avoid problems at $x=1$]
+
+\end{subsection}
+
+%
+% -------------------------------------  Quota-uptake feed-back
+%
+\vspace{8mm} \hrule
+\begin{subsection}{Quota-uptake feed-back}\label{sec:quotafb}
+
+\Eq{eq:qn_up} provides a first estimate for the differential trade-off required for a fully coherent application of the optimality principle to physiological regulation. However, a marginal change in quota after a differential change in uptake rate may propagate back to the uptake rate, if the latter directly depends on $\qn$. This direct, differential feed-back between changes in $\qn$ and $\Vn$ reads
+\beql{eq:qn_uptot}
+\diff{\qn}{\Vn}\Big|_\mathrm{tot} = \diff{\qn}{\Vn}\cdot\Big(1+\uref{\diff{\qn}{\Vn}
+\pdiff{\Vn}{\qn}}{dQdV_dVdQ}\Big)
+\eeq
+
+\bea
+\diff{\qn}{\Vn}
+\pdiff{\Vn}{\qn} &=& - (1+\zeta \qn)\cdot\Big(\rgr+\qn\pdiff{\rgr}{\qn}-\pdiff{\Vn}{\qn}\Big)^{-1}\sigma' \Vn\nonumber\\[1.1ex]
+&=& - (1+\zeta \qn)\cdot\Big(1+\qn\Big[ d_\mathrm{N}\fracd{1+\zeta\qn}{\qn-\qno} +\sigma'\zeta\qn\Big]+ \sigma'\qn\Big)^{-1}\sigma'\qn\nonumber\\[1.1ex]
+&=& - (1+\zeta \qn)\cdot\Big((\qn)^{-1} + d_\mathrm{N}\fracd{1+\zeta\qn}{\qn-\qno} +\sigma'\cdot(1+\zeta\qn)\Big)^{-1}\sigma'\nonumber\\[1.1ex]
+&=& -\sigma'\cdot\Big(\underbrace{(\qn\,(1+\zeta \qn))^{-1} + d_\mathrm{N}\,(\qn-\qno)^{-1}}_{e_\mathrm{N}} +\sigma'\Big)^{-1}\label{eq:dQdV_dVdQ}\nonumber\\[1.1ex]
+&=& -\fracd{\sigma'}{e_\mathrm{N}+\sigma'}
+%&=& \diff{\qn}{\Vn}\cdot\Big(1-(1+\zeta \qn)\cdot\fracd{f_R}{f_V}\Delta\qn^{-1} \Big(\qn^{-1}+\fracd{a_2}{\qn-\qno} + \fracd{f_R}{f_V}\Delta\qn^{-1} \Big)^{-1} \Big)\\[1.1ex]
+%&\approx& -\zeta \qn
+\eea
+In all other cases apart of nitrogen, the uptake dependency on the quota vanishes:
+\beql{eq:up_qn0}
+\pdiff{V_\nind}{Q_\nind}  = 0  \quad\mathrm{and}\quad
+\diff{Q_\nind}{V_\nind}\Big|_\mathrm{tot}=\diff{Q_\nind}{V_\nind} \msep \nind =P, Si
+\eeq
+
+The product of the quota-uptake differential (without feed-back) and the growth-quota differential in
+\Eq{eq:traitdyn} combines \Eq{eq:qn_up} and \Eq{eq:rgr_qx} and again assumes $V_\nind = Q_\nind\rgr$:
+\beal{eq:dQdV_dmudQ}
+\diff{Q_\nind}{V_\nind}\pdiff{\rgr}{Q_\nind} &=& 
+ (1+\zeta_\nind Q_\nind)\cdot\Big(\rgr+Q_\nind\,\pdiff{\rgr}{Q_\nind}- \pdiff{V_\nind}{Q_\nind}\Big)^{-1}\cdot d_{Q\nind}\cdot\rgr\nonumber\\[1.1ex]
+ &=&(1+\zeta_\nind Q_\nind)\cdot\Big(1 + Q_\nind\,d_{Q\nind} +\sigma_\nind'V_\nind\,\rgr^{-1} \Big)^{-1}\cdot \uref{d_{Q\nind}}{rgr_qx}\nonumber\\[1.1ex]
+ &=&\fracd{(1+\zeta_\nind Q_\nind)\cdot d_{Q\nind}}{1+Q_\nind\cdot(d_{Q\nind}+\sigma_\nind')}
+\eea
+
+\end{subsection}
+
+%
+% -------------------------------------  Uptake activity regulation
+%
+\vspace{8mm} \hrule
+\begin{subsection}{Uptake activity regulation}\label{sec:uptreg}
+
+In the current version of MAECS, regulation of all uptake activity traits $a_\nind$ is supposed to be very fast compared to the simulated dynamics and therefore not integrated in time according to \Eq{eq:traitdyn}, but assumed to be in steady-state. If the marginal benefit of uptake $\mathrm{d}\rgr/\mathrm{d}a_\nind$ is negative, activity is ceased; at positive benefit, $a_\nind$ approaches one. While at neutral growth effect $\mathrm{d}\rgr/\mathrm{d}a_\nind\approx 0$,  the activity should for numerical reasons smoothly decrease to a
+small number. This behavior is emulated by the non-linear function
+
+\beql{eq:uptact}
+a_\nind = \Big(1+\eh{ \pi -\Delta t_\mathrm{v}\mathrm{d}\rgr/\mathrm{d}a_\nind}\Big)^{-1}
+\eeq
+
+For optimization in N-uptake activity $a_\mathrm{N}$ based on its the marginal C gain the extended optimality principle integrates \Eq{eq:traitdyn} and \Eqs{eq:rgr_qx}{eq:dQdV_dmudQ}:
+\begin{align} \label{eq:rgr_Xreg}
+\diff{\rgr}{a_\nind} &=& \pdiff{\rgr}{a_\nind} & + \pdiff{\rgr}{Q_\nind}\diff{Q_\nind}{V_\nind}\Big|_\mathrm{tot}\pdiff{V_\nind}{a_\nind} \nonumber\\[1.1ex]
+&=& -\zeta_\nind\fracd{V_\nind}{a_\nind} &+ \pdiff{\rgr}{Q_\nind}\diff{Q_\nind}{V_\nind}\fracd{e_\mathrm{N}}{e_\mathrm{N}+\sigma'_\nind}
+\fracd{V_\nind}{a_\nind}\nonumber\\[1.1ex]
+&=&\Big(-\uref{\zeta_\nind}{zetax} &+\fracd{(1+\zeta_\nind Q_\nind)\cdot d_{Q\nind}}{1+Q_\nind\cdot (d_{Q\nind}+\sigma'_\nind)}\fracd{e_\mathrm{N}}{e_\mathrm{N}+\sigma'_\nind}\Big)\cdot\fracd{V_\nind}{a_\nind}
+%\eea
+\end{align}
+
+where, again, $\sigma'_N=\sigma'$ and $\sigma'_\nind=0$ for other elements that lack direct influence on uptake.
+ 
+\end{subsection}
+
+%
+% -------------------------------------  Regulation in P and Si uptake
+%
+\vspace{8mm} \hrule
+\begin{subsection}{Costs in P and Si uptake}\label{sec:costPS}
+
+For a first estimation of the C-costs of P- and Si-uptake (with units mol-C/mol-X) we link the latter to N-assimilation.
+This means that energetic costs of P- and Si-assimilation are not accounted for as additional terms but assumed to be already included in protein synthesis that are chararized by $\zeta\equiv\zeta_\mathrm{N}$ (with units mol-C/mol-N). For the P-link, we use the N-stoichiometry in RNA (N:P $\approx$ 3.8:1) and phospholipids (N:P $\approx$ 0.8:1 mol-N/mol-P)
+\beql{eq:rgr_vx}
+\pdiff{\rgr}{V_\nind}=\pdiff{\rgr}{\Vn}\pdiff{\Vn}{V_\nind} = -\zeta_\mathrm{N}\cdot\fracd{Q^{0*}_\mathrm{N}}{Q^{0*}_\nind} = -\zeta_\mathrm{X}
+\eeq
+with \Eq{eq:totc} \Eq{eq:multi2}
+\beql{eq:zetax}
+\zeta_\mathrm{P} = \Big[(1-f_\mathrm{Lip})\,{3.8} + f_\mathrm{Lip}\,{0.8}\Big]\cdot  \zeta_\mathrm{N}  \qquad \mathrm{and} \qquad \zeta_\mathrm{Si} = 0
+\eeq
+
+[TODO: check and simplify]
+
+[TODO: include proteins/membranes (N:P $\gg$ 16:1) under low growth conditions ]
+
+\end{subsection}
+
+%
+% ------------------------------------- Photoacclimation 
+%
+\vspace{8mm} \hrule
+
+\begin{subsection}{Photoacclimation and transport}\label{sec:photacc}
+
+MAECS resolves transient photoacclimation as adaptive dynamics in allocation traits (\Eq{eq:traitdyn}). The optimality principle extended by the differential quota-based trade-off  \Eq{eq:dQdV_dmudQ} seeks to find an allocation key between nutrient uptake, LHC and light-independent processes (Rubisco) that maximizes relative C-uptake rate $\rgr$. The optimality condition
+includes marginal growth benefits of all nutrients (see \Eq{eq:traitdyn}):
+\beql{eq:fRdyn}
+\dift{f_\textrm{R}} = \delta_{R} \Big(\pdiff{\mu}{f_\textrm{R}}+\sum_\mathrm{x}\uref{\pdiff{\mu}{Q_\nind}}{qderiv0}
+\uref{\diff{Q_\nind}{V_\nind}\Big|_\mathrm{tot}}{qn_uptot}\uref{\pdiff{V_\nind}{f_\textrm{R}}}{dmu_dfR}\Big)
+\eeq
+and similar for the chloroplast CHL:C ratio $\theta$:
+\beql{eq:thetadyn}
+\dift{\theta} = \delta_{R} \Big(\pdiff{\mu}{\theta}+\sum_\mathrm{x}\uref{\pdiff{\mu}{Q_\nind}}{rgr_qx}
+\uref{\diff{Q_\nind}{V_\nind}\Big|_\mathrm{tot}}{qn_uptot} \uref{\pdiff{V_\nind}{\theta}}{dmu_dtheta}\Big)
+\eeq
+%{eq:dQdV_dVdQ}
+The differential growth loss  by increasing allocation to photosynthesis apparati down-sizes the nutrient uptake machinery. All uptake and indirect derivatives of the photoacclimation traits that induce these differential costs had been already introduced above.
+
+Flexibilities in chloroplast CHL:C ratio and in C-allocation to Rubisco are given following \cite{Wirtz1996,Wirtz2000}
+\beql{eq:flexftheta}
+\delta_\theta=\delta_\theta^*\cdot\theta\cdot(\theta_{C}-\theta) \qquad
+\delta_R = \delta_R^*\cdot f_R\cdot (1-f_R)
+%\beql{eq:flexfR}
+\eeq
+Partial derivatives of photosynthesis rates with respct to $\theta$ and $f_\textrm{R}$
+(see \Eq{eq:Pmax} and \Eq{eq:potuptake}):
+\beal{eq:dmu_dfR}
+\pdiff{\mu}{f_\textrm{R}} &=& \fracd{P}{f_\textrm{R}} - \zeta \pdiff{\Vn}{f_\textrm{R}}\nonumber\\[1.1ex]
+   &=&\fracd{P}{f_\textrm{R}} + \zeta\cdot\Big(1+\fracd{\fQ{N}^\sigma \:\theta}{\theta_{C}}\Big)\cdot\uref{a_{\mathrm{V},N}}{uptact} V_\nind^*
+\eea
+
+\beal{eq:dmu_dtheta}
+\pdiff{\mu}{\theta} &=& \fracd{P}{\mathrm{LH}}\pdiff{\mathrm{LH}}{\theta} - \zeta \pdiff{\Vn}{\theta}\nonumber\\[1.1ex]
+   &=&\fracd{P}{\mathrm{LH}}\fracd{\alpha\,\textrm{PAR}}{P_\mathrm{max}}\,(1-\mathrm{LH}) - \zeta\,\fracd{\fQ{N}^\sigma \:f_\textrm{R}}{\theta_{C}}\cdot a_{\mathrm{V},N}\, V_\nind^*
+\eea
+
+For transporting photoacclimation traits in 1D-3D, MAECS integrates them as bulk variables by employing a ''carrier'' biomass variable (usually $\phyc$). With \Eq{eq:ftheta} we have for the
+bulk chlorophyll{\emph{a}} concentration
+\beql{eq:chlc}
+\mathrm{Chl}  =f_\theta\: \theta_C\:\phyc = f_R\:\fQ{N}^\sigma \:\theta\:\phyc 
+\eeq
+and bulk Rubisco concentrations
+\beql{eq:rub}
+\mathrm{Rub}  =f_\textrm{R}\:\phyc
+\eeq
+
+
+[TODO: write down full equations]
+%R_{\rm chl} \cdot \frac{\dd \rm PhyC}{\dd t} + \frac{\dd R_{\rm chl}}{\dd t} \cdot {\rm PhyC}
+\end{subsection}
+
+
+\end{section} %end the section: adaptive regulation
+
+
+
+% % ---------------------------------------------------------------------------------------
+\begin{section}{Acknowledgements}
+%\section{Acknowledgements}
+We thank  ....
+The work was supported by the Helmholtz society via the program PACES.
+\end{section}
+% -------------------------------------------------------------------------------------
+%\end{section}
+\begin{comment}
+% -----------------------------------------------------------------------------------------
+\begin{subsection}{Adoption of the benthic diagenesis model OMEXDIA}
+\end{subsection}
+
+% -----------------------------------------------------------------------------------------
+\begin{subsection}{Set-ups and numerical experiments}
+\end{subsection}
+
+% ----------------------------------------------------------------------------------------
+\begin{section}{RESULTS (standard runs)} 
+\end{section}
+% ----------------------------  Tables and Figures ----------------------------------------
+\begin{normalsize}
+\section*{Tables}
+\begin{table}[ht] \caption{\footnotesize Relevant symbols used in the text. Abbrev: ESD: equivalent spherical diameter} \vspace{4mm}\label{tab:par} \small \begin{tabular}{llllll}\vspace{8mm} \hrule Symbol &Description&Value &Unit \\\vspace{8mm} \hrule
+$f_R$ &Relative N in Rubisco & \\[0.0ex]
+$\theta$ &CHL-a content in chloroplasts&2.5/0.14/4.8&g-CHL-a mol-C$^{-1}$\\[0.0ex]
+$\imax$ &maximum ingestion rate &&h$^{-1}$\\[-1.3ex]
+\vspace{8mm} \hrule \end{tabular} \end{table} 
+% \clearpage
+\end{normalsize}
+ \section*{Figure captions}
+%------------------------------------------------------------------------------- 
+\begin{figure}[hbt]\begin{center}
+%\includegraphics[width=0.495\columnwidth]{eps/Imax_Size.eps} 
+\caption{\label{fig:}\footnotesize 
+} \end{center}\end{figure} 
+\end{comment}
+
+
+%\begin{footnotesize} 
+%\bibliographystyle{elsart-harv} %style of Kai's elsart package
+%\bibliographystyle{elsarticle-harv} %style of new elsarticle package
+%\bibliography{plankton} %journal-macros-short,
+%\end{footnotesize}
+
+%\end{document}
+%------------------------------------------------------------------------------- 
+
+
+
+
+
+
