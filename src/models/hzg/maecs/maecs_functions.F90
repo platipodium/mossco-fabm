@@ -614,12 +614,17 @@ real(rk) function nan_num(x)
 
    implicit none
    real(rk), intent(in)          :: x
-   real(rk)            :: xnan,xinf,xinfneg
+   !real(rk)            :: xnan,xinf,xinfneg
 !--------------------------------------------------------------
-   xnan=zero/zero
-   xinf=1.0_rk/zero
-   xinfneg=-1.0_rk/zero
-   if ((x .eq. xinfneg) .or. (x .eq. xinf) .or. (x .eq. xnan)) then
+   !xnan=zero/zero
+   !xinf=1.0_rk/zero
+   !xinfneg=-1.0_rk/zero
+   !if ((x .eq. xinfneg) .or. (x .eq. xinf) .or. (x .eq. xnan)) then
+   ! The above calculations trigger invalid in many compilers, thus the
+   ! better formulation below
+   if (      x /= x           & ! this is true for NaN 
+      .or.   abs(x) > huge(x) & ! this is true for Inf 
+      ) then  
      nan_num=-2.e20_rk !that's the default FABM missing value
    else 
      nan_num=x
