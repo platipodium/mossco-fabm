@@ -1,5 +1,4 @@
 #include "fabm_driver.h"
-
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -7,6 +6,7 @@
 !
 ! !INTERFACE:
    module hzg_omexdia_p
+! #define debugMK
 !
 ! !DESCRIPTION:
 !
@@ -249,6 +249,18 @@
    _GET_(self%id_nh3, nh3)           ! dissolved ammonium         (mmolN/m**3)
    _GET_(self%id_po4, po4)           ! dissolved phosphate        (mmolP/m**3)
 
+#ifdef debugMK
+if ( temp_celsius /= temp_celsius ) then; write(0,*) 'omexdia#254 temp_celsius = ',temp_celsius; stop; endif
+if ( ldetC        /= ldetC        ) then; write(0,*) 'omexdia#255 ldetC = ',ldetC     ; stop; endif
+if ( sdetC        /= sdetC        ) then; write(0,*) 'omexdia#256 sdetC = ',sdetC     ; stop; endif
+if ( detP         /= detP         ) then; write(0,*) 'omexdia#257 detP = ',detP       ; stop; endif
+if ( oxy          /= oxy          ) then; write(0,*) 'omexdia#258 oxy = ',oxy         ; stop; endif
+if ( odu          /= odu          ) then; write(0,*) 'omexdia#259 odu = ',odu         ; stop; endif
+if ( no3          /= no3          ) then; write(0,*) 'omexdia#260 no3 = ',no3         ; stop; endif
+if ( nh3          /= nh3          ) then; write(0,*) 'omexdia#261 nh3 = ',nh3         ; stop; endif
+if ( po4          /= po4          ) then; write(0,*) 'omexdia#262 po4 = ',po4         ; stop; endif
+#endif
+
    ! temperature dependency
    temp_kelvin = 273.15_rk + temp_celsius
    E_a = 0.1_rk*log(Q10b)*T0*(T0+10.0_rk)
@@ -297,6 +309,20 @@
 !  pDepo      = min(1.0_rk,0.233_rk*(wDepo)**0.336_rk )
    pDepo      = 0.0_rk
    OduDepo    = AnoxicMin*pDepo           ! ODU deposited as solids (in O2-equivalents) (mmolO2 m-3 d-1) !Soetaert eq 3.5
+
+#ifdef debugMK
+if ( CprodL /= CprodL ) then; write(0,*) 'omexdia#302 CprodL = ',CprodL; stop; endif
+if ( CprodS /= CprodS ) then; write(0,*) 'omexdia#302 CprodS = ',CprodS; stop; endif
+if ( OxicMin /= OxicMin ) then; write(0,*) 'omexdia#302 OxicMin = ',OxicMin; stop; endif
+if ( Nitri /= Nitri ) then; write(0,*) 'omexdia#302 Nitri = ',Nitri; stop; endif
+if ( OduOx /= OduOx ) then; write(0,*) 'omexdia#302 OduOx = ',OduOx; stop; endif
+if ( Denitrific /= Denitrific ) then; write(0,*) 'omexdia#302 Denitrific = ',Denitrific; stop; endif
+if ( Nprod /= Nprod ) then; write(0,*) 'omexdia#302 Nprod = ',Nprod; stop; endif
+if ( AnoxicMin /= AnoxicMin ) then; write(0,*) 'omexdia#302 AnoxicMin = ',AnoxicMin; stop; endif
+if ( Nprod /= Nprod ) then; write(0,*) 'omexdia#302 Nprod = ',Nprod; stop; endif
+if ( Pprod /= Pprod ) then; write(0,*) 'omexdia#302 Pprod = ',Pprod; stop; endif
+if ( radsP /= radsP ) then; write(0,*) 'omexdia#302 radsP = ',radsP; stop; endif
+#endif
 
 #define _CONV_UNIT_ *one_pr_day
 ! reaction rates
