@@ -966,7 +966,6 @@ end subroutine initialize
    _DECLARE_ARGUMENTS_GET_EXTINCTION_
    
    real(rk) :: p,z,poc,doc,chl,kw,zmax,doy,fz,ft,A,B,L,fz1,fz2,attv,lo,la,ya,xa,tke_bot
-   real(rk), PARAMETER ::  Pi = 3.1415927_rk
    
    ! Enter spatial loops (if any)
    _LOOP_BEGIN_

@@ -20,6 +20,9 @@ public type_maecs_sensitivities, type_maecs_om, &
        type_maecs_traitdyn, type_maecs_phy, type_maecs_zoo, &
        type_maecs_allocation_fractions
 
+
+real(rk), PARAMETER ::  Pi = 3.1415927_rk
+
 type type_maecs_nutindex
    integer :: iN, iP, iSi
    integer :: nutnum, nhi   
