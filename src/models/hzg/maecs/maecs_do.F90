@@ -576,7 +576,7 @@ rhsv%phyN =  uptake%N             * phy%C &
       ! depends on host P-stoichiometry (Wilson et al 1996, Clasen&Elser 2007)
  else
 !  vrepl = -self%vir_mu *  phy%relQ%N ! linear dependence on stoichiometry
-  if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P
+  !if (self%PhosphorusOn) vrepl = vrepl * phy%relQ%P
   vrepl = -self%vir_mu/(1.0_rk+ exp(-4.5*(phy%relQ%N-1.0_rk)))   ! linear dependence on stoichiometry
   if (self%PhosphorusOn) vrepl = vrepl/(1.0_rk+ exp(-4.5*(phy%relQ%P-1.0_rk)))
   if (self%GrazTurbOn .eq. 8) vrepl = vrepl*exp(-2*fa)  ! further reduce viral growth in coastal waters
@@ -736,7 +736,7 @@ endif
   aggreg_rate = aggreg_rate + add_aggreg_rate
   rhsv%phyN =  rhsv%phyN  - add_aggreg_rate * phy%N
   rhsv%phyC =  rhsv%phyC  - add_aggreg_rate * phy%C
- _SET_DIAGNOSTIC_(self%id_pPads,dq_dt )       !average Temporary_diagnostic_
+!_SET_DIAGNOSTIC_(self%id_pPads,dq_dt )       !average Temporary_diagnostic_
 ! _SET_DIAGNOSTIC_(self%id_datt, fag)
 
 !________________________________________________________________________________
