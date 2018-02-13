@@ -727,7 +727,7 @@ endif
 !________________________________________________________________________________
 !
 !  additional aggregation mediated by TEP production following C-overconsumption and release
-
+  dq_dt = 0.0_rk
 ! dq_dt=min(dQN_dt/self%QN_phy_max, dQP_dt/self%QP_phy_max)*(1.0_rk-exp(-0.1*env%par)
 ! dq_dt=dQP_dt/(1E-4+phy%Q%P) + dQN_dt/(1E-4+phy%Q%N)
 !  fag = 1.0_rk/(1+exp(10*(dq_dt)))
@@ -736,7 +736,7 @@ endif
   aggreg_rate = aggreg_rate + add_aggreg_rate
   rhsv%phyN =  rhsv%phyN  - add_aggreg_rate * phy%N
   rhsv%phyC =  rhsv%phyC  - add_aggreg_rate * phy%C
-!_SET_DIAGNOSTIC_(self%id_pPads,dq_dt )       !average Temporary_diagnostic_
+  _SET_DIAGNOSTIC_(self%id_pPads,dq_dt )       !average Temporary_diagnostic_
 ! _SET_DIAGNOSTIC_(self%id_datt, fag)
 
 !________________________________________________________________________________
