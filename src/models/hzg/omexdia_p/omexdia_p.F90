@@ -32,7 +32,8 @@
    real(rk), parameter :: one_pr_day  = 1.0_rk / secs_pr_day
 !
 ! !REVISION HISTORY:!
-!  Original author(s): Richard Hofmeister & Kai Wirtz
+!  Modified by author(s): Carsten Lemmen
+!  Original author(s): Richard Hofmeister, Kai W. Wirtz
 !
 !
 ! !PUBLIC DERIVED TYPES:
@@ -47,6 +48,12 @@
       real(rk) :: rLabile, rSemilabile, NCrLdet, NCrSdet, PAds, PAdsODU
       real(rk) :: NH3Ads, rnit, ksO2nitri,rODUox, CprodMax
       real(rk) :: ksO2oduox, ksO2oxic, ksNO3denit, kinO2denit, kinNO3anox, kinO2anox
+
+!     Variable identifiers for parameters (if requested), @todo rate constants
+!     are not yet considered here (ksXXX and kinXXX)
+      type (type_horizontal_dependency_id)  :: id_rLabile, id_rSemilabile, id_NCrLdet
+      type (type_horizontal_dependency_id)  :: id_NCrSdet, id_PAds, id_PAdsODU, id_CprodMax
+      type (type_horizontal_dependency_id)  :: id_NH3Ads, id_rnit, id_rODUox
 
       contains
 
@@ -77,6 +84,7 @@
    integer,                    intent(in)            :: configunit
 !
 ! !REVISION HISTORY:
+!  Modified by author(s): Carsten Lemmen
 !  Original author(s): Richard Hofmeister & Kai Wirtz
 !
 ! !LOCAL VARIABLES:
@@ -119,16 +127,9 @@
 !BOC
 
    ! Read the namelist
-   if (configunit>0) read(configunit,nml=hzg_omexdia_p,err=99,end=100)
+   if (configunit>0) read(configunit, nml=hzg_omexdia_p, err=99, end=100)
 
-   ! Store parameter values in our own derived type
-   self%rLabile    = rLabile
-   self%rSemilabile= rSemilabile
-   self%NCrLdet    = NCrLdet
-   self%NCrSdet    = NCrSdet
-   self%PAds       = PAds
-   self%PAdsODU    = PAdsODU
-   self%NH3Ads     = NH3Ads
+   ! Store some parameter values in our own derived type
    self%CprodMax   = CprodMax
    self%rnit       = rnit
    self%ksO2nitri  = ksO2nitri
@@ -139,6 +140,16 @@
    self%kinO2denit = kinO2denit
    self%kinNO3anox = kinNO3anox
    self%kinO2anox  = kinO2anox
+
+   ! Store other parameter values in our own derived type, if they are negative,
+   ! then they are also registered as an external dependency (see below)
+   self%rLabile    = rLabile
+   self%rSemilabile= rSemilabile
+   self%NCrLdet    = NCrLdet
+   self%NCrSdet    = NCrSdet
+   self%PAds       = PAds
+   self%PAdsODU    = PAdsODU
+   self%NH3Ads     = NH3Ads
 
    ! Register state variables
    call self%register_state_variable(self%id_ldetC, 'ldetC', 'mmolC/m**3',  &
@@ -193,6 +204,15 @@
    ! Register dependencies
    call self%register_dependency(self%id_temp, standard_variables%temperature)
 
+   ! Register dependencies for those parameters that are set to negative values
+   if (rLabile < 0) call self%register_horizontal_dependency(self%id_rLabile, 'labile_detritus_decay_rate','d-1','labile_detritus_decay_rate')
+   if (rSemiLabile < 0) call self%register_horizontal_dependency(self%id_rSemiLabile, 'semilabile_detritus_decay_rate','d-1','labile_detritus_decay_rate')
+   if (NCrLdet < 0) call self%register_horizontal_dependency(self%id_NCrLdet, 'labile_detritus_n_to_c_ratio','d-1','labile_detritus_n_to_c_ratio')
+   if (NCrSdet < 0) call self%register_horizontal_dependency(self%id_NCrSdet, 'semilabile_detritus_n_to_c_ratio','d-1','semilabile_detritus_n_to_c_ratio')
+   if (PAds < 0) call self%register_horizontal_dependency(self%id_PAds, 'phosphorous_adsorption_coefficient','1','phosphorous_adsorption_coefficient')
+   if (NH3Ads < 0) call self%register_horizontal_dependency(self%id_NH3Ads, 'ammonia_adsorption_coefficient','1','ammonia_adsorption_coefficient')
+   if (PAdsODU < 0) call self%register_horizontal_dependency(self%id_PAdsODU, 'phosphate_iron_dissolution_threshold_ratio','mmolFe mmolODU-1','phosphate_iron_dissolution_threshold_ratio')
+
    return
 
 99 call self%fatal_error('hzg_omexdia_p_initialize', 'Error reading namelist hzg_omexdia_p.')
@@ -217,6 +237,7 @@
    _DECLARE_ARGUMENTS_DO_
 !
 ! !REVISION HISTORY:
+!  Modified by author(s): Carsten Lemmen
 !  Original author(s): Richard Hofmeister & Kai Wirtz
 !
 ! !LOCAL VARIABLES:
@@ -231,6 +252,8 @@
    real(rk) :: radsP, Oxicminlim, Denitrilim, Anoxiclim, Rescale, rP
    real(rk) :: CprodL, CprodS, Cprod, Nprod, Pprod
    real(rk) :: AnoxicMin, Denitrific, OxicMin, Nitri, OduDepo, OduOx, pDepo
+   real(rk) :: rLabile, rSemiLabile, NCrLdet, NCrSdet, PAds, PAdsODU, NH3Ads
+
 !   real(rk) :: CprodMax = 24.0 ! d^-1 maximal C-degrad rate for numeric stability
 !EOP
 !-----------------------------------------------------------------------
@@ -248,6 +271,21 @@
    _GET_(self%id_no3, no3)           ! dissolved nitrate          (mmolN/m**3)
    _GET_(self%id_nh3, nh3)           ! dissolved ammonium         (mmolN/m**3)
    _GET_(self%id_po4, po4)           ! dissolved phosphate        (mmolP/m**3)
+
+   rLabile = self%rLabile
+   if (rLabile < 0) _GET_HORIZONTAL_(self%id_rLabile, rLabile)
+   rSemiLabile = self%rSemilabile
+   if (rSemiLabile < 0) _GET_HORIZONTAL_(self%id_rSemiLabile, rSemiLabile)
+   PAds = self%PAds
+   if (PAds < 0) _GET_HORIZONTAL_(self%id_PAds, PAds)
+   PAdsODU = self%PadsODU
+   if (PAdsODU < 0) _GET_HORIZONTAL_(self%id_PAdsODU, PAdsODU)
+   NH3Ads = self%NH3Ads
+   if (NH3Ads < 0) _GET_HORIZONTAL_(self%id_NH3Ads, NH3Ads)
+   NCrLdet = self%NCrLdet
+   if (NCrLdet < 0) _GET_HORIZONTAL_(self%id_NCrLdet, NCrLdet)
+   NCrSdet = self%NCrSdet
+   if (NCrSdet < 0) _GET_HORIZONTAL_(self%id_NCrSdet, NCrSdet)
 
 #ifdef debugMK
 if ( temp_celsius /= temp_celsius ) then; write(0,*) 'omexdia#254 temp_celsius = ',temp_celsius; stop; endif
@@ -275,21 +313,21 @@ if ( po4          /= po4          ) then; write(0,*) 'omexdia#262 po4 = ',po4   
    if(Oxicminlim - 1E-3 < -Denitrilim-Anoxiclim) Oxicminlim = 1E-3-Denitrilim-Anoxiclim  ! (-)
    Rescale    = 1.0_rk/(Oxicminlim+Denitrilim+Anoxiclim)     !Soetaert eq 3.4
 
-   CprodL = f_T * self%rLabile     * ldetC   ! (mmolC m-3 d-1)
-   CprodS = f_T * self%rSemilabile * sdetC   ! (mmolC m-3 d-1)
+   CprodL = f_T * rLabile     * ldetC   ! (mmolC m-3 d-1)
+   CprodS = f_T * rSemilabile * sdetC   ! (mmolC m-3 d-1)
 
 ! assume upper reactive surface area for POC hydrolysis (introduced by Kai Wirtz ?)
    if (CprodS > self%CprodMax) CprodS = self%CprodMax
    if (CprodL > self%CprodMax) CprodL = self%CprodMax
 
    Cprod  = CprodL + CprodS                               ! (mmolC m-3 d-1)
-   Nprod  = CprodL * self%NCrLdet + CprodS * self%NCrSdet ! (mmolN m-3 d-1) !MK: how to implement N/C-ratio from (coupled) external model?
+   Nprod  = CprodL * NCrLdet + CprodS * NCrSdet ! (mmolN m-3 d-1) !MK: how to implement N/C-ratio from (coupled) external model?
 
 ! PO4-adsorption ceases when critical capacity is reached
 ! [FeS] approximated by ODU
 ! TODO: temperature dependency
-   radsP  = self%PAds  * po4 * 1.0_rk/(1.0_rk+exp(-5.0_rk+(odu-oxy)/self%PAdsODU)) ! (?)
-   rP     = f_T * self%rLabile * 2 ! (1.0_rk - Oxicminlim)  ! (d-1)
+   radsP  = PAds  * po4 * 1.0_rk/(1.0_rk+exp(-5.0_rk+(odu-oxy)/PAdsODU)) ! (?)
+   rP     = f_T * rLabile * 2 ! (1.0_rk - Oxicminlim)  ! (d-1)
    Pprod  = rP * detP                                     ! (mmolP m-3 d-1)
 
 ! Oxic mineralisation, denitrification, anoxic mineralisation
