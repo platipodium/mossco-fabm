@@ -12,7 +12,7 @@ module hzg_kristineb
 !!----------------------------------------------------------------------
 ! --- HZG model types
 type type_kristineb_var
- real(rk) :: Phy,N,P,Q_N,Q_P,D_N,D_P !state variables
+ real(rk) :: Phy,N,P,Q_N,Q_P,D_N,D_P,Z !state variables
  real(rk) :: Cop,SeaTemp,DeepWtemp,pCO2,cil_h,cil_l,copepod_l,copepod_h !Forcings
 end type
 type type_kristineb_rhs
@@ -20,33 +20,42 @@ type type_kristineb_rhs
 end type
 ! standard fabm model types
 type,extends(type_base_model),public :: type_hzg_kristineb
-type (type_global_dependency_id) :: id_doy
+type (type_global_dependency_id)     :: id_doy
 type (type_state_variable_id),dimension(numberofphytos)  :: id_Phy,id_Q_N,id_Q_P
-type (type_state_variable_id) :: id_D_N,id_D_P,id_N,id_P
+type (type_state_variable_id)        :: id_D_N,id_D_P,id_N,id_P
+type (type_state_variable_id),dimension(numberofzoos)::id_Z
 type (type_dependency_id)            :: id_Cop !PAR_Forcing
 type (type_dependency_id)            :: id_DeepWTemp !,id_Temp2
 type (type_horizontal_dependency_id) :: id_pCO2,id_SeaTemp !id_CO2_high
-type (type_dependency_id)	     :: id_cil_h,id_cil_l,id_copepod_l,id_copepod_h
+type (type_dependency_id)            :: id_cil_h,id_cil_l,id_copepod_l,id_copepod_h
 !Diagnostic Variables
-type (type_diagnostic_variable_id)   :: id_chl_a,id_mean_cell_size,id_size_diversity,id_FTPhy,id_FTZoo,id_POC,id_PON
-type (type_diagnostic_variable_id),dimension(numberofphytos)   :: id_fPAR,id_fCO2,id_grazing,id_uptake_N,id_uptake_P,id_growth,id_sizespec
-type (type_diagnostic_variable_id),dimension(numberofzoos) :: id_I_max
+type (type_diagnostic_variable_id)   :: id_chla_to_PhyN,id_chla_to_PhyC,id_chl_a,id_mean_cell_size,id_size_diversity,id_FTPhy,id_FTZoo,id_POC,id_PON
+type (type_diagnostic_variable_id)   :: id_mixl,id_cop_size,id_cop_pref,id_Coscin,id_relCoscin,id_Picos,id_relPicos,id_total_Phy,id_total_growth
+type (type_diagnostic_variable_id)   :: id_total_respiration,id_total_sinking,id_total_aggregation,id_total_grazing,id_mix_grazing,id_evenness,id_pulse
+type (type_diagnostic_variable_id)   :: id_sedimentN,id_sedimentP
+type (type_diagnostic_variable_id),dimension(numberofphytos)   :: id_fPAR,id_fCO2,id_grazing,id_uptake_N,id_uptake_P,id_growth,id_sizespec, id_respiration,id_sinking,id_rel_growth,id_mix_grazing_loss,id_suscp_cop
+type (type_diagnostic_variable_id),dimension(numberofzoos)     :: id_I_max,id_eff_food_con,id_zoo_pref,id_Ggraz
+!General parameter definitions:-----------------------------------------
 !Initial Values
-type (type_diagnostic_variable_id)  :: id_total_growth, id_total_respiration,id_total_sinking,id_aggregation,id_total_grazing
-real(rk),dimension(numberofphytos) :: Phy_initial, Q_N_initial, Q_P_initial
-real(rk) ::  N_initial, P_initial, D_N_initial, D_P_initial,POC_initial, PON_initial, Phyto0_mean, Phyto0_sigma
+real(rk),dimension(numberofphytos)   :: Phy_initial, Q_N_initial, Q_P_initial
+real(rk)                             :: N_initial, P_initial, D_N_initial, D_P_initial,POC_initial, PON_initial, Phyto0_mean, Phyto0_sigma, Phyto0_ampl, Phyto0_min
+real(rk),dimension(numberofzoos)     :: Z_initial
 !Model Parameters
-real(rk) ::  z, tot_depth, m, frac_md, frac_mn, mol_ratio, chla_to_T_PhyN,I_opt, n_star, k_phyN, kbg, par, a_par, alpha, a_co2, Co2, a_star, T
-real(rk) :: T_ref, Tcons_phy, Tcons_zoo, n_syn, I_max0, a_Im0, y, graz_const, sel_cop_cil, a_gr, r_dn, det_sink_r, A_star_opt,R_A, log_ESD_crit
-real(rk),dimension(numberofzoos) :: sel,Lz_star,Lz
+real(rk) :: zl, tot_depth, m, frac_md, frac_mn, mol_ratio, chla_to_PhyN, chla_to_PhyC, n_star, k_phyN, kbg, par, a_par, b_par, alpha, a_co2, Co2, a_star, T, D, Nin,Pin,Z_cil_s_in,Z_cil_l_in,Z_cop_in,D_zoo,Cil_remov,Cop_remov
+real(rk) :: DeltaT, T_ref, Tcons_phy, Tcons_zoo, n_syn, I_max0, a_Im0, y, a_gr, r_dn, det_sink_r, s1, s2, A_star_opt, B_star, B_star_offs, B_star_ampl, eps_A, R_A, log_ESD_crit, Lz_mix
+real(rk) :: m_Cop, m_Cil, Cil_DN_r, Cil_DN_H, mixograz, mixoH, gh, csrA_m, csrW_m, delay_m, csrA_z, csrW_z, delay_z, eps_ZN, eps_ZP, Zoo_N, Zoo_P
+real(rk),dimension(numberofzoos)   :: sel, Lz_star, Lz, h_z
 real(rk),dimension(numberofphytos) :: log_ESD
-real(rk),dimension(27) :: pars
+real(rk),dimension(29)             :: pars
+integer :: delta_mix, Puls_dur, Puls_int,Puls_int_zoo
 !Scaling-Parameters
-real(rk) :: b_mumax_large,a_mumax_large,b_mumax_small,a_mumax_small,mumax_incr,b_qmin_N,a_qmin_N,b_qmax_N,a_qmax_N,b_vmax_N,a_vmax_N,b_carbon,a_carbon
-real(rk) :: b_qmin_P,a_qmin_P,b_qmax_P,a_qmax_P,b_vmax_P,a_vmax_P,b_affin_N,a_affin_N,a_affin_P,b_affin_P
+real(rk) :: b_mumax_large, a_mumax_large, b_mumax_small, a_mumax_small, mumax_incr, b_qmin_N, a_qmin_N, b_qmax_N, a_qmax_N, b_vmax_N, a_vmax_N, b_carbon, a_carbon
+real(rk) :: b_qmin_P, a_qmin_P, b_qmax_P, a_qmax_P, b_vmax_P, a_vmax_P, b_affin_N, a_affin_N, a_affin_P, b_affin_P
 !
-logical  ::  SwitchOn, DiagOn, DebugOn, OptionOn, T_forc, co2_forc, PAR_forc, graz_forc, convert_mu, co2_low
-integer :: phyto_num, zoo_num, num_ciliat, Nut_lim
+logical  :: SwitchOn, DiagOn, DebugOn, OptionOn, Phyto0_gaussian, T_forc, T_data, co2_forc, PAR_forc, PAR_data, graz_forc, convert_mu, co2data, zoodata, zookonst
+integer  :: phyto_num, zoo_num, num_ciliat, Nut_lim, co2_low, FuncResp
+
+
 contains
 !   Model procedures
 procedure :: initialize
@@ -57,186 +66,199 @@ end type type_hzg_kristineb
 ! !PRIVATE DATA MEMBERS:
  real(rk), parameter :: secs_pr_day = 86400.0_rk
  integer :: ib
-!EOP
+!memory dummy varables for temporal derivatives
+real(rk), dimension(numberofphytos)::QN_old
+real(rk),dimension(numberofzoos)::Zooold
+integer::t_old,t_old2
+
+ !EOP
 !!--------------------------------------------------------------------
 
 contains
 !> @brief initializes the model
-!! @details here the maecs namelists are read and assigned respectively in the model type (self),
+!! @details here the kristineb namelists are read and assigned respectively in the model type (self),
 !! state & diagnostic variables are registered in FABM and dependencies are imported from FABM
 !>
 !> **Model parameters, descriptions and corresponding symbols used in formulas:**
-! initial values
-!> \describepar{SwitchOn     ,      , dummy switch,  }
-!> \describepar{DiagOn       ,        , diagnostic output enabled, .false. }
-!> \describepar{DebugOn      ,       , massive ascii output, .false. }
-!> \describepar{OptionOn     ,      , generic, .false. }
-!> \describepar{T_forc       ,        , Forcing , .false. }
-!> \describepar{co2_forc     ,      , co2 forcing. if 'on' set co2_mode either to be 'low' or 'high', .false. }
-!> \describepar{PAR_forc     ,      , light from file    , .false. }
-!> \describepar{graz_forc    ,     , if 'on' please set one of the following grazers 'on', .false. }
-!> \describepar{convert_mu   ,    , convert mu, .false. }
-!> \describepar{co2_low      ,       , co2_mode=low else co2mode=high,  }
-!> \describepar{phyto_num    ,     , Number of phytoplankton species, 1 }
-!> \describepar{zoo_num      ,       , number of zooplankton species, 0 }
-!> \describepar{num_ciliat   ,    , number of ciliat, 0 }
-!> \describepar{Nut_lim      ,       , 1=queing, 2=liebig, 3=sum, 4=product, 3 }
-! other parameters
-!> \describepar{z            , z            , Mixed layer depth, 5.0 m}
-!> \describepar{tot_depth    , tot_{depth}    , Total depth= MLD+bottom layer depth, 17. m}
-!> \describepar{m            , m            , Phytoplankton mortality rate              , 0.1 d^-1}
-!> \describepar{frac_md      , f_\textrm{md}      , fraction of mortality to detritus pool, 0.4 -}
-!> \describepar{frac_mn      , f_\textrm{mn}      , fraction of mortality to nitrogen pool, 0.6 -}
-!> \describepar{mol_ratio    , r    , Specific molar ratio for phytoplankton respiration, 3. -}
-!> \describepar{chla_to_T_PhyN , \alpha_\textrm{chl:N} , Chl-a/Total Phyto_N  , 0.9 }
-!> \describepar{n_star       , n^*       , synchrony in nutrient co-limitation   , 3.0 }
-!> \describepar{k_phyN       , k_\textrm{phyN}       , Light attenuation due to phytoplankton biomass     , 0.05 m^2/mmol-C}
-!> \describepar{kbg          , \kappa          , Background turbidity, 0.1 m^-1}
-!> \describepar{par          , PAR_0          , Surface light irradiance, !it is going to be replaced by data, 200.0 -}
-!> \describepar{a_par        , a_{PAR}        , Light absorption, 0.004 mu mol-phot^-1 m^2}
-!> \describepar{alpha        , \alpha        , alpha (when fpar_method==schwaderer1&2)	, 0.02 m2 mumolq-1 s d-1}
-!> \describepar{a_co2        , a_{CO^2}        , Specific carbon absorption coefficient, 0.006 microatom^-1}
-!> \describepar{Co2          , CO^2          , Co2 concentration, microatm !it is going to be replaced by data, 1000. microatm}
-!> \describepar{a_star       , a^\ast       , Carboxylation depletion, 0.3 mu m^-1}
-!> \describepar{T            , T            , Temperatur, 10. Celsius}
-!> \describepar{T_ref        , T_{ref}        , Reference temperature, 18. Celsius}
-!> \describepar{Tcons_phy    , T_{cons_{Phy}}    , '', 2. Celsius}
-!> \describepar{Tcons_zoo    , T_{cons_{Zoo}}    , '', 2.4 Celsius}
-!> \describepar{n_syn        , n_{syn}        , Synergy between external-internal food processing, 2 -}
-!> \describepar{sel          ,           , Selectivity, for each zooplankton add value to inside list, 0.0 -}
-!> \describepar{Lz           , L_z           , Zooplankton body size, log_e ESD, for each zooplankton add value to inside list	, 0.0 mu m}
-!> \describepar{I_max0       , I_{max}^0       , I_{max} at l_{z}=l_{z}^{*}=0, 173. d^1}
-!> \describepar{a_Im0        , a_{Im}^0        , Size scaling exponent of I_{max}^{*}, 0.2 -}
-!> \describepar{Lz_star      , L_z^\ast      , Optimal prey size, log_e ESD, for each zooplankton add value to inside list, 0.0 mu m}
-!> \describepar{y            , y            , Energetic yield, 0.4 -}
-!> \describepar{graz_const   ,    , '', 8.0 -}
-!> \describepar{sel_cop_cil  ,   , selectivitiy of copepod for ciliates?, 2.5 -}
-!> \describepar{r_dn         , r_d_n         , Demineralisation rate, --- similar for both nitogen and phosphorous, 0.1 d^-1}
-!> \describepar{det_sink_r   , Det_{sink_r}   , Detritus sinking velocity rate, --- similar for both nitogen and phosphorous, 10. m d^-1}
-!> \describepar{A_star_opt   , A^\ast   , optimization factor for aggregation, 0.01 m3 mmol-N^-1 d^-1}
-
+!This subroutine initializes all parameters
 subroutine initialize(self, configunit)
 class (type_hzg_kristineb), intent(inout), target :: self
-integer,                  intent(in)            :: configunit
+integer,                    intent(in)            :: configunit
 !
 ! !LOCAL VARIABLES:
 integer    :: namlst=19
-!!------- Initial values of model kristineb ------- 
-!> \describepar{Phy_initial  , \mathrm{}  , Phytoplankton biomass, 3E-2 mmol-C m^-3}
-!> \describepar{N_initial    , \mathrm{Pp}    , nutrient concentration , 3E-2 mmol-N m^-3}
-!> \describepar{P_initial    , \mathrm{Pp}    , Phosphorous concentration , 3E-2 mmol-P m^-3}
-!> \describepar{Q_N_initial  , \mathrm{Pp}  , Phytoplankton intracellular nitrogen cell quota , 3E-2 mol-N mol-C^-1}
-!> \describepar{Q_P_initial  , \mathrm{Pp}  , Phytoplankton intracellular phosphorous cell quota, 3E-2 mol-P mol-C^-1}
-!> \describepar{D_N_initial  , \mathrm{Pp}  , Nitrogen content of detritus concentration, 3E-2 mmol-N m^-1}
-!> \describepar{D_P_initial  , \mathrm{Pp}  , Phosphorous content of detritus concentration , 3E-2 mmol-P m^-3}
-real(rk),dimension(numberofphytos)  :: Phy_initial,Phyto0,log_ESD  ! Phytoplankton biomass
-real(rk)  :: N_initial    ! nutrient concentration 
-real(rk)  :: P_initial    ! Phosphorous concentration 
-real(rk),dimension(numberofphytos)  :: Q_N_initial  ! Phytoplankton intracellular nitrogen cell quota 
-real(rk),dimension(numberofphytos)  :: Q_P_initial  ! Phytoplankton intracellular phosphorous cell quota
-real(rk)  :: D_N_initial  ! Nitrogen content of detritus concentration
-real(rk)  :: D_P_initial  ! Phosphorous content of detritus concentration 
-real(rk)  :: POC_initial
-real(rk)  :: PON_initial
-real(rk)  :: Phyto0_mean
-real(rk)  :: Phyto0_sigma
-real(rk)  :: log_ESD_crit
-!> describepar{z            , z            , Mixed layer depth, 5.0 m}
-!> describepar{tot_depth    , tot_{depth}    , Total depth= MLD+bottom layer depth, 17. m}
-!> describepar{m            , m            , Phytoplankton mortality rate              , 0.1 d^-1}
-!> describepar{frac_md      , f_\textrm{md}      , fraction of mortality to detritus pool, 0.4 -}
-!> describepar{frac_mn      , f_\textrm{mn}      , fraction of mortality to nitrogen pool, 0.6 -}
-!> describepar{mol_ratio    , r    , Specific molar ratio for phytoplankton respiration, 3. -}
-!> describepar{chla_to_T_PhyN , \alpha_\textrm{chl:N} , Chl-a/Total Phyto_N  , 0.9 }
-!> describepar{I_opt        , I_{opt}   , optimal light intensity, 200}
-!> describepar{n_star       , n^*       , synchrony in nutrient co-limitation   , 3.0 }
-!> describepar{k_phyN       , k_\textrm{phyN}       , Light attenuation due to phytoplankton biomass     , 0.05 m^2/mmol-C}
-!> describepar{kbg          , \kappa          , Background turbidity, 0.1 m^-1}
-!> describepar{par          , PAR_0          , Surface light irradiance, !it is going to be replaced by data, 200.0 -}
-!> describepar{a_par        , a_{PAR}        , Light absorption, 0.004 mu mol-phot^-1 m^2}
-!> describepar{alpha        , \alpha        , alpha (when fpar_method==schwaderer1&2)	, 0.02 m2 mumolq-1 s d-1}
-!> describepar{a_co2        , a_{CO^2}        , Specific carbon absorption coefficient, 0.006 microatom^-1}
-!> describepar{Co2          , CO^2          , Co2 concentration, microatm !it is going to be replaced by data, 1000. microatm}
-!> describepar{a_star       , a^\ast       , Carboxylation depletion, 0.3 mu m^-1}
-!> describepar{T            , T            , Temperatur, 10. Celsius}
-!> describepar{T_ref        , T_{ref}        , Reference temperature, 18. Celsius}
-!> describepar{Tcons_phy    , T_{cons_{Phy}}    , '', 2. Celsius}
-!> describepar{Tcons_zoo    , T_{cons_{Zoo}}    , '', 2.4 Celsius}
-!> describepar{n_syn        , n_{syn}        , Synergy between external-internal food processing, 2 -}
-!> describepar{sel          ,           , Selectivity, for each zooplankton add value to inside list, 0.0 -}
-!> describepar{Lz           , L_z           , Zooplankton body size, log_e ESD, for each zooplankton add value to inside list	, 0.0 mu m}
-!> describepar{I_max0       , I_{max}^0       , I_{max} at l_{z}=l_{z}^{*}=0, 173. d^1}
-!> describepar{a_Im0        , a_{Im}^0        , Size scaling exponent of I_{max}^{*}, 0.2 -}
-!> describepar{Lz_star      , L_z^\ast      , Optimal prey size, log_e ESD, for each zooplankton add value to inside list, 0.0 mu m}
-!> describepar{y            , y            , Energetic yield, 0.4 -}
-!> describepar{graz_const   ,    , '', 8.0 -}
-!> describepar{sel_cop_cil  ,   , selectivitiy of copepod for ciliates?, 2.5 -}
-!> describepar{r_dn         , r_d_n         , Demineralisation rate, --- similar for both nitogen and phosphorous, 0.1 d^-1}
-!> describepar{det_sink_r   , Det_{sink_r}   , Detritus sinking velocity rate, --- similar for both nitogen and phosphorous, 10. m d^-1}
-!> describepar{A_star_opt   , A^\ast   , optimization factor for aggregation, 0.01 m3 mmol-N^-1 d^-1}
-!!------- Parameters from nml-list kristineb_pars ------- 
-real(rk)  :: z            ! Mixed layer depth
+!!------- Parameters from nml-list kristineb_init -------
+!> \describepar{Phy_initial  , \mbox{Phy}_{init}    , Phytoplankton biomass, mmol-C m^-3}
+!> \describepar{N_initial    , N_{init}             , nutrient concentration , mmol-N m^-3}
+!> \describepar{P_initial    , P_{init}             , Phosphorous concentration , mmol-P m^-3}
+!> \describepar{Q_N_initial  , Q^N_{init}           , Phytoplankton intracellular nitrogen cell quota , mol-N mol-C^-1}
+!> \describepar{Q_P_initial  , Q^P_{init}           , Phytoplankton intracellular phosphorous cell quota, mol-P mol-C^-1}
+!> \describepar{D_N_initial  , D^N_{init}           , Nitrogen content of detritus concentration, mmol-N m^-1}
+!> \describepar{D_P_initial  , D^P_{init}           , Phosphorous content of detritus concentration , mmol-P m^-3}
+!> \describepar{POC_initial  , POC_{init}           , Particulate organic carbon concentration , mmol-C m^-3}
+!> \describepar{PON_initial  , PON_{init}           , Particulate organic nitrogen concentration , mmol-N m^-3}
+!> \describepar{Phyto0_mean  , \bar{Phy^0}          , mean size of initial phytoplankton concentration if gaussian, log_ESD \mu m}
+!> \describepar{Phyto0_sigma , \sigma_{Phy^0}       , size variation of initial phytoplankton concentration if gaussian, log_ESD \mu m}
+!> \describepar{Phyto0_ampl  , Ampl_{Phy^0}         , maximum of initial phytoplankton concentration if gaussian, mmol-C m^-3}
+!> \describepar{Phyto0_min   , \mbox{Phy}^0_{min}   , minimum of initial phytoplankton concentration if gaussian, mmol-C m^-3}
+!> \describepar{Z_initial    , Z_{init}             , Zooplankton biomass concentration , mmol-C m^-3}
+real(rk),dimension(numberofphytos)  :: Phy_initial,Phyto0  ! Phytoplankton biomass
+real(rk)                            :: N_initial           ! nutrient concentration
+real(rk)                            :: P_initial           ! Phosphorous concentration
+real(rk),dimension(numberofphytos)  :: Q_N_initial         ! Phytoplankton intracellular nitrogen cell quota
+real(rk),dimension(numberofphytos)  :: Q_P_initial         ! Phytoplankton intracellular phosphorous cell quota
+real(rk)                            :: D_N_initial         ! Nitrogen content of detritus concentration
+real(rk)                            :: D_P_initial         ! Phosphorous content of detritus concentration
+real(rk)                            :: POC_initial         ! Particulate organic carbon concentration
+real(rk)                            :: PON_initial         ! Particulate organic nitrogen concentration
+real(rk)                            :: Phyto0_mean         ! mean size of initial phytoplankton concentration
+real(rk)                            :: Phyto0_sigma        ! size variation of initial phytoplankton concentration
+real(rk)                            :: Phyto0_ampl         ! Maximum value of initial phytoplankton concentration
+real(rk)                            :: Phyto0_min          ! Minimum value of initial phytoplankton concentration
+real(rk),dimension(numberofzoos)    :: Z_initial           ! Zooplankton (small Ciliates, large Ciliates, Copepods) concentration
+!!------- Parameters from nml-list kristineb_pars -------
+!> describepar{zl             , zl                     , Mixed layer depth, 15.0 m}
+!> describepar{tot_depth      , tot_{depth}            , Total depth= MLD+bottom layer depth, 17. m}
+!> describepar{m              , m                      , Phytoplankton mortality rate              , 0.1 d^-1}
+!> describepar{frac_md        , f_\textrm{md}          , fraction of mortality to detritus pool, 0.4 -}
+!> describepar{frac_mn        , f_\textrm{mn}          , fraction of mortality to nitrogen pool, 0.6 -}
+!> describepar{mol_ratio      , r                      , Specific molar ratio for phytoplankton respiration, 3. -}
+!> describepar{chla_to_T_PhyN , \alpha_\textrm{chl:N}  , Chl-a/Total Phyto_N  , 1.1 }
+!> describepar{chla_to_T_PhyC , \alpha_\textrm{chl:C}  , Chl-a/Total Phyto_C  , 0.06 }
+!> describepar{n_star         , n^*                    , synchrony in nutrient co-limitation   , 3.0 }
+!> describepar{k_phyN         , k_\textrm{phyN}        , Light attenuation due to phytoplankton biomass     , 0.05 m^2/mmol-C}
+!> describepar{kbg            , \kappa                 , Background turbidity, 0.1 m^-1}
+!> describepar{par            , PAR_0                  , Surface light irradiance, !it is going to be replaced by data, 200.0 -}
+!> describepar{a_par          , a_{PAR}                , Light absorption, 0.004 mu mol-phot^-1 m^2}
+!> describepar{alpha          , \alpha                 , alpha (when fpar_method==schwaderer1&2)	, 0.02 m2 mumolq-1 s d-1}
+!> describepar{a_co2          , a_{CO^2}               , Specific carbon absorption coefficient, 0.006 microatom^-1}
+!> describepar{Co2            , CO^2                   , Co2 concentration, microatm !it is going to be replaced by data, 1000. microatm}
+!> describepar{a_star         , a^\ast                 , Carboxylation depletion, 0.3 mu m^-1}
+!> describepar{T              , T                      , Temperatur, 10. Celsius}
+!> describepar{T_ref          , T_{ref}                , Reference temperature, 18. Celsius}
+!> describepar{Tcons_phy      , T_{cons_{Phy}}         , '', 2. Celsius}
+!> describepar{Tcons_zoo      , T_{cons_{Zoo}}         , '', 2.4 Celsius}
+!> describepar{n_syn          , n_{syn}                , Synergy between external-internal food processing, 2 -}
+!> describepar{sel            , sel                    , Selectivity, for each zooplankton add value to inside list, 0.0 -}
+!> describepar{Lz             , L_z                    , Zooplankton body size, log_e ESD, for each zooplankton add value to inside list	, 0.0 mu m}
+!> describepar{I_max0         , I_{max}^0              , I_{max} at l_{z}=l_{z}^{*}=0, 173. d^1}
+!> describepar{a_Im0          , a_{Im}^0               , Size scaling exponent of I_{max}^{*}, 0.2 -}
+!> describepar{Lz_star        , L_z^\ast               , Optimal prey size, log_e ESD, for each zooplankton add value to inside list, 0.0 mu m}
+!> describepar{y              , y                      , Energetic yield, 0.4 -}
+!> describepar{r_dn           , r_d_n                  , Demineralisation rate, --- similar for both nitogen and phosphorous, 0.1 d^-1}
+!> describepar{det_sink_r     , Det_{sink_r}           , Detritus sinking velocity rate, --- similar for both nitogen and phosphorous, 10. m d^-1}
+!> describepar{A_star_opt     , A^\ast                 , optimization factor for aggregation, 0.01 m3 mmol-N^-1 d^-1}
+
+real(rk)  :: zl           ! Mixed layer depth
 real(rk)  :: tot_depth    ! Total depth= MLD+bottom layer depth
-real(rk)  :: m            ! Phytoplankton mortality rate              
+real(rk)  :: m            ! Phytoplankton mortality rate
 real(rk)  :: frac_md      ! fraction of mortality to detritus pool
 real(rk)  :: frac_mn      ! fraction of mortality to nitrogen pool
 real(rk)  :: mol_ratio    ! Specific molar ratio for phytoplankton respiration
-real(rk)  :: chla_to_T_PhyN ! Chl-a/Total Phyto_N  
-real(rk)  :: I_opt        ! optimal light intensity
-real(rk)  :: n_star       ! synchrony in nutrient co-limitation   
-real(rk)  :: k_phyN       ! Light attenuation due to phytoplankton biomass     
+real(rk)  :: chla_to_PhyN ! Chl-a/Phyto_N
+real(rk)  :: chla_to_PhyC ! Chl-a/Phyto_C
+real(rk)  :: n_star       ! synchrony in nutrient co-limitation
+real(rk)  :: k_phyN       ! Light attenuation due to phytoplankton biomass
 real(rk)  :: kbg          ! Background turbidity
 real(rk)  :: par          ! Surface light irradiance, !it is going to be replaced by data
 real(rk)  :: a_par        ! Light absorption
-real(rk)  :: alpha        ! alpha (when fpar_method==schwaderer1&2)	
+real(rk)  :: b_par        ! Photoinhibition coefficient
+real(rk)  :: alpha        ! alpha (when fpar_method==schwaderer1&2)
 real(rk)  :: a_co2        ! Specific carbon absorption coefficient
 real(rk)  :: Co2          ! Co2 concentration, microatm !it is going to be replaced by data
 real(rk)  :: a_star       ! Carboxylation depletion
 real(rk)  :: T            ! Temperatur
+integer   :: Puls_dur     ! pulse duration
+integer   :: Puls_int     ! pulse interval
+integer   :: Puls_int_zoo     ! pulse interval for zooplankton
+real(rk)  :: D            ! Cross thermocline mixing rate
+real(rk)  :: Nin          ! Inflow nitrogen concentration
+real(rk)  :: Pin          ! Inflow phosphorous concentration
+real(rk)  :: Z_cil_s_in
+real(rk)  :: Z_cil_l_in
+real(rk)  :: Z_cop_in
+real(rk)  ::  D_zoo
+real(rk)  ::  Cil_remov
+real(rk)  ::  Cop_remov
+real(rk)  :: DeltaT       ! Temperatur increase
 real(rk)  :: T_ref        ! Reference temperature
 real(rk)  :: Tcons_phy    ! ''
 real(rk)  :: Tcons_zoo    ! ''
 real(rk)  :: n_syn        ! Synergy between external-internal food processing
 real(rk),dimension(numberofzoos)  :: sel          ! Selectivity, for each zooplankton add value to inside list
-real(rk),dimension(numberofzoos)  :: Lz           ! Zooplankton body size, log_e ESD, for each zooplankton add value to inside list	
+real(rk),dimension(numberofzoos)  :: Lz           ! Zooplankton body size, log_e ESD, for each zooplankton add value to inside list
 real(rk)  :: I_max0       ! I_{max} at l_{z}=l_{z}^{*}=0
 real(rk)  :: a_Im0        ! Size scaling exponent of I_{max}^{*}
 real(rk),dimension(numberofzoos)  :: Lz_star      ! Optimal prey size, log_e ESD, for each zooplankton add value to inside list
 real(rk)  :: y            ! Energetic yield
-real(rk)  :: graz_const   ! ''
-real(rk)  :: sel_cop_cil  ! selectivitiy of copepod for ciliates?
-real(rk)  :: a_gr	  ! grazing affinity
+real(rk)  :: a_gr         ! grazing affinity
 real(rk)  :: r_dn         ! Demineralisation rate, --- similar for both nitogen and phosphorous
 real(rk)  :: det_sink_r   ! Detritus sinking velocity rate, --- similar for both nitogen and phosphorous
+real(rk)  :: s1
+real(rk)  :: s2
 real(rk)  :: A_star_opt   ! optimization factor for aggregation
-real(rk)  :: R_A 	  ! ''
-real(rk)  :: tot_phyc0	  !Initial totalphyc
+real(rk)  :: B_star       ! optimization factor for aggregation
+real(rk)  :: B_star_offs
+real(rk)  :: B_star_ampl
+real(rk)  :: eps_A
+real(rk)  :: R_A          ! ''
+real(rk),dimension(numberofzoos)  :: h_z
+real(rk)  :: mixograz
+real(rk)  :: mixoH
+real(rk)  :: gh
+integer   :: delta_mix
+real(rk)  :: Lz_mix
+real(rk)  :: tot_phyc0    !Initial totalphyc
+real(rk),dimension(numberofphytos)  :: log_ESD
+real(rk)  :: log_ESD_crit
+real(rk)  :: m_Cop
+real(rk)  :: m_Cil
+real(rk)  :: Cil_DN_r
+real(rk)  :: Cil_DN_H
+real(rk)  :: csrA_m
+real(rk)  :: csrW_m
+real(rk)  :: delay_m
+real(rk)  :: csrA_z
+real(rk)  :: csrW_z
+real(rk)  :: delay_z
+real(rk)  :: eps_ZN
+real(rk)  :: eps_ZP
+real(rk)  :: Zoo_N
+real(rk)  :: Zoo_P
+
 !!------- Switches for configuring model structure -------
 logical   :: SwitchOn     ! dummy switch
 logical   :: DiagOn       ! diagnostic output enabled
 logical   :: DebugOn      ! massive ascii output
 logical   :: OptionOn     ! generic
-logical   :: T_forc       ! Forcing 
-logical   :: co2_forc     ! co2 forcing. if 'on' set co2_mode either to be 'low' or 'high'
-logical   :: PAR_forc     ! light from file    
-logical   :: graz_forc    ! if 'on' please set one of the following grazers 'on'
+logical   :: Phyto0_gaussian !gaussian initial distribution for Phytoplankton biomass. If false then Phyto0 has to be given explicitly for every size class
+logical   :: T_forc       ! Temperature forcing
+logical   :: T_data       ! usding Temperture from data or not
+logical   :: co2_forc     ! co2 forcing
+logical   :: PAR_forc     ! PAR forcing
+logical   :: PAR_data     ! PAR from data
+logical   :: graz_forc    ! grazing forcing
 logical   :: convert_mu   ! convert mu
-logical   :: co2_low      ! co2_mode=low else co2mode=high
+integer   :: co2_low      ! 1=185 2=270, 3=375, 4=685, 5=820, 6=1050, 7=1420 (if co2data=true: co2_low<=3 -> LCO2 else HCO2)
+logical   :: co2data      ! reading co2 from data or not (if false then CO2 is constant)
+logical   :: zoodata      ! reading zooplankton concentration from data?
+logical   :: zookonst     ! if false then zooplankton concentrations are derived from the model
 integer   :: phyto_num    ! Number of phytoplankton species
 integer   :: zoo_num      ! number of zooplankton species
 integer   :: num_ciliat   ! number of ciliat
 integer   :: Nut_lim      ! 1=queing, 2=liebig, 3=sum, 4=product
-real(rk),dimension(29)::pars
-real(rk),dimension(11)::tmp
+integer   :: FuncResp     ! 1=Wirtz, 2= Holling_II, 3=Holling_III
+real(rk),dimension(29)  :: pars
+real(rk),dimension(11)  :: tmp
 !!------ Parameter for scaling relations -------
 real(rk) :: b_mumax_small
 real(rk) :: a_mumax_small
 real(rk) :: b_mumax_large
 real(rk) :: a_mumax_large
 real(rk) :: mumax_incr
-real(rk) :: b_qmin_N 
+real(rk) :: b_qmin_N
 real(rk) :: a_qmin_N
-real(rk) :: b_qmax_N 
+real(rk) :: b_qmax_N
 real(rk) :: a_qmax_N
 real(rk) :: b_vmax_N
 real(rk) :: a_vmax_N
@@ -253,26 +275,30 @@ real(rk) :: a_affin_N
 real(rk) :: b_affin_P
 real(rk) :: a_affin_P
 !-------
+!!Definging namelists. Parameters have to be in the same order as in the corresponding *.nml files.
 namelist /kristineb_init/ &
   Phy_initial, N_initial, P_initial, Q_N_initial, Q_P_initial, D_N_initial, &
-  D_P_initial,POC_initial,PON_initial, Phyto0_mean, Phyto0_sigma
+  D_P_initial,POC_initial,PON_initial, Phyto0_mean, Phyto0_sigma, Phyto0_ampl, Phyto0_min, Z_initial
 
 namelist /kristineb_pars/ &
-  z, tot_depth, m, frac_md, frac_mn, mol_ratio, chla_to_T_PhyN, I_opt, n_star, k_phyN, &
-  kbg, par, a_par, alpha, a_co2, Co2, a_star, T, T_ref, Tcons_phy, Tcons_zoo, n_syn, &
-  sel, Lz, I_max0, a_Im0, Lz_star, y, graz_const, sel_cop_cil,a_gr, r_dn, det_sink_r, &
-  A_star_opt,R_A,tot_phyc0,log_ESD,log_ESD_crit
+  zl, tot_depth, m, frac_md, frac_mn, mol_ratio, chla_to_PhyN, chla_to_PhyC, n_star, k_phyN, &
+  kbg, par, a_par, b_par, alpha, a_co2, Co2, a_star, T,Puls_dur,Puls_int,Puls_int_zoo,D,Nin,Pin,Z_cil_s_in,Z_cil_l_in, Z_cop_in,D_zoo,Cil_remov,Cop_remov,DeltaT, T_ref, Tcons_phy, &
+  Tcons_zoo, n_syn, sel, Lz, I_max0, a_Im0, Lz_star, y,a_gr, r_dn, det_sink_r, &
+  s1, s2, A_star_opt,B_star,B_star_offs,B_star_ampl,eps_A,R_A,h_z,mixograz,mixoH,gh,delta_mix,Lz_mix, &
+  tot_phyc0,log_ESD,log_ESD_crit,m_Cop,m_Cil,Cil_DN_r,Cil_DN_H, csrA_m, csrW_m, &
+  & delay_m, csrA_z, csrW_z, delay_z, eps_ZN, eps_ZP,Zoo_N,Zoo_P
 
 namelist /kristineb_switch/ &
-  SwitchOn, DiagOn, DebugOn, OptionOn, T_forc, co2_forc, PAR_forc, graz_forc, &
-  convert_mu, co2_low, phyto_num, zoo_num, num_ciliat, &
-  Nut_lim
+  SwitchOn, DiagOn, DebugOn, OptionOn,Phyto0_gaussian, T_forc, T_data, co2_forc, PAR_forc, PAR_data, graz_forc, &
+  convert_mu, co2_low,co2data,zoodata,zookonst, phyto_num, zoo_num, num_ciliat, &
+  Nut_lim,FuncResp
 
 namelist /kristineb_scal/ &
-  b_mumax_small, a_mumax_small,b_mumax_large, a_mumax_large, mumax_incr, b_qmin_N , a_qmin_N, b_qmax_N , a_qmax_N, b_vmax_N, a_vmax_N, &
-  b_carbon, a_carbon, b_qmin_P, a_qmin_P, b_qmax_P, a_qmax_P, b_vmax_P, &
+  b_mumax_small, a_mumax_small,b_mumax_large, a_mumax_large, mumax_incr, b_qmin_N , a_qmin_N, b_qmax_N, &
+  a_qmax_N, b_vmax_N, a_vmax_N, b_carbon, a_carbon, b_qmin_P, a_qmin_P, b_qmax_P, a_qmax_P, b_vmax_P, &
   a_vmax_P, b_affin_N, a_affin_N, b_affin_P, a_affin_P
 
+!!Define default values for all parameters (overwritten by values from *.nml files)
 Phy_initial  = 0.6_rk            ! mmol-C m^-3
 N_initial    = 7.1_rk            ! mmol-N m^-3
 P_initial    = 0.8_rk            ! mmol-P m^-3
@@ -282,24 +308,41 @@ D_N_initial  = 1.0_rk            ! mmol-N m^-1
 D_P_initial  = 0.0_rk            ! mmol-P m^-3
 Phyto0_mean  = 2.1_rk
 Phyto0_sigma = 0.45_rk
-z            = 5.0_rk             ! m
+Phyto0_ampl  = 30.0_rk
+Phyto0_min   = 1.0_rk
+Z_initial    = 2000_rk
+zl           = 5.0_rk             ! m
 tot_depth    = 17._rk             ! m
 m            = 0.0_rk             ! d^-1
 frac_md      = 0.4_rk             ! -
 frac_mn      = 0.6_rk             ! -
 mol_ratio    = 3._rk              ! -
-chla_to_T_PhyN = 0.9_rk             ! 
-I_opt        = 300._rk            !mumolq m^-2 s^-1 
-n_star       = 3.0_rk             ! 
+chla_to_PhyN = 0.9_rk             !
+chla_to_PhyC = 0.1_rk
+n_star       = 3.0_rk             !
 k_phyN       = 0.05_rk            ! m^2/mmol-C
 kbg          = 0.1_rk             ! m^-1
-par          = 200.0_rk           ! -
+par          = 500.0_rk           ! -
 a_par        = 0.004_rk          ! mu mol-phot^-1 m^2 d
+b_par        = 0.004_rk          ! mu mol-phot^-1 m^2 d
 alpha        = 0.02_rk           ! m2 mumolq-1 s d-1
 a_co2        = 0.006_rk           ! microatom^-1
 Co2          = 1000._rk           ! microatm
 a_star       = 0.3_rk             ! mu m^-1
 T            = 10._rk             ! Celsius
+Puls_dur     = 1                  !day
+Puls_int     = 10                 ! day
+Puls_int_zoo     = 10                 ! day
+D            = 0.15_rk            ! day
+Nin          = 50._rk             ! mmol-N m^-3
+Pin          = 0.5_rk             ! mmol-P m^-3
+Z_cil_s_in   = 0.25_rk
+Z_cil_l_in   = 0.25_rk
+Z_cop_in     = 5._rk
+D_zoo          = 0.15_rk
+Cil_remov    =2_rk
+Cop_remov   =2_rk
+DeltaT       = 0.0_rk             ! Celsius
 T_ref        = 18._rk             ! Celsius
 Tcons_phy    = 2._rk              ! Celsius
 Tcons_zoo    = 2.4_rk             ! Celsius
@@ -310,56 +353,88 @@ I_max0       = 173._rk            ! d^-1
 a_Im0        = 0.2_rk             ! -
 Lz_star      = (/1.1,3.0,2.7/)    ! mu m
 y            = 0.4_rk             ! -
-graz_const   = 8.0_rk             ! -
-sel_cop_cil  = 2.5_rk             ! -
-a_gr	     = 0.5_rk		  ! -
+a_gr         = 0.5_rk             ! -
 r_dn         = 0.1_rk             ! d^-1
 det_sink_r   = 10._rk             ! m d^-1
+s1           = 0.2_rk
+s2           =0.13_rk
 A_star_opt   = 0.01_rk            ! m3 mmol-N^-1 d^-1
-R_A	     = 3.0_rk		  ! -
-tot_phyc0    = 0.6_rk    	  !mmole-C m^-3
+B_star       = 1000000._rk
+B_star_offs  = 3.0_rk
+B_star_ampl  = 1.0_rk
+eps_A        = 0.0_rk
+R_A          = 3.0_rk             ! -
+h_z          = (/10,10,10/)
+mixograz     = 0.5_rk
+mixoH        = 100.0_rk
+gh           = 0.1_rk
+delta_mix    = 1
+Lz_mix       = 1.0_rk
+tot_phyc0    = 0.6_rk              !mmole-C m^-3
 log_ESD      = 0.0 !(/0.5,1.0,1.3,1.6,1.9,2.2,2.5,3.,3.5,4.,4.5,5.,5.5/)
 log_ESD_crit = 0.35_rk
-   
-   SwitchOn  = .false.
-   DiagOn   = .false.
-   DebugOn  = .false.
-   OptionOn = .false. 
-   T_forc   = .false.
-   co2_forc = .false.
-   PAR_forc = .false.
-   graz_forc = .false.
-   convert_mu = .false.
-   co2_low = .true.
-   phyto_num = 13
-   zoo_num = 0
-   num_ciliat = 0
-   Nut_lim = 3 
-   !---
- b_mumax_small = 0.25 !(10**)
- a_mumax_small = 0.05
- b_mumax_large = 1.08 !(10**)
- a_mumax_large = -0.28 
- mumax_incr = 3.0
- b_qmin_N = -9.2
- a_qmin_N = 0.77
- b_qmax_N = 4.E-9
- a_qmax_N = 0.89
- b_vmax_N = -8.1
- a_vmax_N = 0.82
- b_carbon = -0.69
- a_carbon = 0.88
- b_qmin_P = -10.6
- a_qmin_P = 0.79
- b_qmax_P = -9.32
- a_qmax_P = 0.80
- b_vmax_P = -9.1
- a_vmax_P = 0.81
- b_affin_N = -8.2
- a_affin_N = 0.75
- b_affin_P = -8.1
- a_affin_P = 0.73
-!--------- read namelists --------- 
+m_Cop        = 0.00005_rk
+m_Cil        = 0.01_rk
+Cil_DN_r     = 0.1_rk
+Cil_DN_H     = 20.0_rk
+csrA_m       = 0.5
+csrW_m       = 0.2
+delay_m      = 40
+csrA_z       = 0.35
+csrW_z       = 0.2
+delay_z      = 50
+eps_ZN       = 0.02
+eps_ZP       = 0.001
+Zoo_N        = 0.3
+Zoo_P        = 3.0
+
+SwitchOn        = .false.
+DiagOn          = .false.
+DebugOn         = .false.
+OptionOn        = .false.
+Phyto0_gaussian = .true.
+T_forc          = .false.
+frac_mn         = 0.6_rk             ! -
+T_data          = .false.
+co2_forc        = .false.
+PAR_forc        = .false.
+PAR_data        = .true.
+graz_forc       = .false.
+convert_mu      = .false.
+co2_low         = 1
+co2data         = .true.
+zoodata         = .true.
+zookonst        = .false.
+phyto_num       = 13
+zoo_num         = 0
+num_ciliat      = 0
+Nut_lim         = 3
+FuncResp        = 1
+!---
+b_mumax_small   = 0.25 !(10**)
+a_mumax_small   = 0.05
+b_mumax_large   = 1.08 !(10**)
+a_mumax_large   = -0.28
+mumax_incr      = 3.0
+b_qmin_N        = -9.2
+a_qmin_N        = 0.77
+b_qmax_N        = 4.E-9
+a_qmax_N        = 0.89
+b_vmax_N        = -8.1
+a_vmax_N        = 0.82
+b_carbon        = -0.69
+a_carbon        = 0.88
+b_qmin_P        = -10.6
+a_qmin_P        = 0.79
+b_qmax_P        = -9.32
+a_qmax_P        = 0.80
+b_vmax_P        = -9.1
+a_vmax_P        = 0.81
+b_affin_N       = -8.2
+a_affin_N       = 0.75
+b_affin_P       = -8.1
+a_affin_P       = 0.73
+!--------- read namelists ---------
 write(0,*) ' read namelists ....'
 open(namlst,file='kristineb_pars.nml',status='old')
 read(namlst,nml=kristineb_pars,err=91,end=100)
@@ -370,223 +445,296 @@ read(namlst,nml=kristineb_scal,err=93,end=102)
 ! Store parameter values in our own derived type
 ! NB: all rates must be provided in values per day,
 ! and are converted here to values per second.
+!
+!Parameters are delivered to FABM
 !!------- logical parameters: switches  -------
-call self%get_parameter(self%SwitchOn,      'SwitchOn',      default=SwitchOn)
-call self%get_parameter(self%DiagOn,        'DiagOn',        default=DiagOn)
-call self%get_parameter(self%DebugOn,       'DebugOn',       default=DebugOn)
-call self%get_parameter(self%OptionOn,      'OptionOn',      default=OptionOn)
-call self%get_parameter(self%T_forc,        'T_forc',        default=T_forc)
-call self%get_parameter(self%co2_forc,      'co2_forc',      default=co2_forc)
-call self%get_parameter(self%PAR_forc,      'PAR_forc',      default=PAR_forc)
-call self%get_parameter(self%graz_forc,     'graz_forc',     default=graz_forc)
-call self%get_parameter(self%convert_mu,    'convert_mu',    default=convert_mu)
-call self%get_parameter(self%co2_low,       'co2_low',       default=co2_low)
-call self%get_parameter(self%phyto_num,     'phyto_num',     default=phyto_num)
-call self%get_parameter(self%zoo_num,       'zoo_num',       default=zoo_num)
-call self%get_parameter(self%num_ciliat,    'num_ciliat',    default=num_ciliat)
-call self%get_parameter(self%Nut_lim,       'Nut_lim',       default=Nut_lim)
-!!------ parameters for scaling relations -----
-call self%get_parameter(self%b_mumax_small,	'b_mumax_small',	default=b_mumax_small)
-call self%get_parameter(self%a_mumax_small,	'a_mumax_small',	default=a_mumax_small)
-call self%get_parameter(self%b_mumax_large,	'b_mumax_large',	default=b_mumax_large)
-call self%get_parameter(self%a_mumax_large,	'a_mumax_large',	default=a_mumax_large)
-call self%get_parameter(self%mumax_incr,	'mumax_incr',	default=mumax_incr)
-call self%get_parameter(self%b_qmin_N,	'b_qmin_N',	default=b_qmin_N)
-call self%get_parameter(self%a_qmin_N,	'a_qmin_N',	default=a_qmin_N)
-call self%get_parameter(self%b_qmax_N,	'b_qmax_N',	default=b_qmax_N)
-call self%get_parameter(self%a_qmax_N,	'a_qmax_N',	default=a_qmax_N)
-call self%get_parameter(self%b_vmax_N,	'b_vmax_N',	default=b_vmax_N)
-call self%get_parameter(self%a_vmax_N,	'a_vmax_N',	default=a_vmax_N)
-call self%get_parameter(self%b_carbon,	'b_carbon',	default=b_carbon)
-call self%get_parameter(self%a_carbon,	'a_carbon',	default=a_carbon)
-call self%get_parameter(self%b_qmin_P,	'b_qmin_P',	default=b_qmin_P)
-call self%get_parameter(self%a_qmin_P,	'a_qmin_P',	default=a_qmin_P)
-call self%get_parameter(self%b_qmax_P,	'b_qmax_P',	default=b_qmax_P)
-call self%get_parameter(self%a_qmax_P,	'a_qmax_P',	default=a_qmax_P)
-call self%get_parameter(self%b_vmax_P,	'b_vmax_P',	default=b_vmax_P)
-call self%get_parameter(self%a_vmax_P,	'a_vmax_P',	default=a_vmax_P)
-call self%get_parameter(self%b_affin_N,	'b_affin_N',	default=b_affin_N)
-call self%get_parameter(self%a_affin_N,	'a_affin_N',	default=a_affin_N)
-call self%get_parameter(self%b_affin_P,	'b_affin_P',	default=b_affin_P)
-call self%get_parameter(self%a_affin_P,	'a_affin_P',	default=a_affin_P)
-   !Calculate the initial Phytoplankton conentration
+call self%get_parameter(self%SwitchOn,       'SwitchOn',        default=SwitchOn)
+call self%get_parameter(self%DiagOn,         'DiagOn',          default=DiagOn)
+call self%get_parameter(self%DebugOn,        'DebugOn',         default=DebugOn)
+call self%get_parameter(self%OptionOn,       'OptionOn',        default=OptionOn)
+call self%get_parameter(self%Phyto0_gaussian,'Phyto0_gaussian', default=Phyto0_gaussian)
+call self%get_parameter(self%T_forc,         'T_forc',          default=T_forc)
+call self%get_parameter(self%T_data,         'T_data',          default=T_data)
+call self%get_parameter(self%co2_forc,       'co2_forc',        default=co2_forc)
+call self%get_parameter(self%PAR_forc,       'PAR_forc',        default=PAR_forc)
+call self%get_parameter(self%PAR_data,       'PAR_data',        default=PAR_data)
+call self%get_parameter(self%graz_forc,      'graz_forc',       default=graz_forc)
+call self%get_parameter(self%convert_mu,     'convert_mu',      default=convert_mu)
+call self%get_parameter(self%co2_low,        'co2_low',         default=co2_low)
+call self%get_parameter(self%co2data,        'co2data',         default=co2data)
+call self%get_parameter(self%zoodata,        'zoodata',         default=zoodata)
+call self%get_parameter(self%zookonst,       'zookonst',        default=zookonst)
+call self%get_parameter(self%phyto_num,      'phyto_num',       default=phyto_num)
+call self%get_parameter(self%zoo_num,        'zoo_num',         default=zoo_num)
+call self%get_parameter(self%num_ciliat,     'num_ciliat',      default=num_ciliat)
+call self%get_parameter(self%Nut_lim,        'Nut_lim',         default=Nut_lim)
+call self%get_parameter(self%FuncResp,       'FuncResp',        default=FuncResp)
+!!------ parameters for scaling relations -- ---
+call self%get_parameter(self%b_mumax_small,  'b_mumax_small',   default=b_mumax_small)
+call self%get_parameter(self%a_mumax_small,  'a_mumax_small',   default=a_mumax_small)
+call self%get_parameter(self%b_mumax_large,  'b_mumax_large',   default=b_mumax_large)
+call self%get_parameter(self%a_mumax_large,  'a_mumax_large',   default=a_mumax_large)
+call self%get_parameter(self%mumax_incr,     'mumax_incr',      default=mumax_incr)
+call self%get_parameter(self%b_qmin_N,       'b_qmin_N',        default=b_qmin_N)
+call self%get_parameter(self%a_qmin_N,       'a_qmin_N',        default=a_qmin_N)
+call self%get_parameter(self%b_qmax_N,       'b_qmax_N',        default=b_qmax_N)
+call self%get_parameter(self%a_qmax_N,       'a_qmax_N',        default=a_qmax_N)
+call self%get_parameter(self%b_vmax_N,       'b_vmax_N',        default=b_vmax_N)
+call self%get_parameter(self%a_vmax_N,       'a_vmax_N',        default=a_vmax_N)
+call self%get_parameter(self%b_carbon,       'b_carbon',        default=b_carbon)
+call self%get_parameter(self%a_carbon,       'a_carbon',        default=a_carbon)
+call self%get_parameter(self%b_qmin_P,       'b_qmin_P',        default=b_qmin_P)
+call self%get_parameter(self%a_qmin_P,       'a_qmin_P',        default=a_qmin_P)
+call self%get_parameter(self%b_qmax_P,       'b_qmax_P',        default=b_qmax_P)
+call self%get_parameter(self%a_qmax_P,       'a_qmax_P',        default=a_qmax_P)
+call self%get_parameter(self%b_vmax_P,       'b_vmax_P',        default=b_vmax_P)
+call self%get_parameter(self%a_vmax_P,       'a_vmax_P',        default=a_vmax_P)
+call self%get_parameter(self%b_affin_N,      'b_affin_N',       default=b_affin_N)
+call self%get_parameter(self%a_affin_N,      'a_affin_N',       default=a_affin_N)
+call self%get_parameter(self%b_affin_P,      'b_affin_P',       default=b_affin_P)
+call self%get_parameter(self%a_affin_P,      'a_affin_P',       default=a_affin_P)
+!
+!!pars stores all ecophysical parameters
 pars=0.0_rk
 call ecophys_para(self,pars)
 do ib=1,size(pars)
-call self%get_parameter(self%pars(ib),  'pars'//trim(int2char(ib)),  default=pars(ib))
-!Write(*,*)'pars'//trim(int2char(ib)),self%pars(ib)
+   call self%get_parameter(self%pars(ib),  'pars'//trim(int2char(ib)),  default=pars(ib))
+
 end do
+!
+!!Initiallize all variables
 open(namlst,file='kristineb_init.nml',status='old')
 read(namlst,nml=kristineb_init,err=90,end=99)
-!TODO: Why, explain!?
+!!Calculate the initial Phytoplankton conentration
+if(Phyto0_gaussian .eqv. .true.) then
     do ib=1,phyto_num
-        Phyto0(ib)=1.0!exp(-((log_ESD(ib)-Phyto0_mean)**2)/(2*(Phyto0_sigma)**2))!+exp(-((log_ESD(ib)-3.5)**2)/(2*(0.8)**2))*0.03
-      ! Phyto0(ib)=exp(-((exp(log_ESD(ib))-exp(Phyto0_mean))**2)/(2*(exp(Phyto0_sigma))**2))!+exp(-((log_ESD(ib)-3.5)**2)/(2*(0.8)**2))*0.03
+        Phyto0(ib)=Phyto0_min+Phyto0_ampl*exp(-((log_ESD(ib))-Phyto0_mean)**2/(2*(Phyto0_sigma)**2))
     end do
-!    do ib=10,phyto_num
-!      Phyto0(ib)=0.1_rk
-!   end do
     do ib=1,phyto_num
       Phy_initial(ib) = tot_phyc0*Phyto0(ib)/sum(Phyto0)
     end do
-    write(*,*)Phy_initial(1)
+end if
 do ib=1,phyto_num
        call bgc_parameters(self,log_ESD(ib),tmp)
-       Q_N_initial(ib)=tmp(3)
-       Q_P_initial(ib)=tmp(8)
+       Q_N_initial(ib)=tmp(3) !Q_Nmax
+       Q_P_initial(ib)=tmp(8) !Q_Pmax
+!        Q_N_initial(ib)=tmp(2)*1.01 !Q_Nmin
+!        Q_P_initial(ib)=tmp(7)*1.01 !Q_Pmin
+!write (*,*) tmp(6)
 end do
+
+!!------- model parameters from nml-list kristineb_init -------
 do ib=1,phyto_num
     call self%get_parameter(self%Phy_initial(ib)  ,'Phy_initial'//trim(int2char(ib)),   default=Phy_initial(ib))
     call self%get_parameter(self%Q_N_initial(ib)  ,'Q_N_initial'//trim(int2char(ib)),   default=Q_N_initial(ib))
     call self%get_parameter(self%Q_P_initial(ib)  ,'Q_P_initial'//trim(int2char(ib)),   default=Q_P_initial(ib))
-!write(*,*)'Initial Phy'//trim(int2char(ib)), self%Phy_initial(ib)
-!Write(*,*)'Initial QN'//trim(int2char(ib)), self%Q_N_initial(ib)
-!Write(*,*)'Initial QP'//trim(int2char(ib)), self%Q_P_initial(ib)
 end do
-
-!!------- model parameters from nml-list kristineb_init -------
 call self%get_parameter(self%N_initial    ,'N_initial',     default=N_initial)
 call self%get_parameter(self%P_initial    ,'P_initial',     default=P_initial)
 call self%get_parameter(self%D_N_initial  ,'D_N_initial',   default=D_N_initial)
 call self%get_parameter(self%D_P_initial  ,'D_P_initial',   default=D_P_initial)
 call self%get_parameter(self%POC_initial  ,'POC_initial',   default=POC_initial)
 call self%get_parameter(self%PON_initial  ,'PON_initial',   default=PON_initial)
-!!------- model parameters from nml-list kristineb_pars ------- 
-call self%get_parameter(self%z            ,'z',             default=z)
-call self%get_parameter(self%tot_depth    ,'tot_depth',     default=tot_depth)
-call self%get_parameter(self%m            ,'m',             default=m)
-call self%get_parameter(self%frac_md      ,'frac_md',       default=frac_md)
-call self%get_parameter(self%frac_mn      ,'frac_mn',       default=frac_mn)
-call self%get_parameter(self%mol_ratio    ,'mol_ratio',     default=mol_ratio)
-call self%get_parameter(self%chla_to_T_PhyN ,'chla_to_T_PhyN',  default=chla_to_T_PhyN)
-call self%get_parameter(self%I_opt ,'I_opt',  default=I_opt)
-call self%get_parameter(self%n_star       ,'n_star',        default=n_star)
-call self%get_parameter(self%k_phyN       ,'k_phyN',        default=k_phyN)
-call self%get_parameter(self%kbg          ,'kbg',           default=kbg)
-call self%get_parameter(self%par          ,'par',           default=par)
-call self%get_parameter(self%a_par        ,'a_par',         default=a_par)
-call self%get_parameter(self%alpha        ,'alpha',         default=alpha)
-call self%get_parameter(self%a_co2        ,'a_co2',         default=a_co2)
-call self%get_parameter(self%Co2          ,'Co2',           default=Co2)
-call self%get_parameter(self%a_star       ,'a_star',        default=a_star)
-call self%get_parameter(self%T            ,'T',             default=T)
-call self%get_parameter(self%T_ref        ,'T_ref',         default=T_ref)
-call self%get_parameter(self%Tcons_phy    ,'Tcons_phy',     default=Tcons_phy)
-call self%get_parameter(self%Tcons_zoo    ,'Tcons_zoo',     default=Tcons_zoo)
-call self%get_parameter(self%n_syn        ,'n_syn',         default=n_syn)
+do ib=1,zoo_num
+    call self%get_parameter(self%Z_initial(ib)    ,'Z_initial'//trim(int2char(ib)),     default=Z_initial(ib))
+end do
+!!------- model parameters from nml-list kristineb_pars -------
+call self%get_parameter(self%zl           ,'zl',                default=zl)
+call self%get_parameter(self%tot_depth    ,'tot_depth',         default=tot_depth)
+call self%get_parameter(self%m            ,'m',                 default=m)
+call self%get_parameter(self%frac_md      ,'frac_md',           default=frac_md)
+call self%get_parameter(self%frac_mn      ,'frac_mn',           default=frac_mn)
+call self%get_parameter(self%mol_ratio    ,'mol_ratio',         default=mol_ratio)
+call self%get_parameter(self%chla_to_PhyN ,'chla_to_PhyN',      default=chla_to_PhyN)
+call self%get_parameter(self%chla_to_PhyC ,'chla_to_PhyC',      default=chla_to_PhyC)
+call self%get_parameter(self%n_star       ,'n_star',            default=n_star)
+call self%get_parameter(self%k_phyN       ,'k_phyN',            default=k_phyN)
+call self%get_parameter(self%kbg          ,'kbg',               default=kbg)
+call self%get_parameter(self%par          ,'par',               default=par)
+call self%get_parameter(self%a_par        ,'a_par',             default=a_par)
+call self%get_parameter(self%b_par        ,'b_par',             default=b_par)
+call self%get_parameter(self%alpha        ,'alpha',             default=alpha)
+call self%get_parameter(self%a_co2        ,'a_co2',             default=a_co2)
+call self%get_parameter(self%Co2          ,'Co2',               default=Co2)
+call self%get_parameter(self%a_star       ,'a_star',            default=a_star)
+call self%get_parameter(self%T            ,'T',                 default=T)
+call self%get_parameter(self%Puls_dur     ,'Puls_dur',          default=Puls_dur)
+call self%get_parameter(self%Puls_int     ,'Puls_int',          default=Puls_int)
+call self%get_parameter(self%Puls_int_zoo     ,'Puls_int_zoo',          default=Puls_int_zoo)
+call self%get_parameter(self%D            ,'D',                 default=D)
+call self%get_parameter(self%Nin          ,'Nin',               default=Nin)
+call self%get_parameter(self%Pin          ,'Pin',               default=Pin)
+call self%get_parameter(self%Z_cil_s_in   ,'Z_cil_s_in',        default=Z_cil_s_in)
+call self%get_parameter(self%Z_cil_l_in   ,'Z_cil_l_in',        default=Z_cil_l_in)
+call self%get_parameter(self%Z_cop_in     ,'Z_cop_in',          default=Z_cop_in)
+call self%get_parameter(self%D_zoo            ,'D_zoo',                 default=D_zoo)
+call self%get_parameter(self%Cil_remov            ,'Cil_remov',                 default=Cil_remov)
+call self%get_parameter(self%Cop_remov            ,'Cop_remov',                 default=Cop_remov)
+call self%get_parameter(self%DeltaT       ,'DeltaT',            default=DeltaT)
+call self%get_parameter(self%T_ref        ,'T_ref',             default=T_ref)
+call self%get_parameter(self%Tcons_phy    ,'Tcons_phy',         default=Tcons_phy)
+call self%get_parameter(self%Tcons_zoo    ,'Tcons_zoo',         default=Tcons_zoo)
+call self%get_parameter(self%n_syn        ,'n_syn',             default=n_syn)
 Do ib=1,zoo_num
-  call self%get_parameter(self%sel(ib)         ,'sel'//trim(int2char(ib)),           default=sel(ib))
+  call self%get_parameter(self%sel(ib)          ,'sel'//trim(int2char(ib)),           default=sel(ib))
   call self%get_parameter(self%Lz(ib)           ,'Lz'//trim(int2char(ib)),            default=Lz(ib))
   call self%get_parameter(self%Lz_star(ib)      ,'Lz_star'//trim(int2char(ib)),       default=Lz_star(ib))
 end do
 call self%get_parameter(self%I_max0       ,'I_max0',        default=I_max0)
 call self%get_parameter(self%a_Im0        ,'a_Im0',         default=a_Im0)
 call self%get_parameter(self%y            ,'y',             default=y)
-call self%get_parameter(self%graz_const   ,'graz_const',    default=graz_const)
-call self%get_parameter(self%sel_cop_cil  ,'sel_cop_cil',   default=sel_cop_cil)
 call self%get_parameter(self%a_gr         ,'a_gr',          default=a_gr)
 call self%get_parameter(self%r_dn         ,'r_dn',          default=r_dn)
 call self%get_parameter(self%det_sink_r   ,'det_sink_r',    default=det_sink_r)
+call self%get_parameter(self%s1           ,'s1',            default=s1)
+call self%get_parameter(self%s2           ,'s2',            default=s2)
 call self%get_parameter(self%A_star_opt   ,'A_star_opt',    default=A_star_opt)
-call self%get_parameter(self%R_A   ,'R_A',    default=R_A)
+call self%get_parameter(self%B_star       ,'B_star',        default=B_star)
+call self%get_parameter(self%B_star_offs  ,'B_star_offs',   default=B_star_offs)
+call self%get_parameter(self%B_star_ampl  ,'B_star_ampl',   default=B_star_ampl)
+call self%get_parameter(self%eps_A        ,'eps_A',         default=eps_A)
+call self%get_parameter(self%R_A          ,'R_A',           default=R_A)
+Do ib=1,zoo_num
+    call self%get_parameter(self%h_z(ib)      ,'h_z'//trim(int2char(ib)),       default=h_z(ib))
+end do
+call self%get_parameter(self%mixograz     ,'mixograz',      default=mixograz)
+call self%get_parameter(self%mixoH        ,'mixoH',         default=mixoH)
+call self%get_parameter(self%gh           ,'gh',            default=gh)
+call self%get_parameter(self%delta_mix    ,'delta_mix',     default=delta_mix)
+call self%get_parameter(self%Lz_mix       ,'Lz_mix',        default=Lz_mix)
 do ib=1,phyto_num
   call self%get_parameter(self%log_ESD(ib)   ,'log_ESD'//trim(int2char(ib)),    default=log_ESD(ib))
 end do
-call self%get_parameter(self%log_ESD_crit   ,'log_ESD_crit',    default=log_ESD_crit)
-
+call self%get_parameter(self%log_ESD_crit ,'log_ESD_crit',  default=log_ESD_crit)
+call self%get_parameter(self%m_Cop        ,'m_Cop',         default=m_Cop)
+call self%get_parameter(self%m_Cil        ,'m_Cil',         default=m_Cil)
+call self%get_parameter(self%Cil_DN_r     ,'Cil_DN_r',      default=Cil_DN_r)
+call self%get_parameter(self%Cil_DN_H     ,'Cil_DN_H',      default=Cil_DN_H)
+call self%get_parameter(self%csrA_m       ,'csrA_m',        default=csrA_m)
+call self%get_parameter(self%csrW_m       ,'csrW_m',        default=csrW_m)
+call self%get_parameter(self%delay_m      ,'delay_m',       default=delay_m)
+call self%get_parameter(self%csrA_z       ,'csrA_z',        default=csrA_z)
+call self%get_parameter(self%csrW_z       ,'csrW_z',        default=csrW_z)
+call self%get_parameter(self%delay_z      ,'delay_z',       default=delay_z)
+call self%get_parameter(self%eps_ZN       ,'eps_ZN',        default=eps_ZN)
+call self%get_parameter(self%eps_ZP       ,'eps_ZP',        default=eps_ZP)
+call self%get_parameter(self%Zoo_N        ,'Zoo_N',         default=Zoo_N)
+call self%get_parameter(self%Zoo_P        ,'Zoo_P',         default=Zoo_P)
 !-------------------
-!!------- Register state variables  ------- 
+!!------- Register state variables  -------
 do ib=1,phyto_num
-call self%register_state_variable(self%id_Phy(ib),   'Phy'//trim(int2char(ib)),'mmol-C m^-3','Phytoplankton biomass Phy'//trim(int2char(ib)), &
-   self%Phy_initial(ib), minimum=_ZERO_,no_river_dilution=.true. )
-call self%register_state_variable(self%id_Q_N(ib),   'Q_N'//trim(int2char(ib)),'mol-N mol-C^-1','Phytoplankton intracellular nitrogen cell quota  Q_N'//trim(int2char(ib)), &
-   self%Q_N_initial(ib), minimum=_ZERO_, no_river_dilution=.true. )
-call self%register_state_variable(self%id_Q_P(ib),   'Q_P'//trim(int2char(ib)),'mol-P mol-C^-1','Phytoplankton intracellular phosphorous cell quota Q_P'//trim(int2char(ib)), &
-   self%Q_P_initial(ib), minimum=_ZERO_, no_river_dilution=.true. )!, vertical_movement=det_sink_r/secs_pr_day)!TODO: ??
+   call self%register_state_variable(self%id_Phy(ib),                   'Phy'//trim(int2char(ib)), 'mmol-C m^-3','Phytoplankton biomass Phy'//trim(int2char(ib)), &
+      self%Phy_initial(ib), minimum=_ZERO_,no_river_dilution=.true. )
+   call self%register_state_variable(self%id_Q_N(ib),                   'Q_N'//trim(int2char(ib)),'mol-N mol-C^-1','Phytoplankton intracellular nitrogen cell quota  Q_N'//trim(int2char(ib)), &
+      self%Q_N_initial(ib), minimum=_ZERO_, no_river_dilution=.true. )
+   call self%register_state_variable(self%id_Q_P(ib),                   'Q_P'//trim(int2char(ib)),'mol-P mol-C^-1','Phytoplankton intracellular phosphorous cell quota Q_P'//trim(int2char(ib)), &
+      self%Q_P_initial(ib), minimum=_ZERO_, no_river_dilution=.true. )
 end do
-call self%register_state_variable(self%id_N,     'N','mmol-N m^-3','nutrient concentration  N', &
-   N_initial, minimum=_ZERO_, no_river_dilution=.true. )
-call self%register_state_variable(self%id_P,     'P','mmol-P m^-3','Phosphorous concentration  P', &
-   P_initial, minimum=_ZERO_, no_river_dilution=.true. )
-call self%register_state_variable(self%id_D_N,   'D_N','mmol-N m^-1','Nitrogen content of detritus concentration D_N', &
-   D_N_initial, minimum=_ZERO_, no_river_dilution=.true. )
-call self%register_state_variable(self%id_D_P,   'D_P','mmol-P m^-3','Phosphorous content of detritus concentration  D_P', &
-   D_P_initial, minimum=_ZERO_, no_river_dilution=.true. )
+call self%register_state_variable(self%id_N,                    'N','mmol-N m^-3','nutrient concentration  N', N_initial, minimum=_ZERO_, no_river_dilution=.true. )
+call self%register_state_variable(self%id_P,                    'P','mmol-P m^-3','Phosphorous concentration  P', P_initial, minimum=_ZERO_, no_river_dilution=.true. )
+call self%register_state_variable(self%id_D_N,                  'D_N','mmol-N m^-3','Nitrogen content of detritus concentration D_N', D_N_initial, minimum=_ZERO_, no_river_dilution=.true. )
+call self%register_state_variable(self%id_D_P,                  'D_P','mmol-P m^-3','Phosphorous content of detritus concentration  D_P', D_P_initial, minimum=_ZERO_, no_river_dilution=.true. )
+Do ib=1,zoo_num
+   call self%register_state_variable(self%id_Z(ib),   'Z'//trim(int2char(ib)),'mmol-C m^-3','Predator concentration'//trim(int2char(ib)), &
+   self%Z_initial(ib), minimum=_ZERO_, no_river_dilution=.true. )
+end do
+!!------- Register diagnostic variables  -------
+call self%register_diagnostic_variable(self%id_chl_a,           'chl_a','mugrC l^-1', 'total Chlorophyl a', output=output_instantaneous)
+call self%register_diagnostic_variable(self%id_chla_to_PhyN,    'id_chla_to_PhyN','mugrC l^-1', 'total Chlorophyl a to N', output=output_instantaneous)
+call self%register_diagnostic_variable(self%id_chla_to_PhyC,    'id_chla_to_PhyC','mugrC l^-1', 'total Chlorophyl a to C', output=output_instantaneous)
+call self%register_diagnostic_variable(self%id_POC,             'POC','mmol-C m^-3','Particulate Organic Carbon', output=output_instantaneous)
+call self%register_diagnostic_variable(self%id_PON,             'PON','mmol-N m^-3','Particulate Organic Nitrogen', output=output_instantaneous)
+call self%register_diagnostic_variable(self%id_mean_cell_size,  'mean_cell_size','mu m log_e ESD', 'mean cell size', output=output_instantaneous)
+call self%register_diagnostic_variable(self%id_size_diversity,  'size_diversity','(mu m)^2 log_e ESD', 'size_diversity', output=output_instantaneous)
+call self%register_diagnostic_variable(self%id_total_Phy,       'total_Phy', 'mmol-C m^-3', 'total_phy', output=output_instantaneous)
+Do ib=1,phyto_num
+    call self%register_diagnostic_variable(self%id_fPAR(ib),            'PAR_forcing'//trim(int2char(ib)), '-', 'PAR_Forcing'//trim(int2char(ib)),&
+    output=output_instantaneous)
+end do
+do ib=1,phyto_num
+   call self%register_diagnostic_variable(self%id_fCO2(ib),             'CO2_forcing'//trim(int2char(ib)), '-', 'CO2_Forcing'//trim(int2char(ib)),&
+   output=output_instantaneous)
+end do
+do ib=1,phyto_num
+   call self%register_diagnostic_variable(self%id_suscp_cop(ib),          'suscp_cop'//trim(int2char(ib)), '-', 'suscp_cop'//trim(int2char(ib)),&
+   output=output_instantaneous)
+end do
 
-!!------- Register diagnostic variables  ------- 
-!call self%register_diagnostic_variable(self%id_prod,    'prod','1/d', 'secondary production rate prod', &
-!  output=output_instantaneous)
-!call self%register_diagnostic_variable(self%id_Mort,    'Mort','1/d', 'mortality rate  Mort', &
-!  output=output_instantaneous)
-!call self%register_diagnostic_variable(self%id_Imax_cop, 'Imax_cop','1/d', 'maximum ingestion rate adult Cops Imax_cop', &
-!  output=output_instantaneous)
-!call self%register_diagnostic_variable(self%id_mort_P,  'mort_P','1/d', 'density dependent mortality  mort_P', &
-!  output=output_instantaneous)
-!call self%register_diagnostic_variable(self%id_mixBmass, 'mixBmass','1/d', 'mass exchange rate Coast-HR-Offshore mixBmass', &
-!  output=output_instantaneous)
-!call self%register_diagnostic_variable(self%id_mixlsize, 'mixlsize','1/d', 'trait exchange rate Coast-HR-Offshore mixlsize', &
-!  output=output_instantaneous)
-!call self%register_diagnostic_variable(self%id_Tdep,    'Tdep','1/d', 'Temperature dependency Tdep', &
-!  output=output_instantaneous)
-call self%register_diagnostic_variable(self%id_chl_a,    'chl_a','mugrC l^-1', 'total Chlorophyl a', &
-  output=output_instantaneous)
-call self%register_diagnostic_variable(self%id_POC, 	'POC','-','Particulate Organic Carbon', &
- output=output_instantaneous) 
-call self%register_diagnostic_variable(self%id_PON, 	'PON','-','Particulate Organic Nitrogen', &
- output=output_instantaneous) 
-call self%register_diagnostic_variable(self%id_mean_cell_size,    'mean_cell_size','mu m', 'mean cell size', &
-  output=output_instantaneous)
-call self%register_diagnostic_variable(self%id_size_diversity,    'size_diversity','mu m', 'size_diversity', &
-  output=output_instantaneous)
-  Do ib=1,phyto_num
-call self%register_diagnostic_variable(self%id_fPAR(ib),	'PAR_forcing'//trim(int2char(ib)), '-', 'PAR_Forcing'//trim(int2char(ib)),&
- output=output_instantaneous)
- end do
- do ib=1,phyto_num
-call self%register_diagnostic_variable(self%id_fCO2(ib),	'CO2_forcing'//trim(int2char(ib)), '-', 'CO2_Forcing'//trim(int2char(ib)),&
- output=output_instantaneous)
- end do
- do ib=1,phyto_num
- call self%register_diagnostic_variable(self%id_grazing(ib),	'grazing'//trim(int2char(ib)), '-', 'CO2_Forcing'//trim(int2char(ib)),&
- output=output_instantaneous)
- end do
-call self%register_diagnostic_variable(self%id_FTPhy, 	'FTPhy','-','Temperature_forcing_for_Phytoplankton', &
- output=output_instantaneous)
-call self%register_diagnostic_variable(self%id_FTZoo, 	'FTZoo','-','Temperature_forcing_for_Zooplankton', &
- output=output_instantaneous)  
- do ib=1,phyto_num
-  call self%register_diagnostic_variable(self%id_uptake_P(ib),	'uptake_P'//trim(int2char(ib)), '-', 'uptake_P'//trim(int2char(ib)),&
-  output=output_instantaneous)
- end do
- do ib=1,phyto_num
-  call self%register_diagnostic_variable(self%id_uptake_N(ib),	'uptake_N'//trim(int2char(ib)), '-', 'uptake_N'//trim(int2char(ib)),&
-  output=output_instantaneous)
- end do
- do ib=1,zoo_num
-  call self%register_diagnostic_variable(self%id_I_max(ib),	'I_max'//trim(int2char(ib)), '-', 'I_max'//trim(int2char(ib)),&
-  output=output_instantaneous)
- end do 
-  do ib=1,phyto_num
-  call self%register_diagnostic_variable(self%id_growth(ib),	'growth'//trim(int2char(ib)), '-', 'growth'//trim(int2char(ib)),&
-  output=output_instantaneous)
- end do
- 
- call self%register_diagnostic_variable(self%id_total_growth,  'total_growt', '-', 'total growth', output=output_instantaneous)
-  call self%register_diagnostic_variable(self%id_total_respiration,  'total_respiration', '-', 'total respiration', output=output_instantaneous)
-  call self%register_diagnostic_variable(self%id_total_sinking,  'total_sinking', '-', 'total sinking', output=output_instantaneous)
-  call self%register_diagnostic_variable(self%id_aggregation,  'total_aggregation', '-', 'total aggregation', output=output_instantaneous)
-  call self%register_diagnostic_variable(self%id_total_grazing,  'total_grazing', '-', 'total grazing', output=output_instantaneous)
- 
- do ib=1,phyto_num
-  call self%register_diagnostic_variable(self%id_sizespec(ib),	'sizespec'//trim(int2char(ib)), '-', 'sizespec'//trim(int2char(ib)),&
-  output=output_instantaneous)
- end do
-!---------------------------
+
+call self%register_diagnostic_variable(self%id_FTPhy,           'FTPhy','-','Temperature_forcing_for_Phytoplankton', output=output_instantaneous)
+call self%register_diagnostic_variable(self%id_FTZoo,           'FTZoo','-','Temperature_forcing_for_Zooplankton', output=output_instantaneous)
+do ib=1,phyto_num
+   call self%register_diagnostic_variable(self%id_uptake_P(ib),         'uptake_P'//trim(int2char(ib)), '(mmol-P mmol-C^-1 d^-1)', 'uptake_P'//trim(int2char(ib)),&
+   output=output_instantaneous)
+end do
+do ib=1,phyto_num
+   call self%register_diagnostic_variable(self%id_uptake_N(ib),         'uptake_N'//trim(int2char(ib)), '(mmol-N mmol-C^-1 d^-1)', 'uptake_N'//trim(int2char(ib)),&
+   output=output_instantaneous)
+end do
+do ib=1,zoo_num
+   call self%register_diagnostic_variable(self%id_I_max(ib),            'I_max'//trim(int2char(ib)), 'd^-1', 'I_max'//trim(int2char(ib)),&
+   output=output_instantaneous)
+end do
+
+
+do ib=1,phyto_num
+   call self%register_diagnostic_variable(self%id_growth(ib),           'growth'//trim(int2char(ib)), 'd^-1', 'growth'//trim(int2char(ib)),&
+   output=output_instantaneous)
+end do
+Do ib=1,phyto_num
+   call self%register_diagnostic_variable(self%id_respiration(ib),      'respiration'//trim(int2char(ib)), 'd^-1', 'respiration'//trim(int2char(ib)),&
+   output=output_instantaneous)
+end do
+Do ib=1,phyto_num
+   call self%register_diagnostic_variable(self%id_sinking(ib),          'sinking'//trim(int2char(ib)), 'd^-1', 'sinking'//trim(int2char(ib)),&
+   output=output_instantaneous)
+end do
+Do ib=1,phyto_num
+   call self%register_diagnostic_variable(self%id_mix_grazing_loss(ib), 'mix_grazing_loss'//trim(int2char(ib)), 'd^-1', 'mix_grazing_loss'//trim(int2char(ib)),&
+   output=output_instantaneous)
+end do
+!---
+call self%register_diagnostic_variable(self%id_total_growth,     'total_growth', 'd^-1', 'total growth', output=output_instantaneous)
+call self%register_diagnostic_variable(self%id_total_respiration,'total_respiration', 'd^-1', 'total respiration', output=output_instantaneous)
+call self%register_diagnostic_variable(self%id_total_sinking,    'total_sinking', 'd^-1', 'total sinking', output=output_instantaneous)
+call self%register_diagnostic_variable(self%id_total_aggregation,'total_aggregation', 'd^-1', 'total_aggregation', output=output_instantaneous)
+call self%register_diagnostic_variable(self%id_total_grazing,    'total_grazing', '-', 'total grazing', output=output_instantaneous)
+call self%register_diagnostic_variable(self%id_mix_grazing,      'id_mix_grazing', '-', 'id_mix_grazing', output=output_instantaneous)
+
+do ib=1,phyto_num
+    call self%register_diagnostic_variable(self%id_sizespec(ib),        'sizespec'//trim(int2char(ib)), '-', 'sizespec'//trim(int2char(ib)),&
+    output=output_instantaneous)
+end do
+
+call self%register_diagnostic_variable(self%id_mixl,             'mixl', 'm', 'mixl', output=output_instantaneous)
+do ib=1,phyto_num
+   call self%register_diagnostic_variable(self%id_rel_growth(ib),       'Rel_growth_rate_sr'//trim(int2char(ib)), 'd^-1', 'Rel_growth_rate_sr'//trim(int2char(ib)),&
+   output=output_instantaneous)
+end do
+call self%register_diagnostic_variable(self%id_cop_size,         'cop_size', 'loge ESD', 'cop_size', output=output_instantaneous)
+do ib=1,zoo_num
+   call self%register_diagnostic_variable(self%id_eff_food_con(ib),     'eff_food_con'//trim(int2char(ib)), '-', 'eff_food_con'//trim(int2char(ib)), output=output_instantaneous)
+end do
+call self%register_diagnostic_variable(self%id_cop_pref,         'cop_pref', '-', 'cop_pref', output=output_instantaneous)
+do ib=1,zoo_num
+   call self%register_diagnostic_variable(self%id_zoo_pref(ib),         'zoo_pref'//trim(int2char(ib)), '-', 'zoo_pref'//trim(int2char(ib)), output=output_instantaneous)
+end do
+call self%register_diagnostic_variable(self%id_Coscin,           'Coscin_biomass', 'mmol C/m^3', 'Coscin_biomass', output=output_instantaneous)
+call self%register_diagnostic_variable(self%id_relCoscin,        'rel_Coscin_biomass', '-', 'rel_Coscin_biomass', output=output_instantaneous)
+call self%register_diagnostic_variable(self%id_Picos,            'Pico_biomass', 'mmol C/m^3', 'Pico_biomass', output=output_instantaneous)
+call self%register_diagnostic_variable(self%id_relPicos,         'rel_Pico_biomass', '-', 'rel_Pico_biomass', output=output_instantaneous)
+do ib=1,zoo_num
+   call self%register_diagnostic_variable(self%id_Ggraz(ib),            'G'//trim(int2char(ib)), '-', 'G'//trim(int2char(ib)), output=output_instantaneous)
+end do
+call self%register_diagnostic_variable(self%id_evenness,         'evenness', '-', 'evenness', output=output_instantaneous)
+call self%register_diagnostic_variable(self%id_pulse,            'pulse', '-', 'pulse', output=output_instantaneous)
+call self%register_diagnostic_variable(self%id_sedimentN,        'sedimentN', '-', 'sedimentN', output=output_instantaneous)
+call self%register_diagnostic_variable(self%id_sedimentP,        'sedimentP', '-', 'sedimentP', output=output_instantaneous)
+
+ !---------------------------
  !Register global dependency
- call self%register_global_dependency(self%id_doy,standard_variables%number_of_days_since_start_of_the_year)
- 
- 
-!!------- Register environmental dependencies  ------- 
+call self%register_global_dependency(self%id_doy,standard_variables%number_of_days_since_start_of_the_year)
+!!------- Register environmental dependencies  -------
 call self%register_dependency(self%id_Cop,standard_variables%downwelling_photosynthetic_radiative_flux)
 !call self%register_horizontal_dependency(self%id_SeaTemp,standard_variables%surface_temperature)
 call self%register_dependency(self%id_DeepWTemp,standard_variables%temperature)
@@ -598,11 +746,11 @@ call self%register_dependency(self%id_cil_l,type_bulk_standard_variable('cil_l',
 call self%register_dependency(self%id_cil_h,type_bulk_standard_variable('cil_h','-'))
 call self%register_dependency(self%id_copepod_l,type_bulk_standard_variable('copepod_l','-'))
 call self%register_dependency(self%id_copepod_h,type_bulk_standard_variable('copepod_h','-'))
-! extra line included from parser var init_incl 
+! extra line included from parser var init_incl
 #define UNIT *1.1574074074E-5_rk
 return
 
-!!-------  if files are not found ...  
+!!-------  if files are not found ...
 90 call self%fatal_error('kristineb_init','Error reading namelist kristineb_init.')
 91 call self%fatal_error('kristineb_init','Error reading namelist kristineb_pars.')
 92 call self%fatal_error('kristineb_init','Error reading namelist kristineb_switch.')
@@ -616,68 +764,54 @@ end subroutine initialize
 
 
 !!----------------------------------------------------------------------
-!!   end of section generated by parser 
+!!   end of section generated by parser
 !!----------------------------------------------------------------------
 
    ! Add model subroutines here.
-	subroutine do(self,_ARGUMENTS_DO_)
-		class (type_hzg_kristineb),intent(in) :: self
-		_DECLARE_ARGUMENTS_DO_
-   integer::ib,jb,cb,doy
-   real(rk),dimension(self%phyto_num) :: Phy,Q_N,Q_P,log_ESD
-   real(rk),dimension(self%zoo_num) :: Zoo
+subroutine do(self,_ARGUMENTS_DO_)
+class (type_hzg_kristineb),intent(in) :: self
+_DECLARE_ARGUMENTS_DO_
+   integer::ib,jb,cb     !Looping indices
+   integer::doy,doe      !day of year, day of experiment
+   integer::pulse,pulse2 !Pulse functions
+!State variables
+   real(rk),dimension(self%phyto_num) :: Phy,Q_N,Q_P
+   real(rk),dimension(self%zoo_num)   :: Zoo,Z  !Z is needed if Zooplankton is a state variable
    real(rk) :: D_N,D_P,N,P
-   !Temporäre Parameter
-	real(rk),dimension(self%phyto_num)::uptake_rate_N,P_growth_rate,uptake_rate_P,R_N,grazing_forc,sinkr,rel_growthr
-	real(rk),dimension(self%phyto_num)::dPhy_dt,dQ_N_dt,dQ_P_dt,growth
-	real(rk),dimension(self%zoo_num)::I_max
-	real(rk)::dP_dt_t,dN_dt_t,dD_P_dt_t,dD_N_dt_t
-	real(rk)::mean,aggr
+!Temporäre Parameter
+   real(rk),dimension(self%phyto_num)::uptake_rate_N,P_growth_rate,uptake_rate_P,R_N,sinkr,rel_growthr,grazing,suscp_cop,uptake_deriv_N
+   real(rk),dimension(self%phyto_num)::dPhy_dt,dQ_N_dt,dQ_P_dt,growth,mix_pref,mixQP,mixQN,QNdot,log_ESD
+   real(rk),dimension(self%zoo_num)::I_max
+   real(rk)::dP_dt_t,dN_dt_t,dD_P_dt_t,dD_N_dt_t
+   real(rk),dimension(self%zoo_num)::dZ_dt
+   real(rk)::mean
+   real(rk),dimension(self%zoo_num,self%phyto_num)::zoo_pref
+   real(rk),dimension(self%num_ciliat)::cop_pref,grazing_cil
+   real(rk)::cil_l,copepod_l,cil_h,copepod_h
+   real(rk):: drat,par,deepwTemp,pCO2
+   real(rk) :: mixl !mixed layer depth
+   real(rk) :: csr,csrA,csrW,cop_size
+   real(rk), dimension(self%zoo_num)::Lz_tmp,eff_food_con,Ggraz
+   real(rk), dimension(self%phyto_num,2)::mixgraz
+   real(rk) :: CN_Cil,CP_Cil,even
 !Forcings
-	real(rk),dimension(self%phyto_num)::f_co2,F_par
-	real(rk),dimension(2)::T_forcing
-	real(rk):: drat,par,deepwTemp,pCO2!,SeaTemp !TODO:?
-	real(rk),dimension(self%zoo_num,self%phyto_num)::zoo_pref
-	real(rk),dimension(self%num_ciliat)::cop_pref
-	real(rk)::cil_l,copepod_l,cil_h,copepod_h
-	real(rk),dimension(11)::test
-	real(rk) :: mixl !mixed layer depth
-	real(rk) :: csr,csrA,csrW
-	real(rk), dimension(self%zoo_num)::Lz_tmp
-      par=self%par
-!open(100,file='test.txt',status='new')
-! Do ib=1,self%phyto_num
-! call bgc_parameters(self,self%log_ESD(ib), test)
-! write(100,*)self%log_ESD(ib),test
-! write(100,*)''
-! end do
-!close(100)
-!Zooplankton Preferences
-! Compute---------------
-_GET_GLOBAL_ (self%id_doy,doy) !Get day of year
-!First day of Experiment (8.3.2013) was the 67th day of the year
- csrA=0.5
- csrW=0.2
- csr=(1._rk-csrA)+csrA*(1.0_rk/(1.0_rk+exp(csrW*(dble(doy-67-50)))))
- mixl=self%z*csr
+   real(rk),dimension(self%zoo_num,self%phyto_num)::grazing_forc
+   real(rk),dimension(self%phyto_num)::f_co2,F_par,Coscin,Picos,aggr
+   real(rk),dimension(2)::T_forcing
 
- csrA=0.25
- csrW=0.2
- csr=(1._rk-csrA)+csrA*(1.0_rk/(1.0_rk+exp(csrW*(dble(doy-67-50)))))
- 
- Lz_tmp=(/self%Lz(1),self%Lz(2),self%Lz(3)*csr/)
-   zoo_pref=0.0_rk
-    cop_pref=0.0_rk
-    Do jb=1,self%zoo_num
-      do ib=1,self%phyto_num
-        zoo_pref(jb,ib)=exp(-self%sel(jb)*(self%Lz_star(jb)-self%log_ESD(ib))**2)
-      end do
-    end do
-    !--- Copepod preference for ciliates
-    !ciliates are divided to two size class:small:3 mum logeESD, large:4.5 mum logeESD
-    do cb=1,self%num_ciliat
-      cop_pref(cb)=exp(-self%sel_cop_cil*(self%Lz_star(numberofzoos-1)+self%Lz_star(numberofzoos)-Lz_tmp(cb))**2)
-    end do
+ Coscin=0.0_rk
+ Picos=0.0_rk
+
+ _GET_GLOBAL_ (self%id_doy,doy) !Get day of year
+ doe=doy-67                    !day of the Experiment
+!First day of Experiment (8.3.2013) was the 67th day of the year
+ !Time dependent parameters
+ csr=(1._rk-self%csrA_m)+self%csrA_m*(1.0_rk/(1.0_rk+exp(self%csrW_m*(dble(doe-self%delay_m)))))
+ mixl=self%zl*csr
+!write(*,*) self%zl
+ csr=(1._rk-self%csrA_z)+self%csrA_z*(1.0_rk/(1.0_rk+exp(self%csrW_z*(dble(doe-self%delay_z)))))
+ cop_size=self%Lz(3)*csr
+
 !----------------------
 _LOOP_BEGIN_
    ! Obtain concentrations
@@ -690,32 +824,100 @@ _LOOP_BEGIN_
    _GET_(self%id_D_N,D_N)
    _GET_(self%id_N,N)
    _GET_(self%id_P,P)
-
- !Forcings      
-!------------------------------------------   
-  _GET_(self%id_Cop,par)!PAR from file
- ! _GET_HORIZONTAL_(self%id_SeaTemp,SeaTemp)!Sea_Temp from file
-  _GET_(self%id_DeepWTemp,deepwTemp)
-  _GET_HORIZONTAL_(self%id_pCO2,pCO2)
- ! Write(*,*)deepwTemp,pCO2,par
+   do ib=1,self%zoo_num
+        _GET_(self%id_Z(ib),Z(ib))
+   end do
+!------------------------------------------
+  if (self%PAR_data .eqv. .true.) then
+    _GET_(self%id_Cop,par)!PAR from file
+    par=0.8*par !Light reduction due to gas tight tents
+  else
+     par=self%par
+  end if
+  if(self%T_data .eqv. .true.) then
+    _GET_(self%id_DeepWTemp,deepwTemp)
+  else
+    deepwTemp=self%T
+  end if
+  deepwTemp=deepwTemp+self%DeltaT !Higher Temperature scenario
+  if (self%co2data .eqv. .true.) then
+    _GET_HORIZONTAL_(self%id_pCO2,pCO2)
+  else
+  if (self%co2_low == 1) then
+    !pCO2=185._rk
+    pCO2=200._rk
+  else if (self%co2_low == 2) then
+    !pCO2=270._rk
+    pCO2=300._rk
+  else if (self%co2_low == 3) then
+    !pCO2=375._rk
+    pCO2=400._rk
+  else if (self%co2_low == 4) then
+    !pCO2=685._rk
+    pCO2=500._rk
+  else if (self%co2_low == 5) then
+    !pCO2=820._rk
+    pCO2=600._rk
+  else if (self%co2_low == 6) then
+    !pCO2=1050._rk
+    pCO2=700._rk
+  else
+    !pCO2=1420._rk
+    pCO2=800._rk
+  end if
+ end if
+ !Calculate Zooplankton Preferences
+    zoo_pref=0.0_rk
+    cop_pref=0.0_rk
+    Lz_tmp=(/self%Lz(1),self%Lz(2),cop_size/)
+    Do jb=1,self%zoo_num
+      do ib=1,self%phyto_num
+          zoo_pref(jb,ib)=exp(-self%sel(jb)*(self%Lz_star(jb)-self%log_ESD(ib))**2)
+!          zoo_pref(jb,ib)=exp(-self%sel(jb)*(self%Lz_star(jb)-self%log_ESD(ib))**4)
+      end do
+    end do
+    !--- Copepod preference for ciliates
+    !ciliates are divided to two size class:small:3 mum logeESD, large:4.5 mum logeESD
+    do cb=1,self%num_ciliat
+      cop_pref(cb)=exp(-self%sel(3)*(self%Lz_star(3)-Lz_tmp(cb))**2)
+!      cop_pref(cb)=exp(-self%sel(3)*(self%Lz_star(3)-Lz_tmp(cb))**4)
+    end do
+    !Mixotrophic grazing kernal
+    do cb=1,self%phyto_num
+      mix_pref(cb)=1.0_rk!exp(-self%sel_het*(self%Lz_het-self%log_ESD(cb))**2)
+    end do
  !ciliates concentration is divided to get each size class biomass:50% total cilit:small,
  !50% total ciliat:large
- if (self%co2_low .eqv. .true.) then
-   _GET_(self%id_cil_l,cil_l)
-   _GET_(self%id_copepod_l,copepod_l)
-   !Zoo=small ciliates, large ciliates, copepods
-   Zoo=(/0.0*cil_l/2.0_rk/12.0_rk,cil_l/12.0_rk,csr*4.0_rk*copepod_l*10.d-4/)
-  ! heterotrophe Flagellaten (Test)
-!   Zoo=(/Phy(6)/3.0_rk,cil_l/12.0_rk,csr*4.0_rk*copepod_l*10.d-4/)
- else
-   _GET_(self%id_cil_h,cil_h)
-   _GET_(self%id_copepod_h,copepod_h)
-   Zoo=(/0.0*cil_h/2.0_rk/12.0_rk,cil_h/12.0_rk,csr*4.0_rk*copepod_h*10.d-4/)
-     ! heterotrophe Flagellaten (Test)
- !  Zoo=(/Phy(6)/3.0_rk,cil_h/12.0_rk,csr*4.0_rk*copepod_h*10.d-4/)
+ if (self%graz_forc .eqv. .true.) then
+ if (self%co2_low <= 3 .and. self%zoodata .eqv. .true.) then
+     _GET_(self%id_cil_l,cil_l)
+     _GET_(self%id_copepod_l,copepod_l)
+     !Zoo=small ciliates, large ciliates, copepods
+     Zoo=(/0.5*cil_l/12.0_rk,0.5*cil_l/12.0_rk,csr*4.0_rk*copepod_l*1.d-4/)
+ else if (self%co2_low > 3 .and. self%zoodata .eqv. .true.) then
+     _GET_(self%id_cil_h,cil_h)
+     _GET_(self%id_copepod_h,copepod_h)
+     Zoo=(/0.5*cil_h/12.0_rk,0.5*cil_h/12.0_rk,csr*4.0_rk*copepod_h*1.d-4/)
+ else if (self%zoodata .eqv. .false.) then
+     Zoo=(/Z(1),Z(2),Z(3)/)
  end if
+ else
+  Zoo=0.0_rk
+ end if
+ !!test (Mean Zooplankton data)
+    !Zoo=(/0.25*(cil_l+cil_h)/12.0_rk,0.25*(cil_l+cil_h)/12.0_rk,csr*2.0_rk*(copepod_l+copepod_h)*1.d-4/)
+ !Initialize saved variables for time dependent functions
+ if (doe<1) then
+   Zooold=Zoo
+   t_old=self%Puls_int
+   t_old2=self%Puls_int_zoo
+ end if
+!Pulsed input
+call pulse_sub(self,doe,t_old,self%Puls_dur,self%Puls_int,pulse)
+!write(*,*) pulse
+call pulse_sub(self,doe,t_old2,self%Puls_dur,self%Puls_int_zoo,pulse2)
         !-- Temperature dependency
-        call F_T(self,deepwTemp,T_forcing)!F_T(t,self%tempdeep,self%tempsea,T_forcing)
+        call F_T(self,deepwTemp,T_forcing)
         !-- pCo2 forcing
         call F_Co2sr(self,pCO2,f_co2)
         !-- PAR forcing
@@ -723,36 +925,82 @@ _LOOP_BEGIN_
         call f_parsr(self,Phy,Q_N,f_co2,T_forcing,par,mixl,F_par)
 !--------------------------
         ! Aggregation rate
-        aggr=aggr_rate(self,Phy,Q_N,D_N)
+        QNdot=QN_old
+        !aggr=aggr_rate(self,Phy,Q_N,D_N,QNdot)
+        call aggr_rate(self, Phy,Q_N,D_N,QNdot,aggr)
         ! Phytoplankton growth rate
         call Phy_growth_rate(self,Q_N,Q_P,T_forcing,f_co2,F_par,P_growth_rate)
         ! Nutrient uptake rate by phytoplankton
-        call N_uptake(self,N,Q_N,T_forcing,par,uptake_rate_N)
+        call N_uptake(self,N,Q_N,T_forcing,P_growth_rate,par,uptake_rate_N,uptake_deriv_N)
         call P_uptake(self,P,Q_P,T_forcing,par,uptake_rate_P)
         ! Phytoplankton respiration
-        call Respiration(self,uptake_rate_N,R_N)
+        call Respiration(self,uptake_rate_N,R_N,pCO2)
         ! Community mean cell size
         Mean=mean_cell_size(self,Phy)
         ! Grazing forcing
-        call Grazing_forcing(self,Phy,T_forcing,Mean,zoo_pref,cop_pref,Zoo,grazing_forc,Lz_tmp,I_max)
+        call Grazing_forcing(self,Phy,T_forcing,Mean,zoo_pref,cop_pref,Zoo,grazing_forc,Lz_tmp,I_max,eff_food_con,Ggraz,grazing_cil,suscp_cop)
         ! Sinking rate
         call sink_rate(self,Q_N,Q_P,mixl,sinkr)
+        ! Mixotrophic grazing
+        call mixo_graz(self,Phy,Q_N,Q_P,mixgraz,P_growth_rate,mixQN,mixQP)
         ! Phytoplankton relative growth rate
-        call Rel_growth_rate_sr(self,Phy,aggr,P_growth_rate,grazing_forc,R_N,sinkr,rel_growthr)
+        call Rel_growth_rate_sr(self,Phy,aggr,P_growth_rate,grazing_forc,R_N,sinkr,mixgraz,rel_growthr)
+        !
         !--- Differential equations ---
-	do ib=1,self%phyto_num
-	      dPhy_dt(ib) = rel_growthr(ib) * Phy(ib)
-	!      if(self%log_ESD(ib)<1.6) dPhy_dt(ib)=dPhy_dt(ib)-0.04*Phy(ib)
-              dQ_N_dt(ib) = uptake_rate_N(ib) - (P_growth_rate(ib)-R_N(ib)) * Q_N(ib)
-	      dQ_P_dt(ib) = uptake_rate_P(ib) - (P_growth_rate(ib)-R_N(ib)) * Q_P(ib)
-	end do
-	!Heterotrophe Flagellaten
-!	dPhy_dt(6)=Phy(6)*(grazing_forc(1)+grazing_forc(2)+grazing_forc(3)+grazing_forc(4)+grazing_forc(5))/3.0+ dPhy_dt(6)*2/3.0
-        dN_dt_t = dN_dt(self,uptake_rate_N, Phy, D_N,grazing_forc,Q_N,T_forcing,N)
-        dP_dt_t = dP_dt(self,uptake_rate_P, Phy, D_P,grazing_forc,Q_P,T_forcing,P)
-        dD_N_dt_t = dD_N_dt(self, Phy, Q_N, D_N,aggr,T_forcing,mixl,grazing_forc)
-        dD_P_dt_t = dD_P_dt(self, Phy, Q_P, D_P,aggr,T_forcing,mixl,grazing_forc)
-if(isnan(Phy(1))) stop
+        dD_N_dt_t = dD_N_dt(self, Phy, Q_N, D_N,aggr,T_forcing,mixl,grazing_forc,grazing_cil)+ (1._rk-self%mixograz)*sum(mixgraz(:,2)*Phy(:)*Q_N(:))+0.50*(self%Cop_remov*pulse2*self%D_zoo*Z(3)*self%Zoo_N  +self%Cil_remov*pulse2*self%D_zoo*Z(1)*self%Zoo_N +self%Cil_remov*pulse2*self%D_zoo*Z(2)*self%Zoo_N)
+        dD_P_dt_t = dD_P_dt(self, Phy, Q_P, D_P,aggr,T_forcing,mixl,grazing_forc,grazing_cil)+ (1._rk-self%mixograz)*sum(mixgraz(:,2)*Phy(:)*Q_P(:))+0.50*(self%Cop_remov*pulse2*self%D_zoo*Z(3)*self%Zoo_P +self%Cil_remov*pulse2*self%D_zoo*Z(1)*self%Zoo_P+self%Cil_remov*pulse2*self%D_zoo*Z(2)*self%Zoo_P)
+        do ib=1,self%phyto_num
+              dPhy_dt(ib) = rel_growthr(ib) * Phy(ib)
+              dQ_N_dt(ib) = uptake_rate_N(ib) - (P_growth_rate(ib)-R_N(ib)) * Q_N(ib)! + mixQN(ib)
+              dQ_P_dt(ib) = uptake_rate_P(ib) - (P_growth_rate(ib)-R_N(ib)) * Q_P(ib)! + mixQP(ib)
+        end do
+        QN_old=dQ_N_dt(:)
+        !
+        dN_dt_t =(dN_dt(self,uptake_rate_N, Phy, D_N,grazing_forc,Q_N,T_forcing,N)+self%eps_ZN*sum(Zoo(:))) +pulse*self%D*(self%Nin)+0.166*(self%Cop_remov*pulse2*self%D_zoo*Z(3)*self%Zoo_N  +self%Cil_remov*pulse2*self%D_zoo*Z(1)*self%Zoo_N +self%Cil_remov*pulse2*self%D_zoo*Z(2)*self%Zoo_N)
+        dP_dt_t = (dP_dt(self,uptake_rate_P, Phy, D_P,grazing_forc,Q_P,T_forcing,P)+self%eps_ZP*sum(Zoo(:)))+pulse*self%D*(self%Pin)+0.166*(self%Cop_remov*pulse2*self%D_zoo*Z(3)*self%Zoo_P +self%Cil_remov*pulse2*self%D_zoo*Z(1)*self%Zoo_P+self%Cil_remov*pulse2*self%D_zoo*Z(2)*self%Zoo_P)
+        !
+        !----------------------------------------------------------------
+        if(self%zoodata .eqv. .true.) then !Pseudo-differential equations
+            if (Zoo(1) /= 0.0) then
+                dZ_dt(1) = (Zoo(1)-Zooold(1))/(150._rk)*secs_pr_day !/(dt*secs_pr_day)
+            else
+                dZ_dt(1) = 0.0_rk
+            end if
+            if (Z(2) /= 0.0) then
+                dZ_dt(2) = (Zoo(2)-Zooold(2))/(150._rk)*secs_pr_day
+            else
+                dZ_dt(2) = 0.0_rk
+            end if
+            if (Zoo(3) /= 0.0) then
+                dZ_dt(3) = (Zoo(3)-Zooold(3))/(150._rk)*secs_pr_day
+            else
+                dZ_dt(3) = 0.0_rk
+            end if
+            Zooold(1)=Zoo(1)
+            Zooold(2)=Zoo(2)
+            Zooold(3)=Zoo(3)
+        else
+            if(self%zookonst .eqv. .false.) then
+         !We have to do this right (just a simple test!!)
+         !Stoichiometrie for Ciliates (Golz et al 2015)
+         !CN_Cil=0.73_rk+0.02_rk*dlog10(sum(Phy)/sum(Q_N))
+         !CP_Cil=1.06_rk+0.29_rk*dlog10(sum(Phy)/sum(Q_P))
+         !
+            dZ_dt(1) =self%y*sum(grazing_forc(1,:))-grazing_cil(1)-self%m_Cil*Z(1)**2 - self%Cil_remov*pulse2*self%D_zoo*Z(1)!       + self%y*self%Cil_DN_r*Z(1)*(1.0_rk/self%Zoo_N*D_N+1.0_rk/self%Zoo_P*D_P)/(self%Cil_DN_H+D_N+D_P)
+            !dZ_dt(1) =self%y*sum(grazing_forc(1,:))-grazing_cil(1)-self%m_Cil*Z(1)**2  + pulse2*self%D_zoo*(self%Z_cil_s_in)
+            dZ_dt(2) = self%y*sum(grazing_forc(2,:))-grazing_cil(2)-self%m_Cil*Z(2)**2  - self%Cil_remov*pulse2*self%D_zoo*Z(2)!    + self%y*self%Cil_DN_r*Z(2)*(1.0_rk/self%Zoo_N*D_N+1.0_rk/self%Zoo_P*D_P)/(self%Cil_DN_H+D_N+D_P)
+           ! dZ_dt(2) = self%y*sum(grazing_forc(2,:))-grazing_cil(2)-self%m_Cil*Z(2)**2  + pulse2*self%D_zoo*(self%Z_cil_l_in) !
+           dZ_dt(3) = self%y*sum(grazing_forc(3,:))+self%y*sum(grazing_cil(:))-self%m_Cop*Z(3)**2 - self%Cop_remov*pulse2*self%D_zoo*Z(3)
+           !dZ_dt(3) = self%y*sum(grazing_forc(3,:))+self%y*sum(grazing_cil(:))-self%m_Cop*Z(3)**2 +pulse2*self%D_zoo*(self%Z_cop_in)
+
+            dD_N_dt_t = dD_N_dt_t+self%Zoo_N*self%m_Cil*(Z(1)**2+Z(2)**2)+self%Zoo_N*self%m_Cop*Z(3)**2 ! - 1.0_rk/self%Zoo_N*self%y*self%Cil_DN_r*Z(1)*D_N/( self%Cil_DN_H+D_N+D_P) - 1.0_rk/self%Zoo_N*self%y*self%Cil_DN_r*Z(2)*D_N/( self%Cil_DN_H+D_N+D_P)
+            !
+            dD_P_dt_t = dD_P_dt_t+self%Zoo_P*self%m_Cil*(Z(1)**2+Z(2)**2)+self%Zoo_P*self%m_Cop*Z(3)**2 !- 1.0_rk/self%Zoo_P*self%y*self%Cil_DN_r*Z(1)*D_P/( self%Cil_DN_H+D_N+D_P) - 1.0_rk/self%Zoo_P*self%y*self%Cil_DN_r*Z(2)*D_P/( self%Cil_DN_H+D_N+D_P)
+            !
+            else
+                dZ_dt=0.0_rk
+            end if
+        end if
 !-------------------------
    ! Send rates of change to FABM.
    do ib=1,self%phyto_num
@@ -760,54 +1008,142 @@ if(isnan(Phy(1))) stop
    _SET_ODE_(self%id_Q_N(ib),dQ_N_dt(ib)/secs_pr_day)
    _SET_ODE_(self%id_Q_P(ib),dQ_P_dt(ib)/secs_pr_day)
    end do
-   _SET_ODE_(self%id_D_P,dD_P_dt_t/secs_pr_day)
-   _SET_ODE_(self%id_D_N,dD_N_dt_t/secs_pr_day)
+!---
    _SET_ODE_(self%id_N,dN_dt_t/secs_pr_day)
    _SET_ODE_(self%id_P,dP_dt_t/secs_pr_day)
-
-
+   _SET_ODE_(self%id_D_N,dD_N_dt_t/secs_pr_day)
+   _SET_ODE_(self%id_D_P,dD_P_dt_t/secs_pr_day)
+!---
+   do ib=1,self%zoo_num
+   _SET_ODE_(self%id_Z(ib),dZ_dt(ib)/secs_pr_day)
+   end do
+!---
    ! Send the value of diagnostic variables to FABM.
-    _SET_DIAGNOSTIC_(self%id_chl_a,chl_a(self,Phy,Q_N,par))
-    _SET_DIAGNOSTIC_(self%id_POC,self%POC_initial+sum(Phy(:))) !TODO
-    _SET_DIAGNOSTIC_(self%id_PON,sum(Q_N(:))+D_N)		!TODO
+    _SET_DIAGNOSTIC_(self%id_chl_a,chl_a(self,Phy,Q_N,Q_P,par,mixl,deepwTemp))
+    _SET_DIAGNOSTIC_(self%id_chla_to_PhyN,self%chla_to_PhyN)
+    _SET_DIAGNOSTIC_(self%id_POC,D_N+sum(Phy(:))) !TODO
+    !Large zooplankton may escape the samples during measurments
+    !We assume that those species contribute less to the measured PON
+    Zoo=Z
+    _SET_DIAGNOSTIC_(self%id_PON,Sum(Phy(:)*Q_N(:))+D_N+(Zoo(1)+Zoo(2)+Zoo(3)*(1.0_rk+self%csrA_z-csr))*self%Zoo_N)
     _SET_DIAGNOSTIC_(self%id_mean_cell_size,mean_cell_size(self,Phy))
     _SET_DIAGNOSTIC_(self%id_size_diversity,size_diversity(self,Phy))
+    _SET_DIAGNOSTIC_(self%id_total_Phy,sum(Phy(:)))
+!---
     Do ib=1,self%phyto_num
       _SET_DIAGNOSTIC_(self%id_fPAR(ib),F_par(ib))
     end do
+!---
     Do ib=1,self%phyto_num
       _SET_DIAGNOSTIC_(self%id_fCO2(ib),f_co2(ib))
     end do
-    Do ib=1,self%phyto_num    
-        _SET_DIAGNOSTIC_(self%id_grazing(ib),grazing_forc(ib)/Phy(ib))
-    end do
-  !  Write(*,*)grazing_forc
-    _SET_DIAGNOSTIC_(self%id_FTPhy,T_forcing(1))
-    _SET_DIAGNOSTIC_(self%id_FTZoo,T_forcing(2))
+!---
     Do ib=1,self%phyto_num
-      _SET_DIAGNOSTIC_(self%id_uptake_N(ib),uptake_rate_N(ib))
+        grazing(ib)=sum(grazing_forc(:,ib))
     end do
+!---
+    Do ib=1,self%phyto_num
+       _SET_DIAGNOSTIC_(self%id_suscp_cop(ib),suscp_cop(ib)/Phy(ib))
+    end do
+!---
+   _SET_DIAGNOSTIC_(self%id_FTPhy,T_forcing(1))
+    _SET_DIAGNOSTIC_(self%id_FTZoo,T_forcing(2))
+!---
+    Do ib=1,self%phyto_num
+!        _SET_DIAGNOSTIC_(self%id_uptake_N(ib),uptake_rate_N(ib))
+! _SET_DIAGNOSTIC_(self%id_uptake_N(ib),uptake_deriv_N(ib)*(1.0_rk/(0.04+Q_N(ib))-2*self%mol_ratio))
+      _SET_DIAGNOSTIC_(self%id_uptake_N(ib),uptake_deriv_N(ib))
+    end do
+	if (doe .gt. 57 .and. doe .lt. 60 .and. .FALSE.) then
+	ib=6
+!  	write (*,*) doe,N,uptake_rate_N(ib),uptake_deriv_N(ib),(1.0_rk/(0.2+Q_N(ib))-self%mol_ratio),uptake_deriv_N(ib)*(1.0_rk/(0.2+Q_N(ib))-self%mol_ratio)
+  	write (*,*) doe,uptake_deriv_N(ib),uptake_deriv_N(ib+5)
+	ib=11
+!  	write (*,*) Q_N(ib),uptake_rate_N(ib),uptake_deriv_N(ib),(1.0_rk/(0.2+Q_N(ib))-self%mol_ratio)
+endif
+!---
     Do ib=1,self%phyto_num
       _SET_DIAGNOSTIC_(self%id_uptake_P(ib),uptake_rate_P(ib))
     end do
+!---
     Do ib=1,self%zoo_num
       _SET_DIAGNOSTIC_(self%id_I_max(ib),I_max(ib))
     end do
+!------------
     Do ib=1,self%phyto_num
-      _SET_DIAGNOSTIC_(self%id_growth(ib),P_growth_rate(ib))
+!     _SET_DIAGNOSTIC_(self%id_growth(ib),P_growth_rate(ib)+mixgraz(ib,1))
+     _SET_DIAGNOSTIC_(self%id_growth(ib),P_growth_rate(ib)+mixgraz(ib,1))
     end do
-    _SET_DIAGNOSTIC_(self%id_total_growth,sum(P_growth_rate(:)))
-    _SET_DIAGNOSTIC_(self%id_total_respiration,-sum(R_N(:)))
-    _SET_DIAGNOSTIC_(self%id_total_sinking,-sum(sinkr(:)))
-    _SET_DIAGNOSTIC_(self%id_aggregation,-aggr)
-    _SET_DIAGNOSTIC_(self%id_total_grazing,-sum(grazing_forc(:)/(0.0001+Phy(:))))
+!---
     Do ib=1,self%phyto_num
-      _SET_DIAGNOSTIC_(self%id_sizespec(ib),Phy(ib))!/sum(Phy(:)))
+      _SET_DIAGNOSTIC_(self%id_respiration(ib),R_N(ib))
     end do
+!---
+    Do ib=1,self%phyto_num
+      _SET_DIAGNOSTIC_(self%id_sinking(ib),sinkr(ib))
+    end do
+!---
+    Do ib=1,self%phyto_num
+      _SET_DIAGNOSTIC_(self%id_mix_grazing_loss(ib),mixgraz(ib,2))
+	 ! write (*,*) mixgraz(ib,1),mixgraz(ib,2)
 
-    
-   _LOOP_END_
+    end do
+!---
+!---Total rates
+    _SET_DIAGNOSTIC_(self%id_total_growth,sum((P_growth_rate(:)+mixgraz(:,1))*Phy(:))/sum(Phy(:)))
+    _SET_DIAGNOSTIC_(self%id_total_respiration,-sum(R_N(:)*Phy(:))/sum(Phy(:)))
+    _SET_DIAGNOSTIC_(self%id_total_sinking,-sum(sinkr(:)*Phy(:))/sum(Phy(:)))
+    _SET_DIAGNOSTIC_(self%id_total_aggregation,-sum(aggr(:)*Phy(:))/sum(Phy(:)))
+    _SET_DIAGNOSTIC_(self%id_total_grazing,-sum(grazing(:))/sum(Phy(:)))
+    _SET_DIAGNOSTIC_(self%id_mix_grazing,-sum(mixgraz(:,2)*Phy(:))/sum(Phy(:)))
+!---
+    Do ib=1,self%phyto_num
+      _SET_DIAGNOSTIC_(self%id_sizespec(ib),Phy(ib))
+    end do
+!---
+    _SET_DIAGNOSTIC_(self%id_mixl,mixl)
+!---
+    Do ib=1,self%phyto_num
+      _SET_DIAGNOSTIC_(self%id_rel_growth(ib),rel_growthr(ib))
+    end do
+!---
+    _SET_DIAGNOSTIC_(self%id_cop_size,cop_size)
+!---
+    do ib=1,self%zoo_num
+      _SET_DIAGNOSTIC_(self%id_eff_food_con(ib),eff_food_con(ib))
+    end do
+!---
+    _SET_DIAGNOSTIC_(self%id_cop_pref,sum(cop_pref(:)))
+!---
+    do ib=1,self%zoo_num
+      _SET_DIAGNOSTIC_(self%id_zoo_pref(ib),sum(zoo_pref(:,ib)))
+    end do
+!---s
+    Do ib=11,17
+      Coscin(ib)=exp(-3.5*(5.64-self%log_ESD(ib))**2)*Phy(ib)
+    end do
+!---
+    _SET_DIAGNOSTIC_(self%id_Coscin,sum(Coscin(:)))
+    _SET_DIAGNOSTIC_(self%id_relCoscin,sum(Coscin(:))/sum(Phy(:)))
+!---
+    Do ib=1,5
+      Picos(ib)=exp(-3.5*(0.45-self%log_ESD(ib))**2)*Phy(ib)
+    end do
+!---
+    _SET_DIAGNOSTIC_(self%id_Picos,sum(Picos(:)))
+    _SET_DIAGNOSTIC_(self%id_relPicos,sum(Picos(:))/sum(Phy(:)))
+!---
+    do ib=1,self%zoo_num
+      _SET_DIAGNOSTIC_(self%id_Ggraz(ib),Ggraz(ib))
+    end do
+!---
+    call evenness(self,Phy,even)
+    _SET_DIAGNOSTIC_(self%id_evenness,even)
+    _SET_DIAGNOSTIC_(self%id_pulse,pulse)
+    _SET_DIAGNOSTIC_(self%id_sedimentN,(self%det_sink_r/mixl*D_N+sum(sinkr(:)*Phy(:)*Q_N(:)))*secs_pr_day)
+    _SET_DIAGNOSTIC_(self%id_sedimentP,(self%det_sink_r/mixl*D_P+sum(sinkr(:)*Phy(:)*Q_P(:)))*secs_pr_day)
+
+_LOOP_END_
 end subroutine do
 include 'Model_functions.F90'
 end module
-
