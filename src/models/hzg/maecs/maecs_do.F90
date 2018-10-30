@@ -969,47 +969,6 @@ end if !BioOxyOn
 
 end if !IsCritical
 
-#ifdef debugMK
-if ( rhsv%nutN /= rhsv%nutN ) then; write(0,*) 'ERROR: maecs_do#972 rhsv%nutN = ',rhsv%nutN; stop; endif
-if ( rhsv%phyC /= rhsv%phyC ) then; write(0,*) 'ERROR: maecs_do#973 rhsv%phyC = ',rhsv%phyC; stop; endif
-if ( rhsv%phyN /= rhsv%phyN ) then; write(0,*) 'ERROR: maecs_do#974 rhsv%phyN = ',rhsv%phyN; stop; endif
-if ( rhsv%detC /= rhsv%detC ) then; write(0,*) 'ERROR: maecs_do#975 rhsv%detC = ',rhsv%detC; stop; endif
-if ( rhsv%detN /= rhsv%detN ) then; write(0,*) 'ERROR: maecs_do#976 rhsv%detN = ',rhsv%detN; stop; endif
-if ( rhsv%domC /= rhsv%domC ) then; write(0,*) 'ERROR: maecs_do#977 rhsv%domC = ',rhsv%domC; stop; endif
-if ( rhsv%domN /= rhsv%domN ) then; write(0,*) 'ERROR: maecs_do#978 rhsv%domN = ',rhsv%domN; stop; endif
-if (self%RubiscoOn) then
-  if ( rhsv%Rub /= rhsv%Rub ) then; write(0,*) 'ERROR: maecs_do#980 rhsv%Rub = ',rhsv%Rub; stop; endif
-end if
-if (self%PhotoacclimOn) then
-  if ( rhsv%chl /= rhsv%chl ) then; write(0,*) 'ERROR: maecs_do#983 rhsv%chl = ',rhsv%chl; stop; endif
-end if
-if (self%PhosphorusOn) then
-  if ( rhsv%nutP /= rhsv%nutP ) then; write(0,*) 'ERROR: maecs_do#986 rhsv%nutP = ',rhsv%nutP; stop; endif
-  if ( rhsv%phyP /= rhsv%phyP ) then; write(0,*) 'ERROR: maecs_do#987 rhsv%phyP = ',rhsv%phyP; stop; endif
-  if ( rhsv%detP /= rhsv%detP ) then; write(0,*) 'ERROR: maecs_do#988 rhsv%detP = ',rhsv%detP; stop; endif
-  if ( rhsv%domP /= rhsv%domP ) then; write(0,*) 'ERROR: maecs_do#989 rhsv%domP = ',rhsv%domP; stop; endif
-end if
-if (self%SiliconOn) then
-  if ( rhsv%nutS /= rhsv%nutS ) then; write(0,*) 'ERROR: maecs_do#992 rhsv%nutS = ',rhsv%nutS; stop; endif
-  if ( rhsv%phyS /= rhsv%phyS ) then; write(0,*) 'ERROR: maecs_do#993 rhsv%phyS = ',rhsv%phyS; stop; endif
-  if ( rhsv%detS /= rhsv%detS ) then; write(0,*) 'ERROR: maecs_do#994 rhsv%detS = ',rhsv%detS; stop; endif
-end if
-if (self%GrazingOn) then
-  if ( rhsv%zooC /= rhsv%zooC ) then; write(0,*) 'ERROR: maecs_do#997 rhsv%zooC = ',rhsv%zooC; stop; endif
-end if
-if (self%BioOxyOn) then
-  if ( rhsv%nh3 /= rhsv%nh3 ) then; write(0,*) 'ERROR: maecs_do#1000 rhsv%nh3 = ',rhsv%nh3; stop; endif
-  if ( rhsv%oxy /= rhsv%oxy ) then; write(0,*) 'ERROR: maecs_do#1001 rhsv%oxy = ',rhsv%oxy; stop; endif
-  if ( rhsv%odu /= rhsv%odu ) then; write(0,*) 'ERROR: maecs_do#1002 rhsv%odu = ',rhsv%odu; stop; endif
-end if
-if (self%VirusOn) then
-  if ( rhsv%vir /= rhsv%vir ) then; write(0,*) 'ERROR: maecs_do#1005 rhsv%vir = ',rhsv%vir; stop; endif
-end if
-if (self%NResOn) then
-  if ( rhsv%RNit /= rhsv%RNit ) then; write(0,*) 'ERROR: maecs_do#1008 rhsv%RNit = ',rhsv%RNit; stop; endif
-end if
-#endif
-
 !#S_ODE
 !---------- ODE for each state variable ----------
   _SET_ODE_(self%id_nutN, rhsv%nutN UNIT)
@@ -1132,7 +1091,8 @@ if (self%RateDiagOn) then
   _SET_DIAGNOSTIC_(self%id_phyALR, _REPLNAN_(-aggreg_rate))  !average Phytoplankton_Aggregation_Loss_Rate_
   _SET_DIAGNOSTIC_(self%id_phyVLR, _REPLNAN_(-viral_rate))   !average Phytoplankton_Viral_Loss_Rate_
   _SET_DIAGNOSTIC_(self%id_phyGLR, _REPLNAN_(-graz_rate/phy%reg%C)) !average Phytoplankton_Grazing_Loss_Rate_
-  _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(exp(-self%sink_phys*phy%relQ%N*phy%relQ%P))) !average Relative_Sinking_Rate_
+!  _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(exp(-self%sink_phys*phy%relQ%N*phy%relQ%P))) !average Relative_Sinking_Rate_
+  _SET_DIAGNOSTIC_(self%id_vsinkr, -1.0) !average Relative_Sinking_Rate_
   _SET_DIAGNOSTIC_(self%id_zoomort, _REPLNAN_(zoo_mort))     !average Zooplankton_Mortality_Rate_
 end if
 !#E_DIA
@@ -1252,6 +1212,8 @@ write(*,'(A)') 'begin vert_move'
    !end if
    !CONSTANT SINKING
    !vs_phy = self%vS_phy
+
+   _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(vs_phy)) !average Relative_Sinking_Rate_
 
   _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
 ! increase vDet in shallow water:co-agulation with lithogenic particles
