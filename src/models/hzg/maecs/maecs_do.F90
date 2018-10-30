@@ -326,6 +326,7 @@ if (self%GrazingOn) then
 !  _GET_GLOBAL_ (self%id_doy,doy) !day of year
    _GET_(self%id_attpar, att)
    _SET_DIAGNOSTIC_(self%id_datt,att)
+   _SET_DIAGNOSTIC_(self%id_vphys, -1)  
    select case (self%GrazTurbOn)
      case (0)
       _GET_GLOBAL_ (self%id_doy,doy) !day of year
@@ -1092,7 +1093,6 @@ if (self%RateDiagOn) then
   _SET_DIAGNOSTIC_(self%id_phyVLR, _REPLNAN_(-viral_rate))   !average Phytoplankton_Viral_Loss_Rate_
   _SET_DIAGNOSTIC_(self%id_phyGLR, _REPLNAN_(-graz_rate/phy%reg%C)) !average Phytoplankton_Grazing_Loss_Rate_
 !  _SET_DIAGNOSTIC_(self%id_vsinkr, _REPLNAN_(exp(-self%sink_phys*phy%relQ%N*phy%relQ%P))) !average Relative_Sinking_Rate_
-  _SET_DIAGNOSTIC_(self%id_vsinkr, -1.0) !average Relative_Sinking_Rate_
   _SET_DIAGNOSTIC_(self%id_zoomort, _REPLNAN_(zoo_mort))     !average Zooplankton_Mortality_Rate_
 end if
 !#E_DIA
