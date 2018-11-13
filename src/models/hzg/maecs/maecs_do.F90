@@ -150,7 +150,7 @@ end if
 _GET_(self%id_temp, env%temp)  ! water temperature
 _GET_(self%id_par, env%par)    ! light photosynthetically active radiation
 
-_SET_DIAGNOSTIC_(self%id_dPAR, _REPLNAN_(env%par))         !average Photosynthetically_Active_Radiation_
+_SET_DIAGNOSTIC_(self%id_dPAR,env%par)         !average Photosynthetically_Active_Radiation_
 
 if (self%ChemostatOn) then
   if (_AVAILABLE_(self%id_CO2)) then
