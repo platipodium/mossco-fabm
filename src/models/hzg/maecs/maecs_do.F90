@@ -149,6 +149,9 @@ end if
 !S_GED
 _GET_(self%id_temp, env%temp)  ! water temperature
 _GET_(self%id_par, env%par)    ! light photosynthetically active radiation
+
+_SET_DIAGNOSTIC_(self%id_dPAR, _REPLNAN_(env%par))         !average Photosynthetically_Active_Radiation_
+
 if (self%ChemostatOn) then
   if (_AVAILABLE_(self%id_CO2)) then
     _GET_(self%id_CO2, env%CO2)  ! CO2
@@ -326,7 +329,7 @@ if (self%GrazingOn) then
 !  _GET_GLOBAL_ (self%id_doy,doy) !day of year
    _GET_(self%id_attpar, att)
    _SET_DIAGNOSTIC_(self%id_datt,att)
-   _SET_DIAGNOSTIC_(self%id_vphys, -1)  
+   _SET_DIAGNOSTIC_(self%id_vphys, -1)
    select case (self%GrazTurbOn)
      case (0)
       _GET_GLOBAL_ (self%id_doy,doy) !day of year
@@ -1059,7 +1062,6 @@ end if
 if (self%BGC0DDiagOn) then
   _SET_DIAGNOSTIC_(self%id_GPPR, _REPLNAN_(phy%gpp*phy%C))   !average gross_primary_production_
   _SET_DIAGNOSTIC_(self%id_Denitr, _REPLNAN_(0.8*Denitrific)) !average denitrification_rate_
-  _SET_DIAGNOSTIC_(self%id_dPAR, _REPLNAN_(env%par))         !average Photosynthetically_Active_Radiation_
   _SET_DIAGNOSTIC_(self%id_DNP, _REPLNAN_(nut%N/(nut%P+self%small))) !average DIN:DIP_ratio_
   _SET_DIAGNOSTIC_(self%id_QNP, _REPLNAN_(phy%Q%N/phy%Q%P))  !average N:P_ratio_
   _SET_DIAGNOSTIC_(self%id_qualPOM, _REPLNAN_(qualPOM))      !average Quality_of_POM_

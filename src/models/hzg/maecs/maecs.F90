@@ -1,10 +1,10 @@
-! @file maecs.F90 
+! @file maecs.F90
 
 #include "fabm_driver.h"
 
 !> @brief This is the module registered in FABM
 !> @details all the maecs_types are made available to this module
-!! @todo cross-check the new units and long names of id_Rub (bulk), id_chl (bulk), id_chl2 (diag, chl:c ratio) 
+!! @todo cross-check the new units and long names of id_Rub (bulk), id_chl (bulk), id_chl2 (diag, chl:c ratio)
 module hzg_maecs
 use fabm_types
 use fabm_standard_variables
@@ -30,9 +30,9 @@ public type_maecs_env,type_maecs_rhs
 ! @defgroup main main_model_members
 ! @name //@{ //@}
 !> @details the parent type (type_maecs_base_model) was defined in maecs_types module
-type,extends(type_maecs_base_model),public :: type_hzg_maecs 
+type,extends(type_maecs_base_model),public :: type_hzg_maecs
  contains
-  procedure :: initialize 
+  procedure :: initialize
   procedure :: do => maecs_do
   procedure :: do_surface => maecs_do_surface
   procedure :: get_light_extinction
@@ -42,10 +42,10 @@ end type type_hzg_maecs
 !interface
   ! @brief @brief interface for the external procedure contained in maecs_main module
   ! @details phyto sinking rate depends on the nutritional state, so for each node:
-  ! \n \f$ phy\%relQ \f$ obtained by calling calc_internal_states(self,phy,det,dom,zoo) 
+  ! \n \f$ phy\%relQ \f$ obtained by calling calc_internal_states(self,phy,det,dom,zoo)
   ! \n then \f$ phyQstat=phy\%relQ\%N * phy\%relQ\%P \f$
   ! \n finally, vsink = maecs_functions::sinking(self\%vS_phy, phyQstat, vsink)
-!   subroutine maecs_get_vertical_movement(self, _ARGUMENTS_GET_VERTICAL_MOVEMENT_) 
+!   subroutine maecs_get_vertical_movement(self, _ARGUMENTS_GET_VERTICAL_MOVEMENT_)
 !   import type_hzg_maecs,type_environment,rk
 !   class (type_hzg_maecs),intent(in) :: self
 !   _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_
@@ -186,7 +186,7 @@ integer,                  intent(in)            :: configunit
 !
 ! !LOCAL VARIABLES:
 integer    :: namlst=19
-!!------- Initial values of model maecs ------- 
+!!------- Initial values of model maecs -------
 real(rk)  :: nutN_initial ! Dissolved Inorganic Nitrogen DIN
 real(rk)  :: nutP_initial ! Dissolved Inorganic Phosphorus DIP
 real(rk)  :: nutS_initial ! Dissolved Inorganic Silicon Si
@@ -212,9 +212,9 @@ real(rk)  :: oxy_initial  ! dissolved oxygen
 real(rk)  :: odu_initial  ! dissolved reduced substances
 real(rk)  :: vir_initial  ! Virus C density in cells
 real(rk)  :: vir  ! trait times biomass
-!!------- Parameters from nml-list maecs_pars ------- 
+!!------- Parameters from nml-list maecs_pars -------
 real(rk)  :: P_max        ! maximum potential photosynthetic rate
-real(rk)  :: alpha        ! specific light adsorption by chloroplasts 
+real(rk)  :: alpha        ! specific light adsorption by chloroplasts
 real(rk)  :: sigma        ! Q-dependency of Rubisco activity/chloroplast ratio
 real(rk)  :: theta_LHC    ! chlorophyll a-to-C ratio of LHC
 real(rk)  :: rel_chloropl_min ! chloroplast-C to phy-C ratio
@@ -239,17 +239,17 @@ real(rk)  :: adap_rub     ! adap_rub
 real(rk)  :: adap_theta   ! adap_theta
 real(rk)  :: tau_regV     ! tau-regV
 real(rk)  :: disease      ! parasites/disease mortality rate ; TODO:not implemented yet
-real(rk)  :: mort_ODU     ! toxic stress due to H2S 
-real(rk)  :: decay_pigm   ! pigment decay rate 
-real(rk)  :: decay_nut    ! non-carbon structure decay rate 
+real(rk)  :: mort_ODU     ! toxic stress due to H2S
+real(rk)  :: decay_pigm   ! pigment decay rate
+real(rk)  :: decay_nut    ! non-carbon structure decay rate
 real(rk)  :: phi_agg      ! quadratic aggregation rate
 real(rk)  :: agg_doc      ! DOC multiplier in coagulation term
 real(rk)  :: vir_loss     ! specific loss/exudation rate of infected phy
 real(rk)  :: vir_mu       ! viral growth rate (=vir_loss)
 real(rk)  :: vir_infect   ! specific infection rate rate (not used)
-real(rk)  :: vir_phyC     ! phy conc where infection diversity = 1 
+real(rk)  :: vir_phyC     ! phy conc where infection diversity = 1
 real(rk)  :: vir_spor_r   ! death and spore building rate of virus
-real(rk)  :: vir_spor_C   ! virus concentration with max spore building  
+real(rk)  :: vir_spor_C   ! virus concentration with max spore building
 real(rk)  :: sink_phys    ! sinking sensitivity on physiological status
 real(rk)  :: vS_phy       ! sinking velocity for phytoplankton
 real(rk)  :: vS_det       ! sinking velocity for detritus
@@ -257,12 +257,12 @@ real(rk)  :: hydrol       ! degradation rate of most refractory POM
 real(rk)  :: remin        ! pel.remineralisation rate of most refractory DOM
 real(rk)  :: Nqual        ! quality increase with ON/OC (0:no effect; 1: full linearity)
 real(rk)  :: remNP        ! relative P-stoichiometry in preferential (high N) remin
-real(rk)  :: denit        ! DIN removal by denitrification  
-real(rk)  :: PON_denit    ! critical PON for denitrification  
+real(rk)  :: denit        ! DIN removal by denitrification
+real(rk)  :: PON_denit    ! critical PON for denitrification
 real(rk)  :: Q10          ! Q10 factor
 real(rk)  :: T_ref        ! reference Kelvin temperature
-real(rk)  :: NutOrder     ! element order of recursive scheme. lower digit: synchrony element 
-!!------- Parameters from nml-list maecs_graz ------- 
+real(rk)  :: NutOrder     ! element order of recursive scheme. lower digit: synchrony element
+!!------- Parameters from nml-list maecs_graz -------
 real(rk)  :: const_NC_zoo ! zooplankton N:C ratio
 real(rk)  :: const_PC_zoo ! zooplankton P:C ratio
 real(rk)  :: g_max        ! maximum grazing rate
@@ -273,7 +273,7 @@ real(rk)  :: mort_zoo     ! quadratic mortality
 real(rk)  :: zm_fa_delmax ! max.increase factor in attenuation-dependent mort.rate (only active if mort_zoo<0)
 real(rk)  :: zm_fa_inf    ! infliction point of the att. function of mort.rate (only active if mort_zoo<0)
 real(rk)  :: fT_exp_mort  ! exponent temperature dep. mortality (1: standard)
-!!------- Parameters from nml-list maecs_env ------- 
+!!------- Parameters from nml-list maecs_env -------
 real(rk)  :: a_water      ! background attenuation coefficient
 real(rk)  :: a_minfr      ! heuristic depth-dep attenuation
 real(rk)  :: a_spm        ! attenuation coefficient of SPM
@@ -281,16 +281,16 @@ real(rk)  :: a_phyc       ! attenuation coefficient of PhyC
 real(rk)  :: a_doc        ! attenuation coefficient of DOC
 real(rk)  :: a_fz         ! depth dependent turbidity gradient
 real(rk)  :: a_chl        ! attenuation coefficient due to Chl absorption
-real(rk)  :: rel_co2      ! relative CO2 conc in sea water 
+real(rk)  :: rel_co2      ! relative CO2 conc in sea water
 real(rk)  :: frac_PAR     ! photosynthetically active fraction of light
 real(rk)  :: small        ! lower limit for denominator in ratios; small_finite=sqrt(small)
 real(rk)  :: maxVal       ! upper limit for trait variables; <0: also no mininum check
 real(rk)  :: dil          ! dilution of all concentrations except dissolved inorganics
 real(rk)  :: ex_airsea    ! diffusivity coefficient (m2/s) divided by boundary layer thickness
 real(rk)  :: O2_sat       ! oxygen concentration in air-sea boundary layer
-real(rk)  :: N_depo       ! DIN deposition rate 0.5  6-21mg/m2.d Grieken2007 - 
-real(rk)  :: P_depo       ! DIP deposition rate 
-!!------- Parameters from nml-list maecs_omex ------- 
+real(rk)  :: N_depo       ! DIN deposition rate 0.5  6-21mg/m2.d Grieken2007 -
+real(rk)  :: P_depo       ! DIP deposition rate
+!!------- Parameters from nml-list maecs_omex -------
 real(rk)  :: rPAds        ! Adsorption coeff phosphorus
 real(rk)  :: PAdsODU      ! PO4-Fe dissolution threshold in terms of [FeS]/ODU
 real(rk)  :: rnit         ! Max nitrification rate
@@ -317,10 +317,10 @@ logical   :: BGC0DDiagOn  =.false.! output of local rates (GPP, Denit,...) and s
 logical   :: BGC2DDiagOn  =.false.! output of BGC fluxes (O,C,N)
 logical   :: PhysiolDiagOn =.false.! output of ecophysiological/allocation/acclimation variables
 logical   :: RateDiagOn   =.false.! output of phytoplankton growth and loss rate contributions
-logical   :: ChemostatOn  =.false.! use Chemostat mode 
+logical   :: ChemostatOn  =.false.! use Chemostat mode
 logical   :: VirusOn      =.false.! use dynamic virus variable
 logical   :: SwitchOn     =.false.! use experimental mode 1
-integer   :: GrazTurbOn   =0! > 0 use water clarity as proxy for top-predation 
+integer   :: GrazTurbOn   =0! > 0 use water clarity as proxy for top-predation
 logical   :: NResOn       =.false.! use long-term N-reservoir
 integer   :: kwFzmaxMeth  =0! background extinction method
 integer   :: genMeth      =0! dummy method switch
@@ -387,7 +387,7 @@ odu_initial  = 0._rk              ! mmolO2/m**3
 vir_initial  = 0._rk              ! -
 P_max        = 9._rk              ! d^{-1}
 alpha        = 0.2_rk             ! m2 mol-C/(muE g-CHL)
-sigma        = 1.0_rk             ! 
+sigma        = 1.0_rk             !
 theta_LHC    = 0.8_rk             ! mgChl mmolC^{-1}
 rel_chloropl_min = 0.02_rk            ! mol-C/mol-C
 QN_phy_0     = 0.04_rk            ! mol-N/mol-C
@@ -396,7 +396,7 @@ V_NC_max     = 0.7_rk             ! mmol-N/(m3 d)
 AffN         = 0.5_rk             ! m3/(mmol-N d)
 zeta_CN      = 4_rk               ! mol-C/mol-N
 zstoich_PN   = 6_rk               ! mol-N/mol-P
-exud_phy     = 0._rk              ! 
+exud_phy     = 0._rk              !
 QP_phy_0     = 0.00_rk            ! mol-P/mol-C
 QP_phy_max   = 0.008_rk           ! mol-P/mol-C
 V_PC_max     = 0.2_rk             ! mol-P/(mol-C d)
@@ -405,44 +405,44 @@ QSi_phy_0    = 0.02_rk            ! mol-Si/mol-C
 QSi_phy_max  = 0.2_rk             ! mol-Si/mol-C
 V_SiC_max    = 0.7_rk             ! mol-Si/(mol-C d)
 AffSi        = 0.3_rk             ! m3/(mmol-C d)
-MaxRelQ      = 3._rk              ! 
-syn_nut      = -4._rk             ! 
-adap_rub     = 1.0_rk             ! 
-adap_theta   = 1.0_rk             ! 
-tau_regV     = 15.0_rk            ! 
+MaxRelQ      = 3._rk              !
+syn_nut      = -4._rk             !
+adap_rub     = 1.0_rk             !
+adap_theta   = 1.0_rk             !
+tau_regV     = 15.0_rk            !
 disease      = 0_rk               ! d^{-1}
 mort_ODU     = 0.0_rk             ! m3/mmol-ODU.d
 decay_pigm   = 0.0_rk             ! 1/d
 decay_nut    = 0.1_rk             ! 1/d
 phi_agg      = 0.001_rk           ! m^6 mmol-N^{-2} d^{-1}
 agg_doc      = 0.004_rk           ! m^-3 mmol-C
-vir_loss     = 2._rk              ! - 
+vir_loss     = 2._rk              ! -
 vir_mu       = 2._rk              ! 1/d
 vir_infect   = 0.0_rk             ! m3/d.mol-C
 vir_phyC     = 1._rk              ! mmol-C/m3
 vir_spor_r   = 0.2_rk             ! -
 vir_spor_C   = 0.0002_rk          ! -
-sink_phys    = 4._rk              ! 
+sink_phys    = 4._rk              !
 vS_phy       = 2.3_rk             ! m d^{-1}
 vS_det       = 12._rk             ! m d^{-1}
 hydrol       = 0.001_rk           ! d^{-1}
 remin        = 0.002_rk           ! d^{-1}
-Nqual        = 0.95_rk            ! 
-remNP        = -0.001_rk          ! 
+Nqual        = 0.95_rk            !
+remNP        = -0.001_rk          !
 denit        = 0._rk              ! d^{-1}
-PON_denit    = 5_rk               ! mmol-N/m3 
-Q10          = 1.5_rk             ! 
+PON_denit    = 5_rk               ! mmol-N/m3
+Q10          = 1.5_rk             !
 T_ref        = 289.0_rk           ! K
 NutOrder     = 123.2_rk           ! serial order number N:P:Si
 const_NC_zoo = 0.25_rk            ! mol/mol
 const_PC_zoo = 0.02_rk            ! mol/mol
 g_max        = 1._rk              ! per d
 k_grazC      = 10.0_rk            ! mmolN/m**3
-yield_zoo    = 0.35_rk            ! 
+yield_zoo    = 0.35_rk            !
 basal_resp_zoo = 0.05_rk            ! per d
 mort_zoo     = 0.023_rk           ! m**3/mmolN.d
 zm_fa_delmax = 3.5_rk             ! m**3/mmolN.d
-zm_fa_inf    = 0.07_rk            ! - 
+zm_fa_inf    = 0.07_rk            ! -
 fT_exp_mort  = 3._rk              ! m**3/mmolN.d
 a_water      = 0.4_rk             ! 1/m
 a_minfr      = 0.2_rk             ! -
@@ -452,16 +452,16 @@ a_doc        = 0.0_rk             ! m**3/m.mmolC
 a_fz         = 7.55_rk            ! -
 a_chl        = 0.005_rk           ! m**3/m.mgChl
 rel_co2      = -1_rk              ! -
-frac_PAR     = 1.0_rk             ! 
-small        = 1e-6_rk            ! 
-maxVal       = -12.0000_rk        ! 
+frac_PAR     = 1.0_rk             !
+small        = 1e-6_rk            !
+maxVal       = -12.0000_rk        !
 dil          = 0.0_rk             ! 1/d
 ex_airsea    = 3e-5_rk            ! m/s
 O2_sat       = 300._rk            ! mmol-O2/m2.d
 N_depo       = 0.0_rk             ! mmol-N/m2.d
 P_depo       = 0.0_rk             ! mmol-P/m2.d
-rPAds        = 0.0_rk             ! 
-PAdsODU      = 12._rk             ! 
+rPAds        = 0.0_rk             !
+PAdsODU      = 12._rk             !
 rnit         = 12._rk             ! 1/d
 ksO2nitri    = 20._rk             ! umolO2/m3
 rODUox       = 0._rk              ! 1/d
@@ -474,7 +474,7 @@ kinO2anox    = 1._rk              ! mmolO2/m3
 rAnammox     = 0.025_rk           ! 1/d
 
 
-!--------- read namelists --------- 
+!--------- read namelists ---------
 write(0,*) ' read namelists ....'
 open(namlst,file='maecs_switch.nml',status='old')
 read(namlst,nml=maecs_switch,err=90,end=99)
@@ -517,7 +517,7 @@ call self%get_parameter(self%detritus_no_river_dilution,  'detritus_no_river_dil
 call self%get_parameter(self%plankton_no_river_dilution,  'plankton_no_river_dilution',  default=plankton_no_river_dilution)
 call self%get_parameter(self%nutrient_no_river_dilution,  'nutrient_no_river_dilution',  default=nutrient_no_river_dilution)
 
-!!------- model parameters from nml-list maecs_init ------- 
+!!------- model parameters from nml-list maecs_init -------
 call self%get_parameter(self%nutN_initial ,'nutN_initial',  default=nutN_initial)
 call self%get_parameter(self%phyC_initial ,'phyC_initial',  default=phyC_initial)
 call self%get_parameter(self%phyN_initial ,'phyN_initial',  default=phyN_initial)
@@ -541,7 +541,7 @@ call self%get_parameter(self%domN_initial ,'domN_initial',  default=domN_initial
     call self%get_parameter(self%vir_initial  ,'vir_initial',   default=vir_initial)
     call self%get_parameter(self%RNit_initial ,'RNit_initial',  default=RNit_initial)
 
-!!------- model parameters from nml-list maecs_pars ------- 
+!!------- model parameters from nml-list maecs_pars -------
 call self%get_parameter(self%P_max        ,'P_max',         default=P_max)
 call self%get_parameter(self%alpha        ,'alpha',         default=alpha)
 call self%get_parameter(self%sigma        ,'sigma',         default=sigma)
@@ -600,7 +600,7 @@ end if
     call self%get_parameter(self%mort_ODU     ,'mort_ODU',      default=mort_ODU)
 !end if
 
-!!------- model parameters from nml-list maecs_graz ------- 
+!!------- model parameters from nml-list maecs_graz -------
 call self%get_parameter(self%const_NC_zoo ,'const_NC_zoo',  default=const_NC_zoo)
 if (self%PhosphorusOn) then
     call self%get_parameter(self%const_PC_zoo ,'const_PC_zoo',  default=const_PC_zoo)
@@ -616,7 +616,7 @@ if (self%GrazingOn) then
     call self%get_parameter(self%fT_exp_mort  ,'fT_exp_mort',   default=fT_exp_mort)
 end if
 
-!!------- model parameters from nml-list maecs_env ------- 
+!!------- model parameters from nml-list maecs_env -------
 call self%get_parameter(self%a_water      ,'a_water',       default=a_water)
 call self%get_parameter(self%a_minfr      ,'a_minfr',       default=a_minfr)
 call self%get_parameter(self%a_spm        ,'a_spm',         default=a_spm)
@@ -636,7 +636,7 @@ if (self%BioOxyOn) then
     call self%get_parameter(self%O2_sat       ,'O2_sat',        default=O2_sat)
 end if
 
-!!------- model parameters from nml-list maecs_omex ------- 
+!!------- model parameters from nml-list maecs_omex -------
 if (self%BioOxyOn) then
     call self%get_parameter(self%rPAds        ,'rPAds',         default=rPAds)
     call self%get_parameter(self%PAdsODU      ,'PAdsODU',       default=PAdsODU)
@@ -652,7 +652,7 @@ if (self%BioOxyOn) then
     call self%get_parameter(self%rAnammox     ,'rAnammox',      default=rAnammox)
 end if
 
-!!------- derived parameters  ------- 
+!!------- derived parameters  -------
 self%rq10         = Q10
 self%res0         = 0.25d0*V_NC_max*zeta_CN
 self%K_QN_phy     = QN_phy_max-QN_phy_0
@@ -664,7 +664,7 @@ self%aver_QN_phy  = 5.0d-1*(QN_phy_max+QN_phy_0)
 self%aver_QP_phy  = 5.0d-1*(QP_phy_max+QP_phy_0)
 self%small_finite  = sqrt(small)
 
-!!------- Register state variables  ------- 
+!!------- Register state variables  -------
 call self%register_state_variable(self%id_nutN,  'nutN','mmol-N/m**3','Dissolved Inorganic Nitrogen DIN nutN', &
    nutN_initial, minimum=_ZERO_, no_river_dilution=nutrient_no_river_dilution )
 call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_nutN)
@@ -752,12 +752,13 @@ if (self%NResOn) then
        RNit_initial, minimum=_ZERO_, no_river_dilution=.false. )
 end if
 
-!!------- Register diagnostic variables  ------- 
+!!------- Register diagnostic variables  -------
 call self%register_diagnostic_variable(self%id_datt,    'datt','1/m', ' datt', &
   output=DOUT)
 call self%register_diagnostic_variable(self%id_vphys,   'vphys','-', ' vphys', &
   output=DOUT)
-
+call self%register_diagnostic_variable(self%id_dPAR,    'dPAR','W/m**2', 'Photosynthetically_Active_Radiation_ dPAR', &
+    output=DOUT)
 call self%register_diagnostic_variable(self%id_pPads,   'pPads','-', 'pPads', output=DOUT)
 
 if (self%DebugDiagOn) then
@@ -779,8 +780,6 @@ if (self%BGC0DDiagOn) then
 call self%register_diagnostic_variable(self%id_GPPR,    'GPPR','mmolC/m**3/d', 'gross_primary_production_ GPPR', &
   output=DOUT)
 call self%register_diagnostic_variable(self%id_Denitr,  'Denitr','mmol-N/m**3/d', 'denitrification_rate_ Denitr', &
-  output=DOUT)
-call self%register_diagnostic_variable(self%id_dPAR,    'dPAR','W/m**2', 'Photosynthetically_Active_Radiation_ dPAR', &
   output=DOUT)
 call self%register_diagnostic_variable(self%id_DNP,     'DNP','-', 'DIN:DIP_ratio_ DNP', &
   output=DOUT)
@@ -857,7 +856,7 @@ if (self%PhysiolDiagOn .and. .not. self%PhotoacclimOn) call self%fatal_error('ma
 if (self%BGC0DDiagOn .and. .not. self%PhosphorusOn) call self%fatal_error('maecs_init','BGC0DDiagOn=TRUE requires PhosphorusOn=TRUE')
 if (self%BGC0DDiagOn .and. .not. self%BioOxyOn) call self%fatal_error('maecs_init','BGC0DDiagOn=TRUE requires BioOxyOn=TRUE')
 
-!!------- Register environmental dependencies  ------- 
+!!------- Register environmental dependencies  -------
 call self%register_dependency(self%id_temp,standard_variables%temperature)
 call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
 call self%register_dependency(self%id_attpar,standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
@@ -908,13 +907,13 @@ if (self%ChemostatOn) then
     call self%register_dependency(self%id_CO2,standard_variables%practical_salinity)
 end if
 
-! extra lines included from maecs_incl.lst 
+! extra lines included from maecs_incl.lst
 ! complete N&P budgeting including components with fixed stoichiometry such as ZooC
 if (self%GrazingOn) then
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_zooC,scale_factor=const_NC_zoo)
    if (self%PhosphorusOn) then
       call self%add_to_aggregate_variable(standard_variables%total_phosphorus,self%id_zooC,scale_factor=const_PC_zoo)
-   end if 
+   end if
 end if
 
 ! special initialization of generic maecs structures
@@ -925,7 +924,7 @@ call maecs_init_stoichvars(self)
 
 return
 
-!!-------  if files are not found ...  
+!!-------  if files are not found ...
 90 call self%fatal_error('maecs_init','Error reading namelist maecs_switch.')
 91 call self%fatal_error('maecs_init','Error reading namelist maecs_init.')
 92 call self%fatal_error('maecs_init','Error reading namelist maecs_pars.')
@@ -942,7 +941,7 @@ return
 end subroutine initialize
 
 !!----------------------------------------------------------------------
-!!   end of section generated by parser 
+!!   end of section generated by parser
 !!----------------------------------------------------------------------
 !#SP#
 
@@ -960,37 +959,37 @@ end subroutine initialize
 !> if &maecs_env/kwFzmaxMeth==3: a_{\mathrm{water}}=a_w*f2(z)f(t); f(t) is unimodal
 
    subroutine get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
-!  
+!
 ! !INPUT PARAMETERS:
-   class(type_hzg_maecs),intent(in)          :: self 
+   class(type_hzg_maecs),intent(in)          :: self
    _DECLARE_ARGUMENTS_GET_EXTINCTION_
-   
+
    real(rk) :: p,z,poc,doc,chl,kw,zmax,doy,fz,ft,A,B,L,fz1,fz2,attv,lo,la,ya,xa,tke_bot
-   
+
    ! Enter spatial loops (if any)
    _LOOP_BEGIN_
 
 #if _DEBUG_
  write(*,'(A)') 'begin light_ext'
 #endif
-   ! Retrieve current (local) state variable values.  
+   ! Retrieve current (local) state variable values.
    _GET_(self%id_phyC,p) ! phytoplankton
    _GET_(self%id_detC,poc) ! particulate organic carbon
    _GET_(self%id_domC,doc) ! dissolved organic carbon
    if (self%GrazingOn) then
     _GET_(self%id_zooC, z)  ! Zooplankton Carbon in mmol-C/m**3
    else
-     z=0.0_rk 
+     z=0.0_rk
    end if
    if (self%PhotoacclimOn .and. self%a_chl .gt. 0.d0) then
       _GET_(self%id_chl, chl)  ! Chl in mg-Chla/mmol-C
    else
-     chl=0.0_rk 
+     chl=0.0_rk
    end if
 
-   !default: 
-   fz=1.0_rk 
-   ft=1.0_rk 
+   !default:
+   fz=1.0_rk
+   ft=1.0_rk
    !if (self%kwFzmaxMeth .eq. 0) then
      !constant bg attenuation. Do nothing     select case (self%kwFzmaxMeth)
 
@@ -1017,10 +1016,10 @@ end subroutine initialize
    endif
 ! additional extras in turbidity calculation
    if (self%kwFzmaxMeth .eq. 4) then
-    _GET_HORIZONTAL_(self%id_tke_bot,tke_bot) ! Latitude  [degN] 
+    _GET_HORIZONTAL_(self%id_tke_bot,tke_bot) ! Latitude  [degN]
     !f(z)=sigmoidal function of depth with an upper plateau (100%) at 0-10 m and a lower (10%) for 30+
     fz = self%a_minfr+fz1*(ft+sqrt(tke_bot*750))*0.5
-    !write (*,'(A, F7.6)') 'fz term: ',(1.0-self%a_minfr)*(1.0-1.0/(1.0+exp(-zmax*0.5+10))) 
+    !write (*,'(A, F7.6)') 'fz term: ',(1.0-self%a_minfr)*(1.0-1.0/(1.0+exp(-zmax*0.5+10)))
     kw = self%a_water*fz
    else if (self%kwFzmaxMeth .gt. 4) then  ! emulate turbid East Anglia plume
  !!    write (*,'(L2)'),_AVAILABLE_(self%id_lon)
@@ -1035,7 +1034,7 @@ end subroutine initialize
  !    write (*,'(A, 4(F9.3))') 'lo,la: ',lo,la,((la-ya+xa*lo)/2-xa*lo)**2+((la-ya+xa*lo)/2+ya-la)**2,fz
      kw=kw+self%a_water*fz
    end if
-   
+
    ! Attenuation as a result of background turbidity and self-shading of phytoplankton.
    attv =  kw + self%a_spm*(poc+z)+ self%a_doc*doc+ self%a_phyc*p + self%a_chl*chl
 
@@ -1044,7 +1043,7 @@ end subroutine initialize
    end if
 
    _SET_EXTINCTION_(attv)
-   
+
 #if _DEBUG_
 !write (*,'(A, 2(F5.2), I4, 3(F5.2))') 'zmax,t,meth,fz,ft,kw: ',zmax,doy,self%kwFzmaxMeth,fz,ft,kw
 write(*,'(A)') 'end light_ext'
@@ -1059,10 +1058,10 @@ write(*,'(A)') 'end light_ext'
 !> @brief a brief description to be added
 !> @details some details to be added
 subroutine maecs_init_stoichvars(self)
-   class(type_hzg_maecs),intent(inout)          :: self 
+   class(type_hzg_maecs),intent(inout)          :: self
 
 !use maecs_types
-!implicit none 
+!implicit none
 
 !type (type_maecs_nutindex) :: ni
 real(rk)    :: norder, pb
@@ -1077,19 +1076,19 @@ if (norder .gt. 1.) then
   norder = norder -  self%nutind%iN * pb
   nm     = nm + 1
   if (norder .gt. 0.99999) then
-    !  --------- phosphorus --------- 
+    !  --------- phosphorus ---------
     pb     = 10**floor(log10(norder))
     self%nutind%iP  = nint(norder/pb)
     norder = norder - self%nutind%iP * pb
     nm     = nm + 1
     if (norder .gt. 0.99999) then
-      !  --------- silicon ----------- 
+      !  --------- silicon -----------
       pb     = 10**floor(log10(norder))
       self%nutind%iSi = nint(norder/pb)
       norder = norder - self%nutind%iSi * pb
       nm     = nm + 1
     end if
-  end if  
+  end if
 else
  self%nutind%iN  = 1
  self%nutind%iP  = 2
@@ -1097,7 +1096,7 @@ else
  nm = 3
 endif
 
-! evaluate number of considered limiting nutrients  
+! evaluate number of considered limiting nutrients
 self%nutind%nutnum = 2 ! N and C are mandatory
 if (self%PhosphorusOn) then
   self%nutind%nutnum = self%nutind%nutnum + 1
@@ -1109,7 +1108,7 @@ if (self%SiliconOn) then
 end if
 
 ! special setting for synchrony dependency on relative quota: nutrient index
-nh = nint(10*(self%NutOrder-floor(self%NutOrder))) 
+nh = nint(10*(self%NutOrder-floor(self%NutOrder)))
 if ( nh .gt. 0 .and. nh .le. nm) then
   self%nutind%nhi = nh  ! element number corr. to first lower digit
 else
@@ -1117,11 +1116,11 @@ else
 endif
 
 !write (*,'(A,5(I4))') 'No No N P Si:',nm,self%nutind%nutnum,self%nutind%iN,self%nutind%iP,self%nutind%iSi
- 
+
 if (self%nutind%nutnum-1 .gt. nm) call self%fatal_error('maecs_init','Not enough nutrient indices provided by NutOrder.')
 
 ! build exponents from par value for experimental reshaping of synchrony function
-!if (self%maxVal .lt. -9.5d0) then 
+!if (self%maxVal .lt. -9.5d0) then
 !  nm = nint(-self%maxVal) - 10
 !  self%nutind%nfV  = floor(nm*0.5d0)
 !  self%nutind%nSRN = mod(nm,2)
@@ -1131,7 +1130,7 @@ if (self%nutind%nutnum-1 .gt. nm) call self%fatal_error('maecs_init','Not enough
 !  self%nutind%nSRN = 1
 !endif
 
-end subroutine maecs_init_stoichvars 
+end subroutine maecs_init_stoichvars
 
 #include "maecs_do.F90"
 
