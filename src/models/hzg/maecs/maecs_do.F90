@@ -361,8 +361,10 @@ if (self%GrazingOn) then
        fa = 0.01_rk+0.8_rk*max(fts, 1.0_rk/(1+exp(0.4*self%zm_fa_inf*(zmax-25.0))))
  !      if(sal .lt. 0.0_rk) sal = 0.0_rk
  !      if(sal .gt. 40.0_rk) sal = 40.0_rk
-       fa =  fa + 0.4_rk/(1+exp(self%zm_fa_inf*(sal-12)))
-       fts = self%zm_fa_delmax*sens%f_T2*0.25*(1-sin(2*(doy+25)*Pi/365.0))**2 ! seasonal increase in top-predation
+       if (self%zm_fa_inf .gt. 1E-4) fa =  fa + 1._rk/(1+exp(self%zm_fa_inf*(sal-12)))
+ ! fa =  fa + 0.4_rk/(1+exp(self%zm_fa_inf*(sal-12)))
+!   fts = self%zm_fa_delmax*sens%f_T2*0.25*(1-sin(2*(doy+25)*Pi/365.0))**2 ! seasonal increase in top-predation
+       fts = self%zm_fa_delmax*sens%f_T2*0.5*(1-sin(2*(doy+0)*Pi/365.0)) ! seasonal increase in top-predation
 !       relmort = fa *(1+fts) + 0.5*fts
        relmort = fa*(0.1*zoo%C+fts)
 !       ksat_graz = (0.5*(1+fa)*(1+fts)+0.0_rk) * self%k_grazC
@@ -1061,12 +1063,12 @@ if (self%DebugDiagOn) then
 end if
 if (self%BGC0DDiagOn) then
   _SET_DIAGNOSTIC_(self%id_GPPR, _REPLNAN_(phy%gpp*phy%C))   !average gross_primary_production_
-  _SET_DIAGNOSTIC_(self%id_Denitr, _REPLNAN_(0.8*Denitrific)) !average denitrification_rate_
+!  _SET_DIAGNOSTIC_(self%id_Denitr, _REPLNAN_(0.8*Denitrific)) !average denitrification_rate_
   _SET_DIAGNOSTIC_(self%id_DNP, _REPLNAN_(nut%N/(nut%P+self%small))) !average DIN:DIP_ratio_
   _SET_DIAGNOSTIC_(self%id_QNP, _REPLNAN_(phy%Q%N/phy%Q%P))  !average N:P_ratio_
   _SET_DIAGNOSTIC_(self%id_qualPOM, _REPLNAN_(qualPOM))      !average Quality_of_POM_
   _SET_DIAGNOSTIC_(self%id_qualDOM, _REPLNAN_(qualDOM))      !average Quality_of_DOM_
-  _SET_DIAGNOSTIC_(self%id_no3, _REPLNAN_(no3))              !average Nitrate_
+!  _SET_DIAGNOSTIC_(self%id_no3, _REPLNAN_(no3))              !average Nitrate_
 end if
 if (self%PhysiolDiagOn) then
   _SET_DIAGNOSTIC_(self%id_chl2C, _REPLNAN_(phy%theta*phy%rel_chloropl/12)) !average chlorophyll:carbon_ratio_=_chl-a/chloroplast-C_*_chloroplast-C/phy-molC_*_1molC/12gC_

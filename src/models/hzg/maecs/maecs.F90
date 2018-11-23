@@ -854,7 +854,7 @@ if (self%BGC2DDiagOn .and. .not. self%BGC0DDiagOn) call self%fatal_error('maecs_
 if (self%Budget2DDiagOn .and. .not. self%Budget0DDiagOn) call self%fatal_error('maecs_init','Budget2DDiagOn=TRUE requires Budget0DDiagOn=TRUE')
 if (self%PhysiolDiagOn .and. .not. self%PhotoacclimOn) call self%fatal_error('maecs_init','PhysiolDiagOn=TRUE requires PhotoacclimOn=TRUE')
 if (self%BGC0DDiagOn .and. .not. self%PhosphorusOn) call self%fatal_error('maecs_init','BGC0DDiagOn=TRUE requires PhosphorusOn=TRUE')
-if (self%BGC0DDiagOn .and. .not. self%BioOxyOn) call self%fatal_error('maecs_init','BGC0DDiagOn=TRUE requires BioOxyOn=TRUE')
+!if (self%BGC0DDiagOn .and. .not. self%BioOxyOn) call self%fatal_error('maecs_init','BGC0DDiagOn=TRUE requires BioOxyOn=TRUE')
 
 !!------- Register environmental dependencies  -------
 call self%register_dependency(self%id_temp,standard_variables%temperature)
