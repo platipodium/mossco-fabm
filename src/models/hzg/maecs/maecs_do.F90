@@ -358,10 +358,10 @@ if (self%GrazingOn) then
       _GET_(self%id_sal,sal) ! salinity
       _GET_HORIZONTAL_(self%id_zmax, zmax)  ! max depth
        fts = 1._rk/(1+exp(self%zm_fa_inf*(sal+self%mort_ODU)))
-       fa = 0.01_rk+0.8_rk*max(fts, 1.0_rk/(1+exp(0.4*self%zm_fa_inf*(zmax-25.0))))
+       fa = 0.01_rk+1.0_rk*max(fts, 1.0_rk/(1+exp(0.4*self%zm_fa_inf*(zmax-25.0))))
  !      if(sal .lt. 0.0_rk) sal = 0.0_rk
  !      if(sal .gt. 40.0_rk) sal = 40.0_rk
-       if (self%zm_fa_inf .gt. 1E-4) fa =  fa + 1._rk/(1+exp(self%zm_fa_inf*(sal-12)))
+       if (self%zm_fa_inf .gt. 1E-4) fa =  fa + 1.0_rk/(1+exp(self%zm_fa_inf*(sal-12)))
  ! fa =  fa + 0.4_rk/(1+exp(self%zm_fa_inf*(sal-12)))
 !   fts = self%zm_fa_delmax*sens%f_T2*0.25*(1-sin(2*(doy+25)*Pi/365.0))**2 ! seasonal increase in top-predation
        fts = self%zm_fa_delmax*sens%f_T2*0.5*(1-sin(2*(doy+0)*Pi/365.0)) ! seasonal increase in top-predation
